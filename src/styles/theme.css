@@ -1,0 +1,108 @@
+:root {
+    /* The Old Box Palette - Victorian Mystery */
+    /* Deep, rich, dark backgrounds */
+    --bg-main: #0c0a09;
+    /* Very dark slightly warm black */
+    --bg-panel: #141210;
+    /* Slightly lighter panel bg */
+    --bg-hover: #1f1a16;
+    /* Hover state */
+
+    /* Text Colors */
+    --text-main: #e8e6e3;
+    /* Off-white/Parchment-like text */
+    --text-muted: #8c857b;
+    /* Muted warm grey */
+    --text-gold: #cfb53b;
+    /* Old Gold */
+    --text-highlight: #ffdd99;
+    /* Bright gold for active states */
+
+    /* Accents */
+    --accent-crimson: #722f37;
+    /* Dried Blood/Wine */
+    --accent-green: #2f4f4f;
+    /* Dark Slate Grey/Green */
+    --accent-gold: #cfb53b;
+
+    /* Borders */
+    --border-gold: #8a7e57;
+    /* Dull Gold */
+    --border-bright: #cfb53b;
+    /* Bright Gold for focus */
+    --border-dim: #3d3a35;
+
+    /* Typography */
+    --font-display: 'Playfair Display', serif;
+    /* Victorian Headers */
+    --font-body: 'Inter', sans-serif;
+    /* Readable body */
+    --font-mono: 'Courier Prime', monospace;
+    /* Typewriter touches */
+
+    --game-tracking: 0.15em;
+    /* Letter spacing for headers */
+
+    /* Spacing */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 2rem;
+    --space-xl: 4rem;
+
+    /* Shape */
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 8px;
+    /* Slightly rounded for organic feel, but mostly boxy */
+
+    --border-width: 1px;
+    --border-double: 3px double var(--border-gold);
+
+    /* Texture & Effects */
+    --glass-panel: rgba(20, 18, 16, 0.95);
+    --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 12px rgba(0, 0, 0, 0.4);
+    --glow-gold: 0 0 10px rgba(207, 181, 59, 0.2);
+
+    --bg-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.07'/%3E%3C/svg%3E");
+}
+
+body {
+    background-color: var(--bg-main);
+    background-image: var(--bg-texture);
+    color: var(--text-main);
+    font-family: var(--font-serif);
+    margin: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    /* The Frame */
+    border: 1px solid var(--border-gold);
+    height: 100vh;
+    overflow: hidden;
+    /* App content handles scrolling */
+    position: relative;
+}
+
+/* Scrollbar - minimal */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-gold);
+}
+
+/* Utility for the signature headers */
+.box-header {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: var(--game-tracking);
+    color: var(--text-gold);
+    font-weight: 700;
+    font-size: 0.875rem;
+}

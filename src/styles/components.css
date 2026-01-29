@@ -1,0 +1,108 @@
+/* Widget Card - "The Mystery Box" */
+.widget-card {
+    background: var(--bg-panel);
+    border: var(--border-double);
+    padding: var(--space-md);
+    position: relative;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    height: 100%;
+    min-height: 150px;
+    overflow: hidden;
+}
+
+.widget-card::before {
+    /* Corner Ornamentation (Top Left) */
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    border-top: 2px solid var(--accent-gold);
+    border-left: 2px solid var(--accent-gold);
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+.widget-card::after {
+    /* Corner Ornamentation (Bottom Right) */
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    border-bottom: 2px solid var(--accent-gold);
+    border-right: 2px solid var(--accent-gold);
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+.widget-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md), var(--glow-gold);
+    border-color: var(--border-bright);
+}
+
+.widget-card:hover::before,
+.widget-card:hover::after {
+    opacity: 1;
+}
+
+.widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border-gold);
+    padding-bottom: var(--space-xs);
+}
+
+/* Utility for headers - backwards compatibility */
+.box-header {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: var(--game-tracking);
+    color: var(--text-gold);
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.widget-title {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: var(--game-tracking);
+    color: var(--text-gold);
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.widget-content {
+    flex: 1;
+    color: var(--text-main);
+    font-family: var(--font-body);
+}
+
+/* Common Inputs/Buttons in widgets */
+.widget-btn {
+    border: 1px solid var(--border-gold);
+    color: var(--text-gold);
+    padding: 4px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.widget-btn:hover {
+    background: var(--accent-crimson);
+    color: var(--text-main);
+    border-color: var(--accent-crimson);
+}

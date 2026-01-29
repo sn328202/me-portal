@@ -1,0 +1,112 @@
+.app-shell {
+    display: flex;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+.sidebar {
+    width: 80px;
+    /* Slightly wider for ease */
+    background: var(--bg-panel);
+    border-right: 3px double var(--border-gold);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-xl) 0;
+    gap: var(--space-lg);
+    transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 100;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+
+.sidebar::after {
+    /* Decorative faint line pattern or grain could go here */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--bg-texture);
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.sidebar:hover {
+    width: 280px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    color: var(--text-muted);
+    width: 100%;
+    transition: all 0.3s ease;
+    justify-content: flex-start;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    letter-spacing: var(--game-tracking);
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    /* Larger text */
+    border-left: 3px solid transparent;
+    position: relative;
+}
+
+.sidebar:not(:hover) .nav-item {
+    justify-content: center;
+    padding: var(--space-md) 0;
+    color: var(--text-gold);
+    /* Enhance visibility when collapsed */
+    opacity: 0.8;
+}
+
+.nav-item:hover,
+.nav-item.active {
+    color: var(--text-highlight);
+    border-left-color: var(--accent-gold);
+    background: linear-gradient(90deg, var(--bg-hover) 0%, transparent 100%);
+    text-shadow: 0 0 8px rgba(207, 181, 59, 0.4);
+}
+
+.sidebar:not(:hover) .nav-label {
+    display: none;
+}
+
+.nav-label {
+    /* opacity: 0;  <-- removed base opacity rule since display:none handles it */
+    transition: opacity 0.3s ease 0.1s;
+    font-weight: 600;
+}
+
+.sidebar:hover .nav-label {
+    opacity: 1;
+}
+
+.main-content {
+    flex: 1;
+    padding: var(--space-lg);
+    /* reduced padding */
+    overflow-y: auto;
+    position: relative;
+}
+
+/* Scrollbar within content */
+.main-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+    background: var(--border-dim);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 4rem;
+    /* HUGE gap for that museum/gallery feel */
+    max-width: 1600px;
+    margin: 0 auto;
+}
