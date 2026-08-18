@@ -27,3 +27,10 @@ dist-ssr
 
 # Local build logs
 build_output.txt
+
+# Ad-hoc local scripts (contain credentials - never commit)
+test_*.js
+verify_*.js
+verify-*.jsx
+.env*
+!.env.example
