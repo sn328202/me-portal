@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .vercel
 .env
+
+# Local build logs
+build_output.txt

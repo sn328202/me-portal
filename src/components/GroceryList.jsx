@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProvisions } from '../hooks/useProvisions'; // Shared state
+import { useIngredients } from '../hooks/useIngredients';
+import { findIngredient } from '../data/ingredients';
 import { GiCheckMark, GiBasket } from 'react-icons/gi';
 
 const GroceryList = ({ plan, recipes }) => {
     // 1. Shared Manual Items (from Dashboard)
     const { items: manualItems, addItem, toggleItem, deleteItem, clearChecked } = useProvisions();
+    const { ingredientsByName } = useIngredients();
     const [newItemInput, setNewItemInput] = useState('');
 
     // 2. Aggregate Planned Ingredients (from Hearth)
@@ -20,6 +23,43 @@ const GroceryList = ({ plan, recipes }) => {
             }
         });
     }
+
+    // 3. Categorize Everything
+    const categoricalGroups = useMemo(() => {
+        const groups = {};
+
+        const addToGroup = (item, type, originalData) => {
+            const itemName = (item.text || item.item || '').toLowerCase().trim();
+
+            // Try to find category:
+            // 1. User's Pantry (explicitly defined)
+            // 2. Global Library (fuzzy match)
+            // 3. Fallback to Miscellaneous
+            const ingData = ingredientsByName[itemName] || findIngredient(itemName);
+            const category = (ingData?.category || 'Miscellaneous').toUpperCase();
+
+            if (!groups[category]) groups[category] = [];
+            groups[category].push({ ...item, category, type, originalData });
+        };
+
+        manualItems.forEach(item => addToGroup(item, 'manual', item));
+        plannedIngredients.forEach(item => addToGroup(item, 'planned', item));
+
+        const sortedCategories = Object.keys(groups).sort((a, b) => {
+            const order = ['PRODUCE', 'DAIRY', 'PROTEIN', 'PANTRY', 'SPICES', 'BAKERY', 'FROZEN'];
+            const indexA = order.indexOf(a);
+            const indexB = order.indexOf(b);
+
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            if (a === 'MISCELLANEOUS') return 1;
+            if (b === 'MISCELLANEOUS') return -1;
+            return a.localeCompare(b);
+        });
+
+        return { groups, sortedCategories };
+    }, [manualItems, plannedIngredients, ingredientsByName]);
 
     const handleAddManual = (e) => {
         e.preventDefault();
@@ -39,7 +79,6 @@ const GroceryList = ({ plan, recipes }) => {
                 </p>
                 <p>Plan meals in The Hearth or add items manually to generate your provisions list.</p>
 
-                {/* Allow adding manual item even in empty state */}
                 <form onSubmit={handleAddManual} style={{ marginTop: '2rem', maxWidth: '300px', margin: '2rem auto' }}>
                     <input
                         type="text"
@@ -64,7 +103,7 @@ const GroceryList = ({ plan, recipes }) => {
             position: 'relative',
             fontFamily: 'var(--font-mono)', // Typewriter
             minHeight: '600px',
-            transform: 'rotate(-1deg)'
+            transform: 'rotate(-0.5deg)'
         }}>
             <h2 style={{
                 textAlign: 'center',
@@ -78,14 +117,13 @@ const GroceryList = ({ plan, recipes }) => {
                 {manualItems.some(i => i.checked) && (
                     <button
                         onClick={clearChecked}
-                        style={{ position: 'absolute', right: '2rem', fontSize: '0.7rem', textDecoration: 'underline', color: '#555' }}
+                        style={{ position: 'absolute', right: '2rem', fontSize: '0.7rem', textDecoration: 'underline', color: '#555', border: 'none', background: 'transparent', cursor: 'pointer' }}
                     >
                         Clear Checked
                     </button>
                 )}
             </h2>
 
-            {/* Manual Entry Input (Paper Style) */}
             <form onSubmit={handleAddManual} style={{ marginBottom: '2rem', borderBottom: '1px dashed #aaa', paddingBottom: '1rem' }}>
                 <input
                     type="text"
@@ -101,45 +139,60 @@ const GroceryList = ({ plan, recipes }) => {
                 />
             </form>
 
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-                {/* 1. Manual Items from Dashboard */}
-                {manualItems.map(item => (
-                    <li key={item.id}
-                        onClick={() => toggleItem(item.id)}
-                        style={{
-                            display: 'flex', alignItems: 'baseline', gap: '12px', padding: '8px 0', borderBottom: '1px dashed #ccc',
-                            cursor: 'pointer', opacity: item.checked ? 0.5 : 1, textDecoration: item.checked ? 'line-through' : 'none'
-                        }}
-                    >
-                        <div style={{
-                            width: '20px', height: '20px', border: '2px solid #1a1a1a', borderRadius: '50%', flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', background: item.checked ? '#1a1a1a' : 'transparent'
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {categoricalGroups.sortedCategories.map(cat => (
+                    <div key={cat}>
+                        <h4 style={{
+                            margin: '0 0 0.5rem 0',
+                            fontSize: '0.8rem',
+                            letterSpacing: '2px',
+                            color: '#666',
+                            borderBottom: '1px solid #ccc',
+                            paddingBottom: '4px'
                         }}>
-                            {item.checked && <GiCheckMark size={12} color="#e8e6e3" />}
-                        </div>
-                        <span style={{ fontWeight: 'bold' }}>{item.text}</span>
-                        <div style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#666', fontStyle: 'italic' }}>(Manual)</div>
-                    </li>
-                ))}
-
-                {/* 2. Planned Ingredients from Meal Plan */}
-                {plannedIngredients.length > 0 && (
-                    <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '2px double #ccc' }}>
-                        <h4 style={{ margin: '0 0 1rem 0', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.9rem', color: '#555' }}>From The Hearth</h4>
-                        {plannedIngredients.map(ing => (
-                            <li key={ing.uniqueKey} style={{
-                                display: 'flex', alignItems: 'baseline', gap: '12px', padding: '8px 0', borderBottom: '1px dashed #ccc'
-                            }}>
-                                <div style={{ width: '20px', height: '20px', border: '2px solid #aaa', borderRadius: '50%', flexShrink: 0 }} />
-                                <div>
-                                    <span style={{ fontWeight: 'bold' }}>{ing.amount} {ing.unit}</span> {ing.item}
-                                    <div style={{ fontSize: '0.7rem', color: '#666', fontStyle: 'italic' }}>for {ing.recipeName}</div>
-                                </div>
-                            </li>
-                        ))}
+                            {cat}
+                        </h4>
+                        <ul style={{ listStyle: 'none', padding: 0 }}>
+                            {categoricalGroups.groups[cat].map((item, idx) => {
+                                if (item.type === 'manual') {
+                                    return (
+                                        <li key={item.id}
+                                            onClick={() => toggleItem(item.id)}
+                                            style={{
+                                                display: 'flex', alignItems: 'baseline', gap: '12px', padding: '8px 0', borderBottom: '1px dashed #ccc',
+                                                cursor: 'pointer', opacity: item.checked ? 0.5 : 1, textDecoration: item.checked ? 'line-through' : 'none'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: '18px', height: '18px', border: '1.5px solid #1a1a1a', borderRadius: '50%', flexShrink: 0,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', background: item.checked ? '#1a1a1a' : 'transparent',
+                                                marginTop: '2px'
+                                            }}>
+                                                {item.checked && <GiCheckMark size={10} color="#e8e6e3" />}
+                                            </div>
+                                            <span style={{ fontWeight: 'bold' }}>{item.text}</span>
+                                            <div style={{ marginLeft: 'auto', fontSize: '0.6rem', color: '#888', fontStyle: 'italic' }}>Manual</div>
+                                        </li>
+                                    );
+                                } else {
+                                    const ing = item.originalData;
+                                    return (
+                                        <li key={ing.uniqueKey} style={{
+                                            display: 'flex', alignItems: 'baseline', gap: '12px', padding: '8px 0', borderBottom: '1px dashed #ccc'
+                                        }}>
+                                            <div style={{ width: '18px', height: '18px', border: '1.5px solid #aaa', borderRadius: '50%', flexShrink: 0, marginTop: '2px' }} />
+                                            <div>
+                                                <span style={{ fontWeight: 'bold' }}>{ing.amount} {ing.unit}</span> {ing.item}
+                                                <div style={{ fontSize: '0.6rem', color: '#888', fontStyle: 'italic' }}>for {ing.recipeName}</div>
+                                            </div>
+                                        </li>
+                                    );
+                                }
+                            })}
+                        </ul>
                     </div>
-                )}
-            </ul>
+                ))}
+            </div>
         </div>
     );
 };

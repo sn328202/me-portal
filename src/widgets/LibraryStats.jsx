@@ -1,9 +1,12 @@
 import React, { useMemo } from 'react';
 import { useLibrary } from '../hooks/useLibrary';
+import { useTheme } from '../contexts/ThemeContext';
 import { GiBookshelf, GiFilmStrip, GiCompactDisc, GiTv, GiGamepad } from 'react-icons/gi';
+import '../styles/LibraryStats.css';
 
 const LibraryStats = () => {
     const { items, loading } = useLibrary();
+    const { getLabel } = useTheme();
 
     const stats = useMemo(() => {
         const completed = items.filter(i => i.status === 'Completed');
@@ -20,79 +23,67 @@ const LibraryStats = () => {
         return items.filter(i => i.status === 'In Progress');
     }, [items]);
 
-    if (loading) return <div style={{ padding: '1rem', color: '#8d6e63' }}>Loading Archive...</div>;
+    if (loading) return <div className="library-loading">Loading Archive...</div>;
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '1rem', color: 'var(--text-main)', padding: '1.5rem 0' }}>
+        <div className="library-stats-container">
 
             {/* KPI STATS */}
             <div>
-                <h3 style={{ margin: '0 0 1rem 0', fontFamily: 'Playfair Display, serif', color: '#cfb53b', borderBottom: '1px solid #444', paddingBottom: '0.5rem' }}>
-                    Archives Consumed
+                <h3 className="library-section-title">
+                    {getLabel('library')} Consumed
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', textAlign: 'center' }}>
-                    <div className="stat-box">
-                        <GiBookshelf size={24} color="#a1887f" />
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.Books}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#888' }}>Books</div>
+                <div className="library-kpi-grid">
+                    <div className="library-stat-box">
+                        <GiBookshelf size={24} color="var(--border-gold)" />
+                        <div className="library-stat-value">{stats.Books}</div>
+                        <div className="library-stat-label">Books</div>
                     </div>
-                    <div className="stat-box">
-                        <GiFilmStrip size={24} color="#a1887f" />
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.Movies}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#888' }}>Movies</div>
+                    <div className="library-stat-box">
+                        <GiFilmStrip size={24} color="var(--border-gold)" />
+                        <div className="library-stat-value">{stats.Movies}</div>
+                        <div className="library-stat-label">Movies</div>
                     </div>
-                    <div className="stat-box">
-                        <GiCompactDisc size={24} color="#a1887f" />
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.Albums}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#888' }}>Albums</div>
+                    <div className="library-stat-box">
+                        <GiCompactDisc size={24} color="var(--border-gold)" />
+                        <div className="library-stat-value">{stats.Albums}</div>
+                        <div className="library-stat-label">Albums</div>
                     </div>
-                    <div className="stat-box">
-                        <GiTv size={24} color="#a1887f" />
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.Shows}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#888' }}>Shows</div>
+                    <div className="library-stat-box">
+                        <GiTv size={24} color="var(--border-gold)" />
+                        <div className="library-stat-value">{stats.Shows}</div>
+                        <div className="library-stat-label">Shows</div>
                     </div>
-                    <div className="stat-box">
-                        <GiGamepad size={24} color="#a1887f" />
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.Games}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#888' }}>Games</div>
+                    <div className="library-stat-box">
+                        <GiGamepad size={24} color="var(--border-gold)" />
+                        <div className="library-stat-value">{stats.Games}</div>
+                        <div className="library-stat-label">Games</div>
                     </div>
                 </div>
             </div>
 
             {/* NOW CONSUMING SHELF */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ margin: '1rem 0', fontFamily: 'var(--font-display)', color: 'var(--text-gold)', borderBottom: '1px solid var(--border-dim)', paddingBottom: '0.5rem' }}>
-                    Now Consuming
+            <div className="library-now-consuming-container">
+                <h3 className="library-now-consuming-title">
+                    {getLabel('nowConsuming')}
                 </h3>
 
                 {nowConsuming.length === 0 ? (
-                    <div style={{ fontStyle: 'italic', color: '#666', textAlign: 'center', marginTop: '1rem' }}>
-                        Nothing in progress.
+                    <div className="library-empty-state">
+                        Nothing {getLabel('nowConsuming').toLowerCase()}.
                     </div>
                 ) : (
-                    <div style={{
-                        display: 'flex',
-                        gap: '1rem',
-                        overflowX: 'auto',
-                        paddingBottom: '0.5rem',
-                        alignItems: 'center'
-                    }}>
+                    <div className="library-consuming-list">
                         {nowConsuming.map(item => (
-                            <div key={item.id} style={{ minWidth: '80px', maxWidth: '80px', textAlign: 'center' }}>
-                                <div style={{
-                                    width: '80px', height: '120px',
-                                    borderRadius: '4px', overflow: 'hidden',
-                                    marginBottom: '0.5rem',
-                                    border: '1px solid #444',
-                                    position: 'relative'
-                                }}>
+                            <div key={item.id} className="library-item-card">
+                                <div className="library-item-poster">
                                     {item.image_url ? (
-                                        <img src={item.image_url} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img src={item.image_url} alt={item.title} className="library-item-image" />
                                     ) : (
-                                        <div style={{ width: '100%', height: '100%', background: '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}>?</div>
+                                        <div className="library-item-placeholder">?</div>
                                     )}
                                 </div>
-                                <div style={{ fontSize: '0.7rem', maxHeight: '2.4em', overflow: 'hidden', lineHeight: '1.2' }}>{item.title}</div>
+                                <div className="library-item-title">{item.title}</div>
                             </div>
                         ))}
                     </div>

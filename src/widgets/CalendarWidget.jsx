@@ -1,25 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { GiSundial, GiNotebook } from 'react-icons/gi';
+import { GiSundial, GiNotebook, GiEclipse } from 'react-icons/gi';
+import { useAuth } from '../contexts/AuthContext';
+import { useSettings } from '../hooks/useSettings';
+import '../styles/CalendarWidget.css';
 
 const CalendarWidget = () => {
-    const [calendarId, setCalendarId] = useState(localStorage.getItem('me_portal_calendar_id') || '');
+    const { user } = useAuth();
+    const { settings, updateSetting } = useSettings();
+    const [calendarId, setCalendarId] = useState('');
+    const [isDarkMode, setIsDarkMode] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Listen for updates
+    // Load Configuration & Identity
+    useEffect(() => {
+        if (settings.calendarId) {
+            setCalendarId(settings.calendarId);
+        }
+        setIsDarkMode(!!settings.calendarDarkMode);
+    }, [settings.calendarId, settings.calendarDarkMode]);
+
     useEffect(() => {
         const handleUpdate = () => {
-            setCalendarId(localStorage.getItem('me_portal_calendar_id') || '');
+            // Manual refresh if needed, but useSettings should handle it
         };
         window.addEventListener('calendar-config-updated', handleUpdate);
         return () => window.removeEventListener('calendar-config-updated', handleUpdate);
     }, []);
 
+    const toggleDarkMode = async () => {
+        const newVal = !isDarkMode;
+        setIsDarkMode(newVal);
+        await updateSetting('calendarDarkMode', newVal);
+    };
+
     // Helper to construct the dark mode URL
-    const getEmbedUrl = (id) => {
-        if (!id) return '';
+    const getEmbedUrl = (idString) => {
+        if (!idString) return '';
+        const ids = idString.split(',').map(s => s.trim()).filter(s => s);
+        if (ids.length === 0) return '';
+
         const base = "https://calendar.google.com/calendar/embed";
         const params = new URLSearchParams({
-            src: id,
             ctz: Intl.DateTimeFormat().resolvedOptions().timeZone,
             showTitle: '0',
             showNav: '1',
@@ -31,16 +52,20 @@ const CalendarWidget = () => {
             mode: 'WEEK',
             height: '600',
             wkst: '1',
-            bgcolor: '#d7cec7',
+            bgcolor: '#d7cec7', // We keep this as base. Invert will make it dark slate/blue.
             color: '#3e2723'
         });
+
+        // Append each calendar source
+        ids.forEach(id => params.append('src', id));
+
         return `${base}?${params.toString()}`;
     };
 
     if (!calendarId) {
         return (
-            <div className="widget-card" style={{ height: '100%', padding: '1.5rem', background: '#d7cec7', border: '3px double #5d4037', borderRadius: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#5d4037' }}>
-                <GiSundial size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
+            <div className="calendar-disconnected">
+                <GiSundial size={48} className="calendar-disconnected-icon" />
                 <h3>The Chronometer is Disconnected</h3>
                 <p>Please enter your <strong>Calendar ID</strong> in Settings to activate the viewing glass.</p>
             </div>
@@ -48,38 +73,44 @@ const CalendarWidget = () => {
     }
 
     // Modal Content
-    const CalendarFrame = ({ className }) => (
-        <iframe
-            src={getEmbedUrl(calendarId)}
-            style={{ border: 0, width: '100%', height: '100%' }}
-            frameBorder="0"
-            scrolling="no"
-            title="Google Calendar"
-            className={className}
-        ></iframe>
-    );
+    const CalendarFrame = ({ className }) => {
+        const url = getEmbedUrl(calendarId);
+        if (!url) return null;
+
+        return (
+            <iframe
+                src={url}
+                className={`calendar-frame ${className || ''}`}
+                style={{
+                    filter: isDarkMode ? 'invert(0.9) hue-rotate(180deg)' : 'none'
+                }}
+                frameBorder="0"
+                scrolling="no"
+                title="Google Calendar"
+            ></iframe>
+        );
+    };
 
     return (
         <>
             {/* Standard Widget View */}
-            <div className="widget-card" style={{ height: '800px', padding: '1rem', background: '#d7cec7', border: '3px double #5d4037', borderRadius: '4px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="calendar-widget">
                 {/* Header / Frame */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', borderBottom: '1px solid #795548', paddingBottom: '0.5rem', flexShrink: 0 }}>
-                    <h3 style={{ margin: 0, fontFamily: 'Playfair Display, serif', color: '#3e2723', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="calendar-header">
+                    <h3 className="calendar-title">
                         <GiSundial /> Google Chronometer
                     </h3>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div className="calendar-controls">
+                        <button
+                            onClick={toggleDarkMode}
+                            className={`calendar-btn-icon ${isDarkMode ? 'active' : ''}`}
+                            title={isDarkMode ? "Disable Dark Mode" : "Enable Dark Mode"}
+                        >
+                            <GiEclipse />
+                        </button>
                         <button
                             onClick={() => setIsExpanded(true)}
-                            style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: '#5d4037',
-                                cursor: 'pointer',
-                                fontSize: '1.2rem',
-                                padding: '0 4px',
-                                display: 'flex', alignItems: 'center'
-                            }}
+                            className="calendar-btn-expand"
                             title="Expanse Mode (Fullscreen)"
                         >
                             ⤢
@@ -88,18 +119,7 @@ const CalendarWidget = () => {
                             href="https://calendar.google.com/calendar/r/settings/export"
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{
-                                color: '#5d4037',
-                                textDecoration: 'none',
-                                fontSize: '0.8rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                border: '1px solid #5d4037',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                background: 'rgba(255,255,255,0.3)'
-                            }}
+                            className="calendar-btn-import"
                             title="Open Google Calendar Import Settings"
                         >
                             <GiNotebook /> Import .ics
@@ -108,64 +128,32 @@ const CalendarWidget = () => {
                 </div>
 
                 {/* The Portal (Iframe) */}
-                <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '2px', border: '1px solid #795548', position: 'relative' }}>
+                <div className={`calendar-portal ${isDarkMode ? 'dark' : ''}`}>
                     <CalendarFrame />
                 </div>
 
                 {/* Note about appearance */}
-                <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#8d6e63', marginTop: '0.2rem', flexShrink: 0 }}>
-                    * Appearance controlled by Google. For best results, ensure you are logged in.
+                <div className="calendar-note">
+                    * Appearance controlled by Google. Toggle <GiEclipse style={{ verticalAlign: 'middle' }} /> for spectral contrast.
                 </div>
             </div>
 
             {/* Expanse Mode Modal */}
             {isExpanded && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    width: '100vw',
-                    height: '100vh',
-                    background: 'rgba(0,0,0,0.85)',
-                    zIndex: 9999,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '2rem'
-                }}>
-                    <div style={{
-                        width: '95vw',
-                        height: '90vh',
-                        background: '#d7cec7',
-                        border: '4px double #5d4037',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        padding: '1rem',
-                        position: 'relative',
-                        boxShadow: '0 0 50px rgba(0,0,0,0.8)'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid #795548', paddingBottom: '0.5rem' }}>
-                            <h2 style={{ margin: 0, fontFamily: 'Playfair Display, serif', color: '#3e2723', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="calendar-expanse-overlay">
+                    <div className="calendar-expanse-content">
+                        <div className="calendar-expanse-header">
+                            <h2 className="calendar-expanse-title">
                                 <GiSundial /> Chronometer Expanse
                             </h2>
                             <button
                                 onClick={() => setIsExpanded(false)}
-                                style={{
-                                    background: 'var(--accent-crimson)',
-                                    color: '#fff',
-                                    border: 'none',
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold',
-                                    fontFamily: 'monospace'
-                                }}
+                                className="calendar-close-btn"
                             >
                                 CLOSE [ESC]
                             </button>
                         </div>
-                        <div style={{ flex: 1, background: '#fff', border: '1px solid #795548' }}>
+                        <div className={`calendar-portal ${isDarkMode ? 'dark' : ''}`}>
                             <CalendarFrame />
                         </div>
                     </div>
@@ -174,5 +162,4 @@ const CalendarWidget = () => {
         </>
     );
 };
-
 export default CalendarWidget;

@@ -1,0 +1,61 @@
+.streak-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--badge-color, var(--text-gold));
+    border-radius: 8px;
+    background: var(--bg-panel);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 100px;
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: default;
+}
+
+.streak-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.streak-icon {
+    font-size: 2rem;
+    color: var(--badge-color, var(--text-gold));
+    margin-bottom: 0.2rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.streak-count {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: bold;
+    line-height: 1;
+    color: var(--badge-color, var(--text-gold));
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.streak-count.zero {
+    color: var(--text-muted);
+}
+
+.streak-label {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    margin-top: 0.2rem;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+}
+
+/* Victorian Flourish */
+.streak-flourish {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30%;
+    height: 2px;
+    background: var(--badge-color, var(--text-gold));
+    opacity: 0.6;
+    border-radius: 2px;
+}

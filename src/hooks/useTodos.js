@@ -1,26 +1,37 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useTodos = () => {
+    const { user } = useAuth();
     const [todos, setTodos] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const fetchTodos = async () => {
+        if (!user) {
+            setTodos([]);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         const { data, error } = await supabase
             .from('todos')
             .select('*')
+            .eq('user_id', user.id)
             .order('id', { ascending: true });
 
-        if (!error) setTodos(data);
+        if (!error) setTodos(data || []);
+        else console.error('Error fetching todos:', error);
         setLoading(false);
     };
 
     useEffect(() => {
         fetchTodos();
-    }, []);
+    }, [user]);
 
     const toggleTodo = async (id) => {
+        if (!user) return;
         const todo = todos.find(t => t.id === id);
         if (!todo) return;
 
@@ -30,21 +41,25 @@ export const useTodos = () => {
         const { error } = await supabase
             .from('todos')
             .update({ completed: newCompleted })
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', user.id); // Security: ensure ownership
 
-        if (error) fetchTodos();
+        if (error) {
+            console.error('Error toggling todo:', error);
+            fetchTodos();
+        }
     };
 
     const addTodo = async (text) => {
-        if (!text.trim()) return;
+        if (!text.trim() || !user) return;
 
         const tempId = Date.now();
-        const newTodo = { id: tempId, text, completed: false };
+        const newTodo = { id: tempId, text, completed: false, user_id: user.id };
         setTodos(prev => [...prev, newTodo]);
 
         const { data, error } = await supabase
             .from('todos')
-            .insert([{ text, completed: false }])
+            .insert([{ text, completed: false, user_id: user.id }])
             .select()
             .single();
 
@@ -57,8 +72,9 @@ export const useTodos = () => {
     };
 
     const deleteTodo = async (id) => {
+        if (!user) return;
         setTodos(prev => prev.filter(t => t.id !== id));
-        await supabase.from('todos').delete().eq('id', id);
+        await supabase.from('todos').delete().eq('id', id).eq('user_id', user.id);
     };
 
     return { todos, toggleTodo, addTodo, deleteTodo, loading };

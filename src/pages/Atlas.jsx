@@ -75,7 +75,7 @@ const Atlas = () => {
         setCoverError('');
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort("Timeout"), 5000);
 
         try {
             const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
@@ -94,7 +94,11 @@ const Atlas = () => {
                 }
             }
         } catch (err) {
-            console.error("Failed to fetch cover image", err);
+            if (err.name === 'AbortError') {
+                console.warn("Cover image fetch timed out.");
+            } else {
+                console.error("Failed to fetch cover image", err);
+            }
             setCoverError('Scan timed out. Please paste direct Image Address below.');
         } finally {
             clearTimeout(timeoutId);

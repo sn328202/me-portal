@@ -1,21 +1,26 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useTreasury = () => {
+    const { user } = useAuth();
     const [items, setItems] = useState([]);
+    const [brands, setBrands] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    useEffect(() => {
-        fetchItems();
-    }, []);
 
     const fetchItems = async () => {
         try {
             setLoading(true);
+            if (!user) {
+                setItems([]);
+                return;
+            }
+
             const { data, error } = await supabase
                 .from('treasury_items')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -28,8 +33,35 @@ export const useTreasury = () => {
         }
     };
 
+    const fetchBrands = async () => {
+        try {
+            if (!user) {
+                setBrands([]);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('treasury_brands')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+            setBrands(data || []);
+        } catch (err) {
+            console.error('Error fetching brands:', err);
+        }
+    };
+
+    useEffect(() => {
+        fetchItems();
+        fetchBrands();
+    }, [user]);
+
     const addItem = async (item) => {
         try {
+            if (!user) throw new Error('Not authenticated');
+
             const { data, error } = await supabase
                 .from('treasury_items')
                 .insert([{
@@ -39,7 +71,8 @@ export const useTreasury = () => {
                     link: item.link,
                     priority: item.priority,
                     image_url: item.image_url,
-                    status: 'desired'
+                    status: 'desired',
+                    user_id: user.id
                 }])
                 .select()
                 .single();
@@ -53,8 +86,35 @@ export const useTreasury = () => {
         }
     };
 
+    const addBrand = async (brand) => {
+        try {
+            if (!user) throw new Error('Not authenticated');
+
+            const { data, error } = await supabase
+                .from('treasury_brands')
+                .insert([{
+                    name: brand.name,
+                    link: brand.link,
+                    tags: brand.tags,
+                    notes: brand.notes,
+                    image_url: brand.image_url,
+                    user_id: user.id
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            setBrands(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+            return data;
+        } catch (err) {
+            console.error('Error adding brand:', err);
+            throw err;
+        }
+    };
+
     const updateItem = async (updatedItem) => {
         try {
+            if (!user) throw new Error('Not authenticated');
             const { error } = await supabase
                 .from('treasury_items')
                 .update({
@@ -66,7 +126,8 @@ export const useTreasury = () => {
                     image_url: updatedItem.image_url,
                     status: updatedItem.status
                 })
-                .eq('id', updatedItem.id);
+                .eq('id', updatedItem.id)
+                .eq('user_id', user.id);
 
             if (error) throw error;
             setItems(prev => prev.map(i => i.id === updatedItem.id ? { ...i, ...updatedItem } : i));
@@ -79,10 +140,12 @@ export const useTreasury = () => {
 
     const deleteItem = async (id) => {
         try {
+            if (!user) throw new Error('Not authenticated');
             const { error } = await supabase
                 .from('treasury_items')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', user.id);
 
             if (error) throw error;
             setItems(prev => prev.filter(i => i.id !== id));
@@ -92,12 +155,32 @@ export const useTreasury = () => {
         }
     };
 
+    const deleteBrand = async (id) => {
+        try {
+            if (!user) throw new Error('Not authenticated');
+            const { error } = await supabase
+                .from('treasury_brands')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+            setBrands(prev => prev.filter(b => b.id !== id));
+        } catch (err) {
+            console.error('Error deleting brand:', err);
+            throw err;
+        }
+    };
+
     return {
         items,
+        brands,
         loading,
         error,
         addItem,
         updateItem,
-        deleteItem
+        deleteItem,
+        addBrand,
+        deleteBrand
     };
 };

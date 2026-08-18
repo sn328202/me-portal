@@ -1,18 +1,28 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useAtlas = () => {
+    const { user } = useAuth();
     const [trips, setTrips] = useState([]);
     const [waypoints, setWaypoints] = useState({});
     const [loading, setLoading] = useState(true);
 
     const fetchTrips = async () => {
+        if (!user) {
+            setTrips([]);
+            setWaypoints({});
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
 
         // 1. Fetch Trips
         const { data: tripData, error: tripError } = await supabase
             .from('atlas_trips')
             .select('*')
+            .eq('user_id', user.id)
             .order('start_date', { ascending: true });
 
         if (tripError) {
@@ -21,22 +31,29 @@ export const useAtlas = () => {
             return;
         }
 
-        setTrips(tripData);
+        const currentTrips = tripData || [];
+        setTrips(currentTrips);
 
-        // 2. Fetch Waypoints for all trips (could optimize to fetch on demand, but small data for now)
-        const { data: waypointData, error: wpError } = await supabase
-            .from('atlas_waypoints')
-            .select('*')
-            .order('order', { ascending: true });
+        // 2. Fetch Waypoints for these trips
+        const tripIds = currentTrips.map(t => t.id);
 
-        if (!wpError && waypointData) {
-            // Group by trip_id
-            const grouped = waypointData.reduce((acc, wp) => {
-                if (!acc[wp.trip_id]) acc[wp.trip_id] = [];
-                acc[wp.trip_id].push(wp);
-                return acc;
-            }, {});
-            setWaypoints(grouped);
+        if (tripIds.length > 0) {
+            const { data, error } = await supabase
+                .from('atlas_waypoints')
+                .select('*')
+                .in('trip_id', tripIds)
+                .order('order', { ascending: true });
+
+            if (data) {
+                const grouped = data.reduce((acc, wp) => {
+                    if (!acc[wp.trip_id]) acc[wp.trip_id] = [];
+                    acc[wp.trip_id].push(wp);
+                    return acc;
+                }, {});
+                setWaypoints(grouped);
+            }
+        } else {
+            setWaypoints({});
         }
 
         setLoading(false);
@@ -44,9 +61,11 @@ export const useAtlas = () => {
 
     useEffect(() => {
         fetchTrips();
-    }, []);
+    }, [user]);
 
     const addTrip = async (trip) => {
+        if (!user) return null;
+
         const { data, error } = await supabase
             .from('atlas_trips')
             .insert([{
@@ -60,7 +79,8 @@ export const useAtlas = () => {
                 google_photos_url: trip.google_photos_url || '',
                 google_sheets_url: trip.google_sheets_url || '',
                 links: trip.links || [],
-                coordinates: trip.coordinates || null
+                coordinates: trip.coordinates || null,
+                user_id: user.id
             }])
             .select()
             .single();
@@ -75,13 +95,16 @@ export const useAtlas = () => {
     };
 
     const updateTrip = async (id, updates) => {
+        if (!user) return;
+
         // Optimistic
         setTrips(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
 
         const { error } = await supabase
             .from('atlas_trips')
             .update(updates)
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', user.id);
 
         if (error) {
             console.error("Error updating trip:", error);
@@ -90,12 +113,20 @@ export const useAtlas = () => {
     };
 
     const deleteTrip = async (id) => {
+        if (!user) return;
+
         setTrips(prev => prev.filter(t => t.id !== id));
         // Waypoints cascade delete automatically via DB FK constraint
-        await supabase.from('atlas_trips').delete().eq('id', id);
+        await supabase.from('atlas_trips').delete().eq('id', id).eq('user_id', user.id);
     };
 
     const addWaypoint = async (tripId, waypoint) => {
+        // Verify ownership: ensure tripId exists in our user-filtered trips
+        if (!trips.find(t => t.id === tripId)) {
+            console.error("Access denied: Trip not found or not owned.");
+            return;
+        }
+
         // Optimistic
         const tempId = Date.now();
         const newWp = { ...waypoint, id: tempId, trip_id: tripId };
@@ -135,6 +166,8 @@ export const useAtlas = () => {
     };
 
     const updateWaypoint = async (id, tripId, updates) => {
+        if (!trips.find(t => t.id === tripId)) return;
+
         setWaypoints(prev => ({
             ...prev,
             [tripId]: prev[tripId].map(w => w.id === id ? { ...w, ...updates } : w)
@@ -149,6 +182,8 @@ export const useAtlas = () => {
     };
 
     const deleteWaypoint = async (id, tripId) => {
+        if (!trips.find(t => t.id === tripId)) return;
+
         setWaypoints(prev => ({
             ...prev,
             [tripId]: prev[tripId].filter(w => w.id !== id)

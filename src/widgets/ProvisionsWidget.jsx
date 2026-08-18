@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { useProvisions } from '../hooks/useProvisions';
 import { useIngredients } from '../hooks/useIngredients';
-import { GiBasket, GiCheckMark, GiHouse } from 'react-icons/gi';
+import { GiCheckMark, GiHouse, GiFiles } from 'react-icons/gi';
+import { useTheme } from '../contexts/ThemeContext';
+import WidgetLoading from '../components/WidgetLoading';
+import EmptyState from '../components/EmptyState';
+import '../styles/ProvisionsWidget.css';
 
 const ProvisionsWidget = ({ plan, recipes }) => {
-    const { items, addItem, toggleItem, deleteItem, clearChecked } = useProvisions();
+    const { items, addItem, toggleItem, deleteItem, clearChecked, loading } = useProvisions();
     const { ingredientsByName, pantryStock } = useIngredients();
+    const { getLabel, getIcon } = useTheme();
     const [input, setInput] = useState('');
+    const [isCopied, setIsCopied] = useState(false);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -65,91 +71,131 @@ const ProvisionsWidget = ({ plan, recipes }) => {
         return a.inStock ? 1 : -1;
     });
 
+    const handleCopy = () => {
+        let text = `${getLabel('provisions').toUpperCase()} LIST\n\n`;
+
+        // 1. Provisions (exclude checked)
+        const neededItems = items.filter(i => !i.checked);
+        if (neededItems.length > 0) {
+            text += `${getLabel('provisions').toUpperCase()}:\n`;
+            neededItems.forEach(item => {
+                text += `- [ ] ${item.text}\n`;
+            });
+            text += "\n";
+        }
+
+        // 2. Ingredients (exclude inStock)
+        const neededIngredients = plannedList.filter(i => !i.inStock);
+        if (neededIngredients.length > 0) {
+            text += `${getLabel('fromTheHearth').toUpperCase()}:\n`;
+            neededIngredients.forEach(ing => {
+                const amount = ing.amount > 0 ? `${ing.amount} ${ing.unit} ` : '';
+                text += `- [ ] ${amount}${ing.label}\n`;
+            });
+        }
+
+        navigator.clipboard.writeText(text).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    };
+
 
     return (
-        <div className="widget-card" style={{ height: '100%', padding: '1.5rem', background: '#d7cec7', border: '1px solid #795548', borderRadius: '4px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #795548', paddingBottom: '0.5rem' }}>
-                <h3 style={{ margin: 0, fontFamily: 'Playfair Display, serif', color: '#3e2723', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <GiBasket /> Provisions
+        <div className="provisions-widget">
+            <div className="provisions-header">
+                <h3 className="provisions-title">
+                    {getIcon('provisions')} {getLabel('provisions')}
                 </h3>
-                {items.some(i => i.checked) && (
-                    <button onClick={clearChecked} style={{ fontSize: '0.8rem', background: 'none', border: 'none', color: '#5d4037', cursor: 'pointer', textDecoration: 'underline' }}>
-                        Clear Bought
+                <div className="provisions-actions">
+                    <button
+                        onClick={handleCopy}
+                        className={`provisions-action-btn ${isCopied ? 'copied' : ''}`}
+                        title="Copy to Clipboard"
+                    >
+                        {isCopied ? <GiCheckMark /> : <GiFiles />} {isCopied ? 'Copied!' : 'Copy'}
                     </button>
-                )}
+                    {items.some(i => i.checked) && (
+                        <button onClick={clearChecked} className="provisions-clear-btn">
+                            Clear Bought
+                        </button>
+                    )}
+                </div>
             </div>
 
-            <form onSubmit={handleSubmit} style={{ marginBottom: '1rem' }}>
-                <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Add item..."
-                    style={{ width: '100%', padding: '0.5rem', background: '#e8e4d9', border: '1px solid #a1887f', color: '#3e2723' }}
-                />
-            </form>
+            {loading ? (
+                <WidgetLoading />
+            ) : (
+                <>
+                    <form onSubmit={handleSubmit} className="provisions-form">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="Add item..."
+                            className="provisions-input"
+                        />
+                    </form>
 
-            <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                {items.length === 0 && plannedList.length === 0 && <div style={{ color: '#8d6e63', fontStyle: 'italic', textAlign: 'center' }}>The larder is empty.</div>}
+                    <div className="provisions-list-container">
+                        {items.length === 0 && plannedList.length === 0 && (
+                            <EmptyState
+                                message={getLabel('larderEmpty')}
+                                icon={getIcon('provisions')}
+                            />
+                        )}
 
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {/* Manual Items */}
-                    {items.map(item => (
-                        <li key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <div
-                                onClick={() => toggleItem(item.id)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', opacity: item.checked ? 0.5 : 1 }}
-                            >
-                                <div style={{
-                                    width: '18px', height: '18px', border: '1px solid #5d4037',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    background: item.checked ? '#5d4037' : '#e8e4d9'
-                                }}>
-                                    {item.checked && <GiCheckMark size={10} color="#fff" />}
-                                </div>
-                                <span style={{ textDecoration: item.checked ? 'line-through' : 'none', color: '#3e2723' }}>{item.text}</span>
-                            </div>
-                        </li>
-                    ))}
-
-                    {/* Planned Ingredients Separator */}
-                    {plannedList.length > 0 && (
-                        <>
-                            <li style={{
-                                margin: '1rem 0 0.5rem 0',
-                                fontSize: '0.75rem',
-                                color: '#5d4037',
-                                borderBottom: '1px solid #a1887f',
-                                textTransform: 'uppercase',
-                                letterSpacing: '1px'
-                            }}>
-                                From The Hearth
-                            </li>
-                            {plannedList.map(ing => (
-                                <li key={ing.key} style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    marginBottom: '0.5rem',
-                                    paddingLeft: '0.5rem',
-                                    borderLeft: ing.inStock ? '2px solid #5d4037' : '2px solid #a1887f',
-                                    opacity: ing.inStock ? 0.6 : 1
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#3e2723', flex: 1 }}>
-                                        {ing.Icon && <span style={{ fontSize: '1.2rem' }}>{ing.Icon}</span>}
-                                        <span style={{ fontWeight: 'bold' }}>{ing.amount > 0 ? ing.amount : ''} {ing.unit}</span>
-                                        <span>{ing.label}</span>
+                        <ul className="provisions-list">
+                            {/* Manual Items */}
+                            {items.map(item => (
+                                <li key={item.id} className="provisions-item">
+                                    <div
+                                        onClick={() => toggleItem(item.id)}
+                                        className={`provisions-item-content ${item.checked ? 'checked' : ''}`}
+                                    >
+                                        <div className={`provisions-checkbox ${item.checked ? 'checked' : ''}`}>
+                                            {item.checked && <GiCheckMark size={10} color="var(--bg-main)" />}
+                                        </div>
+                                        <span className={`provisions-text ${item.checked ? 'checked' : ''}`}>{item.text}</span>
                                     </div>
-                                    {ing.inStock && (
-                                        <span style={{ fontSize: '0.7rem', background: '#5d4037', color: '#e8e4d9', padding: '1px 4px', borderRadius: '4px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            <GiHouse /> In Pantry
-                                        </span>
-                                    )}
+                                    <button
+                                        onClick={() => deleteItem(item.id)}
+                                        className="provisions-delete-btn"
+                                        title="Discard"
+                                    >
+                                        &times;
+                                    </button>
                                 </li>
                             ))}
-                        </>
-                    )}
-                </ul>
-            </div>
+
+                            {/* Planned Ingredients Separator */}
+                            {plannedList.length > 0 && (
+                                <>
+                                    <li className="provisions-separator">
+                                        {getLabel('fromTheHearth')}
+                                    </li>
+                                    {plannedList.map(ing => (
+                                        <li key={ing.key} className={`provisions-planned-item ${ing.inStock ? 'in-stock' : ''}`}>
+                                            <div className="provisions-planned-content">
+                                                {ing.Icon && <span className="provisions-icon">{ing.Icon}</span>}
+                                                <span className="provisions-amount">{ing.amount > 0 ? ing.amount : ''} {ing.unit}</span>
+                                                <span>{ing.label}</span>
+                                            </div>
+                                            {ing.inStock && (
+                                                <span className="provisions-stock-badge">
+                                                    <GiHouse /> In Pantry
+                                                </span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </>
+                            )}
+                        </ul>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

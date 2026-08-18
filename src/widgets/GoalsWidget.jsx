@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { GiMountainClimbing } from 'react-icons/gi';
+import { useTheme } from '../contexts/ThemeContext';
 import WidgetCard from '../components/WidgetCard';
 import { useGoals } from '../hooks/useGoals';
+import EmptyState from '../components/EmptyState';
+import '../styles/GoalsWidget.css';
 
 const HORIZONS = ['Immediate', 'Short Term', 'Long Term', 'Lifetime'];
 
 const GoalsWidget = () => {
     const { goals, addGoal, deleteGoal, loading } = useGoals();
+    const { getLabel, getIcon } = useTheme();
     const [newGoal, setNewGoal] = useState('');
     const [selectedHorizon, setSelectedHorizon] = useState(HORIZONS[0]);
     const [isAdding, setIsAdding] = useState(false);
@@ -26,44 +29,40 @@ const GoalsWidget = () => {
     }, {});
 
     return (
-        <WidgetCard title="Life Objectives" icon={GiMountainClimbing} actionIcon={isAdding ? null : '+'} onAction={() => setIsAdding(true)}>
+        <WidgetCard title={getLabel('goals')} icon={getIcon('goals')} actionIcon={isAdding ? null : '+'} onAction={() => setIsAdding(true)}>
             {isAdding && (
-                <form onSubmit={handleAdd} style={{ marginBottom: '1rem', padding: '0.5rem', border: '1px dashed var(--border-dim)', background: 'var(--bg-hover)' }}>
+                <form onSubmit={handleAdd} className="goals-form">
                     <select
                         value={selectedHorizon}
                         onChange={e => setSelectedHorizon(e.target.value)}
-                        style={{ width: '100%', marginBottom: '0.5rem', background: '#222', border: '1px solid #444', color: 'var(--text-main)', padding: '0.3rem' }}
+                        className="goals-select"
                     >
                         {HORIZONS.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
                     <input
                         placeholder="New Objective..."
                         value={newGoal} onChange={e => setNewGoal(e.target.value)}
-                        style={{ width: '100%', marginBottom: '0.5rem', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-dim)', color: 'var(--text-main)' }}
+                        className="goals-input"
                     />
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button type="submit" style={{ flex: 1, background: 'var(--text-gold)', border: 'none', padding: '0.2rem', cursor: 'pointer', color: 'var(--bg-main)' }}>Commit</button>
-                        <button type="button" onClick={() => setIsAdding(false)} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 0.5rem' }}>Cancel</button>
+                    <div className="goals-form-controls">
+                        <button type="submit" className="goals-commit-btn">Commit</button>
+                        <button type="button" onClick={() => setIsAdding(false)} className="goals-cancel-btn">Cancel</button>
                     </div>
                 </form>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+            <div className="goals-list-container">
                 {HORIZONS.map(horizon => (
                     groupedGoals[horizon] && groupedGoals[horizon].length > 0 && (
-                        <div key={horizon}>
-                            <h4 style={{
-                                fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em',
-                                color: 'var(--text-muted)', borderBottom: '1px solid var(--border-dim)',
-                                paddingBottom: '0.2rem', marginBottom: '0.5rem'
-                            }}>
+                        <div key={horizon} className="goals-horizon-section">
+                            <h4 className="goals-horizon-title">
                                 {horizon}
                             </h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div className="goals-items-list">
                                 {groupedGoals[horizon].map(goal => (
-                                    <div key={goal.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                        <span style={{ color: 'var(--text-main)' }}>{goal.text}</span>
-                                        <button onClick={() => deleteGoal(goal.id)} style={{ color: '#444', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                                    <div key={goal.id} className="goals-item">
+                                        <span className="goals-item-text">{goal.text}</span>
+                                        <button onClick={() => deleteGoal(goal.id)} className="goals-delete-btn">×</button>
                                     </div>
                                 ))}
                             </div>
@@ -71,9 +70,12 @@ const GoalsWidget = () => {
                     )
                 ))}
                 {goals.length === 0 && !isAdding && !loading && (
-                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic', padding: '1rem' }}>
-                        Ambition chart empty.
-                    </div>
+                    <EmptyState
+                        message={`No ${getLabel('goals').toLowerCase()} mapped. Define your horizons.`}
+                        actionLabel={`Set ${getLabel('goals')}`}
+                        onAction={() => setIsAdding(true)}
+                        icon={getIcon('goals')}
+                    />
                 )}
             </div>
         </WidgetCard>

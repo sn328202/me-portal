@@ -1,6 +1,7 @@
 import React from 'react';
 import { GiBookCover, GiWaxSeal, GiMusicalNotes, GiMechanicalArm, GiOpenChest } from 'react-icons/gi';
 import WidgetCard from '../components/WidgetCard';
+import '../styles/QuickLinksWidget.css';
 
 const QuickLinksWidget = () => {
     const links = [
@@ -12,43 +13,20 @@ const QuickLinksWidget = () => {
 
     return (
         <WidgetCard title="Access Log">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            <div className="quick-links-container">
                 {links.map((link) => (
                     <a
                         key={link.label}
                         href={link.url}
                         target="_blank"
                         rel="noreferrer"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: 'var(--space-md) 0',
-                            borderBottom: '1px solid var(--border-dim)',
-                            color: 'var(--text-muted)',
-                            textDecoration: 'none',
-                            fontFamily: 'var(--font-display)',
-                            letterSpacing: '0.05em',
-                            textTransform: 'uppercase',
-                            fontSize: '0.8rem',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.color = 'var(--text-gold)';
-                            e.currentTarget.style.borderColor = 'var(--border-gold)';
-                            e.currentTarget.style.paddingLeft = '10px';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.color = 'var(--text-muted)';
-                            e.currentTarget.style.borderColor = 'var(--border-dim)';
-                            e.currentTarget.style.paddingLeft = '0px';
-                        }}
+                        className="quick-link-item"
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                        <div className="quick-link-content">
                             <link.icon size={20} />
                             <span>{link.label}</span>
                         </div>
-                        <GiOpenChest size={14} style={{ opacity: 0.5 }} />
+                        <GiOpenChest size={14} className="quick-link-external-icon" />
                     </a>
                 ))}
             </div>

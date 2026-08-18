@@ -1,66 +1,59 @@
 import React, { useState } from 'react';
-import { GiControlTower } from 'react-icons/gi';
+import { useTheme } from '../contexts/ThemeContext';
+import { useSettings } from '../hooks/useSettings';
+import '../styles/StatusConsole.css';
 
 const StatusConsole = () => {
-    // Persistent URL state
-    const [url, setUrl] = useState(localStorage.getItem('me_portal_status_url') || '');
+    const { getLabel, getIcon } = useTheme();
+    const { settings, updateSetting } = useSettings();
+    const url = settings.statusUrl || '';
     const [editMode, setEditMode] = useState(!url);
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
         const input = e.target.elements.urlUrl.value;
-        localStorage.setItem('me_portal_status_url', input);
-        setUrl(input);
+        await updateSetting('statusUrl', input);
         setEditMode(false);
     };
 
     return (
-        <div style={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
+        <div className="status-console">
             {/* Header / Controls */}
-            <div style={{
-                padding: '1rem',
-                background: '#d7cec7',
-                borderBottom: '1px solid #a1887f',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-            }}>
-                <h3 style={{ margin: 0, fontFamily: 'Playfair Display, serif', color: '#3e2723', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <GiControlTower /> Status Monitor
+            <div className="status-header">
+                <h3 className="status-title">
+                    {getIcon('status')} {getLabel('status')}
                 </h3>
                 <button
                     onClick={() => setEditMode(!editMode)}
-                    style={{ fontSize: '0.8rem', textDecoration: 'underline', background: 'transparent', border: 'none', cursor: 'pointer', color: '#5d4037' }}
+                    className="status-config-btn"
                 >
-                    {editMode ? 'Cancel' : 'Configure Signal'}
+                    {editMode ? 'Cancel' : getLabel('statusConfig')}
                 </button>
             </div>
 
             {/* Content Area */}
-            <div style={{ flex: 1, position: 'relative', background: '#eee' }}>
+            <div className="status-content-area">
                 {editMode ? (
-                    <div style={{
-                        position: 'absolute', inset: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'rgba(255,255,255,0.9)'
-                    }}>
-                        <form onSubmit={handleSave} style={{ textAlign: 'center', width: '100%', maxWidth: '400px' }}>
-                            <p style={{ marginBottom: '1rem', color: '#3e2723' }}>Enter the URL of your Dashboard (Retool, Google Data Studio, etc.)</p>
+                    <div className="status-config-overlay">
+                        <form onSubmit={handleSave} className="status-form">
+                            <p>Enter the URL of your Dashboard (Retool, Google Data Studio, etc.)</p>
                             <input
                                 name="urlUrl"
                                 defaultValue={url}
                                 placeholder="https://..."
                                 type="url"
-                                style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #795548' }}
+                                className="status-input"
                                 required
                             />
-                            <button type="submit" style={{ padding: '0.5rem 2rem', background: '#5d4037', color: '#fff', border: 'none' }}>
-                                Establish Link
+                            <button type="submit" className="status-submit-btn">
+                                {getLabel('statusEstablish')}
                             </button>
                         </form>
                     </div>
                 ) : (
                     <iframe
                         src={url}
-                        style={{ width: '100%', height: '100%', border: 'none' }}
+                        className="status-iframe"
                         title="Status Dashboard"
                     />
                 )}

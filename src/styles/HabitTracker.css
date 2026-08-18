@@ -1,0 +1,142 @@
+/* Daily Rituals Widget - Habit Tracker */
+
+.habit-tracker-widget {
+    height: 100%;
+    max-height: 600px;
+    padding: 1.5rem;
+    background: var(--bg-panel);
+    border: var(--border-double);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+}
+
+.habit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-gold);
+    padding-bottom: 0.5rem;
+    flex-shrink: 0;
+}
+
+.habit-title {
+    margin: 0;
+    font-family: var(--font-display);
+    color: var(--text-gold);
+    font-size: 1.25rem;
+}
+
+.habit-toggle-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--text-gold);
+    transition: transform 0.2s ease;
+}
+
+.habit-toggle-btn:hover {
+    transform: scale(1.1);
+    color: var(--text-highlight);
+}
+
+.habit-form {
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+}
+
+.habit-input {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-dim);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-style: italic;
+}
+
+.habit-input:focus {
+    outline: none;
+    border-color: var(--text-gold);
+    box-shadow: var(--glow-gold);
+}
+
+.habit-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.habit-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    transition: opacity 0.2s ease;
+}
+
+.habit-item.completed {
+    opacity: 0.6;
+}
+
+.habit-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    cursor: pointer;
+    flex: 1;
+}
+
+.habit-checkbox {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-gold);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    transition: background 0.2s ease;
+}
+
+.habit-checkbox.completed {
+    background: var(--border-gold);
+}
+
+.habit-text {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+}
+
+.habit-text.completed {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.habit-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.habit-delete-btn:hover {
+    opacity: 1;
+    color: var(--accent-crimson);
+}
+
+.habit-progress-area {
+    margin-top: auto;
+    border-top: 1px solid var(--border-gold);
+    padding-top: 0.5rem;
+    flex-shrink: 0;
+}

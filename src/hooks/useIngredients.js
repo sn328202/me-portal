@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useIngredients = () => {
+    const { user } = useAuth();
     const [ingredients, setIngredients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -10,25 +12,38 @@ export const useIngredients = () => {
     useEffect(() => {
         fetchIngredients();
 
-        // Subscription for real-time updates (Optional, but nice)
-        const subscription = supabase
-            .channel('public:pantry_ingredients')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'pantry_ingredients' }, (payload) => {
-                fetchIngredients();
-            })
-            .subscribe();
+        let subscription;
+        if (user) {
+            subscription = supabase
+                .channel(`public:pantry_ingredients:${user.id}`)
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'pantry_ingredients',
+                    filter: `user_id=eq.${user.id}`
+                }, (payload) => {
+                    fetchIngredients();
+                })
+                .subscribe();
+        }
 
         return () => {
-            supabase.removeChannel(subscription);
+            if (subscription) supabase.removeChannel(subscription);
         };
-    }, []);
+    }, [user]);
 
     const fetchIngredients = async () => {
         try {
             setLoading(true);
+            if (!user) {
+                setIngredients([]);
+                return;
+            }
+
             const { data, error } = await supabase
                 .from('pantry_ingredients')
                 .select('*')
+                .eq('user_id', user.id)
                 .eq('is_deleted', false) // Soft delete check
                 .order('label', { ascending: true });
 
@@ -81,12 +96,13 @@ export const useIngredients = () => {
         return map;
     }, [ingredients]);
 
-
     // Actions
     const addCustomIngredient = async (key, data) => {
         try {
             // Check locally first to avoid duplicate calls
             if (ingredientsByName[key] || ingredientsByName[data.label?.toLowerCase()]) return;
+
+            if (!user) throw new Error("Not authenticated");
 
             // Optimistic Add
             const optimisticId = 'temp-' + Date.now();
@@ -97,10 +113,9 @@ export const useIngredients = () => {
                 icon: data.icon,
                 category: data.category,
                 default_unit: data.defaultUnit,
-                category: data.category,
-                default_unit: data.defaultUnit,
                 in_stock: false, // Default to OUT of stock
-                is_deleted: false
+                is_deleted: false,
+                user_id: user.id
             };
 
             setIngredients(prev => [...prev, newItem]);
@@ -113,7 +128,8 @@ export const useIngredients = () => {
                     icon: data.icon,
                     category: data.category,
                     default_unit: data.defaultUnit,
-                    in_stock: false // Default to OUT of stock per user request
+                    in_stock: false, // Default to OUT of stock per user request
+                    user_id: user.id
                 }])
                 .select()
                 .single();
@@ -134,6 +150,7 @@ export const useIngredients = () => {
     };
 
     const deleteIngredient = async (id) => {
+        if (!user) return;
         // Optimistic Delete
         setIngredients(prev => prev.filter(i => i.id !== id));
 
@@ -141,7 +158,8 @@ export const useIngredients = () => {
             const { error } = await supabase
                 .from('pantry_ingredients')
                 .update({ is_deleted: true })
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', user.id);
 
             if (error) {
                 // Fetch to restore if failed
@@ -154,6 +172,7 @@ export const useIngredients = () => {
     };
 
     const togglePantryStock = async (id) => {
+        if (!user) return;
         // Find current status
         const ing = ingredients.find(i => i.id === id);
         if (!ing) return;
@@ -166,7 +185,8 @@ export const useIngredients = () => {
             const { error } = await supabase
                 .from('pantry_ingredients')
                 .update({ in_stock: newStatus })
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', user.id);
 
             if (error) {
                 // Rollback

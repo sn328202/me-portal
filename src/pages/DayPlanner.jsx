@@ -36,6 +36,45 @@ const SortableItem = ({ item, children }) => {
     );
 };
 
+const PlaceImage = ({ photo, style = {} }) => {
+    const [failed, setFailed] = React.useState(false);
+    const [loaded, setLoaded] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!photo || !photo.url) return;
+        const img = new Image();
+        img.onload = () => setLoaded(true);
+        img.onerror = () => setFailed(true);
+        img.src = photo.url;
+    }, [photo]);
+
+    if (!photo || failed) {
+        return (
+            <div style={{
+                ...style,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(255,255,255,0.05)',
+                color: 'var(--text-muted)'
+            }}>
+                <GiPositionMarker size={24} style={{ opacity: 0.3 }} />
+            </div>
+        );
+    }
+
+    if (!loaded) return <div style={{ ...style, background: 'rgba(255,255,255,0.05)' }} />;
+
+    return (
+        <div style={{
+            ...style,
+            backgroundImage: `url(${photo.url})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+        }} />
+    );
+};
+
 const DayPlanner = () => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
@@ -124,7 +163,19 @@ const DayPlanner = () => {
 
     const fetchPlans = async () => {
         setLoading(true);
-        const { data, error } = await supabase.from('day_plans').select('*').order('created_at', { ascending: false });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            setPlans([]);
+            setLoading(false);
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('day_plans')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
         if (error) console.error(error);
         else setPlans(data || []);
         setLoading(false);
@@ -142,14 +193,30 @@ const DayPlanner = () => {
 
     const createPlan = async () => {
         if (!newPlan.title) return;
-        const { data, error } = await supabase.from('day_plans').insert([{ ...newPlan, status: 'Idea' }]).select();
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            alert("You must be logged in to create a plan.");
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('day_plans')
+            .insert([{
+                ...newPlan,
+                planned_date: newPlan.planned_date || null,
+                status: 'Idea',
+                user_id: user.id
+            }])
+            .select();
+
         if (error) {
             alert('Failed to formulate plan.');
         } else {
             setPlans([data[0], ...plans]);
             setSelectedPlan(data[0]);
             setIsCreating(false);
-            setNewPlan({ title: '', location: '', notes: '', planned_date: '' });
+            setNewPlan({ title: '', location: '', notes: '', planned_date: null });
         }
     };
 
@@ -185,7 +252,7 @@ const DayPlanner = () => {
     const handleDragEnd = (event) => {
         const { active, over } = event;
 
-        if (active.id !== over.id) {
+        if (over && active.id !== over.id) {
             setItems((items) => {
                 const oldIndex = items.findIndex(i => i.id === active.id);
                 const newIndex = items.findIndex(i => i.id === over.id);
@@ -277,6 +344,9 @@ const DayPlanner = () => {
             return;
         }
 
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         setProcessingDelete(true);
 
         const { error: itemsError } = await supabase.from('plan_items').delete().eq('plan_id', id);
@@ -287,7 +357,7 @@ const DayPlanner = () => {
             return;
         }
 
-        const { error } = await supabase.from('day_plans').delete().eq('id', id);
+        const { error } = await supabase.from('day_plans').delete().eq('id', id).eq('user_id', user.id);
         if (error) {
             console.error("Error deleting plan:", error);
             alert("Failed to delete plan: " + error.message);
@@ -324,12 +394,21 @@ const DayPlanner = () => {
     const saveChanges = async () => {
         if (!editedPlan) return;
 
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         // 1. Save Plan Details
         const { id, title, location, planned_date, notes } = editedPlan;
         const { data: planData, error: planError } = await supabase
             .from('day_plans')
-            .update({ title, location, planned_date, notes })
+            .update({
+                title,
+                location,
+                planned_date: planned_date || null,
+                notes
+            })
             .eq('id', id)
+            .eq('user_id', user.id)
             .select();
 
         if (planError) {
@@ -786,9 +865,10 @@ const DayPlanner = () => {
                                             }}>
 
                                             {/* Place Image */}
-                                            {item.place_data && item.place_data.photos && item.place_data.photos[0] && (
-                                                <div style={{ height: '80px', marginBottom: '8px', backgroundImage: `url(${item.place_data.photos[0].url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
-                                            )}
+                                            <PlaceImage
+                                                photo={item.place_data?.photos?.[0]}
+                                                style={{ height: '80px', marginBottom: '8px' }}
+                                            />
 
                                             <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{item.activity}</div>
 
@@ -894,19 +974,17 @@ const DayPlanner = () => {
                                                                     />
                                                                 </div>
 
-                                                                {/* Image (if exists) */}
-                                                                {item.place_data && item.place_data.photos && item.place_data.photos[0] && (
-                                                                    <div style={{
+                                                                {/* Image */}
+                                                                <PlaceImage
+                                                                    photo={item.place_data?.photos?.[0]}
+                                                                    style={{
                                                                         width: '80px',
                                                                         height: '80px',
                                                                         borderRadius: '4px',
-                                                                        backgroundImage: `url(${item.place_data.photos[0].url})`,
-                                                                        backgroundSize: 'cover',
-                                                                        backgroundPosition: 'center',
                                                                         flexShrink: 0,
                                                                         boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)'
-                                                                    }}></div>
-                                                                )}
+                                                                    }}
+                                                                />
 
                                                                 {/* Main Content */}
                                                                 <div style={{ flex: 1, minWidth: 0 }}>

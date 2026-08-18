@@ -1,0 +1,142 @@
+/* Game Launcher Widget */
+
+.game-launcher-wrapper {
+    position: relative;
+    height: 100%;
+}
+
+.game-launcher-link {
+    text-decoration: none;
+    display: block;
+    height: 100%;
+}
+
+.game-content {
+    padding: var(--space-md) 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: var(--space-md);
+    transition: all 0.3s ease;
+}
+
+.game-content.played {
+    filter: grayscale(0.8);
+    opacity: 0.7;
+}
+
+.game-icon-container {
+    font-size: 3rem;
+    transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.game-launcher-link:hover .game-icon-container {
+    transform: scale(1.1) rotate(5deg);
+    color: var(--text-highlight) !important;
+}
+
+.game-description {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+    line-height: 1.4;
+    font-family: var(--font-body);
+}
+
+.game-played-note {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-gold);
+    font-style: italic;
+    font-family: var(--font-display);
+}
+
+.game-streak-info {
+    font-size: 0.7em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.game-launch-btn {
+    margin-top: auto;
+    padding: var(--space-xs) var(--space-md);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-gold);
+    font-family: var(--font-display);
+    transition: all 0.2s ease;
+}
+
+.game-launcher-link:hover .game-launch-btn {
+    border-color: var(--text-gold);
+    background: var(--bg-hover);
+}
+
+.game-log-trigger {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.game-log-trigger:hover {
+    color: var(--accent-gold);
+    border-color: var(--text-gold);
+}
+
+.game-log-popover {
+    position: absolute;
+    top: 45px;
+    right: 10px;
+    width: 200px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-gold);
+    padding: var(--space-sm);
+    z-index: 20;
+    box-shadow: var(--shadow-md);
+}
+
+.game-log-form {
+    display: flex;
+    gap: 5px;
+}
+
+.game-log-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-dim);
+    color: var(--text-main);
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    padding: 4px;
+    outline: none;
+}
+
+.game-log-submit {
+    background: var(--text-gold);
+    border: none;
+    color: var(--bg-main);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0 8px;
+    text-transform: uppercase;
+    font-family: var(--font-display);
+}

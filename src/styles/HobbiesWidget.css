@@ -1,0 +1,153 @@
+/* Hobbies Widget - Active Pursuits */
+
+.hobby-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.hobby-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-dim);
+    padding: 0.5rem;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+}
+
+.hobby-input:focus {
+    border-bottom-color: var(--border-bright);
+    outline: none;
+}
+
+.hobby-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.hobby-add-btn {
+    background: none;
+    border: none;
+    color: var(--text-gold);
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: transform 0.2s ease;
+}
+
+.hobby-add-btn:hover {
+    transform: scale(1.1);
+    color: var(--text-highlight);
+}
+
+.hobby-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.hobby-item {
+    border: 1px solid var(--border-dim);
+    padding: 0.8rem;
+    border-radius: 4px;
+    background: transparent;
+    opacity: 0.6;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.hobby-item.active {
+    background: rgba(207, 181, 59, 0.1);
+    opacity: 1;
+    border-color: var(--border-gold);
+}
+
+.hobby-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.3rem;
+}
+
+.hobby-name {
+    font-weight: bold;
+    font-family: var(--font-display);
+    color: var(--text-muted);
+}
+
+.hobby-item.active .hobby-name {
+    color: var(--text-gold);
+}
+
+.hobby-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.hobby-item:hover .hobby-delete-btn {
+    opacity: 1;
+}
+
+.hobby-delete-btn:hover {
+    color: var(--accent-crimson);
+}
+
+.hobby-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.hobby-action-btn {
+    flex: 1;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border: 1px solid var(--border-dim);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    transition: all 0.2s ease;
+}
+
+.hobby-action-btn:hover {
+    border-color: var(--text-muted);
+    color: var(--text-main);
+}
+
+.hobby-log-btn {
+    flex: 1;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border: 1px solid var(--accent-gold);
+    background: transparent;
+    color: var(--accent-gold);
+    cursor: pointer;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    transition: all 0.2s ease;
+}
+
+.hobby-log-btn:hover {
+    background: var(--accent-gold);
+    color: var(--bg-main);
+}
+
+.hobby-log-btn.logged {
+    background: var(--accent-gold);
+    color: var(--bg-main);
+    cursor: default;
+    opacity: 0.8;
+}
+
+.hobby-progress-container {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-dim);
+    padding-top: 0.5rem;
+}

@@ -1,0 +1,91 @@
+@media print {
+    @page {
+        size: auto;
+        margin: 10mm;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+        border: none !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    .app-shell,
+    .sidebar,
+    .main-content {
+        display: block !important;
+        height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
+
+    /* Hide non-essential UI */
+    .sidebar,
+    .nav-item,
+    .box-header button,
+    .menu-actions,
+    .no-print,
+    .loading-screen {
+        display: none !important;
+    }
+
+    .menu-view-container {
+        background: white !important;
+        color: #1a1a1a !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        position: static !important;
+        display: block !important;
+    }
+
+    .menu-paper {
+        background: white !important;
+        border: none !important;
+        padding: 20px !important;
+        min-height: auto !important;
+        box-shadow: none !important;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+
+    h1 {
+        font-size: 2.5rem !important;
+        margin-bottom: 20px !important;
+    }
+
+    .course-section {
+        margin-bottom: 20px !important;
+        page-break-inside: avoid;
+    }
+
+    .recipe-item {
+        margin-bottom: 10px !important;
+    }
+
+    .recipe-page {
+        page-break-before: always;
+        padding: 20px 0 !important;
+    }
+
+    .recipe-image {
+        max-height: 200px !important;
+    }
+
+    /* Restore contrast for ingredients and steps */
+    .provisions-list li {
+        border-bottom: 1px solid #eee !important;
+    }
+
+    /* Print URL for source links */
+    a::after {
+        content: " (" attr(href) ")";
+        font-size: 0.8rem;
+    }
+}

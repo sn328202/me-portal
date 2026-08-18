@@ -1,10 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { GiSatelliteCommunication, GiGears } from 'react-icons/gi';
+import { useAuth } from '../contexts/AuthContext';
 
 const StatusMonitor = () => {
-    const [embedUrl, setEmbedUrl] = useState(() => localStorage.getItem('me_portal_retool_url') || '');
-    const [isEditing, setIsEditing] = useState(!localStorage.getItem('me_portal_retool_url'));
+    const { user } = useAuth();
+    const [embedUrl, setEmbedUrl] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
     const [inputVal, setInputVal] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            const key = `me_portal_retool_url_${user.id}`;
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                setEmbedUrl(saved);
+                setIsEditing(false);
+            } else {
+                setIsEditing(true);
+            }
+        }
+    }, [user]);
 
     useEffect(() => {
         if (embedUrl) {
@@ -14,8 +29,8 @@ const StatusMonitor = () => {
 
     const handleSave = (e) => {
         e.preventDefault();
-        if (inputVal.trim()) {
-            localStorage.setItem('me_portal_retool_url', inputVal.trim());
+        if (inputVal.trim() && user) {
+            localStorage.setItem(`me_portal_retool_url_${user.id}`, inputVal.trim());
             setEmbedUrl(inputVal.trim());
             setIsEditing(false);
         }

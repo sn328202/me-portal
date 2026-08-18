@@ -1,17 +1,32 @@
 import { useState, useEffect } from 'react';
-
-const STORAGE_KEY = 'me_portal_game_stats';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useGameStats = () => {
+    const { user } = useAuth();
     const [stats, setStats] = useState({});
+    const [storageKey, setStorageKey] = useState(null);
 
-    // Load stats from local storage on mount
+    // Load stats from local storage on mount or user change
     useEffect(() => {
-        const storedStats = localStorage.getItem(STORAGE_KEY);
-        if (storedStats) {
-            setStats(JSON.parse(storedStats));
+        if (user) {
+            const key = `me_portal_game_stats_${user.id}`;
+            setStorageKey(key);
+            const stored = localStorage.getItem(key);
+            if (stored) {
+                try {
+                    setStats(JSON.parse(stored));
+                } catch (e) {
+                    console.error("Error parsing game stats", e);
+                    setStats({});
+                }
+            } else {
+                setStats({});
+            }
+        } else {
+            setStorageKey(null);
+            setStats({});
         }
-    }, []);
+    }, [user]);
 
     // Helper to get today's date string YYYY-MM-DD
     const getToday = () => {
@@ -19,6 +34,8 @@ export const useGameStats = () => {
     };
 
     const logGame = (gameId, result) => {
+        if (!storageKey) return;
+
         const today = getToday();
         const newStats = { ...stats };
 
@@ -33,7 +50,7 @@ export const useGameStats = () => {
         };
 
         setStats(newStats);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newStats));
+        localStorage.setItem(storageKey, JSON.stringify(newStats));
     };
 
     const isPlayedToday = (gameId) => {

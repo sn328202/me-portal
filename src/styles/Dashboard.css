@@ -1,0 +1,54 @@
+/* Dashboard Grid & Layout */
+
+.dashboard-grid {
+    height: 100%;
+    padding-bottom: 2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.dashboard-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.greeting-container {
+    flex: 1;
+}
+
+.trophy-case {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.widget-masonry {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.wide-widget {
+    width: 100%;
+}
+
+@media (max-width: 1200px) {
+    .widget-masonry {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-header-row {
+        flex-direction: column;
+    }
+
+    .widget-masonry {
+        grid-template-columns: 1fr;
+    }
+}

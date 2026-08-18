@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { GiRoundBottomFlask, GiTestTubes, GiCheckMark, GiFeather, GiTiedScroll } from 'react-icons/gi';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const KanbanBoard = () => {
+    const { user } = useAuth();
     const [projects, setProjects] = useState([]);
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // --- State: UI ---
     const [newProjectName, setNewProjectName] = useState('');
-    const [selectedProjectFilter, setSelectedProjectFilter] = useState(() => {
-        return localStorage.getItem('me_portal_kanban_filter') || 'All';
-    });
+    const [selectedProjectFilter, setSelectedProjectFilter] = useState('All');
     const [addingToColumn, setAddingToColumn] = useState(null); // Column ID being added to
     const [editingTask, setEditingTask] = useState(null); // Task ID being edited
     const [deleteConfirm, setDeleteConfirm] = useState(null); // ID of item being confirmed for delete (proj or task)
@@ -24,13 +24,23 @@ const KanbanBoard = () => {
         deployed: { id: 'deployed', title: 'Deployed', icon: GiCheckMark, color: '#2e7d32' }
     };
 
+    // Load Filter Preference
+    useEffect(() => {
+        if (user) {
+            const saved = localStorage.getItem(`me_portal_kanban_filter_${user.id}`);
+            if (saved) setSelectedProjectFilter(saved);
+        }
+    }, [user]);
+
     useEffect(() => {
         fetchData();
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('me_portal_kanban_filter', selectedProjectFilter);
-    }, [selectedProjectFilter]);
+        if (user) {
+            localStorage.setItem(`me_portal_kanban_filter_${user.id}`, selectedProjectFilter);
+        }
+    }, [selectedProjectFilter, user]);
 
     const fetchData = async () => {
         setLoading(true);

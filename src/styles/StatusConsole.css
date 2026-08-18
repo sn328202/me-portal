@@ -1,0 +1,108 @@
+/* Status Console - The Signal Monitor */
+
+.status-console {
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    border: var(--border-double);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.status-header {
+    padding: 1rem;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status-title {
+    margin: 0;
+    font-family: var(--font-display);
+    color: var(--text-gold);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-config-btn {
+    font-size: 0.8rem;
+    text-decoration: underline;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+}
+
+.status-config-btn:hover {
+    color: var(--text-gold);
+}
+
+.status-content-area {
+    flex: 1;
+    position: relative;
+    background: #000;
+}
+
+.status-config-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--bg-main-rgb), 0.9);
+    z-index: 10;
+}
+
+.status-form {
+    text-align: center;
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+}
+
+.status-form p {
+    margin-bottom: 1rem;
+    color: var(--text-main);
+    font-family: var(--font-body);
+}
+
+.status-input {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-dim);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+}
+
+.status-input:focus {
+    outline: none;
+    border-color: var(--text-gold);
+}
+
+.status-submit-btn {
+    padding: 0.5rem 2rem;
+    background: var(--text-gold);
+    color: var(--bg-main);
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    transition: background 0.2s ease;
+}
+
+.status-submit-btn:hover {
+    background: var(--text-highlight);
+}
+
+.status-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}

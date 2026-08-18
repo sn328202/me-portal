@@ -1,0 +1,145 @@
+/* Todo Widget - Daily Pursuits */
+
+.todo-widget {
+    max-height: 600px;
+}
+
+.todo-form {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+    flex-shrink: 0;
+}
+
+.todo-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-gold);
+    border-radius: 0;
+    padding: var(--space-sm) 0;
+    color: var(--text-main);
+    outline: none;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-style: italic;
+    transition: border-color 0.3s ease;
+}
+
+.todo-input:focus {
+    border-bottom-color: var(--text-highlight);
+}
+
+.todo-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.todo-add-btn {
+    color: var(--text-gold);
+    padding: 0 var(--space-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    cursor: pointer;
+    background: none;
+    border: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.todo-add-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    color: var(--text-highlight);
+}
+
+.todo-add-btn:disabled {
+    cursor: wait;
+    opacity: 0.5;
+}
+
+.todo-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 4px;
+}
+
+.todo-empty-state {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: var(--space-sm);
+}
+
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-xs) 0;
+    transition: all 0.2s;
+}
+
+.todo-item.completed {
+    opacity: 0.5;
+}
+
+.todo-status-btn {
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.todo-item.completed .todo-status-btn {
+    color: var(--accent-gold);
+}
+
+.todo-status-btn:hover {
+    color: var(--text-gold);
+}
+
+.todo-text {
+    flex: 1;
+    font-style: italic;
+    color: var(--text-main);
+    transition: color 0.2s ease;
+    font-family: var(--font-body);
+}
+
+.todo-item.completed .todo-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.todo-delete-btn {
+    color: var(--text-muted);
+    opacity: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.todo-item:hover .todo-delete-btn {
+    opacity: 0.5;
+}
+
+.todo-delete-btn:hover {
+    opacity: 1;
+    color: var(--accent-crimson);
+}
+
+.todo-progress-area {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-gold);
+    padding-top: 0.5rem;
+    flex-shrink: 0;
+}

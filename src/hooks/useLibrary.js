@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useLibrary = () => {
+    const { user } = useAuth();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        fetchItems();
-    }, []);
-
     const fetchItems = async () => {
         try {
             setLoading(true);
+            if (!user) {
+                setItems([]);
+                return;
+            }
+
             const { data, error } = await supabase
                 .from('library_items')
                 .select('*')
+                .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -28,8 +32,14 @@ export const useLibrary = () => {
         }
     };
 
+    useEffect(() => {
+        fetchItems();
+    }, [user]);
+
     const addItem = async (item) => {
         try {
+            if (!user) throw new Error("Not authenticated");
+
             const { data, error } = await supabase
                 .from('library_items')
                 .insert([{
@@ -40,7 +50,8 @@ export const useLibrary = () => {
                     rating: item.rating,
                     review: item.review,
                     image_url: item.image_url,
-                    link: item.link
+                    link: item.link,
+                    user_id: user.id
                 }])
                 .select()
                 .single();
@@ -56,6 +67,7 @@ export const useLibrary = () => {
 
     const updateItem = async (updatedItem) => {
         try {
+            if (!user) throw new Error("Not authenticated");
             const { error } = await supabase
                 .from('library_items')
                 .update({
@@ -68,7 +80,8 @@ export const useLibrary = () => {
                     image_url: updatedItem.image_url,
                     link: updatedItem.link
                 })
-                .eq('id', updatedItem.id);
+                .eq('id', updatedItem.id)
+                .eq('user_id', user.id);
 
             if (error) throw error;
             setItems(prev => prev.map(i => i.id === updatedItem.id ? { ...i, ...updatedItem } : i));
@@ -80,10 +93,12 @@ export const useLibrary = () => {
 
     const deleteItem = async (id) => {
         try {
+            if (!user) throw new Error("Not authenticated");
             const { error } = await supabase
                 .from('library_items')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', user.id);
 
             if (error) throw error;
             setItems(prev => prev.filter(i => i.id !== id));

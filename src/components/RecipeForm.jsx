@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { GiSave, GiCancel, GiTrashCan, GiCheckMark, GiWorld } from 'react-icons/gi';
 import EmojiPicker from 'emoji-picker-react';
 import { INGREDIENT_LIBRARY } from '../data/ingredients';
 
 
-const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredientToPantry, onImport }) => {
+const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredientToPantry, onImport, allTags = [] }) => {
     const [title, setTitle] = useState('');
     const [instructions, setInstructions] = useState('');
     const [ingredients, setIngredients] = useState([]); // Array of { item, amount, unit, notes }
@@ -476,6 +477,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
                 {/* Tag Input & Suggestions */}
                 <TagSelector
                     existingTags={tags}
+                    allRecipeSourceTags={allTags}
                     onAddTag={(tag) => setTags([...tags, tag])}
                 />
             </div>
@@ -676,26 +678,33 @@ const inputStyle = {
     outline: 'none'
 };
 
-const TagSelector = ({ existingTags, onAddTag }) => {
+const TagSelector = ({ existingTags, onAddTag, allRecipeSourceTags = [] }) => {
     const [input, setInput] = useState('');
     const [suggestions, setSuggestions] = useState([]);
-    const [allTags, setAllTags] = useState([]);
+    const [dbTags, setDbTags] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
+    const { user } = useAuth();
+
+    // Combined pool of tags from DB and currently loaded recipes
+    const tagPool = Array.from(new Set([...dbTags, ...allRecipeSourceTags]));
 
     useEffect(() => {
-        fetchTags();
-    }, []);
+        if (user) fetchTags();
+    }, [user]);
 
     const fetchTags = async () => {
-        const { data } = await supabase.from('recipe_tags').select('name');
-        if (data) setAllTags(data.map(t => t.name));
+        const { data } = await supabase
+            .from('recipe_tags')
+            .select('name')
+            .eq('user_id', user.id);
+        if (data) setDbTags(data.map(t => t.name));
     };
 
     const handleInput = (e) => {
         const val = e.target.value;
         setInput(val);
         if (val.trim()) {
-            setSuggestions(allTags.filter(t =>
+            setSuggestions(tagPool.filter(t =>
                 t.toLowerCase().includes(val.toLowerCase()) &&
                 !existingTags.includes(t)
             ));
@@ -710,15 +719,20 @@ const TagSelector = ({ existingTags, onAddTag }) => {
         const newTag = input.trim();
         if (!newTag) return;
 
-        // Add to DB
-        const { error } = await supabase.from('recipe_tags').insert({ name: newTag });
-        if (!error) {
-            setAllTags([...allTags, newTag]);
-            onAddTag(newTag);
-            setInput('');
-            setIsOpen(false);
-        } else {
-            alert('Could not create tag (it might already exist).');
+        // Use upsert to handle "Conflict" gracefully
+        // We still call onAddTag and setInput to make the UI responsive
+        onAddTag(newTag);
+        setInput('');
+        setIsOpen(false);
+
+        const { error } = await supabase
+            .from('recipe_tags')
+            .upsert({ name: newTag, user_id: user.id }, { onConflict: 'name, user_id' });
+
+        if (!error && !dbTags.includes(newTag)) {
+            setDbTags([...dbTags, newTag]);
+        } else if (error) {
+            console.error('Quiet error syncing tag:', error);
         }
     };
 
@@ -763,7 +777,7 @@ const TagSelector = ({ existingTags, onAddTag }) => {
                             {tag}
                         </div>
                     ))}
-                    {input && !allTags.some(t => t.toLowerCase() === input.toLowerCase()) && (
+                    {input && !allRecipeSourceTags.some(t => t.toLowerCase() === input.toLowerCase()) && (
                         <div
                             onClick={createTag}
                             style={{ padding: '8px', cursor: 'pointer', color: 'var(--accent-gold)', borderTop: '1px dashed var(--border-gold)' }}

@@ -1,0 +1,126 @@
+/* Life Objectives Widget - Goals */
+
+.goals-form {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border: 1px dashed var(--border-dim);
+    background: var(--bg-hover);
+}
+
+.goals-select {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    background: #222;
+    border: 1px solid #444;
+    color: var(--text-main);
+    padding: 0.3rem;
+    font-family: var(--font-body);
+}
+
+.goals-input {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-dim);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-style: italic;
+    padding: 0.2rem 0;
+}
+
+.goals-input:focus {
+    outline: none;
+    border-bottom-color: var(--text-gold);
+}
+
+.goals-form-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.goals-commit-btn {
+    flex: 1;
+    background: var(--text-gold);
+    border: none;
+    padding: 0.2rem;
+    cursor: pointer;
+    color: var(--bg-main);
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.goals-cancel-btn {
+    background: transparent;
+    border: 1px solid var(--border-dim);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 0.5rem;
+    font-size: 0.8rem;
+}
+
+.goals-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.goals-horizon-section {
+    margin-bottom: 0.5rem;
+}
+
+.goals-horizon-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-dim);
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-display);
+}
+
+.goals-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.goals-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    align-items: center;
+}
+
+.goals-item-text {
+    color: var(--text-main);
+    font-family: var(--font-body);
+}
+
+.goals-delete-btn {
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    font-size: 1.2rem;
+    transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.goals-delete-btn:hover {
+    opacity: 1;
+    color: var(--accent-crimson);
+}
+
+.goals-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+    padding: 1rem;
+}

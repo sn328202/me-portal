@@ -11,21 +11,49 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
+        let mounted = true;
 
-        // Listen for changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
+        const initializeAuth = async () => {
+            try {
+                // Get initial session with a safety catch
+                const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+                if (error) throw error;
 
-        return () => subscription.unsubscribe();
+                if (mounted) {
+                    setSession(initialSession);
+                    setUser(initialSession?.user ?? null);
+                }
+            } catch (err) {
+                // Silence AbortError as it's common during network timeouts
+                if (err.name !== 'AbortError') {
+                    console.warn("Recoverable auth initialization error:", err.message || err);
+                }
+            } finally {
+                if (mounted) setLoading(false);
+            }
+
+            // Listen for changes
+            try {
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                    if (mounted) {
+                        setSession(session);
+                        setUser(session?.user ?? null);
+                        setLoading(false);
+                    }
+                });
+                return subscription;
+            } catch (subErr) {
+                console.error("Auth listener failed to mount:", subErr);
+                return null;
+            }
+        };
+
+        const subPromise = initializeAuth();
+
+        return () => {
+            mounted = false;
+            subPromise.then(sub => sub?.unsubscribe()).catch(() => { });
+        };
     }, []);
 
     const signIn = async (email, password) => {

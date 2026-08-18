@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useRecipes = () => {
+    const { user } = useAuth();
     const [recipes, setRecipes] = useState([]);
     const [mealPlan, setMealPlan] = useState({});
     const [loading, setLoading] = useState(true);
@@ -11,14 +13,20 @@ export const useRecipes = () => {
     useEffect(() => {
         fetchRecipes();
         fetchMealPlan();
-    }, []);
+    }, [user]);
 
     const fetchRecipes = async () => {
         try {
             setLoading(true);
+            if (!user) {
+                setRecipes([]);
+                return;
+            }
+
             const { data, error } = await supabase
                 .from('recipes')
-                .select('*, ingredients(*)');
+                .select('*, ingredients(*)')
+                .eq('user_id', user.id);
 
             if (error) throw error;
             setRecipes(data || []);
@@ -33,9 +41,15 @@ export const useRecipes = () => {
     const fetchMealPlan = async () => {
         // Fetch meal plans and transform into { "Monday": [ids], "Tuesday": [ids] }
         try {
+            if (!user) {
+                setMealPlan({});
+                return;
+            }
+
             const { data, error } = await supabase
                 .from('meal_plans')
-                .select('*');
+                .select('*')
+                .eq('user_id', user.id);
 
             if (error) throw error;
 
@@ -50,14 +64,14 @@ export const useRecipes = () => {
         }
     };
 
-
-
     const deleteRecipe = async (id) => {
         try {
+            if (!user) return;
             const { error } = await supabase
                 .from('recipes')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', user.id);
 
             if (error) throw error;
             setRecipes(prev => prev.filter(r => r.id !== id));
@@ -66,16 +80,17 @@ export const useRecipes = () => {
         }
     };
 
-
-
     const addToPlan = async (day, recipeId) => {
         try {
+            if (!user) return;
+
             const { error } = await supabase
                 .from('meal_plans')
                 .insert([{
                     day_name: day,
                     recipe_id: recipeId,
-                    date: new Date().toISOString() // Placeholder date
+                    date: new Date().toISOString(), // Placeholder date
+                    user_id: user.id
                 }]);
 
             if (error) throw error;
@@ -89,10 +104,12 @@ export const useRecipes = () => {
 
     const clearDay = async (day) => {
         try {
+            if (!user) return;
             const { error } = await supabase
                 .from('meal_plans')
                 .delete()
-                .eq('day_name', day);
+                .eq('day_name', day)
+                .eq('user_id', user.id);
 
             if (error) throw error;
 
@@ -109,11 +126,11 @@ export const useRecipes = () => {
     const importRecipe = async (url) => {
         try {
             // Strategy: Try multiple proxies to bypass CORS
-            // Note: corsproxy.io usage is 'https://corsproxy.io/?' + url (no key needed usually)
             const proxies = [
+                { prefix: 'https://api.cors.lol/?url=', type: 'text' },
+                { prefix: 'https://api.codetabs.com/v1/proxy?quest=', type: 'text' },
                 { prefix: 'https://corsproxy.io/?', type: 'text' },
-                { prefix: 'https://api.allorigins.win/get?url=', type: 'json' },
-                { prefix: 'https://thingproxy.freeboard.io/fetch/', type: 'text' }
+                { prefix: 'https://api.allorigins.win/get?url=', type: 'json' }
             ];
 
             let htmlContent = null;
@@ -121,9 +138,13 @@ export const useRecipes = () => {
 
             for (const proxy of proxies) {
                 try {
-                    console.log(`Trying proxy: ${proxy.prefix}`);
+                    console.log(`📡 Recipe Import: Attempting ${proxy.prefix}`);
                     const response = await fetch(`${proxy.prefix}${encodeURIComponent(url)}`);
-                    if (!response.ok) throw new Error(`Proxy ${proxy.prefix} failed with status ${response.status}`);
+
+                    if (!response.ok) {
+                        console.warn(`❌ Proxy ${proxy.prefix} rejected request (Status: ${response.status})`);
+                        throw new Error(`Status ${response.status}`);
+                    }
 
                     if (proxy.type === 'json') {
                         const data = await response.json();
@@ -135,19 +156,27 @@ export const useRecipes = () => {
                     // Validate: Check if we got the proxy's own page instead of the target
                     if (htmlContent && (
                         htmlContent.includes('<title>CorsProxy | Fix CORS Errors') ||
-                        htmlContent.length < 500 // Suspiciously short
+                        htmlContent.includes('CORS Proxy') ||
+                        htmlContent.length < 300 // Reduced threshold to avoid false positives but still catch landings
                     )) {
+                        console.warn(`⚠️ Proxy ${proxy.prefix} returned landing page instead of content`);
                         throw new Error("Proxy returned its own landing page");
                     }
 
-                    if (htmlContent) break; // Success
+                    if (htmlContent) {
+                        console.log(`✅ Recipe Import: Content retrieved via ${proxy.prefix}`);
+                        break; // Success
+                    }
                 } catch (e) {
-                    console.warn(`Proxy failed:`, e);
                     lastError = e;
                 }
             }
 
-            if (!htmlContent) throw new Error("Could not fetch page content. The aether is thick today. " + (lastError?.message || ''));
+            if (!htmlContent) {
+                const msg = lastError?.message || 'Connection timeout';
+                console.error("🚫 Recipe Import: All proxies failed.", lastError);
+                throw new Error(`Could not fetch recipe content. The aether is thick today (Last attempt failed with: ${msg}).`);
+            }
 
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlContent, "text/html");
@@ -342,6 +371,8 @@ export const useRecipes = () => {
 
     const addRecipe = async (recipe) => {
         try {
+            if (!user) throw new Error("Not authenticated");
+
             // 1. Insert Recipe
             const { data: recipeData, error: recipeError } = await supabase
                 .from('recipes')
@@ -354,7 +385,8 @@ export const useRecipes = () => {
                     cook_time: recipe.cook_time,
                     total_time: recipe.total_time,
                     servings: recipe.servings,
-                    source_url: recipe.source_url
+                    source_url: recipe.source_url,
+                    user_id: user.id
                 }])
                 .select()
                 .single();
@@ -368,7 +400,8 @@ export const useRecipes = () => {
                     item: ing.item,
                     amount: ing.amount,
                     unit: ing.unit,
-                    notes: ing.notes
+                    notes: ing.notes,
+                    user_id: user.id
                 }));
 
                 const { error: ingError } = await supabase
@@ -376,6 +409,18 @@ export const useRecipes = () => {
                     .insert(ingredientsToInsert);
 
                 if (ingError) throw ingError;
+            }
+
+            // 3. Sync Tags to Master List (Upsert)
+            if (recipe.tags && recipe.tags.length > 0) {
+                const tagsToSync = recipe.tags.map(tag => ({
+                    name: tag,
+                    user_id: user.id
+                }));
+
+                await supabase
+                    .from('recipe_tags')
+                    .upsert(tagsToSync, { onConflict: 'name, user_id' });
             }
 
             // Refresh local state or refetch
@@ -388,6 +433,7 @@ export const useRecipes = () => {
 
     const updateRecipe = async (updatedRecipe) => {
         try {
+            if (!user) return;
             // 1. Update Recipe Details
             const { error: recipeError } = await supabase
                 .from('recipes')
@@ -402,11 +448,13 @@ export const useRecipes = () => {
                     servings: updatedRecipe.servings,
                     source_url: updatedRecipe.source_url
                 })
-                .eq('id', updatedRecipe.id);
+                .eq('id', updatedRecipe.id)
+                .eq('user_id', user.id);
 
             if (recipeError) throw recipeError;
 
             // 2. Sync Ingredients (Delete all and re-insert)
+            // Note: ingredients doesn't have user_id, it links to recipe_id
             await supabase.from('ingredients').delete().eq('recipe_id', updatedRecipe.id);
 
             if (updatedRecipe.ingredients && updatedRecipe.ingredients.length > 0) {
@@ -415,10 +463,23 @@ export const useRecipes = () => {
                     item: ing.item,
                     amount: ing.amount,
                     unit: ing.unit,
-                    notes: ing.notes
+                    notes: ing.notes,
+                    user_id: user.id
                 }));
 
                 await supabase.from('ingredients').insert(ingredientsToInsert);
+            }
+
+            // 3. Sync Tags to Master List (Upsert)
+            if (updatedRecipe.tags && updatedRecipe.tags.length > 0) {
+                const tagsToSync = updatedRecipe.tags.map(tag => ({
+                    name: tag,
+                    user_id: user.id
+                }));
+
+                await supabase
+                    .from('recipe_tags')
+                    .upsert(tagsToSync, { onConflict: 'name, user_id' });
             }
 
             fetchRecipes();

@@ -9,6 +9,8 @@ import MealPlanner from '../components/MealPlanner';
 import GroceryList from '../components/GroceryList';
 import ProvisionsWidget from '../widgets/ProvisionsWidget';
 import DaySelector from '../components/DaySelector';
+import MenuBuilder from '../components/MenuBuilder';
+import { useMenus } from '../hooks/useMenus';
 import { GiQuill, GiMagnifyingGlass, GiFunnel, GiHourglass, GiTrashCan } from 'react-icons/gi';
 import EmojiPicker from 'emoji-picker-react';
 
@@ -106,6 +108,7 @@ const Larder = () => {
 
     const { recipes, loading, error, addRecipe, deleteRecipe, updateRecipe, mealPlan, addToPlan, clearDay, importRecipe } = useRecipes();
     const { ingredientsByCategory, pantryStock, togglePantryStock, addCustomIngredient, deleteIngredient, ingredientsByName } = useIngredients();
+    const { menus, loading: menusLoading, addMenu, updateMenu, deleteMenu } = useMenus();
 
     const [newIngIcon, setNewIngIcon] = useState('🍽️');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -362,7 +365,7 @@ const Larder = () => {
 
             {/* Tab Navigation */}
             <div style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-                {['collection', 'hearth', 'pantry', 'provisions'].map((tab) => (
+                {['collection', 'hearth', 'menus', 'pantry', 'provisions'].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -381,6 +384,7 @@ const Larder = () => {
                     >
                         {tab === 'collection' && 'Recipe Collection'}
                         {tab === 'hearth' && 'The Hearth'}
+                        {tab === 'menus' && 'Menu Builder'}
                         {tab === 'pantry' && 'Pantry'}
                         {tab === 'provisions' && 'Provisions'}
                     </button>
@@ -487,6 +491,7 @@ const Larder = () => {
                                 ingredientsByName={ingredientsByName}
                                 onAddIngredientToPantry={addCustomIngredient}
                                 onImport={importRecipe}
+                                allTags={allTags}
                             />
                         ) : view === 'detail' && viewingRecipe ? (
                             <RecipeDetail
@@ -707,6 +712,15 @@ const Larder = () => {
                     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                         <GroceryList plan={mealPlan} recipes={recipes} />
                     </div>
+                )}
+                {activeTab === 'menus' && (
+                    <MenuBuilder
+                        recipes={recipes}
+                        menus={menus}
+                        onSaveMenu={addMenu}
+                        onUpdateMenu={updateMenu}
+                        onDeleteMenu={deleteMenu}
+                    />
                 )}
             </div>
 

@@ -1,0 +1,142 @@
+/* Estate Maintenance Widget - Chores */
+
+.chores-room-tabs {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-dim);
+}
+
+.chores-room-btn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-dim);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+}
+
+.chores-room-btn:hover {
+    border-color: var(--border-gold);
+    color: var(--text-main);
+}
+
+.chores-room-btn.active {
+    background: var(--text-gold);
+    color: var(--bg-main);
+    border-color: var(--text-gold);
+}
+
+.chores-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.chores-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-dim);
+    padding: 0.5rem;
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+}
+
+.chores-input:focus {
+    outline: none;
+    border-bottom-color: var(--text-gold);
+}
+
+.chores-add-btn {
+    background: none;
+    border: none;
+    color: var(--text-gold);
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: transform 0.2s ease;
+}
+
+.chores-add-btn:hover {
+    transform: scale(1.1);
+    color: var(--text-highlight);
+}
+
+.chores-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.chores-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+    padding: 1rem;
+}
+
+.chores-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.chores-checkbox {
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--text-gold);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+}
+
+.chores-checkbox.completed {
+    background: var(--text-gold);
+}
+
+.chores-check-icon {
+    font-size: 10px;
+    color: var(--bg-main);
+}
+
+.chores-text {
+    flex: 1;
+    color: var(--text-main);
+    transition: color 0.2s ease;
+}
+
+.chores-text.completed {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.chores-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.chores-delete-btn:hover {
+    opacity: 1;
+    color: var(--accent-crimson);
+}
