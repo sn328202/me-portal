@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { GiSkeletonKey, GiScrollUnfurled } from 'react-icons/gi';
 
 const Auth = () => {
@@ -9,6 +10,7 @@ const Auth = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
 
     const { signIn, signUp } = useAuth();
     const navigate = useNavigate();
@@ -16,17 +18,26 @@ const Auth = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setNotice('');
         setLoading(true);
 
         try {
             if (isLogin) {
                 await signIn(email, password);
+                navigate('/');
             } else {
                 await signUp(email, password);
-                // Supabase might require email confirmation, but usually auto-logs in if disabled
-                if (!error) alert("Please check your email for confirmation (if required).");
+                // Supabase auto-logs in when email confirmation is disabled; otherwise
+                // there is no session yet and navigating would bounce straight back here.
+                const { data } = await supabase.auth.getSession();
+                if (data?.session) {
+                    navigate('/');
+                } else {
+                    setNotice('Check your email — we sent a confirmation link. Once confirmed, sign in below.');
+                    setIsLogin(true);
+                    setPassword('');
+                }
             }
-            navigate('/');
         } catch (err) {
             setError(err.message);
         } finally {
@@ -75,11 +86,26 @@ const Auth = () => {
                     </div>
                 )}
 
+                {notice && (
+                    <div role="status" style={{
+                        background: 'rgba(212, 175, 55, 0.1)',
+                        border: '1px solid var(--accent-gold)',
+                        color: 'var(--text-gold)',
+                        padding: '1rem',
+                        fontSize: '0.9rem'
+                    }}>
+                        {notice}
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', fontSize: '0.9rem' }}>Email Cipher</label>
+                        <label htmlFor="auth-email" style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', fontSize: '0.9rem' }}>Email Cipher</label>
                         <input
+                            id="auth-email"
+                            name="email"
                             type="email"
+                            autoComplete="email"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -93,9 +119,12 @@ const Auth = () => {
                         />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', fontSize: '0.9rem' }}>Secret Key</label>
+                        <label htmlFor="auth-password" style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', fontSize: '0.9rem' }}>Secret Key</label>
                         <input
+                            id="auth-password"
+                            name="password"
                             type="password"
+                            autoComplete={isLogin ? 'current-password' : 'new-password'}
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -131,7 +160,8 @@ const Auth = () => {
 
                 <div style={{ textAlign: 'center', marginTop: '1rem' }}>
                     <button
-                        onClick={() => setIsLogin(!isLogin)}
+                        type="button"
+                        onClick={() => { setIsLogin(!isLogin); setError(''); setNotice(''); }}
                         style={{
                             background: 'none',
                             border: 'none',

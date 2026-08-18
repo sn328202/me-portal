@@ -127,7 +127,13 @@
     font-family: var(--font-display);
     font-size: 0.8rem;
     padding: 4px;
+    /* UA outline is replaced below, not simply removed */
     outline: none;
+}
+
+.game-log-input:focus-visible {
+    outline: 2px solid var(--border-bright);
+    outline-offset: 2px;
 }
 
 .game-log-submit {

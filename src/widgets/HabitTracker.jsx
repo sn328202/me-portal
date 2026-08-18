@@ -28,7 +28,11 @@ const HabitTracker = () => {
                 <h3 className="habit-title">
                     {getIcon('habits')} {getLabel('habits')}
                 </h3>
-                <button onClick={() => setIsAdding(!isAdding)} className="habit-toggle-btn">+</button>
+                <button
+                    onClick={() => setIsAdding(!isAdding)}
+                    className="habit-toggle-btn"
+                    aria-label={isAdding ? `Cancel adding ${getLabel('habits').toLowerCase()}` : `Add ${getLabel('habits').toLowerCase()}`}
+                >+</button>
             </div>
 
             {loading ? (
@@ -70,7 +74,11 @@ const HabitTracker = () => {
                                             {habit.text}
                                         </span>
                                     </div>
-                                    <button onClick={() => deleteHabit(habit.id)} className="habit-delete-btn">
+                                    <button
+                                        onClick={() => deleteHabit(habit.id)}
+                                        className="habit-delete-btn"
+                                        aria-label={`Delete habit "${habit.text}"`}
+                                    >
                                         <GiTrashCan />
                                     </button>
                                 </li>

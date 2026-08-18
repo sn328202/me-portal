@@ -30,9 +30,15 @@
     background: transparent;
     border: none;
     border-bottom: 2px solid var(--text-gold);
+    /* UA outline is replaced below, not simply removed */
     outline: none;
     width: auto;
     max-width: 100%;
+}
+
+.greeting-name-input:focus-visible {
+    outline: 2px solid var(--border-bright);
+    outline-offset: 2px;
 }
 
 .greeting-name-display {

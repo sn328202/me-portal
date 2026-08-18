@@ -320,6 +320,7 @@ const Atlas = () => {
                                             />
                                             <button
                                                 onClick={() => deleteWaypoint(wp.id, selectedTrip.id)}
+                                                aria-label={`Delete waypoint ${wp.name || idx + 1}`}
                                                 style={{ color: '#d32f2f', background: 'none', border: 'none', cursor: 'pointer' }}
                                             >
                                                 ×
@@ -400,7 +401,7 @@ const Atlas = () => {
                             <div style={{ marginTop: '2rem', borderTop: '1px dashed var(--border-gold)', paddingTop: '1rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                     <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>ADDITIONAL ASSETS</label>
-                                    <button onClick={handleAddLink} style={{ fontSize: '1.2rem', color: 'var(--text-gold)', cursor: 'pointer' }}>+</button>
+                                    <button onClick={handleAddLink} aria-label="Add link" style={{ fontSize: '1.2rem', color: 'var(--text-gold)', cursor: 'pointer' }}>+</button>
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                     {(selectedTrip.links || []).map((link, idx) => (
@@ -420,7 +421,7 @@ const Atlas = () => {
                                             {link.url && (
                                                 <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-gold)' }}>↗</a>
                                             )}
-                                            <button onClick={() => handleDeleteLink(idx)} style={{ color: '#d32f2f', cursor: 'pointer' }}>×</button>
+                                            <button onClick={() => handleDeleteLink(idx)} aria-label={`Delete link ${link.title || idx + 1}`} style={{ color: '#d32f2f', cursor: 'pointer' }}>×</button>
                                         </div>
                                     ))}
                                 </div>

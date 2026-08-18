@@ -38,7 +38,7 @@ export const useAtlas = () => {
         const tripIds = currentTrips.map(t => t.id);
 
         if (tripIds.length > 0) {
-            const { data, error } = await supabase
+            const { data, error: waypointError } = await supabase
                 .from('atlas_waypoints')
                 .select('*')
                 .in('trip_id', tripIds)
@@ -51,6 +51,9 @@ export const useAtlas = () => {
                     return acc;
                 }, {});
                 setWaypoints(grouped);
+            } else {
+                // Don't silently keep stale waypoints when the query fails
+                console.error('Error fetching waypoints:', waypointError);
             }
         } else {
             setWaypoints({});
@@ -121,6 +124,8 @@ export const useAtlas = () => {
     };
 
     const addWaypoint = async (tripId, waypoint) => {
+        if (!user) return;
+
         // Verify ownership: ensure tripId exists in our user-filtered trips
         if (!trips.find(t => t.id === tripId)) {
             console.error("Access denied: Trip not found or not owned.");
@@ -143,7 +148,8 @@ export const useAtlas = () => {
                 name: waypoint.name,
                 lat: waypoint.lat,
                 lng: waypoint.lng,
-                order: (waypoints[tripId]?.length || 0) + 1
+                order: (waypoints[tripId]?.length || 0) + 1,
+                user_id: user.id
             }])
             .select()
             .single();
@@ -166,6 +172,7 @@ export const useAtlas = () => {
     };
 
     const updateWaypoint = async (id, tripId, updates) => {
+        if (!user) return;
         if (!trips.find(t => t.id === tripId)) return;
 
         setWaypoints(prev => ({
@@ -176,12 +183,14 @@ export const useAtlas = () => {
         const { error } = await supabase
             .from('atlas_waypoints')
             .update(updates)
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', user.id);
 
         if (error) console.error("Error updating waypoint:", error);
     };
 
     const deleteWaypoint = async (id, tripId) => {
+        if (!user) return;
         if (!trips.find(t => t.id === tripId)) return;
 
         setWaypoints(prev => ({
@@ -192,7 +201,8 @@ export const useAtlas = () => {
         const { error } = await supabase
             .from('atlas_waypoints')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', user.id);
 
         if (error) console.error("Error deleting waypoint:", error);
     };

@@ -589,6 +589,7 @@ const DayPlanner = () => {
                     <h2 className="box-header" style={{ margin: 0, fontSize: '1.5rem' }}><GiTreasureMap /> Itineraries</h2>
                     <button
                         onClick={() => setIsCreating(true)}
+                        aria-label="Create itinerary"
                         style={{ background: 'var(--accent-gold)', border: 'none', color: 'var(--bg-main)', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer', fontWeight: 'bold' }}
                     >
                         +
@@ -667,6 +668,7 @@ const DayPlanner = () => {
 
                             <button
                                 onClick={(e) => deletePlan(e, plan.id)}
+                                aria-label={deleteConfirm === plan.id ? `Confirm deletion of ${plan.title}` : `Delete itinerary ${plan.title}`}
                                 style={{
                                     position: 'absolute',
                                     top: '5px',
@@ -883,6 +885,7 @@ const DayPlanner = () => {
                                             {item.cost && <div style={{ fontSize: '0.8rem', color: '#555' }}><GiCoins /> {item.cost}</div>}
                                             <button
                                                 onClick={() => deleteItem(item.id)}
+                                                aria-label={`Delete ${item.title || 'item'}`}
                                                 style={{ position: 'absolute', top: '2px', right: '2px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#888' }}
                                             >
                                                 ×
@@ -1027,12 +1030,14 @@ const DayPlanner = () => {
                                                                             <button
                                                                                 onClick={() => updateItem(item.id, { is_brainstorm: true })}
                                                                                 title="Move back to brainstorm"
+                                                                                aria-label="Move back to brainstorm"
                                                                                 style={{ background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.5, padding: '4px', color: 'var(--text-main)' }}
                                                                             >
                                                                                 <GiNotebook size={16} />
                                                                             </button>
                                                                             <button
                                                                                 onClick={() => deleteItem(item.id)}
+                                                                                aria-label="Delete plan item"
                                                                                 style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '4px' }}
                                                                             >
                                                                                 <GiCancel size={16} />

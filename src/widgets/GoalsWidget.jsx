@@ -62,7 +62,7 @@ const GoalsWidget = () => {
                                 {groupedGoals[horizon].map(goal => (
                                     <div key={goal.id} className="goals-item">
                                         <span className="goals-item-text">{goal.text}</span>
-                                        <button onClick={() => deleteGoal(goal.id)} className="goals-delete-btn">×</button>
+                                        <button onClick={() => deleteGoal(goal.id)} className="goals-delete-btn" aria-label={`Delete goal "${goal.text}"`}>×</button>
                                     </div>
                                 ))}
                             </div>

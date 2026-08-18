@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
+import { parse } from 'date-fns';
 import { useTheme } from '../contexts/ThemeContext';
 import WidgetCard from '../components/WidgetCard';
 import { useSocial } from '../hooks/useSocial';
 import '../styles/SocialWidget.css';
+
+// 'yyyy-MM-dd' strings parse as UTC midnight via new Date(), which renders a day
+// early west of Greenwich. Parse them as local dates instead.
+const parseLocalDate = (value) => parse(value, 'yyyy-MM-dd', new Date());
 
 const SocialWidget = () => {
     const { events, addEvent, deleteEvent, loading } = useSocial();
@@ -59,9 +64,9 @@ const SocialWidget = () => {
                         <div>
                             <div className="social-event-who">{plan.who}</div>
                             <div className="social-event-what">{plan.what}</div>
-                            {plan.when_date && <div className="social-event-date">{new Date(plan.when_date).toLocaleDateString()}</div>}
+                            {plan.when_date && <div className="social-event-date">{parseLocalDate(plan.when_date).toLocaleDateString()}</div>}
                         </div>
-                        <button onClick={() => deleteEvent(plan.id)} className="social-delete-btn">×</button>
+                        <button onClick={() => deleteEvent(plan.id)} className="social-delete-btn" aria-label={`Delete plan with ${plan.who}`}>×</button>
                     </div>
                 ))}
             </div>

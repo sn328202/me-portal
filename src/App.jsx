@@ -1,21 +1,27 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import AppShell from './layout/AppShell';
 import Dashboard from './pages/Dashboard';
-import Learning from './pages/Learning';
-import Play from './pages/Play';
-import Systems from './pages/Systems';
-import Atlas from './pages/Atlas';
-import Settings from './pages/Settings';
-import Larder from './pages/Larder';
-import Treasury from './pages/Treasury';
-import Library from './pages/Library';
-import Studio from './pages/Studio';
-import DayPlanner from './pages/DayPlanner';
 import Auth from './pages/Auth';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import LoadingScreen from './components/LoadingScreen';
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Every route except the landing Dashboard is code-split. The three heaviest
+// carry dependencies nothing else needs: Larder -> emoji-picker-react,
+// Atlas -> leaflet, Daydream -> google-maps + dnd-kit.
+const Atlas = lazy(() => import('./pages/Atlas'));
+const DayPlanner = lazy(() => import('./pages/DayPlanner'));
+const Larder = lazy(() => import('./pages/Larder'));
+const Treasury = lazy(() => import('./pages/Treasury'));
+const Library = lazy(() => import('./pages/Library'));
+const Studio = lazy(() => import('./pages/Studio'));
+const Learning = lazy(() => import('./pages/Learning'));
+const Play = lazy(() => import('./pages/Play'));
+const Systems = lazy(() => import('./pages/Systems'));
+const Settings = lazy(() => import('./pages/Settings'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -34,34 +40,41 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <Router>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/*" element={
-              <ProtectedRoute>
-                <AppShell>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/larder" element={<Larder />} />
-                    <Route path="/treasury" element={<Treasury />} />
-                    <Route path="/library" element={<Library />} />
-                    <Route path="/atlas" element={<Atlas />} />
-                    <Route path="/daydream" element={<DayPlanner />} />
-                    <Route path="/study" element={<Studio />} />
-                    <Route path="/learning" element={<Learning />} />
-                    <Route path="/play" element={<Play />} />
-                    <Route path="/systems" element={<Systems />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Routes>
-                </AppShell>
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </Router>
-      </ThemeProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ThemeProvider>
+          <Router>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/*" element={
+                <ProtectedRoute>
+                  <AppShell>
+                    <ErrorBoundary>
+                      <Suspense fallback={<LoadingScreen />}>
+                        <Routes>
+                          <Route path="/" element={<Dashboard />} />
+                          <Route path="/larder" element={<Larder />} />
+                          <Route path="/treasury" element={<Treasury />} />
+                          <Route path="/library" element={<Library />} />
+                          <Route path="/atlas" element={<Atlas />} />
+                          <Route path="/daydream" element={<DayPlanner />} />
+                          <Route path="/study" element={<Studio />} />
+                          <Route path="/learning" element={<Learning />} />
+                          <Route path="/play" element={<Play />} />
+                          <Route path="/systems" element={<Systems />} />
+                          <Route path="/settings" element={<Settings />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </Suspense>
+                    </ErrorBoundary>
+                  </AppShell>
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </Router>
+        </ThemeProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

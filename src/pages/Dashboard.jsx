@@ -26,9 +26,8 @@ import '../styles/Dashboard.css';
 
 const Dashboard = () => {
     const { user } = useAuth();
-    const { mealPlan, recipes } = useRecipes();
-    const { habits, loading: habitsLoading } = useHabits();
-    const { streak: ritualStreak } = useHabits();
+    const { mealPlan, recipes, loading: recipesLoading } = useRecipes();
+    const { habits, streak: ritualStreak, loading: habitsLoading } = useHabits();
     const { streak: pursuitStreak } = useHobbies();
     const { isEnabled } = useDashboardSettings();
     const { getLabel, getIcon } = useTheme();
@@ -44,11 +43,13 @@ const Dashboard = () => {
     };
 
     // Determine if user is "new" (no habits, no recipes, etc.)
-    const isNewUser = recipes.length === 0 && habits.length === 0;
+    // Only meaningful once the underlying data has actually loaded.
+    const dataLoaded = !habitsLoading && !recipesLoading;
+    const isNewUser = dataLoaded && recipes.length === 0 && habits.length === 0;
 
     return (
         <div className="dashboard-grid">
-            {(showWelcome || isNewUser) && <WelcomeHero onDismiss={dismissWelcome} />}
+            {showWelcome && isNewUser && <WelcomeHero onDismiss={dismissWelcome} />}
 
             {/* Header: Greeting & Trophies */}
             <div className="dashboard-header-row">

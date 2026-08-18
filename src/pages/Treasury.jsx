@@ -504,18 +504,21 @@ const Treasury = () => {
                                                                     <button
                                                                         onClick={() => toggleStatus(item)}
                                                                         title={item.status === 'acquired' ? "Mark as Desired" : "Mark as Acquired"}
+                                                                        aria-label={item.status === 'acquired' ? `Mark ${item.title} as desired` : `Mark ${item.title} as acquired`}
                                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.status === 'acquired' ? 'var(--text-gold)' : 'var(--text-muted)' }}
                                                                     >
                                                                         <GiCheckMark />
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleEdit(item)}
+                                                                        aria-label={`Edit ${item.title}`}
                                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)' }}
                                                                     >
                                                                         <GiQuill />
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleDelete(item.id)}
+                                                                        aria-label={`Delete ${item.title}`}
                                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)' }}
                                                                     >
                                                                         <GiTrashCan />

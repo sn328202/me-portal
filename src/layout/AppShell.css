@@ -1,6 +1,8 @@
 .app-shell {
     display: flex;
     height: 100vh;
+    /* Fallback for browsers without dynamic viewport units */
+    height: 100dvh;
     box-sizing: border-box;
 }
 
@@ -15,6 +17,8 @@
     padding: var(--space-xl) 0;
     gap: var(--space-lg);
     transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    /* 11 items can outrun a short viewport - never trap the last ones */
+    overflow-y: auto;
     z-index: 100;
     box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
     position: relative;
@@ -31,7 +35,8 @@
     z-index: -1;
 }
 
-.sidebar:hover {
+.sidebar:hover,
+.sidebar:focus-within {
     width: 280px;
 }
 
@@ -55,7 +60,7 @@
     position: relative;
 }
 
-.sidebar:not(:hover) .nav-item {
+.sidebar:not(:hover):not(:focus-within) .nav-item {
     justify-content: center;
     padding: var(--space-md) 0;
     color: var(--text-gold);
@@ -71,7 +76,16 @@
     text-shadow: 0 0 8px rgba(207, 181, 59, 0.4);
 }
 
-.sidebar:not(:hover) .nav-label {
+/* Keyboard focus on the rail: the ring sits inside so it is never
+   clipped by the sidebar's own overflow. */
+.nav-item:focus-visible {
+    outline: 2px dashed var(--border-bright);
+    outline-offset: -4px;
+    color: var(--text-highlight);
+    background: var(--bg-hover);
+}
+
+.sidebar:not(:hover):not(:focus-within) .nav-label {
     display: none;
 }
 
@@ -81,7 +95,8 @@
     font-weight: 600;
 }
 
-.sidebar:hover .nav-label {
+.sidebar:hover .nav-label,
+.sidebar:focus-within .nav-label {
     opacity: 1;
 }
 
@@ -102,11 +117,94 @@
     background: var(--border-dim);
 }
 
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 4rem;
-    /* HUGE gap for that museum/gallery feel */
-    max-width: 1600px;
-    margin: 0 auto;
+/* ---------------------------------------------------------------
+   Mobile: the vertical rail becomes a horizontally scrollable
+   bottom bar so all 11 destinations stay within thumb reach.
+   --------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .app-shell {
+        flex-direction: column;
+    }
+
+    .main-content {
+        order: 1;
+        flex: 1 1 auto;
+        /* Without this a flex child refuses to shrink and the bar is pushed off */
+        min-height: 0;
+        padding: var(--space-md);
+    }
+
+    .sidebar {
+        order: 2;
+        flex: 0 0 auto;
+        width: 100%;
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 0;
+        padding: 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+        border-right: none;
+        border-top: 3px double var(--border-gold);
+        box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
+        transition: none;
+    }
+
+    /* The hover-to-expand affordance is meaningless on touch */
+    .sidebar:hover,
+    .sidebar:focus-within {
+        width: 100%;
+    }
+
+    .nav-item,
+    .sidebar:not(:hover):not(:focus-within) .nav-item {
+        flex: 0 0 auto;
+        flex-direction: column;
+        gap: var(--space-xs);
+        align-items: center;
+        justify-content: center;
+        width: auto;
+        min-width: 76px;
+        /* Comfortable thumb target */
+        min-height: 56px;
+        padding: var(--space-sm) var(--space-md);
+        color: var(--text-gold);
+        opacity: 1;
+        border-left: none;
+        border-bottom: 3px solid transparent;
+        scroll-snap-align: center;
+    }
+
+    .nav-item:hover,
+    .nav-item.active {
+        border-left-color: transparent;
+        border-bottom-color: var(--accent-gold);
+        background: linear-gradient(0deg, var(--bg-hover) 0%, transparent 100%);
+    }
+
+    .nav-item:focus-visible {
+        outline-offset: -3px;
+    }
+
+    /* 11 unlabelled glyphs is not navigation - always name the destinations */
+    .sidebar .nav-label,
+    .sidebar:not(:hover):not(:focus-within) .nav-label {
+        display: block;
+        opacity: 1;
+        font-size: 0.6rem;
+        letter-spacing: 0.04em;
+        line-height: 1.2;
+    }
+
+    .sidebar::-webkit-scrollbar {
+        height: 3px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background: var(--border-gold);
+    }
 }

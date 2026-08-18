@@ -8,6 +8,7 @@ const WidgetCard = ({
     actions,
     onAction,
     actionIcon = '+',
+    actionLabel,
     style = {}
 }) => {
     return (
@@ -21,7 +22,11 @@ const WidgetCard = ({
                     <div className="widget-actions">
                         {actions}
                         {onAction && (
-                            <button onClick={onAction} className="widget-action-btn">
+                            <button
+                                onClick={onAction}
+                                className="widget-action-btn"
+                                aria-label={actionLabel || (title ? `Add to ${title}` : 'Add')}
+                            >
                                 {actionIcon}
                             </button>
                         )}

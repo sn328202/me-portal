@@ -28,7 +28,7 @@ const HobbiesWidget = () => {
                     disabled={loading}
                     className="hobby-input"
                 />
-                <button type="submit" className="hobby-add-btn">+</button>
+                <button type="submit" className="hobby-add-btn" aria-label={`Add ${getLabel('hobbies').toLowerCase()}`}>+</button>
             </form>
 
             <div className="hobby-grid">
@@ -42,7 +42,7 @@ const HobbiesWidget = () => {
                                 <span className="hobby-name">
                                     {hobby.name}
                                 </span>
-                                <button onClick={() => deleteHobby(hobby.id)} className="hobby-delete-btn">×</button>
+                                <button onClick={() => deleteHobby(hobby.id)} className="hobby-delete-btn" aria-label={`Delete ${hobby.name}`}>×</button>
                             </div>
                             <div className="hobby-actions">
                                 <button

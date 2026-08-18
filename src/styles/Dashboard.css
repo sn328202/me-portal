@@ -7,9 +7,15 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    /* Folded in from the (now deleted) duplicate rule in AppShell.css
+       so the column stays centred on very wide displays. */
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
 }
 
 .dashboard-header-row {
+    flex-shrink: 0;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -28,12 +34,14 @@
 }
 
 .widget-masonry {
+    flex-shrink: 0;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 
 .wide-widget {
+    flex-shrink: 0;
     width: 100%;
 }
 

@@ -31,6 +31,7 @@ export const useProvisions = () => {
     }, [user]);
 
     const toggleItem = async (id) => {
+        if (!user) return;
         const item = items.find(i => i.id === id);
         if (!item) return;
 

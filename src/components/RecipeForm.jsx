@@ -361,7 +361,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
                                     onChange={e => handleIngredientChange(i, 'notes', e.target.value)}
                                     style={{ ...inputStyle, flex: 1, fontStyle: 'italic', color: 'var(--text-muted)' }}
                                 />
-                                <button type="button" onClick={() => removeIngredient(i)} style={{ color: 'var(--accent-crimson)' }}>
+                                <button type="button" onClick={() => removeIngredient(i)} aria-label={`Remove ingredient ${i + 1}`} style={{ color: 'var(--accent-crimson)' }}>
                                     <GiTrashCan />
                                 </button>
                             </div>
@@ -597,6 +597,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
                                 <button
                                     type="button"
                                     onClick={() => setNewIngModal(p => ({ ...p, showPicker: !p.showPicker }))}
+                                    aria-label="Choose ingredient symbol"
                                     style={{
                                         width: '48px',
                                         height: '48px',

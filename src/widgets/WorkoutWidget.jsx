@@ -11,8 +11,10 @@ const WorkoutWidget = () => {
     if (loading) return <WidgetCard><div style={{ padding: '20px', color: 'var(--text-muted)' }}>Consulting the training manuals...</div></WidgetCard>;
     if (!todayWorkout) return <WidgetCard><div style={{ padding: '20px', color: 'var(--text-muted)' }}>No training scheduled for today. Rest well.</div></WidgetCard>;
 
+    const steps = todayWorkout.details || [];
+
     const toggleStep = (index) => {
-        const newDetails = [...todayWorkout.details];
+        const newDetails = [...steps];
         newDetails[index].completed = !newDetails[index].completed;
         updateWorkout(todayWorkout.id, todayWorkout.title, newDetails);
     };
@@ -33,6 +35,7 @@ const WorkoutWidget = () => {
                     </h4>
                     <button
                         onClick={() => setIsEditing(!isEditing)}
+                        aria-label={isEditing ? 'Stop editing workout' : 'Edit workout'}
                         style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                     >
                         <GiSettingsKnobs />
@@ -50,7 +53,7 @@ const WorkoutWidget = () => {
                     />
                 ) : (
                     <div className="workout-checklist">
-                        {todayWorkout.details.map((step, idx) => (
+                        {steps.map((step, idx) => (
                             <div
                                 key={idx}
                                 onClick={() => toggleStep(idx)}
@@ -61,7 +64,7 @@ const WorkoutWidget = () => {
                                     padding: '8px 0',
                                     cursor: 'pointer',
                                     opacity: step.completed ? 0.5 : 1,
-                                    borderBottom: idx === todayWorkout.details.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)'
+                                    borderBottom: idx === steps.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)'
                                 }}
                             >
                                 <div style={{
@@ -99,7 +102,7 @@ const WorkoutWidget = () => {
 
 const WorkoutEditor = ({ workout, onSave, onCancel }) => {
     const [title, setTitle] = useState(workout.title);
-    const [details, setDetails] = useState([...workout.details]);
+    const [details, setDetails] = useState([...(workout.details || [])]);
 
     const handleStepChange = (idx, text) => {
         const newDetails = [...details];
@@ -139,7 +142,12 @@ const WorkoutEditor = ({ workout, onSave, onCancel }) => {
                             fontSize: '0.85rem'
                         }}
                     />
-                    <button onClick={() => removeStep(idx)} style={{ color: 'var(--accent-crimson)', background: 'transparent', border: 'none' }}>×</button>
+                    <button
+                        type="button"
+                        onClick={() => removeStep(idx)}
+                        aria-label={`Remove step ${idx + 1}`}
+                        style={{ color: 'var(--accent-crimson)', background: 'transparent', border: 'none' }}
+                    >×</button>
                 </div>
             ))}
             <button onClick={addStep} style={{ fontSize: '0.7rem', color: 'var(--text-gold)', background: 'transparent', border: 'none', textAlign: 'left' }}>+ Add Step</button>

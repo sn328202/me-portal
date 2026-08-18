@@ -114,7 +114,7 @@ const Learning = () => {
                         ))}
                     </div>
                 </div>
-                <button onClick={startEditing} title="Configure" className="config-btn">
+                <button onClick={startEditing} title="Configure" aria-label="Configure curator topics" className="config-btn">
                     <GiGears />
                 </button>
             </div>

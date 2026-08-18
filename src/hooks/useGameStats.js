@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useGameStats = () => {
@@ -28,10 +29,12 @@ export const useGameStats = () => {
         }
     }, [user]);
 
-    // Helper to get today's date string YYYY-MM-DD
-    const getToday = () => {
-        return new Date().toISOString().split('T')[0];
-    };
+    // Helper to get a LOCAL date string YYYY-MM-DD.
+    // toISOString() would use UTC, so an evening play in a US timezone
+    // would be filed under tomorrow's key and break the streak.
+    const toLocalKey = (date) => format(date, 'yyyy-MM-dd');
+
+    const getToday = () => toLocalKey(new Date());
 
     const logGame = (gameId, result) => {
         if (!storageKey) return;
@@ -68,7 +71,7 @@ export const useGameStats = () => {
         for (let i = 0; i < 365; i++) {
             const d = new Date(today);
             d.setDate(d.getDate() - i);
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = toLocalKey(d);
 
             if (stats[gameId][dateStr]?.played) {
                 streak++;

@@ -19,6 +19,7 @@ export const useSettings = () => {
     const { user } = useAuth();
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const fetchSettings = async () => {
         if (!user) {
@@ -26,14 +27,16 @@ export const useSettings = () => {
             return;
         }
 
+        setError(null);
+
         try {
-            const { data, error } = await supabase
+            const { data, error: fetchError } = await supabase
                 .from('user_portal_config')
                 .select('settings')
                 .eq('user_id', user.id)
                 .maybeSingle();
 
-            if (error) throw error;
+            if (fetchError) throw fetchError;
 
             if (data?.settings) {
                 setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
@@ -54,6 +57,8 @@ export const useSettings = () => {
             }
         } catch (err) {
             console.error('Error fetching settings:', err);
+            // Surface the failure instead of silently pretending we have defaults
+            setError(err.message || 'Failed to load settings');
         } finally {
             setLoading(false);
         }
@@ -62,28 +67,37 @@ export const useSettings = () => {
     const saveSettings = async (newSettings) => {
         if (!user) return;
 
-        const { error } = await supabase
+        const { error: saveError } = await supabase
             .from('user_portal_config')
             .upsert({
                 user_id: user.id,
                 settings: newSettings,
                 updated_at: new Date().toISOString()
-            });
+            }, { onConflict: 'user_id' });
 
-        if (error) {
-            console.error('Error saving settings:', error);
+        if (saveError) {
+            console.error('Error saving settings:', saveError);
+            setError(saveError.message || 'Failed to save settings');
         }
     };
 
     const updateSetting = async (key, value) => {
-        const newSettings = { ...settings, [key]: value };
-        setSettings(newSettings);
-        await saveSettings(newSettings);
+        // Build the patch from the latest state so two hook instances
+        // can't overwrite each other with a stale snapshot.
+        let nextSettings = null;
+        setSettings(prev => {
+            nextSettings = { ...prev, [key]: value };
+            return nextSettings;
+        });
+
+        if (nextSettings) {
+            await saveSettings(nextSettings);
+        }
     };
 
     useEffect(() => {
         fetchSettings();
     }, [user]);
 
-    return { settings, updateSetting, loading, refresh: fetchSettings };
+    return { settings, updateSetting, loading, error, refresh: fetchSettings };
 };

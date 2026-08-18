@@ -19,11 +19,17 @@
     border-radius: 0;
     padding: var(--space-sm) 0;
     color: var(--text-main);
+    /* UA outline is replaced below, not simply removed */
     outline: none;
     font-family: var(--font-display);
     font-size: 1rem;
     font-style: italic;
     transition: border-color 0.3s ease;
+}
+
+.todo-input:focus-visible {
+    outline: 2px solid var(--border-bright);
+    outline-offset: 2px;
 }
 
 .todo-input:focus {

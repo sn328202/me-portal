@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -79,9 +79,18 @@ export const useWorkouts = () => {
     const { user } = useAuth();
     const [workouts, setWorkouts] = useState([]);
     const [loading, setLoading] = useState(true);
+    // Guards against a second concurrent call seeding a duplicate set of
+    // defaults (StrictMode double-effect, two tabs, rapid user changes).
+    // Holds the in-flight seed promise so a second caller reuses it.
+    const seedPromiseRef = useRef(null);
+    const seededUserRef = useRef(null);
 
     const fetchWorkouts = async () => {
-        if (!user) return;
+        if (!user) {
+            setWorkouts([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             const { data, error } = await supabase
@@ -91,10 +100,10 @@ export const useWorkouts = () => {
 
             if (error) throw error;
 
-            if (data.length === 0) {
+            if ((data?.length || 0) === 0) {
                 // Seed default data
                 const seeded = await seedDefaultWorkouts();
-                setWorkouts(seeded);
+                setWorkouts(seeded || []);
             } else {
                 setWorkouts(data);
             }
@@ -106,28 +115,48 @@ export const useWorkouts = () => {
     };
 
     const seedDefaultWorkouts = async () => {
-        const toInsert = DEFAULT_WORKOUTS.map(w => ({
-            ...w,
-            user_id: user.id
-        }));
+        // A seed is already in flight: reuse it instead of inserting a second set.
+        if (seedPromiseRef.current) return seedPromiseRef.current;
+        // We already seeded this user in this session; never seed twice.
+        if (seededUserRef.current === user.id) return [];
 
-        const { data, error } = await supabase
-            .from('workouts')
-            .insert(toInsert)
-            .select();
+        const run = (async () => {
+            const toInsert = DEFAULT_WORKOUTS.map(w => ({
+                ...w,
+                user_id: user.id
+            }));
 
-        if (error) {
-            console.error('Error seeding workouts:', error);
-            return [];
+            const { data, error } = await supabase
+                .from('workouts')
+                .insert(toInsert)
+                .select();
+
+            if (error) {
+                console.error('Error seeding workouts:', error);
+                return [];
+            }
+
+            seededUserRef.current = user.id;
+            return data || [];
+        })();
+
+        seedPromiseRef.current = run;
+
+        try {
+            return await run;
+        } finally {
+            seedPromiseRef.current = null;
         }
-        return data;
     };
 
     const updateWorkout = async (id, title, details) => {
+        if (!user) return;
+
         const { error } = await supabase
             .from('workouts')
             .update({ title, details })
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', user.id);
 
         if (error) {
             console.error('Error updating workout:', error);

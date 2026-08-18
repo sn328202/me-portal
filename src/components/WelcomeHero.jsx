@@ -16,6 +16,9 @@ const WelcomeHero = ({ onDismiss }) => {
             marginBottom: 'var(--space-xl)',
             position: 'relative',
             overflow: 'hidden',
+            // .dashboard-grid is a flex column; without this the hero is
+            // squashed and its body copy clipped by the overflow above.
+            flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -123,6 +126,7 @@ const WelcomeHero = ({ onDismiss }) => {
 
             <button
                 onClick={onDismiss}
+                aria-label="Dismiss welcome guide"
                 style={{
                     position: 'absolute',
                     top: '1rem',

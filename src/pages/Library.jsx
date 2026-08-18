@@ -44,16 +44,11 @@ const Library = () => {
         // Sort
         result.sort((a, b) => {
             if (sortBy === 'Rating') return (b.rating || 0) - (a.rating || 0);
-            if (sortBy === 'Title') return a.title.localeCompare(b.title);
-            // Default: Date Added (Desc) - assuming ID or created_at. using ID for now as simplistic proxy or reverse order
-            return activeTab === 'Book' ? 0 : 0; // Keeping original order if no date field explicitly tracked in local items beyond array order
+            if (sortBy === 'Title') return (a.title || '').localeCompare(b.title || '');
+            // Default: Date Added (Desc) - the hook already returns items newest-first,
+            // so the incoming order is what we want.
+            return 0;
         });
-
-        // If sorting by Date Added, we might need to actually reverse the array if it's oldest-first by "default" or use a timestamp if we have one.
-        // Assuming the list from useLibrary is chronological or arbitrary. Let's just reverse for "Newest First" if Date Added.
-        if (sortBy === 'Date Added') {
-            return result.reverse();
-        }
 
         return result;
     }, [items, activeTab, filterStatus, sortBy]);
@@ -372,15 +367,22 @@ const Library = () => {
                         gap: '2rem'
                     }}>
                         {searchResults.map((item, idx) => (
-                            <div key={idx} onClick={() => addSearchResult(item)} style={{ cursor: 'pointer', border: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.2)', transition: 'transform 0.2s' }}>
+                            <button
+                                key={idx}
+                                type="button"
+                                onClick={() => addSearchResult(item)}
+                                aria-label={`Add ${item.title} to the archive`}
+                                style={{ display: 'block', width: '100%', padding: 0, textAlign: 'left', font: 'inherit', color: 'inherit', cursor: 'pointer', border: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.2)', transition: 'transform 0.2s' }}
+                            >
                                 <div style={{ aspectRatio: '1/1.5', overflow: 'hidden' }}>
-                                    <img src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    <img src={item.image_url} alt={`Cover art for ${item.title}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 </div>
                                 <div style={{ padding: '0.5rem' }}>
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{item.title}</div>
                                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.creator} {item.date && `(${item.date})`}</div>
                                     <div style={{ fontSize: '0.8rem', color: 'var(--text-gold)', marginTop: '4px' }}>+ Bequeath</div>
                                 </div>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 </div>
@@ -438,8 +440,8 @@ const Library = () => {
                                 )}
 
                                 <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '8px', borderTop: '1px dashed var(--border-dim)' }}>
-                                    <button onClick={() => handleEdit(item)} style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }}><GiQuill /></button>
-                                    <button onClick={() => handleDelete(item.id)} style={{ background: 'none', border: 'none', color: 'var(--accent-crimson)', cursor: 'pointer' }}><GiTrashCan /></button>
+                                    <button onClick={() => handleEdit(item)} aria-label={`Edit ${item.title}`} style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }}><GiQuill /></button>
+                                    <button onClick={() => handleDelete(item.id)} aria-label={`Delete ${item.title}`} style={{ background: 'none', border: 'none', color: 'var(--accent-crimson)', cursor: 'pointer' }}><GiTrashCan /></button>
                                 </div>
                             </div>
                         </div>

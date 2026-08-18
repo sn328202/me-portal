@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../hooks/useSettings';
 import '../styles/StatusConsole.css';
 
 const StatusConsole = () => {
     const { getLabel, getIcon } = useTheme();
-    const { settings, updateSetting } = useSettings();
+    const { settings, updateSetting, loading } = useSettings();
     const url = settings.statusUrl || '';
-    const [editMode, setEditMode] = useState(!url);
+    const [editMode, setEditMode] = useState(false);
+
+    // Settings load asynchronously, so only decide on edit mode once they are in.
+    useEffect(() => {
+        if (loading) return;
+        setEditMode(!settings.statusUrl);
+    }, [loading, settings.statusUrl]);
 
     const handleSave = async (e) => {
         e.preventDefault();

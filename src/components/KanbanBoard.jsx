@@ -295,6 +295,7 @@ const KanbanBoard = () => {
                             <button
                                 onClick={() => setAddingToColumn(col.id)}
                                 title="Add Task to this Column"
+                                aria-label={`Add task to ${col.title}`}
                                 style={{
                                     background: col.color, color: '#fff',
                                     border: 'none', borderRadius: '50%',
@@ -372,11 +373,13 @@ const KanbanBoard = () => {
                                             <button
                                                 disabled={col.id === 'backlog'}
                                                 onClick={() => handleMoveTask(task.id, -1)}
+                                                aria-label={`Move "${task.title}" to the previous column`}
                                                 style={{ cursor: 'pointer', border: 'none', background: 'transparent', opacity: col.id === 'backlog' ? 0.2 : 0.6, color: 'var(--text-main)' }}
                                             >←</button>
 
                                             <button
                                                 onClick={() => handleDeleteTask(task.id)}
+                                                aria-label={deleteConfirm === task.id ? `Confirm deletion of "${task.title}"` : `Delete task "${task.title}"`}
                                                 style={{
                                                     cursor: 'pointer', border: 'none', background: 'transparent',
                                                     color: deleteConfirm === task.id ? 'var(--accent-crimson)' : 'var(--text-muted)',
@@ -391,6 +394,7 @@ const KanbanBoard = () => {
                                             <button
                                                 disabled={col.id === 'deployed'}
                                                 onClick={() => handleMoveTask(task.id, 1)}
+                                                aria-label={`Move "${task.title}" to the next column`}
                                                 style={{ cursor: 'pointer', border: 'none', background: 'transparent', opacity: col.id === 'deployed' ? 0.2 : 0.6, color: 'var(--text-main)' }}
                                             >→</button>
                                         </div>

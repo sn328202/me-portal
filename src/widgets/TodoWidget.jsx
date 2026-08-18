@@ -39,6 +39,7 @@ const TodoWidget = () => {
                     <button
                         type="submit"
                         className="todo-add-btn"
+                        aria-label="Add todo"
                         disabled={loading}
                     >
                         <GiFeather size={20} />
@@ -58,13 +59,21 @@ const TodoWidget = () => {
                             key={todo.id}
                             className={`todo-item ${todo.completed ? 'completed' : ''}`}
                         >
-                            <button onClick={() => toggleTodo(todo.id)} className="todo-status-btn">
+                            <button
+                                onClick={() => toggleTodo(todo.id)}
+                                className="todo-status-btn"
+                                aria-label={todo.completed ? `Mark "${todo.text}" as not done` : `Mark "${todo.text}" as done`}
+                            >
                                 {todo.completed ? <GiCheckMark size={16} /> : <GiEmptyHourglass size={16} />}
                             </button>
                             <span className="todo-text">
                                 {todo.text}
                             </span>
-                            <button onClick={() => deleteTodo(todo.id)} className="todo-delete-btn">
+                            <button
+                                onClick={() => deleteTodo(todo.id)}
+                                className="todo-delete-btn"
+                                aria-label={`Delete todo "${todo.text}"`}
+                            >
                                 <GiTrashCan size={14} />
                             </button>
                         </div>

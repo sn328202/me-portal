@@ -57,6 +57,8 @@ const RecipeCard = ({ recipe, onEdit, onDelete, onAddToPlan, onView }) => {
                 <div style={{ position: 'relative' }}>
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+                        aria-label={`More actions for ${recipe.title}`}
+                        aria-expanded={isMenuOpen}
                         style={{ color: 'var(--text-muted)', padding: '4px' }}
                     >
                         <BsThreeDots />

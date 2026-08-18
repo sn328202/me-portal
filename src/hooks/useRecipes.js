@@ -454,8 +454,15 @@ export const useRecipes = () => {
             if (recipeError) throw recipeError;
 
             // 2. Sync Ingredients (Delete all and re-insert)
-            // Note: ingredients doesn't have user_id, it links to recipe_id
-            await supabase.from('ingredients').delete().eq('recipe_id', updatedRecipe.id);
+            // Ingredients carry user_id (see the inserts here and in addRecipe),
+            // so scope the delete by owner as well as recipe.
+            const { error: deleteIngError } = await supabase
+                .from('ingredients')
+                .delete()
+                .eq('recipe_id', updatedRecipe.id)
+                .eq('user_id', user.id);
+
+            if (deleteIngError) throw deleteIngError;
 
             if (updatedRecipe.ingredients && updatedRecipe.ingredients.length > 0) {
                 const ingredientsToInsert = updatedRecipe.ingredients.map(ing => ({
@@ -467,7 +474,13 @@ export const useRecipes = () => {
                     user_id: user.id
                 }));
 
-                await supabase.from('ingredients').insert(ingredientsToInsert);
+                const { error: insertIngError } = await supabase
+                    .from('ingredients')
+                    .insert(ingredientsToInsert);
+
+                // The old rows are already gone: if this fails the recipe has no
+                // ingredients left, so surface it instead of swallowing it.
+                if (insertIngError) throw insertIngError;
             }
 
             // 3. Sync Tags to Master List (Upsert)
@@ -485,6 +498,10 @@ export const useRecipes = () => {
             fetchRecipes();
         } catch (err) {
             console.error('Error updating recipe:', err);
+            // Don't swallow: the ingredient rows may already be deleted,
+            // so the user has to know the save didn't complete.
+            alert('Failed to save recipe: ' + err.message);
+            fetchRecipes();
         }
     };
 

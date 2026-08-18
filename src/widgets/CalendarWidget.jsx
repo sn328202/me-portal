@@ -105,6 +105,7 @@ const CalendarWidget = () => {
                             onClick={toggleDarkMode}
                             className={`calendar-btn-icon ${isDarkMode ? 'active' : ''}`}
                             title={isDarkMode ? "Disable Dark Mode" : "Enable Dark Mode"}
+                            aria-label={isDarkMode ? 'Disable calendar dark mode' : 'Enable calendar dark mode'}
                         >
                             <GiEclipse />
                         </button>

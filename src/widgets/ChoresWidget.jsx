@@ -48,7 +48,7 @@ const ChoresWidget = () => {
                     disabled={loading}
                     className="chores-input"
                 />
-                <button type="submit" className="chores-add-btn">+</button>
+                <button type="submit" className="chores-add-btn" aria-label={`Add chore to ${selectedRoom}`}>+</button>
             </form>
 
             {/* List */}
@@ -72,6 +72,7 @@ const ChoresWidget = () => {
                         <button
                             onClick={() => deleteChore(chore.id)}
                             className="chores-delete-btn"
+                            aria-label={`Delete chore "${chore.text}"`}
                         >
                             ×
                         </button>

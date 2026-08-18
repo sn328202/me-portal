@@ -28,29 +28,41 @@ export const useNews = () => {
             return;
         }
 
-        const { data, error } = await supabase
-            .from('user_news_config')
-            .select('*')
-            .eq('user_id', user.id)
-            .maybeSingle();
+        try {
+            const { data, error: configError } = await supabase
+                .from('user_news_config')
+                .select('*')
+                .eq('user_id', user.id)
+                .maybeSingle();
 
-        if (data) {
-            setConfig({
-                apiKey: data.api_key || import.meta.env.VITE_NEWS_API_KEY || '',
-                topics: data.topics || [],
-                sources: data.sources || []
-            });
-            // If we have config, load news
-            if ((data.api_key || import.meta.env.VITE_NEWS_API_KEY) && (data.topics.length > 0 || data.sources.length > 0)) {
-                fetchHeadlines(data.api_key || import.meta.env.VITE_NEWS_API_KEY, data.topics, data.sources, signal);
+            if (configError) {
+                // A failed query is not the same as "no config yet"
+                console.error('Error loading news config:', configError);
+                setError(configError.message || 'Failed to load news preferences');
+                return;
+            }
+
+            if (data) {
+                const topics = data.topics || [];
+                const sources = data.sources || [];
+
+                setConfig({
+                    apiKey: data.api_key || import.meta.env.VITE_NEWS_API_KEY || '',
+                    topics,
+                    sources
+                });
+                // If we have config, load news
+                if ((data.api_key || import.meta.env.VITE_NEWS_API_KEY) && ((topics?.length || 0) > 0 || (sources?.length || 0) > 0)) {
+                    // fetchHeadlines owns the loading flag from here on
+                    await fetchHeadlines(data.api_key || import.meta.env.VITE_NEWS_API_KEY, topics, sources, signal);
+                }
             } else {
-                setLoading(false);
+                // No config exists yet, check env
+                if (import.meta.env.VITE_NEWS_API_KEY) {
+                    setConfig(prev => ({ ...prev, apiKey: import.meta.env.VITE_NEWS_API_KEY }));
+                }
             }
-        } else {
-            // No config exists yet, check env
-            if (import.meta.env.VITE_NEWS_API_KEY) {
-                setConfig(prev => ({ ...prev, apiKey: import.meta.env.VITE_NEWS_API_KEY }));
-            }
+        } finally {
             setLoading(false);
         }
     };
@@ -58,17 +70,17 @@ export const useNews = () => {
     const saveConfig = async (newConfig) => {
         if (!user) return;
 
-        const { error } = await supabase
+        const { error: saveError } = await supabase
             .from('user_news_config')
             .upsert({
                 user_id: user.id,
                 api_key: newConfig.apiKey,
                 topics: newConfig.topics,
                 sources: newConfig.sources
-            });
+            }, { onConflict: 'user_id' });
 
-        if (error) {
-            console.error('Error saving news config:', error);
+        if (saveError) {
+            console.error('Error saving news config:', saveError);
             setError('Failed to save preferences');
         } else {
             setConfig(newConfig);

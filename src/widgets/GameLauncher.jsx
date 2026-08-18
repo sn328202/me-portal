@@ -74,6 +74,7 @@ const GameLauncher = ({ title = "Game", icon: Icon, url = "#", description, acce
                     }}
                     className="game-log-trigger"
                     title="Log Result"
+                    aria-label="Log game result"
                 >
                     <GiQuill />
                 </button>

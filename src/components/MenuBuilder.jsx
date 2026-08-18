@@ -235,6 +235,7 @@ const MenuBuilder = ({ recipes, menus, onSaveMenu, onUpdateMenu, onDeleteMenu })
                                             <span style={{ fontSize: '0.9rem', flex: 1 }}>{mr.title}</span>
                                             <button
                                                 onClick={() => handleRemoveRecipe(selectedRecipes.indexOf(mr))}
+                                                aria-label={`Remove ${mr.title} from menu`}
                                                 style={{ border: 'none', background: 'transparent', color: 'var(--accent-crimson)', cursor: 'pointer', position: 'absolute', top: '5px', right: '5px' }}
                                             >
                                                 <GiTrashCan />
@@ -282,6 +283,7 @@ const MenuBuilder = ({ recipes, menus, onSaveMenu, onUpdateMenu, onDeleteMenu })
                                 <button
                                     onClick={() => setViewingMenu(menu)}
                                     title="View Menu"
+                                    aria-label={`View menu ${menu.title}`}
                                     style={{ border: 'none', background: 'transparent', color: 'var(--accent-gold)', cursor: 'pointer', opacity: 1 }}
                                 >
                                     <GiThirdEye size={20} />
@@ -289,6 +291,7 @@ const MenuBuilder = ({ recipes, menus, onSaveMenu, onUpdateMenu, onDeleteMenu })
                                 <button
                                     onClick={() => handleEdit(menu)}
                                     title="Edit Menu"
+                                    aria-label={`Edit menu ${menu.title}`}
                                     style={{ border: 'none', background: 'transparent', color: 'var(--text-gold)', cursor: 'pointer', opacity: 0.6 }}
                                 >
                                     <GiPencil size={20} />
@@ -296,6 +299,7 @@ const MenuBuilder = ({ recipes, menus, onSaveMenu, onUpdateMenu, onDeleteMenu })
                                 <button
                                     onClick={() => onDeleteMenu(menu.id)}
                                     title="Delete Menu"
+                                    aria-label={`Delete menu ${menu.title}`}
                                     style={{ border: 'none', background: 'transparent', color: 'var(--accent-crimson)', cursor: 'pointer', opacity: 0.6 }}
                                 >
                                     <GiTrashCan size={20} />

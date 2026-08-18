@@ -85,6 +85,7 @@ const PantryItem = ({ item, pantryStock, togglePantryStock, deleteIngredient }) 
                         padding: '4px'
                     }}
                     title="Remove Provision"
+                    aria-label={`Remove ${item.label} from the larder`}
                 >
                     <GiTrashCan />
                 </button>
@@ -171,8 +172,8 @@ const Larder = () => {
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             result = result.filter(r =>
-                r.title.toLowerCase().includes(q) ||
-                r.ingredients.some(i => i.item.toLowerCase().includes(q))
+                (r.title || '').toLowerCase().includes(q) ||
+                (r.ingredients || []).some(i => (i.item || '').toLowerCase().includes(q))
             );
         }
 
@@ -213,7 +214,7 @@ const Larder = () => {
         // 2. Search
         if (pantrySearch) {
             const q = pantrySearch.toLowerCase();
-            allIngredients = allIngredients.filter(i => i.label.toLowerCase().includes(q));
+            allIngredients = allIngredients.filter(i => (i.label || '').toLowerCase().includes(q));
         }
 
         // 3. Filter by Category
@@ -528,6 +529,7 @@ const Larder = () => {
                             <div style={{ position: 'relative' }}>
                                 <button
                                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                    aria-label="Choose provision symbol"
                                     style={{
                                         width: '40px', height: '40px',
                                         background: 'rgba(255,255,255,0.05)',

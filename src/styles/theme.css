@@ -13,24 +13,33 @@
     /* Off-white/Parchment-like text */
     --text-muted: #8c857b;
     /* Muted warm grey */
+    --text-dim: #a39b8f;
+    /* De-emphasised helper copy (still >=4.5:1) */
     --text-gold: #cfb53b;
     /* Old Gold */
     --text-highlight: #ffdd99;
     /* Bright gold for active states */
 
     /* Accents */
-    --accent-crimson: #722f37;
-    /* Dried Blood/Wine */
-    --accent-green: #2f4f4f;
-    /* Dark Slate Grey/Green */
+    --accent-crimson: #be606b;
+    /* Dried Blood/Wine, lifted to stay legible as text */
+    --accent-green: #6f9c8a;
+    /* Verdigris/Slate Green */
     --accent-gold: #cfb53b;
+    --accent-gold-dim: rgba(207, 181, 59, 0.18);
+    /* Faint gold wash for hovered/selected rows */
+    --accent-red: #e2707c;
+    /* Error text & borders (auth failures, destructive confirms) */
 
     /* Borders */
     --border-gold: #8a7e57;
     /* Dull Gold */
     --border-bright: #cfb53b;
     /* Bright Gold for focus */
-    --border-dim: #3d3a35;
+    --border-dim: #6e675a;
+    /* Quiet rule, still >=3:1 on the panel */
+    --active-border: #cfb53b;
+    /* Colour only - consumed as `1px solid var(--active-border)` */
 
     /* Typography */
     --font-display: 'Playfair Display', serif;
@@ -39,6 +48,8 @@
     /* Readable body */
     --font-mono: 'Courier Prime', monospace;
     /* Typewriter touches */
+    --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    /* Base reading face - what `body` actually renders in */
 
     --game-tracking: 0.15em;
     /* Letter spacing for headers */
@@ -58,9 +69,12 @@
 
     --border-width: 1px;
     --border-double: 3px double var(--border-gold);
+    --border-single: 1px solid var(--border-gold);
 
     /* Texture & Effects */
     --glass-panel: rgba(20, 18, 16, 0.95);
+    --bg-main-rgb: 12, 10, 9;
+    /* Channels of --bg-main, for rgba() composition */
     --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 8px 12px rgba(0, 0, 0, 0.4);
     --glow-gold: 0 0 10px rgba(207, 181, 59, 0.2);
@@ -75,10 +89,14 @@ body {
     font-family: var(--font-serif);
     margin: 0;
     min-height: 100vh;
+    /* Fallback for browsers without dynamic viewport units */
+    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
     /* The Frame */
     border: 1px solid var(--border-gold);
     height: 100vh;
+    /* Fallback for browsers without dynamic viewport units */
+    height: 100dvh;
     overflow: hidden;
     /* App content handles scrolling */
     position: relative;
@@ -105,4 +123,19 @@ body {
     color: var(--text-gold);
     font-weight: 700;
     font-size: 0.875rem;
+}
+
+/* Focus - one visible ring for every interactive element.
+   Individual stylesheets that kill the UA outline must re-state this. */
+:focus-visible {
+    outline: 2px solid var(--border-bright);
+    outline-offset: 2px;
+}
+
+/* Keyboard focus inside a panel needs to read against the panel, not the page */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--border-bright);
+    outline-offset: 1px;
 }

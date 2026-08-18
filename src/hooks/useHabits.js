@@ -2,6 +2,38 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
+// last_completed has historically been stored as `new Date().toDateString()`
+// ("Tue Aug 18 2026"). Existing rows use that format, so we keep writing it,
+// but comparisons must also accept an ISO `yyyy-MM-dd` value.
+const toDayKey = (value) => {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+        return isNaN(value.getTime()) ? null : value.toDateString();
+    }
+
+    const str = String(value).trim();
+    if (!str) return null;
+
+    // ISO date (or ISO timestamp): parse the date part as LOCAL, not UTC
+    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+        const [, y, m, d] = isoMatch;
+        return new Date(Number(y), Number(m) - 1, Number(d)).toDateString();
+    }
+
+    const parsed = new Date(str);
+    return isNaN(parsed.getTime()) ? str : parsed.toDateString();
+};
+
+// True when two stored day values refer to the same calendar day,
+// regardless of which of the two formats each one uses.
+const isSameDay = (a, b) => {
+    const keyA = toDayKey(a);
+    const keyB = toDayKey(b);
+    return keyA !== null && keyB !== null && keyA === keyB;
+};
+
 export const useHabits = () => {
     const { user } = useAuth();
     const [habits, setHabits] = useState([]);
@@ -35,14 +67,15 @@ export const useHabits = () => {
         // Check for broken streak immediately upon load
         const lastUpdate = localStorage.getItem(uKey);
         if (lastUpdate) {
-            const lastDate = new Date(lastUpdate).toDateString();
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toDateString();
-            const todayStr = new Date().toDateString();
+            const today = new Date();
 
-            if (lastDate !== todayStr && lastDate !== yesterdayStr) {
-                setStreak(0); // Break streak if missed a day
+            if (!isSameDay(lastUpdate, today) && !isSameDay(lastUpdate, yesterday)) {
+                // Broken streak: clear the stored value too, or the old count
+                // comes back on the next load (matches useHobbies).
+                setStreak(0);
+                localStorage.setItem(sKey, '0');
             }
         }
 
@@ -54,13 +87,14 @@ export const useHabits = () => {
 
         if (!error) {
             // Check for daily reset logic locally after fetch
-            const today = new Date().toDateString();
+            const today = new Date();
             const checkData = data || [];
             const checkedData = checkData.map(h => {
                 // If last_completed is NOT today, and it IS marked completed, define reset behavior:
                 // Actually, if it's a daily habit, we reset it at midnight.
                 // Logic: if h.last_completed != today, reset completed to false.
-                if (h.last_completed !== today && h.completed) {
+                // Tolerant compare: rows may hold toDateString() or ISO values.
+                if (!isSameDay(h.last_completed, today) && h.completed) {
                     return { ...h, completed: false };
                 }
                 return h;
@@ -84,9 +118,10 @@ export const useHabits = () => {
         // Previous code had .filter(h => !h.archived) but habits schema might not have it. Assuming all habits are active.
         if (activeHabits.length > 0 && activeHabits.every(h => h.completed)) {
             const lastStreakUpdate = localStorage.getItem(updateKey);
+            // Keep writing toDateString() so existing stored values stay valid.
             const today = new Date().toDateString();
 
-            if (lastStreakUpdate !== today) {
+            if (!isSameDay(lastStreakUpdate, today)) {
                 const newStreak = streak + 1;
                 setStreak(newStreak);
                 localStorage.setItem(streakKey, newStreak);
