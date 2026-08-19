@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import WidgetCard from '../components/WidgetCard';
+import Button from '../components/ui/Button';
+import Field from '../components/ui/Field';
 import { useGoals } from '../hooks/useGoals';
 import EmptyState from '../components/EmptyState';
 import '../styles/GoalsWidget.css';
@@ -29,24 +31,34 @@ const GoalsWidget = () => {
     }, {});
 
     return (
-        <WidgetCard title={getLabel('goals')} icon={getIcon('goals')} actionIcon={isAdding ? null : '+'} onAction={() => setIsAdding(true)}>
+        <WidgetCard
+            title={getLabel('goals')}
+            icon={getIcon('goals')}
+            scroll
+            actionIcon={isAdding ? '×' : '+'}
+            actionLabel={isAdding ? 'Cancel new objective' : `Add to ${getLabel('goals')}`}
+            onAction={() => setIsAdding(!isAdding)}
+        >
             {isAdding && (
                 <form onSubmit={handleAdd} className="goals-form">
-                    <select
-                        value={selectedHorizon}
-                        onChange={e => setSelectedHorizon(e.target.value)}
-                        className="goals-select"
-                    >
-                        {HORIZONS.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
+                    <Field label="Horizon">
+                        <select
+                            className="select goals-select"
+                            value={selectedHorizon}
+                            onChange={e => setSelectedHorizon(e.target.value)}
+                        >
+                            {HORIZONS.map(h => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                    </Field>
                     <input
                         placeholder="New Objective..."
+                        aria-label={`New ${getLabel('goals').toLowerCase()}`}
                         value={newGoal} onChange={e => setNewGoal(e.target.value)}
                         className="goals-input"
                     />
                     <div className="goals-form-controls">
-                        <button type="submit" className="goals-commit-btn">Commit</button>
-                        <button type="button" onClick={() => setIsAdding(false)} className="goals-cancel-btn">Cancel</button>
+                        <Button type="submit" variant="solid" size="sm" className="goals-commit-btn">Commit</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsAdding(false)}>Cancel</Button>
                     </div>
                 </form>
             )}
@@ -62,7 +74,15 @@ const GoalsWidget = () => {
                                 {groupedGoals[horizon].map(goal => (
                                     <div key={goal.id} className="goals-item">
                                         <span className="goals-item-text">{goal.text}</span>
-                                        <button onClick={() => deleteGoal(goal.id)} className="goals-delete-btn" aria-label={`Delete goal "${goal.text}"`}>×</button>
+                                        <Button
+                                            icon
+                                            size="sm"
+                                            className="goals-delete-btn"
+                                            onClick={() => deleteGoal(goal.id)}
+                                            label={`Delete ${getLabel('goals').toLowerCase()} "${goal.text}"`}
+                                        >
+                                            ×
+                                        </Button>
                                     </div>
                                 ))}
                             </div>

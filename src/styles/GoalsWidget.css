@@ -1,100 +1,76 @@
-/* Life Objectives Widget - Goals */
+/* Life Objectives Widget - Goals
+   List ceiling comes from <Card scroll>, not a hand-picked 400px. */
 
 .goals-form {
-    margin-bottom: 1rem;
-    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    padding: var(--space-2);
     border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-sm);
     background: var(--bg-hover);
 }
 
 .goals-select {
-    width: 100%;
-    margin-bottom: 0.5rem;
-    background: #222;
-    border: 1px solid #444;
-    color: var(--text-main);
-    padding: 0.3rem;
-    font-family: var(--font-body);
+    padding: var(--space-1) var(--space-2);
 }
 
 .goals-input {
     width: 100%;
-    margin-bottom: 0.5rem;
+    padding: var(--space-1) 0;
     background: transparent;
     border: none;
-    border-bottom: 1px solid var(--border-dim);
+    border-bottom: var(--rule-hair);
     color: var(--text-main);
     font-family: var(--font-body);
     font-style: italic;
-    padding: 0.2rem 0;
 }
 
 .goals-input:focus {
     outline: none;
-    border-bottom-color: var(--text-gold);
+    border-bottom-color: var(--accent-gold);
 }
 
 .goals-form-controls {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--space-2);
 }
 
 .goals-commit-btn {
     flex: 1;
-    background: var(--text-gold);
-    border: none;
-    padding: 0.2rem;
-    cursor: pointer;
-    color: var(--bg-main);
-    font-family: var(--font-display);
-    text-transform: uppercase;
-    font-size: 0.8rem;
-}
-
-.goals-cancel-btn {
-    background: transparent;
-    border: 1px solid var(--border-dim);
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0 0.5rem;
-    font-size: 0.8rem;
 }
 
 .goals-list-container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    max-height: 400px;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-
-.goals-horizon-section {
-    margin-bottom: 0.5rem;
+    gap: var(--space-5);
+    min-height: 0;
 }
 
 .goals-horizon-title {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border-dim);
-    padding-bottom: 0.2rem;
-    margin-bottom: 0.5rem;
+    margin: 0 0 var(--space-2);
+    padding-bottom: var(--space-1);
+    border-bottom: var(--rule-hair);
     font-family: var(--font-display);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--text-muted);
 }
 
 .goals-items-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-1);
 }
 
 .goals-item {
     display: flex;
-    justify-content: space-between;
-    font-size: 0.9rem;
     align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
 }
 
 .goals-item-text {
@@ -103,24 +79,17 @@
 }
 
 .goals-delete-btn {
-    color: var(--text-muted);
-    background: none;
-    border: none;
-    cursor: pointer;
     opacity: 0.5;
-    font-size: 1.2rem;
-    transition: opacity 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+    font-size: var(--text-lg);
+    line-height: 1;
+}
+
+.goals-item:hover .goals-delete-btn,
+.goals-delete-btn:focus-visible {
+    opacity: 1;
 }
 
 .goals-delete-btn:hover {
-    opacity: 1;
-    color: var(--accent-crimson);
-}
-
-.goals-empty {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    font-style: italic;
-    padding: 1rem;
+    color: var(--accent-red);
 }

@@ -1,11 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { GiSundial, GiNotebook, GiEclipse } from 'react-icons/gi';
-import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../hooks/useSettings';
+import WidgetCard from '../components/WidgetCard';
+import EmptyState from '../components/EmptyState';
+import Button from '../components/ui/Button';
+import Modal from '../components/ui/Modal';
 import '../styles/CalendarWidget.css';
 
+// Hoisted: defining this inside CalendarWidget remounted the iframe — and so
+// re-fetched the Google embed — on every parent render.
+const CalendarFrame = ({ url }) => {
+    if (!url) return null;
+
+    return (
+        <iframe
+            src={url}
+            className="calendar-frame"
+            frameBorder="0"
+            scrolling="no"
+            title="Google Calendar"
+        ></iframe>
+    );
+};
+
 const CalendarWidget = () => {
-    const { user } = useAuth();
     const { settings, updateSetting } = useSettings();
     const [calendarId, setCalendarId] = useState('');
     const [isDarkMode, setIsDarkMode] = useState(false);
@@ -64,102 +82,81 @@ const CalendarWidget = () => {
 
     if (!calendarId) {
         return (
-            <div className="calendar-disconnected">
-                <GiSundial size={48} className="calendar-disconnected-icon" />
-                <h3>The Chronometer is Disconnected</h3>
-                <p>Please enter your <strong>Calendar ID</strong> in Settings to activate the viewing glass.</p>
-            </div>
+            <WidgetCard title="Google Chronometer" icon={<GiSundial />} span={2}>
+                <EmptyState
+                    icon={<GiSundial />}
+                    message="The Chronometer is disconnected."
+                    hint="Enter your Calendar ID in Settings to activate the viewing glass."
+                />
+            </WidgetCard>
         );
     }
 
-    // Modal Content
-    const CalendarFrame = ({ className }) => {
-        const url = getEmbedUrl(calendarId);
-        if (!url) return null;
-
-        return (
-            <iframe
-                src={url}
-                className={`calendar-frame ${className || ''}`}
-                style={{
-                    filter: isDarkMode ? 'invert(0.9) hue-rotate(180deg)' : 'none'
-                }}
-                frameBorder="0"
-                scrolling="no"
-                title="Google Calendar"
-            ></iframe>
-        );
-    };
+    const embedUrl = getEmbedUrl(calendarId);
 
     return (
         <>
-            {/* Standard Widget View */}
-            <div className="calendar-widget">
-                {/* Header / Frame */}
-                <div className="calendar-header">
-                    <h3 className="calendar-title">
-                        <GiSundial /> Google Chronometer
-                    </h3>
-                    <div className="calendar-controls">
-                        <button
-                            onClick={toggleDarkMode}
+            <WidgetCard
+                title="Google Chronometer"
+                icon={<GiSundial />}
+                span={3}
+                className="calendar-widget"
+                actions={
+                    <>
+                        <Button
+                            icon
+                            size="sm"
                             className={`calendar-btn-icon ${isDarkMode ? 'active' : ''}`}
-                            title={isDarkMode ? "Disable Dark Mode" : "Enable Dark Mode"}
-                            aria-label={isDarkMode ? 'Disable calendar dark mode' : 'Enable calendar dark mode'}
+                            onClick={toggleDarkMode}
+                            aria-pressed={isDarkMode}
+                            label={isDarkMode ? 'Disable calendar dark mode' : 'Enable calendar dark mode'}
                         >
                             <GiEclipse />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            icon
+                            size="sm"
                             onClick={() => setIsExpanded(true)}
-                            className="calendar-btn-expand"
-                            title="Expanse Mode (Fullscreen)"
+                            label="Expanse mode (fullscreen)"
                         >
                             ⤢
-                        </button>
-                        <a
+                        </Button>
+                        <Button
+                            as="a"
+                            size="sm"
+                            variant="ghost"
                             href="https://calendar.google.com/calendar/r/settings/export"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="calendar-btn-import"
-                            title="Open Google Calendar Import Settings"
+                            label="Open Google Calendar import settings"
                         >
                             <GiNotebook /> Import .ics
-                        </a>
-                    </div>
-                </div>
-
+                        </Button>
+                    </>
+                }
+            >
                 {/* The Portal (Iframe) */}
                 <div className={`calendar-portal ${isDarkMode ? 'dark' : ''}`}>
-                    <CalendarFrame />
+                    <CalendarFrame url={embedUrl} />
                 </div>
 
                 {/* Note about appearance */}
-                <div className="calendar-note">
-                    * Appearance controlled by Google. Toggle <GiEclipse style={{ verticalAlign: 'middle' }} /> for spectral contrast.
-                </div>
-            </div>
+                <p className="calendar-note">
+                    Appearance is controlled by Google. Toggle the eclipse for spectral contrast.
+                </p>
+            </WidgetCard>
 
-            {/* Expanse Mode Modal */}
-            {isExpanded && (
-                <div className="calendar-expanse-overlay">
-                    <div className="calendar-expanse-content">
-                        <div className="calendar-expanse-header">
-                            <h2 className="calendar-expanse-title">
-                                <GiSundial /> Chronometer Expanse
-                            </h2>
-                            <button
-                                onClick={() => setIsExpanded(false)}
-                                className="calendar-close-btn"
-                            >
-                                CLOSE [ESC]
-                            </button>
-                        </div>
-                        <div className={`calendar-portal ${isDarkMode ? 'dark' : ''}`}>
-                            <CalendarFrame />
-                        </div>
-                    </div>
+            {/* Expanse Mode — a real dialog: focus trap, Escape, focus restore. */}
+            <Modal
+                open={isExpanded}
+                onClose={() => setIsExpanded(false)}
+                title="Chronometer Expanse"
+                size="full"
+            >
+                <div className={`calendar-portal ${isDarkMode ? 'dark' : ''}`}>
+                    <CalendarFrame url={embedUrl} />
                 </div>
-            )}
+            </Modal>
         </>
     );
 };

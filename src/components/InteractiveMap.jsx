@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Fragment } from 'react';
+import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -30,8 +30,8 @@ const InteractiveMap = ({ trips, onLocationSelect, selectedLocation, isEditing }
     const position = [35.0, -40.0];
 
     return (
-        <div style={{ height: '400px', width: '100%', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-dim)' }}>
-            <MapContainer center={position} zoom={2} style={{ height: '100%', width: '100%' }}>
+        <div className="interactive-map">
+            <MapContainer center={position} zoom={2} className="interactive-map__canvas">
                 {/* CartoDB Dark Matter Tiles (Victorian/Dark theme appropriate) */}
                 <TileLayer
                     url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -45,7 +45,7 @@ const InteractiveMap = ({ trips, onLocationSelect, selectedLocation, isEditing }
                         {trip.coordinates && !trip.waypoints && (
                             <Marker position={trip.coordinates}>
                                 <Popup>
-                                    <div style={{ color: '#333' }}>
+                                    <div className="map-popup">
                                         <strong>{trip.destination}</strong><br />
                                         {trip.status}
                                     </div>
@@ -56,9 +56,9 @@ const InteractiveMap = ({ trips, onLocationSelect, selectedLocation, isEditing }
                         {trip.waypoints && trip.waypoints.map((wp, idx) => (
                             <Marker key={`${trip.id}-wp-${idx}`} position={wp.coordinates || [wp.lat, wp.lng]}>
                                 <Popup>
-                                    <div style={{ color: '#333' }}>
+                                    <div className="map-popup">
                                         <strong>{wp.name || trip.destination}</strong><br />
-                                        <span style={{ fontSize: '0.8rem' }}>{trip.destination} stop #{idx + 1}</span>
+                                        <span className="map-popup__sub">{trip.destination} stop #{idx + 1}</span>
                                     </div>
                                 </Popup>
                             </Marker>

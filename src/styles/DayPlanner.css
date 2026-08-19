@@ -1,0 +1,748 @@
+/* ============================================================
+   The Daydream
+   ------------------------------------------------------------
+   Two panes: the itineraries rail and the planner. The rail
+   used to be a hardcoded 300px next to an `overflow: hidden`
+   parent, which left three quarters of a desktop empty and
+   clipped the whole thing on a phone. It is a proportion now,
+   and it stacks.
+
+   The only literal colours here are the brainstorm notes:
+   they are paper stickies, and stickies are yellow.
+   ============================================================ */
+
+.daydream {
+    display: grid;
+    grid-template-columns: minmax(15rem, 24%) minmax(0, 1fr);
+    gap: var(--space-5);
+    height: 100%;
+    min-height: 0;
+}
+
+.daydream__places-anchor {
+    display: none;
+}
+
+
+/* Cards that contain a dropdown (Places autocomplete, the time
+   list) must not clip it — .card sets overflow: hidden for the
+   corner ornaments, which flat cards don't draw anyway. */
+.card.daydream__create,
+.card.idea-form,
+.card.tl-item {
+    overflow: visible;
+}
+
+
+/* ---------- Rail ------------------------------------------- */
+
+.daydream__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-height: 0;
+    padding-right: var(--space-4);
+    border-right: var(--rule-hair);
+}
+
+.daydream__sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.section-title.daydream__heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--text-xl);
+}
+
+.card.daydream__create {
+    gap: var(--space-3);
+}
+
+.daydream__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.daydream__list-empty {
+    margin: 0;
+    font-size: var(--text-sm);
+}
+
+
+/* Itinerary rows: one height, one delete affordance. */
+.card.plan-card {
+    padding: var(--space-3);
+    transition: border-color var(--dur-base) var(--ease), background var(--dur-base) var(--ease);
+}
+
+.card.plan-card .card__body {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.card.plan-card:hover {
+    border-color: var(--border-gold);
+}
+
+.card.plan-card.is-selected {
+    background: var(--accent-gold-dim);
+    border-left: 3px solid var(--accent-gold);
+}
+
+.plan-card__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-tight);
+}
+
+.plan-card__open {
+    padding: 0;
+    padding-right: var(--tap-min);
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.plan-card__open::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+.plan-card__open:focus-visible {
+    outline: none;
+}
+
+.plan-card__open:focus-visible::after {
+    outline: 2px solid var(--border-bright);
+    outline-offset: -3px;
+}
+
+.plan-card.is-selected .plan-card__open {
+    color: var(--text-gold);
+}
+
+.plan-card__meta {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+/* Reserved so dated and undated itineraries are the same height. */
+.plan-card__date {
+    min-height: 1rem;
+}
+
+.daydream .plan-card__delete.btn {
+    position: absolute;
+    top: var(--space-1);
+    right: var(--space-1);
+    z-index: 1;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+}
+
+
+/* ---------- Planner ---------------------------------------- */
+
+.daydream__detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+    min-height: 0;
+}
+
+.daydream__blank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+.daydream__blank .empty {
+    width: 100%;
+    max-width: 34rem;
+    padding: var(--space-8) var(--space-5);
+}
+
+.daydream__blank .empty__icon {
+    font-size: var(--text-4xl);
+}
+
+.daydream__head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-bottom: var(--space-4);
+    border-bottom: var(--rule-hair);
+    flex-shrink: 0;
+}
+
+.daydream__head-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.daydream__title-input {
+    flex: 1;
+    min-width: 12rem;
+    padding: var(--space-1) 0;
+    background: transparent;
+    border: none;
+    border-bottom: var(--rule-accent);
+    color: var(--text-gold);
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+}
+
+.daydream__head-actions {
+    flex-shrink: 0;
+}
+
+.daydream__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+
+.daydream__meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.daydream__meta-input {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.daydream__delete {
+    margin-left: auto;
+}
+
+.btn.daydream__delete:not(.btn--danger) {
+    color: var(--accent-crimson);
+    border-color: var(--accent-crimson);
+}
+
+
+/* ---------- Boards ----------------------------------------- */
+
+.daydream__boards {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-5);
+    flex: 1;
+    min-height: 0;
+}
+
+.board {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-height: 0;
+    min-width: 0;
+}
+
+.board--ideas {
+    padding-right: var(--space-4);
+    border-right: 1px dashed var(--border-dim);
+}
+
+.board__title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
+    color: var(--text-gold);
+}
+
+.board__title--crimson {
+    color: var(--accent-crimson);
+}
+
+
+/* ---------- Brainstorming ---------------------------------- */
+
+.card.idea-form {
+    gap: var(--space-3);
+    flex-shrink: 0;
+}
+
+.idea-form__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 7rem;
+    gap: var(--space-2);
+    align-items: end;
+}
+
+.idea-form__linked {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-gold);
+}
+
+.idea-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-auto-rows: max-content;
+    gap: var(--space-4);
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0;
+    padding: var(--space-1);
+    list-style: none;
+}
+
+/* Paper stickies. Deliberately not themeable — they are paper. */
+.idea {
+    position: relative;
+    padding: var(--space-4);
+    background: #fff9c4;
+    color: #333;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    transform: rotate(var(--tilt, 0deg));
+    cursor: grab;
+    overflow: hidden;
+}
+
+.idea__photo {
+    height: 80px;
+    margin-bottom: var(--space-2);
+}
+
+.idea__title {
+    margin: 0 0 var(--space-2);
+    padding-right: var(--space-5);
+    font-weight: var(--weight-bold);
+}
+
+.idea__rating {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-xs);
+    color: #b26a00;
+}
+
+.idea__rating span {
+    color: #777;
+}
+
+.idea__line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-xs);
+    color: #555;
+}
+
+.idea__link {
+    display: block;
+    margin-bottom: var(--space-1);
+    font-size: var(--text-xs);
+    color: #1a4f9c;
+}
+
+.idea .idea__delete.btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    color: #555;
+}
+
+.idea .idea__delete.btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #333;
+}
+
+
+/* ---------- The Itinerary ---------------------------------- */
+
+.timeline {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-left: var(--space-6);
+    border-left: 2px solid var(--border-dim);
+}
+
+.sortable.is-dragging {
+    position: relative;
+    z-index: 2;
+    opacity: 0.7;
+}
+
+.tl-row {
+    position: relative;
+}
+
+.tl-row__thread {
+    position: absolute;
+    left: 26px;
+    top: 50px;
+    bottom: calc(var(--space-6) * -1);
+    width: 2px;
+    background: var(--border-dim);
+    z-index: 0;
+}
+
+.card.tl-item {
+    position: relative;
+    z-index: 1;
+}
+
+.card.tl-item .card__body {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+}
+
+.tl-item__aside {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 60px;
+}
+
+.tl-item .tl-item__handle {
+    cursor: grab;
+    touch-action: none;
+}
+
+.tl-item .tl-item__handle:active {
+    cursor: grabbing;
+}
+
+.tl-item__photo {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-md);
+}
+
+.tl-item__main {
+    min-width: 0;
+}
+
+.tl-item__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.tl-item__title {
+    margin: 0 0 var(--space-1);
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    line-height: var(--leading-tight);
+    color: var(--text-main);
+}
+
+.tl-item__location {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.tl-item__location a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.tl-item__actions {
+    display: flex;
+    gap: var(--space-1);
+    flex-shrink: 0;
+}
+
+.tl-item__meta {
+    display: flex;
+    gap: var(--space-4);
+    margin-top: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.tl-item__meta span {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.tl-item__rating {
+    color: var(--text-gold);
+}
+
+.tl-travel {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+    padding-left: 60px;
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+.tl-travel__tick {
+    width: 2px;
+    height: 20px;
+    margin: 0 var(--space-2);
+    background: var(--border-gold);
+}
+
+.tl-gap {
+    display: block;
+    height: var(--space-4);
+}
+
+
+/* ---------- Shared bits ------------------------------------ */
+
+.place-image {
+    background-color: rgba(255, 255, 255, 0.05);
+    background-size: cover;
+    background-position: center;
+}
+
+.place-image--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.place-image--empty svg {
+    opacity: 0.3;
+}
+
+/* Places autocomplete (Daydream-only component) */
+.places-search {
+    position: relative;
+    width: 100%;
+}
+
+.places-search__list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: var(--bg-panel);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+}
+
+.places-search__option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: var(--tap-min);
+    padding: var(--space-2) var(--space-3);
+    background: transparent;
+    border: none;
+    border-bottom: var(--rule-hair);
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.places-search__option:hover,
+.places-search__option:focus-visible {
+    background: var(--accent-gold-dim);
+}
+
+.places-search__option svg {
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.places-search__secondary {
+    font-size: var(--text-xs);
+    opacity: 0.7;
+    margin-left: var(--space-1);
+}
+
+/* Time entry on itinerary rows */
+.time-input {
+    position: relative;
+}
+
+.time-input__control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 var(--space-1);
+    background: var(--field-bg);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+}
+
+.time-input__field {
+    width: 4.5rem;
+    padding: var(--space-2) var(--space-1);
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    outline: none;
+}
+
+.time-input__list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    width: 7rem;
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: var(--bg-panel);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+}
+
+.time-input__option {
+    width: 100%;
+    padding: var(--space-2);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.time-input__option:hover,
+.time-input__option:focus-visible {
+    background: var(--bg-hover);
+}
+
+.time-input__option.is-current {
+    background: var(--accent-gold-dim);
+}
+
+
+/* ---------- Stacking --------------------------------------- */
+
+@media (max-width: 900px) {
+    .daydream {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100%;
+    }
+
+    .daydream__sidebar {
+        padding-right: 0;
+        padding-bottom: var(--space-4);
+        border-right: none;
+        border-bottom: var(--rule-hair);
+    }
+
+    .daydream__list {
+        max-height: 40vh;
+    }
+
+    .daydream__detail {
+        overflow: visible;
+    }
+
+    .daydream__boards {
+        grid-template-columns: 1fr;
+        min-height: 0;
+    }
+
+    .board--ideas {
+        padding-right: 0;
+        padding-bottom: var(--space-4);
+        border-right: none;
+        border-bottom: 1px dashed var(--border-dim);
+    }
+
+    .idea-grid,
+    .timeline {
+        overflow-y: visible;
+        max-height: none;
+    }
+
+    .timeline {
+        padding-left: var(--space-4);
+    }
+
+    .tl-row__thread {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .card.tl-item .card__body {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .tl-item__photo {
+        display: none;
+    }
+
+    .tl-travel {
+        padding-left: var(--space-5);
+    }
+
+    .idea-form__row {
+        grid-template-columns: 1fr;
+    }
+}

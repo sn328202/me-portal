@@ -1,33 +1,42 @@
-/* Greeting Widget - The Traveler's Welcome */
+/* Greeting Widget - The Traveler's Welcome
+   This is the emotional centre of the app: 4rem (--text-5xl, which exists for
+   this and nothing else) Playfair, the name italic and gold and editable in
+   place. Nothing here gets quieter. */
 
 .greeting-widget {
-    padding: var(--space-lg) 0;
+    padding: var(--space-6) 0;
 }
 
 .greeting-date {
-    margin-bottom: var(--space-md);
+    margin-bottom: var(--space-4);
     color: var(--text-muted);
     font-family: var(--font-body);
-    font-size: 0.9rem;
-    letter-spacing: 0.05em;
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-label);
 }
 
 .greeting-text {
-    font-size: 4rem;
     margin: 0;
-    font-weight: 400;
     font-family: var(--font-display);
+    font-size: var(--text-5xl);
+    font-weight: var(--weight-normal);
+    line-height: var(--leading-tight);
     color: var(--text-main);
-    line-height: 1;
 }
 
-.greeting-name-input {
+.greeting-name-input,
+.greeting-name-display {
     font-size: inherit;
     font-family: inherit;
     font-weight: inherit;
+    line-height: inherit;
     font-style: italic;
     color: var(--text-gold);
     background: transparent;
+    padding: 0;
+}
+
+.greeting-name-input {
     border: none;
     border-bottom: 2px solid var(--text-gold);
     /* UA outline is replaced below, not simply removed */
@@ -36,20 +45,27 @@
     max-width: 100%;
 }
 
-.greeting-name-input:focus-visible {
+.greeting-name-input:focus-visible,
+.greeting-name-display:focus-visible {
     outline: 2px solid var(--border-bright);
     outline-offset: 2px;
 }
 
+/* A real button: this was a <span onClick>, unreachable by keyboard. */
 .greeting-name-display {
-    color: var(--text-gold);
-    font-style: italic;
-    cursor: pointer;
+    border: none;
     border-bottom: 1px dotted var(--text-muted);
-    transition: color 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+    transition: color var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
 
 .greeting-name-display:hover {
     color: var(--text-highlight);
     border-bottom-color: var(--text-gold);
+}
+
+@media (max-width: 768px) {
+    .greeting-text {
+        font-size: var(--text-4xl);
+    }
 }

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { parse } from 'date-fns';
 import { useTheme } from '../contexts/ThemeContext';
 import WidgetCard from '../components/WidgetCard';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/EmptyState';
 import { useSocial } from '../hooks/useSocial';
 import '../styles/SocialWidget.css';
 
@@ -28,36 +30,44 @@ const SocialWidget = () => {
     };
 
     return (
-        <WidgetCard title={getLabel('social')} icon={getIcon('social')} actionIcon={isAdding ? null : '+'} onAction={() => setIsAdding(true)}>
+        <WidgetCard
+            title={getLabel('social')}
+            icon={getIcon('social')}
+            scroll
+            actionIcon={isAdding ? '×' : '+'}
+            actionLabel={isAdding ? 'Cancel new plan' : `Add to ${getLabel('social')}`}
+            onAction={() => setIsAdding(!isAdding)}
+        >
             {isAdding && (
                 <form onSubmit={handleAdd} className="social-form">
                     <input
                         placeholder="Who?"
+                        aria-label="Who"
                         value={who} onChange={e => setWho(e.target.value)}
                         className="social-input"
                     />
                     <input
                         placeholder="What?"
+                        aria-label="What"
                         value={what} onChange={e => setWhat(e.target.value)}
                         className="social-input"
                     />
                     <input
                         type="date"
+                        aria-label="When"
                         value={when} onChange={e => setWhen(e.target.value)}
                         className="social-input-date"
                     />
                     <div className="social-form-controls">
-                        <button type="submit" className="social-rsvp-btn">RSVP</button>
-                        <button type="button" onClick={() => setIsAdding(false)} className="social-cancel-btn">Cancel</button>
+                        <Button type="submit" variant="solid" size="sm" className="social-rsvp-btn">RSVP</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsAdding(false)}>Cancel</Button>
                     </div>
                 </form>
             )}
 
             <div className="social-list-container">
                 {events.length === 0 && !isAdding && !loading && (
-                    <div className="social-empty">
-                        The calendar is clear.
-                    </div>
+                    <EmptyState message="The calendar is clear." icon={getIcon('social')} inline />
                 )}
                 {events.map(plan => (
                     <div key={plan.id} className="social-event-item">
@@ -66,7 +76,15 @@ const SocialWidget = () => {
                             <div className="social-event-what">{plan.what}</div>
                             {plan.when_date && <div className="social-event-date">{parseLocalDate(plan.when_date).toLocaleDateString()}</div>}
                         </div>
-                        <button onClick={() => deleteEvent(plan.id)} className="social-delete-btn" aria-label={`Delete plan with ${plan.who}`}>×</button>
+                        <Button
+                            icon
+                            size="sm"
+                            className="social-delete-btn"
+                            onClick={() => deleteEvent(plan.id)}
+                            label={`Delete plan with ${plan.who}`}
+                        >
+                            ×
+                        </Button>
                     </div>
                 ))}
             </div>

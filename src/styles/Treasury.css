@@ -1,0 +1,370 @@
+/* ============================================================
+   The Treasury
+   ------------------------------------------------------------
+   A desire ledger, a brand registry and a vision board. Layout
+   only — every colour, size and border comes from a token, so
+   all seven skins move together. Anything that used to be an
+   inline style object lives here.
+   ============================================================ */
+
+.treasury-page {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Sits under the tab strip: the segmented view switch on the
+   left, filters on the right. The create action is in the page
+   header, not here. */
+.treasury-toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.treasury-loading {
+    padding: var(--space-6);
+    text-align: center;
+    font-family: var(--font-display);
+    letter-spacing: var(--tracking-label);
+    color: var(--text-gold);
+}
+
+
+/* ---------- Shared thumbnails ------------------------------ */
+
+.thumb {
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    overflow: hidden;
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+}
+
+.thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.thumb--preview {
+    width: 50px;
+    height: 50px;
+}
+
+.thumb--round {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+
+/* ---------- Ledger ----------------------------------------- */
+
+.ledger-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+    gap: var(--space-5);
+    align-items: start;
+}
+
+/* The subtotal is the only insight on this page — it used to be
+   rendered smaller than the rows it summarises. */
+.ledger-subtotal {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-1);
+}
+
+.ledger-subtotal__icon {
+    align-self: center;
+    color: var(--text-gold);
+    opacity: 0.8;
+}
+
+.ledger-subtotal__value {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: var(--weight-bold);
+    line-height: 1;
+    color: var(--text-gold);
+}
+
+.ledger-subtotal__label {
+    font-family: var(--font-body);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.desire-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.desire {
+    display: flex;
+    gap: var(--space-4);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px dashed var(--border-dim);
+}
+
+.desire:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+/* Acquiring something does not remove it from the ledger. It
+   stays, dimmed and struck through. */
+.desire--acquired {
+    opacity: 0.6;
+}
+
+.desire--acquired .desire__title {
+    text-decoration: line-through;
+}
+
+.desire__main {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.desire__title {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-snug);
+    color: var(--text-main);
+    overflow-wrap: anywhere;
+}
+
+.desire__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.desire__link {
+    align-self: flex-start;
+    font-size: var(--text-xs);
+    color: var(--text-gold);
+    text-decoration: underline;
+}
+
+.desire__link:hover {
+    color: var(--text-highlight);
+}
+
+.desire__actions {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+/* The acquired marker reads as lit rather than as a plain icon. */
+.btn.is-marked {
+    color: var(--text-gold);
+}
+
+
+/* ---------- Vision board ----------------------------------- */
+
+.vision-board {
+    columns: 250px 4;
+    column-gap: var(--space-4);
+}
+
+.vision-tile {
+    position: relative;
+    break-inside: avoid;
+    margin-bottom: var(--space-4);
+    overflow: hidden;
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+}
+
+.vision-tile img {
+    width: 100%;
+    display: block;
+    transition: transform var(--dur-slow) var(--ease);
+}
+
+.vision-tile a {
+    display: block;
+    text-decoration: none;
+}
+
+.vision-tile a:hover img,
+.vision-tile a:focus-visible img {
+    transform: scale(1.05);
+}
+
+/* Was a flat rgba(0,0,0,0.7) scrim with white text on top of the
+   richest content in the app. Now it fades out of the room's own
+   background colour and speaks in the display face. */
+.vision-caption {
+    position: absolute;
+    inset: auto 0 0 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5) var(--space-3) var(--space-2);
+    background: linear-gradient(to top,
+            rgba(var(--bg-main-rgb), 0.94) 0%,
+            rgba(var(--bg-main-rgb), 0.7) 55%,
+            rgba(var(--bg-main-rgb), 0) 100%);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-label);
+    line-height: var(--leading-snug);
+    color: var(--text-highlight);
+}
+
+.vision-caption__mark {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: var(--text-base);
+    color: var(--text-gold);
+}
+
+
+/* ---------- Brand registry --------------------------------- */
+
+.brand-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: end;
+}
+
+.brand-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+    gap: var(--space-5);
+    align-items: start;
+}
+
+.brand-card__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+.brand-card__name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: var(--weight-bold);
+    line-height: var(--leading-tight);
+    color: var(--text-gold);
+    overflow-wrap: anywhere;
+}
+
+.brand-card__link {
+    align-self: flex-start;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-style: italic;
+    color: var(--text-muted);
+    text-decoration: underline;
+}
+
+.brand-card__link:hover {
+    color: var(--text-gold);
+}
+
+.brand-card__notes {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+    color: var(--text-muted);
+}
+
+
+/* ---------- Forms ------------------------------------------ */
+
+/* A field with a trailing action (the ✨ Auto-Fill spell), kept
+   out of the <label> where it used to live. */
+.field-with-action {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+}
+
+.field-with-action .field {
+    flex: 1;
+}
+
+.field-with-image {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+}
+
+.field-with-image .field {
+    flex: 1;
+}
+
+
+/* ---------- Mobile ----------------------------------------- */
+
+@media (max-width: 900px) {
+    .brand-controls {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .brand-controls .field:first-child {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .ledger-grid,
+    .brand-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+    }
+
+    .vision-board {
+        columns: 1;
+    }
+
+    .treasury-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .brand-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .desire {
+        flex-wrap: wrap;
+    }
+
+    .desire__actions {
+        width: 100%;
+    }
+}

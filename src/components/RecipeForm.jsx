@@ -4,7 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { GiSave, GiCancel, GiTrashCan, GiCheckMark, GiWorld } from 'react-icons/gi';
 import EmojiPicker from 'emoji-picker-react';
 import { INGREDIENT_LIBRARY } from '../data/ingredients';
+import { Button, Card, Field, Modal, Tag } from './ui';
 
+const CATEGORIES = ['Pantry', 'Produce', 'Dairy', 'Protein', 'Spices'];
 
 const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredientToPantry, onImport, allTags = [] }) => {
     const [title, setTitle] = useState('');
@@ -12,7 +14,6 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
     const [ingredients, setIngredients] = useState([]); // Array of { item, amount, unit, notes }
     const [tags, setTags] = useState([]);
 
-    const [tagInput, setTagInput] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [activeIngIndex, setActiveIngIndex] = useState(null);
 
@@ -24,9 +25,10 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
     const [cookTime, setCookTime] = useState('');
     const [totalTime, setTotalTime] = useState('');
 
-    const [newIngModal, setNewIngModal] = useState({ open: false, index: null, name: '', icon: '🍽️', category: 'Pantry' });
+    const [newIngModal, setNewIngModal] = useState({ open: false, index: null, name: '', icon: '🍽️', category: 'Pantry', showPicker: false });
     const [importUrl, setImportUrl] = useState('');
     const [isImporting, setIsImporting] = useState(false);
+    const [importError, setImportError] = useState('');
 
     // Check if ingredient exists in pantry
     const isIngredientUnknown = (name) => {
@@ -38,6 +40,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
     const handleImport = async () => {
         if (!importUrl || !onImport) return;
         setIsImporting(true);
+        setImportError('');
         try {
             const data = await onImport(importUrl);
             setTitle(data.title || '');
@@ -51,7 +54,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
             setCookTime(data.cook_time || '');
             setTotalTime(data.total_time || '');
         } catch (e) {
-            alert("Failed to transcribe from the aether: " + e.message);
+            setImportError('Failed to transcribe from the aether: ' + e.message);
         } finally {
             setIsImporting(false);
         }
@@ -120,6 +123,18 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
         setIngredients(newIngredients);
     };
 
+    const closeIngModal = () => setNewIngModal({ open: false, index: null, name: '', icon: '🍽️', category: 'Pantry', showPicker: false });
+
+    const inscribeIngredient = () => {
+        onAddIngredientToPantry(newIngModal.name.toLowerCase(), {
+            label: newIngModal.name,
+            icon: newIngModal.icon,
+            category: newIngModal.category,
+            defaultUnit: 'pcs'
+        });
+        closeIngModal();
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         onSave({
@@ -138,343 +153,217 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
     };
 
     return (
-        <form onSubmit={handleSubmit} style={{
-            background: 'var(--bg-panel)',
-            border: 'var(--border-double)',
-            padding: 'var(--space-lg)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-md)',
-            maxWidth: '800px',
-            margin: '0 auto'
-        }}>
-
+        <Card
+            as="form"
+            onSubmit={handleSubmit}
+            className="recipe-form"
+            title={recipe ? 'Edit Formula' : 'New Culinary Formula'}
+        >
             {/* Import Section (Only for new recipes) */}
             {!recipe && (
-                <div style={{ marginBottom: '1rem', padding: '1rem', background: 'rgba(207, 181, 59, 0.05)', border: '1px dashed var(--border-gold)', borderRadius: '4px' }}>
-                    <h4 style={{ margin: '0 0 0.5rem 0', fontFamily: 'var(--font-display)', color: 'var(--text-gold)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="recipe-form__import">
+                    <h4 className="recipe-form__import-title">
                         <GiWorld /> Import from Aether (Web)
                     </h4>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <input
+                    <div className="recipe-form__import-row">
+                        <Field
+                            label="Recipe URL"
                             type="text"
                             placeholder="Paste recipe URL here..."
                             value={importUrl}
+                            error={importError}
                             onChange={(e) => setImportUrl(e.target.value)}
-                            style={{
-                                flex: 1,
-                                background: 'var(--bg-main)',
-                                border: '1px solid var(--border-dim)',
-                                color: 'var(--text-main)',
-                                padding: '0.5rem',
-                                fontFamily: 'var(--font-mono)'
-                            }}
                         />
-                        <button
-                            type="button"
+                        <Button
+                            variant="solid"
                             onClick={handleImport}
                             disabled={isImporting || !importUrl}
-                            style={{
-                                background: 'var(--accent-gold)',
-                                color: 'var(--bg-main)',
-                                border: 'none',
-                                padding: '0 1rem',
-                                fontFamily: 'var(--font-display)',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                opacity: isImporting ? 0.7 : 1
-                            }}
                         >
                             {isImporting ? 'Transcribing...' : 'Import'}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
 
-            <h2 className="box-header" style={{ borderBottom: '1px solid var(--border-gold)', paddingBottom: 'var(--space-sm)' }}>
-                {recipe ? 'Edit Formula' : 'New Culinary Formula'}
-            </h2>
-
-            {/* Title */}
-            <div>
-                <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>Title</label>
-                <input
-                    type="text"
-                    name="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    style={{
-                        width: '100%',
-                        background: 'transparent',
-                        border: 'none',
-                        borderBottom: '1px solid var(--border-gold)',
-                        color: 'var(--text-main)',
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '1.5rem',
-                        padding: '8px 0',
-                        outline: 'none'
-                    }}
-                    placeholder="E.g., Moonlight Soufflé"
-                    required
-                />
-            </div>
+            <Field
+                className="recipe-form__title"
+                label="Title"
+                type="text"
+                name="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="E.g., Moonlight Soufflé"
+                required
+            />
 
             {/* Image & Metadata */}
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <div style={{ flex: 2 }}>
-                    <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>Image URL</label>
-                    <input
-                        type="text"
-                        value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        style={{ ...inputStyle, width: '100%' }}
-                        placeholder="https://..."
-                    />
-                </div>
+            <div className="recipe-form__image-row">
+                <Field
+                    label="Image URL"
+                    type="text"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://..."
+                />
                 {imageUrl && (
-                    <div style={{ width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-gold)' }}>
-                        <img src={imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div className="recipe-form__thumb">
+                        <img src={imageUrl} alt="Preview" />
                     </div>
                 )}
             </div>
 
-            {/* Source URL */}
-            <div>
-                <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>Source URL</label>
-                <input
+            <Field
+                label="Source URL"
+                type="text"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://example.com/original-recipe"
+            />
+
+            <div className="field-row">
+                <Field
+                    label="Yield"
                     type="text"
-                    value={sourceUrl}
-                    onChange={(e) => setSourceUrl(e.target.value)}
-                    style={{ ...inputStyle, width: '100%' }}
-                    placeholder="https://example.com/original-recipe"
+                    value={servings}
+                    onChange={(e) => setServings(e.target.value)}
+                    placeholder="e.g. 4 people"
+                />
+                <Field
+                    label="Prep Time"
+                    type="text"
+                    value={prepTime}
+                    onChange={(e) => setPrepTime(e.target.value)}
+                    placeholder="15m"
+                />
+                <Field
+                    label="Cook Time"
+                    type="text"
+                    value={cookTime}
+                    onChange={(e) => setCookTime(e.target.value)}
+                    placeholder="1h"
+                />
+                <Field
+                    label="Total Time"
+                    type="text"
+                    value={totalTime}
+                    onChange={(e) => setTotalTime(e.target.value)}
+                    placeholder="1h 15m"
                 />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
-                <div>
-                    <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>Yield</label>
-                    <input
-                        type="text"
-                        value={servings}
-                        onChange={(e) => setServings(e.target.value)}
-                        style={{ ...inputStyle, width: '100%' }}
-                        placeholder="e.g. 4 people"
-                    />
-                </div>
-                <div>
-                    <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>Prep Time</label>
-                    <input
-                        type="text"
-                        value={prepTime}
-                        onChange={(e) => setPrepTime(e.target.value)}
-                        style={{ ...inputStyle, width: '100%' }}
-                        placeholder="15m"
-                    />
-                </div>
-                <div>
-                    <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>Cook Time</label>
-                    <input
-                        type="text"
-                        value={cookTime}
-                        onChange={(e) => setCookTime(e.target.value)}
-                        style={{ ...inputStyle, width: '100%' }}
-                        placeholder="1h"
-                    />
-                </div>
-                <div>
-                    <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>Total Time</label>
-                    <input
-                        type="text"
-                        value={totalTime}
-                        onChange={(e) => setTotalTime(e.target.value)}
-                        style={{ ...inputStyle, width: '100%' }}
-                        placeholder="1h 15m"
-                    />
-                </div>
-            </div>
-
             {/* Ingredients */}
-            <div>
-                <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '8px', fontFamily: 'var(--font-mono)' }}>Ingredients</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <fieldset className="recipe-form__section">
+                <legend className="section-title">Ingredients</legend>
+                <div className="recipe-form__ingredients">
                     {ingredients.map((ing, i) => (
-                        <div key={ing.id || i} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <input
+                        <div key={ing.id || i} className="recipe-form__ing">
+                            <div className="recipe-form__ing-row">
+                                <Field
+                                    label="Amount"
                                     placeholder="Amount"
                                     value={ing.amount}
                                     onChange={e => handleIngredientChange(i, 'amount', e.target.value)}
-                                    style={inputStyle}
                                 />
-                                <input
+                                <Field
+                                    label="Unit"
                                     placeholder="Unit"
                                     value={ing.unit}
                                     onChange={e => handleIngredientChange(i, 'unit', e.target.value)}
-                                    style={inputStyle}
                                 />
-                                <div style={{ position: 'relative', flex: 1.5 }}>
-                                    <input
+                                <div className="recipe-form__ing-item">
+                                    <Field
+                                        label="Item"
                                         placeholder="Item"
                                         value={ing.item}
                                         onChange={e => handleItemChange(i, e.target.value)}
                                         onFocus={() => setActiveIngIndex(i)}
                                         onBlur={() => setTimeout(() => setActiveIngIndex(null), 200)}
-                                        style={{ ...inputStyle, width: '100%' }}
+                                        autoComplete="off"
                                     />
                                     {activeIngIndex === i && suggestions.length > 0 && (
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: '100%',
-                                            left: 0,
-                                            right: 0,
-                                            background: 'var(--bg-panel)',
-                                            border: '1px solid var(--border-gold)',
-                                            zIndex: 10,
-                                            maxHeight: '150px',
-                                            overflowY: 'auto',
-                                            boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                                        }}>
+                                        <div className="recipe-form__suggestions">
                                             {suggestions.map(s => (
-                                                <div
+                                                <button
                                                     key={s.id}
+                                                    type="button"
+                                                    className="recipe-form__suggestion"
                                                     onClick={() => selectIngredient(i, s)}
-                                                    style={{
-                                                        padding: '8px',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '8px',
-                                                        borderBottom: '1px solid var(--border-dim)'
-                                                    }}
-                                                    className="hover-bg-dim"
                                                 >
-                                                    <span style={{ fontSize: '1.2rem' }}>{s.icon}</span>
+                                                    <span className="recipe-form__suggestion-icon">{s.icon}</span>
                                                     <span>{s.label}</span>
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
                                     )}
                                 </div>
-                                <input
+                                <Field
+                                    label="Notes"
                                     placeholder="Notes (e.g. diced)"
                                     value={ing.notes || ''}
                                     onChange={e => handleIngredientChange(i, 'notes', e.target.value)}
-                                    style={{ ...inputStyle, flex: 1, fontStyle: 'italic', color: 'var(--text-muted)' }}
                                 />
-                                <button type="button" onClick={() => removeIngredient(i)} aria-label={`Remove ingredient ${i + 1}`} style={{ color: 'var(--accent-crimson)' }}>
+                                <Button
+                                    icon
+                                    label={`Remove ingredient ${i + 1}`}
+                                    className="recipe-form__ing-remove"
+                                    onClick={() => removeIngredient(i)}
+                                >
                                     <GiTrashCan />
-                                </button>
+                                </Button>
                             </div>
 
                             {/* New Ingredient Warning/Action */}
                             {isIngredientUnknown(ing.item) && (
-                                <div style={{
-                                    marginLeft: '120px',
-                                    display: 'flex', alignItems: 'center', gap: '8px',
-                                    background: 'rgba(207, 181, 59, 0.15)',
-                                    border: '1px solid var(--border-gold)',
-                                    padding: '4px 12px',
-                                    borderRadius: '2px', // Vintage tag style
-                                    alignSelf: 'flex-start',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                                }}>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-gold)', letterSpacing: '0.05em' }}>❓ UNREGISTERED PROVISION</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setNewIngModal({ open: true, index: i, name: ing.item, icon: '🍽️', category: 'Pantry' })}
-                                        style={{
-                                            background: 'transparent',
-                                            color: 'var(--accent-gold)',
-                                            border: '1px solid var(--accent-gold)',
-                                            fontSize: '0.7rem',
-                                            padding: '2px 8px',
-                                            cursor: 'pointer',
-                                            fontFamily: 'var(--font-display)',
-                                            letterSpacing: '0.1em',
-                                            marginLeft: '8px',
-                                            transition: 'all 0.2s ease'
-                                        }}
-                                        onMouseEnter={(e) => { e.target.style.background = 'var(--accent-gold)'; e.target.style.color = 'var(--bg-main)'; }}
-                                        onMouseLeave={(e) => { e.target.style.background = 'transparent'; e.target.style.color = 'var(--accent-gold)'; }}
+                                <div className="recipe-form__unknown">
+                                    <Tag tone="gold">❓ UNREGISTERED PROVISION</Tag>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => setNewIngModal({
+                                            open: true, index: i, name: ing.item,
+                                            icon: '🍽️', category: 'Pantry', showPicker: false
+                                        })}
                                     >
                                         CATALOGUE
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
                         </div>
                     ))}
-                    <button
-                        type="button"
-                        onClick={addIngredient}
-                        style={{
-                            alignSelf: 'flex-start',
-                            color: 'var(--text-muted)',
-                            fontSize: '0.8rem',
-                            marginTop: '4px',
-                            fontFamily: 'var(--font-mono)',
-                            borderBottom: '1px dashed var(--text-muted)'
-                        }}
-                    >
+                    <Button variant="ghost" size="sm" onClick={addIngredient}>
                         + Add Component
-                    </button>
+                    </Button>
                 </div>
-            </div>
+            </fieldset>
 
-            {/* Instructions */}
-            <div>
-                <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>Method</label>
-                <textarea
-                    name="instructions"
-                    value={instructions}
-                    onChange={(e) => setInstructions(e.target.value)}
-                    style={{
-                        width: '100%',
-                        minHeight: '150px',
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid var(--border-dim)',
-                        color: 'var(--text-main)',
-                        fontFamily: 'var(--font-body)',
-                        fontSize: '1rem',
-                        padding: '12px',
-                        lineHeight: '1.6',
-                        resize: 'vertical'
-                    }}
-                    placeholder="Describe the ritual..."
-                />
-            </div>
+            <Field
+                as="textarea"
+                label="Method"
+                name="instructions"
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                placeholder="Describe the ritual..."
+            />
 
             {/* Tags - Standardized Selection */}
-            <div>
-                <label style={{ display: 'block', color: 'var(--text-gold)', marginBottom: '8px', fontFamily: 'var(--font-mono)' }}>Tags</label>
+            <div className="recipe-form__tags">
+                {tags.length > 0 && (
+                    <div className="tag-list">
+                        {tags.map(tag => (
+                            <Tag key={tag} tone="gold">
+                                {tag}
+                                <button
+                                    type="button"
+                                    className="tag__remove"
+                                    aria-label={`Remove tag ${tag}`}
+                                    onClick={() => setTags(tags.filter(t => t !== tag))}
+                                >
+                                    ×
+                                </button>
+                            </Tag>
+                        ))}
+                    </div>
+                )}
 
-                {/* Selected Tags */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-                    {tags.map(tag => (
-                        <div key={tag} style={{
-                            background: 'var(--accent-gold)',
-                            color: 'var(--bg-main)',
-                            padding: '4px 12px',
-                            borderRadius: '12px',
-                            fontSize: '0.9rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontFamily: 'var(--font-display)',
-                            textTransform: 'uppercase',
-                            fontWeight: 'bold'
-                        }}>
-                            {tag}
-                            <span
-                                onClick={() => setTags(tags.filter(t => t !== tag))}
-                                style={{ cursor: 'pointer', fontSize: '1.1rem', opacity: 0.8 }}
-                            >
-                                ×
-                            </span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Tag Input & Suggestions */}
                 <TagSelector
                     existingTags={tags}
                     allRecipeSourceTags={allTags}
@@ -483,200 +372,70 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-md)', marginTop: 'var(--space-lg)' }}>
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 16px',
-                        border: '1px solid var(--border-dim)',
-                        color: 'var(--text-muted)',
-                        fontFamily: 'var(--font-display)',
-                        textTransform: 'uppercase',
-                        cursor: 'pointer'
-                    }}
-                >
+            <div className="recipe-form__actions">
+                <Button variant="ghost" onClick={onCancel}>
                     <GiCancel /> Cancel
-                </button>
-                <button
-                    type="submit"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 24px',
-                        border: '1px solid var(--border-gold)',
-                        background: 'var(--accent-gold)',
-                        color: 'var(--bg-main)',
-                        fontFamily: 'var(--font-display)',
-                        fontWeight: '700',
-                        textTransform: 'uppercase',
-                        cursor: 'pointer'
-                    }}
-                >
+                </Button>
+                <Button variant="solid" type="submit">
                     <GiSave /> Save
-                </button>
+                </Button>
             </div>
+
             {/* New Ingredient Modal */}
-            {newIngModal.open && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.85)', zIndex: 1000,
-                    backdropFilter: 'blur(4px)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    <div style={{
-                        background: 'var(--bg-panel)',
-                        border: 'var(--border-double)',
-                        padding: '2.5rem',
-                        width: '450px',
-                        display: 'flex', flexDirection: 'column', gap: '1.5rem',
-                        boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-                        position: 'relative'
-                    }}>
-                        <div style={{ position: 'absolute', top: '10px', left: '10px', right: '10px', bottom: '10px', border: '1px solid var(--border-dim)', pointerEvents: 'none' }} />
+            <Modal
+                open={newIngModal.open}
+                onClose={closeIngModal}
+                title="Catalog Provision"
+                footer={(
+                    <>
+                        <Button variant="ghost" onClick={closeIngModal}>Discard</Button>
+                        <Button variant="solid" onClick={inscribeIngredient}>
+                            <GiCheckMark /> Inscribe
+                        </Button>
+                    </>
+                )}
+            >
+                <Field
+                    label="ITEM NAME"
+                    value={newIngModal.name}
+                    onChange={e => setNewIngModal(p => ({ ...p, name: e.target.value }))}
+                />
 
-                        <h3 className="box-header" style={{
-                            fontFamily: 'var(--font-display)',
-                            color: 'var(--text-gold)',
-                            margin: 0,
-                            borderBottom: '1px solid var(--border-gold)',
-                            paddingBottom: '1rem',
-                            textAlign: 'center',
-                            fontSize: '1.8rem',
-                            letterSpacing: '0.05em'
-                        }}>
-                            Catalog Provision
-                        </h3>
-
-                        <div>
-                            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)', marginBottom: '4px' }}>ITEM NAME</label>
-                            <input
-                                value={newIngModal.name}
-                                onChange={e => setNewIngModal(p => ({ ...p, name: e.target.value }))}
-                                style={{
-                                    width: '100%',
-                                    background: 'rgba(0,0,0,0.2)',
-                                    color: 'var(--text-main)',
-                                    border: '1px solid var(--border-gold)',
-                                    padding: '12px',
-                                    fontFamily: 'var(--font-display)',
-                                    fontSize: '1.2rem',
-                                    textAlign: 'center'
-                                }}
-                            />
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '1.5rem' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)', marginBottom: '4px' }}>CLASSIFICATION</label>
-                                <select
-                                    value={newIngModal.category}
-                                    onChange={e => setNewIngModal(p => ({ ...p, category: e.target.value }))}
-                                    style={{
-                                        width: '100%',
-                                        background: 'var(--bg-main)',
-                                        color: 'var(--text-main)',
-                                        border: '1px solid var(--border-dim)',
-                                        padding: '12px',
-                                        fontFamily: 'var(--font-body)'
-                                    }}
-                                >
-                                    <option value="Pantry">Pantry</option>
-                                    <option value="Produce">Produce</option>
-                                    <option value="Dairy">Dairy</option>
-                                    <option value="Protein">Protein</option>
-                                    <option value="Spices">Spices</option>
-                                </select>
+                <div className="recipe-form__catalog-row">
+                    <Field label="CLASSIFICATION">
+                        <select
+                            className="select"
+                            value={newIngModal.category}
+                            onChange={e => setNewIngModal(p => ({ ...p, category: e.target.value }))}
+                        >
+                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </Field>
+                    <div className="field recipe-form__symbol">
+                        <span className="field__label" id="provision-symbol-label">SYMBOL</span>
+                        <Button
+                            className="recipe-form__symbol-btn"
+                            label="Choose ingredient symbol"
+                            aria-describedby="provision-symbol-label"
+                            aria-expanded={!!newIngModal.showPicker}
+                            onClick={() => setNewIngModal(p => ({ ...p, showPicker: !p.showPicker }))}
+                        >
+                            {newIngModal.icon}
+                        </Button>
+                        {newIngModal.showPicker && (
+                            <div className="recipe-form__symbol-picker">
+                                <EmojiPicker
+                                    theme="dark"
+                                    width={300}
+                                    onEmojiClick={(d) => setNewIngModal(p => ({ ...p, icon: d.emoji, showPicker: false }))}
+                                />
                             </div>
-                            <div>
-                                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)', marginBottom: '4px' }}>SYMBOL</label>
-                                <button
-                                    type="button"
-                                    onClick={() => setNewIngModal(p => ({ ...p, showPicker: !p.showPicker }))}
-                                    aria-label="Choose ingredient symbol"
-                                    style={{
-                                        width: '48px',
-                                        height: '48px',
-                                        background: 'var(--bg-main)',
-                                        border: '1px solid var(--border-gold)',
-                                        fontSize: '1.5rem',
-                                        cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                    }}
-                                >
-                                    {newIngModal.icon}
-                                </button>
-                                {newIngModal.showPicker && (
-                                    <div style={{ position: 'absolute', zIndex: 1100, transform: 'translateX(-50%)' }}>
-                                        <EmojiPicker size={320} onEmojiClick={(d) => setNewIngModal(p => ({ ...p, icon: d.emoji, showPicker: false }))} theme="dark" />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem' }}>
-                            <button
-                                type="button"
-                                onClick={() => setNewIngModal({ open: false })}
-                                style={{
-                                    background: 'transparent',
-                                    color: 'var(--text-muted)',
-                                    border: '1px solid var(--border-dim)',
-                                    padding: '8px 20px',
-                                    cursor: 'pointer',
-                                    fontFamily: 'var(--font-display)',
-                                    textTransform: 'uppercase',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                Discard
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    onAddIngredientToPantry(newIngModal.name.toLowerCase(), {
-                                        label: newIngModal.name,
-                                        icon: newIngModal.icon,
-                                        category: newIngModal.category,
-                                        defaultUnit: 'pcs'
-                                    });
-                                    setNewIngModal({ open: false });
-                                }}
-                                style={{
-                                    background: 'var(--accent-gold)',
-                                    color: 'var(--bg-main)',
-                                    border: '1px solid var(--border-gold)',
-                                    padding: '8px 24px',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    fontFamily: 'var(--font-display)',
-                                    textTransform: 'uppercase',
-                                    boxShadow: '0 4px 12px rgba(207, 181, 59, 0.3)'
-                                }}
-                            >
-                                <GiCheckMark style={{ marginRight: '8px' }} /> Inscribe
-                            </button>
-                        </div>
+                        )}
                     </div>
                 </div>
-            )}
-        </form>
+            </Modal>
+        </Card>
     );
-};
-
-const inputStyle = {
-    background: 'transparent',
-    border: 'none',
-    borderBottom: '1px solid var(--border-dim)',
-    color: 'var(--text-main)',
-    padding: '4px 8px',
-    fontFamily: 'var(--font-body)',
-    transition: 'border-color 0.2s',
-    outline: 'none'
 };
 
 const TagSelector = ({ existingTags, onAddTag, allRecipeSourceTags = [] }) => {
@@ -690,16 +449,15 @@ const TagSelector = ({ existingTags, onAddTag, allRecipeSourceTags = [] }) => {
     const tagPool = Array.from(new Set([...dbTags, ...allRecipeSourceTags]));
 
     useEffect(() => {
+        const fetchTags = async () => {
+            const { data } = await supabase
+                .from('recipe_tags')
+                .select('name')
+                .eq('user_id', user.id);
+            if (data) setDbTags(data.map(t => t.name));
+        };
         if (user) fetchTags();
     }, [user]);
-
-    const fetchTags = async () => {
-        const { data } = await supabase
-            .from('recipe_tags')
-            .select('name')
-            .eq('user_id', user.id);
-        if (data) setDbTags(data.map(t => t.name));
-    };
 
     const handleInput = (e) => {
         const val = e.target.value;
@@ -738,14 +496,15 @@ const TagSelector = ({ existingTags, onAddTag, allRecipeSourceTags = [] }) => {
     };
 
     return (
-        <div style={{ position: 'relative' }}>
-            <input
+        <div className="recipe-form__tag-input">
+            <Field
+                label="Tags"
                 type="text"
                 value={input}
                 onChange={handleInput}
                 onFocus={() => input && setIsOpen(true)}
                 placeholder="Search or Create Tag..."
-                style={{ ...inputStyle, width: '100%' }}
+                autoComplete="off"
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -760,33 +519,25 @@ const TagSelector = ({ existingTags, onAddTag, allRecipeSourceTags = [] }) => {
                 }}
             />
             {isOpen && (
-                <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0,
-                    background: 'var(--bg-panel)', border: '1px solid var(--border-gold)',
-                    zIndex: 20, maxHeight: '200px', overflowY: 'auto',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
-                }}>
+                <div className="recipe-form__suggestions recipe-form__suggestions--tags">
                     {suggestions.map(tag => (
-                        <div
+                        <button
                             key={tag}
+                            type="button"
+                            className="recipe-form__suggestion"
                             onClick={() => { onAddTag(tag); setInput(''); setIsOpen(false); }}
-                            style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid var(--border-dim)' }}
-                            className="hover-effect"
-                            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                            onMouseLeave={(e) => e.target.style.background = 'transparent'}
                         >
                             {tag}
-                        </div>
+                        </button>
                     ))}
                     {input && !allRecipeSourceTags.some(t => t.toLowerCase() === input.toLowerCase()) && (
-                        <div
+                        <button
+                            type="button"
+                            className="recipe-form__suggestion recipe-form__suggestion--create"
                             onClick={createTag}
-                            style={{ padding: '8px', cursor: 'pointer', color: 'var(--accent-gold)', borderTop: '1px dashed var(--border-gold)' }}
-                            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-                            onMouseLeave={(e) => e.target.style.background = 'transparent'}
                         >
                             + Create "{input}"
-                        </div>
+                        </button>
                     )}
                 </div>
             )}

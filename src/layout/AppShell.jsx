@@ -1,18 +1,19 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { GiSecretBook, GiScrollUnfurled, GiCardRandom, GiClockwork, GiGears, GiCookingPot, GiOpenTreasureChest, GiBookshelf, GiWorld, GiCompass } from 'react-icons/gi';
+import { NavLink } from 'react-router-dom';
+import { GiSecretBook, GiScrollUnfurled, GiCardRandom, GiClockwork, GiGears, GiCookingPot, GiOpenTreasureChest, GiBookshelf, GiWorld, GiCompass, GiDesk } from 'react-icons/gi';
 import './AppShell.css';
 
 const AppShell = ({ children }) => {
-  const location = useLocation();
-
+  // Dashboard and The Study both used GiSecretBook, so two of the eleven
+  // destinations were literally the same glyph in a collapsed rail.
+  // The Study gets the desk.
   const navItems = [
     { path: '/', icon: GiSecretBook, label: 'Dashboard' },
     { path: '/atlas', icon: GiWorld, label: 'The Atlas' },
     { path: '/daydream', icon: GiCompass, label: 'The Daydream' },
     { path: '/larder', icon: GiCookingPot, label: 'The Larder' },
     { path: '/treasury', icon: GiOpenTreasureChest, label: 'The Treasury' },
-    { path: '/study', icon: GiSecretBook, label: 'The Study' },
+    { path: '/study', icon: GiDesk, label: 'The Study' },
     { path: '/library', icon: GiBookshelf, label: 'The Library' },
     { path: '/learning', icon: GiScrollUnfurled, label: 'Learning' },
     { path: '/play', icon: GiCardRandom, label: 'Play' },
@@ -22,15 +23,17 @@ const AppShell = ({ children }) => {
 
   return (
     <div className="app-shell">
-      <nav className="sidebar">
+      <nav className="sidebar" aria-label="Rooms">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            aria-label={item.label}
+            title={item.label}
           >
-            <item.icon size={28} />
+            <span className="nav-glyph" aria-hidden="true">
+              <item.icon size={24} />
+            </span>
             <span className="nav-label">{item.label}</span>
           </NavLink>
         ))}

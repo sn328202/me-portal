@@ -3,8 +3,9 @@
    Weights are trimmed to what the stylesheets actually ask for (400/600/700)
    plus the upright+italic pairs used for the app's prose. */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Comfortaa:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;600;700&family=Loved+by+the+King&family=Michroma&family=Orbitron:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Press+Start+2P&family=Quicksand:wght@400;600;700&family=VT323&display=swap');
+@import './styles/tokens.css';
 @import './styles/theme.css';
-@import './styles/components.css';
+@import './styles/primitives.css';
 
 /* Reset & Base */
 *,
@@ -24,4 +25,14 @@ button {
   background: none;
   font: inherit;
   color: inherit;
+}
+/* The global button reset above strips borders; primitives re-state
+   them per class, so nothing here needs to fight it. */
+
+img {
+  max-width: 100%;
+}
+
+h1, h2, h3, h4 {
+  line-height: var(--leading-tight);
 }

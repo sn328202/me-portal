@@ -3,39 +3,41 @@
 .quick-links-container {
     display: flex;
     flex-direction: column;
-    gap: 0;
 }
 
 .quick-link-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-md) 0;
-    border-bottom: 1px solid var(--border-dim);
+    gap: var(--space-2);
+    min-height: var(--tap-min);
+    padding: var(--space-3) 0;
+    border-bottom: var(--rule-hair);
     color: var(--text-muted);
     text-decoration: none;
     font-family: var(--font-display);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    font-size: 0.8rem;
-    transition: all 0.2s ease;
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: var(--case-heading);
+    transition: color var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease),
+        padding-left var(--dur-base) var(--ease);
 }
 
 .quick-link-item:hover {
     color: var(--text-gold);
-    border-bottom-color: var(--text-gold);
-    padding-left: 10px;
+    border-bottom-color: var(--border-gold);
+    padding-left: var(--space-2);
 }
 
 .quick-link-content {
     display: flex;
     align-items: center;
-    gap: var(--space-sm);
+    gap: var(--space-2);
 }
 
 .quick-link-external-icon {
     opacity: 0.5;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--dur-base) var(--ease);
 }
 
 .quick-link-item:hover .quick-link-external-icon {

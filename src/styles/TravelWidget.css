@@ -1,73 +1,73 @@
-/* Next Expedition Widget - Travel */
+/* Next Expedition Widget - Travel
+   The countdown is the largest number on the dashboard after the greeting,
+   so the card claims two columns (span={2}) to give it room. */
 
 .travel-container {
-    text-align: center;
-    padding: 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    flex-wrap: wrap;
+    padding: var(--space-4) 0;
 }
 
 .travel-countdown {
-    font-size: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding-right: var(--space-6);
+    border-right: var(--rule-hair);
+}
+
+.travel-countdown-value {
     font-family: var(--font-display);
+    font-size: var(--text-4xl);
+    line-height: 1;
     color: var(--text-gold);
-    margin-bottom: 0.5rem;
     text-shadow: var(--shadow-sm);
 }
 
 .travel-label {
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-bottom: 1.5rem;
     font-family: var(--font-display);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.travel-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    min-width: 0;
 }
 
 .travel-destination {
-    font-size: 1.2rem;
-    font-weight: bold;
-    margin-bottom: 0.2rem;
-    color: var(--text-main);
     font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: var(--weight-bold);
+    color: var(--text-main);
 }
 
 .travel-date {
-    font-size: 0.9rem;
-    color: var(--text-muted);
     font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
 }
 
 .travel-atlas-link {
-    display: inline-block;
-    margin-top: 1.5rem;
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--text-gold);
-    color: var(--text-gold);
-    text-decoration: none;
-    font-size: 0.8rem;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    transition: all 0.2s ease;
+    margin-top: var(--space-2);
 }
 
-.travel-atlas-link:hover {
-    background: var(--text-gold);
-    color: var(--bg-main);
-    box-shadow: var(--glow-gold);
-}
-
-.travel-empty {
-    text-align: center;
-    padding: 2rem;
-    color: var(--text-muted);
-    font-style: italic;
-    font-family: var(--font-body);
-}
-
-.travel-empty p {
-    margin-bottom: 1rem;
-}
-
-.travel-empty-link {
-    color: var(--text-gold);
-    text-decoration: underline;
+/* One column: the divider becomes a horizontal rule instead. */
+@media (max-width: 768px) {
+    .travel-countdown {
+        padding-right: 0;
+        padding-bottom: var(--space-4);
+        border-right: none;
+        border-bottom: var(--rule-hair);
+        width: 100%;
+    }
 }

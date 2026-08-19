@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import WidgetCard from '../components/WidgetCard';
+import Button from '../components/ui/Button';
 import { useGameStats } from '../hooks/useGameStats';
 import { GiCheckMark, GiQuill } from 'react-icons/gi';
 import '../styles/GameLauncher.css';
 
-const GameLauncher = ({ title = "Game", icon: Icon, url = "#", description, accentColor }) => {
+const GameLauncher = ({ title = 'Game', icon: Icon, url = '#', description }) => {
     const { logGame, isPlayedToday, getStreak } = useGameStats();
     const [showLogInput, setShowLogInput] = useState(false);
     const [logValue, setLogValue] = useState('');
@@ -34,10 +35,7 @@ const GameLauncher = ({ title = "Game", icon: Icon, url = "#", description, acce
             >
                 <WidgetCard title={title} icon={Icon}>
                     <div className={`game-content ${played ? 'played' : ''}`}>
-                        <div
-                            className="game-icon-container"
-                            style={{ color: played ? 'var(--text-gold)' : (accentColor || 'var(--text-main)') }}
-                        >
+                        <div className="game-icon-container">
                             {played ? <GiCheckMark /> : (Icon && (typeof Icon === 'function' ? <Icon /> : Icon))}
                         </div>
 
@@ -67,17 +65,18 @@ const GameLauncher = ({ title = "Game", icon: Icon, url = "#", description, acce
 
             {/* Log Button (Floating) */}
             {!played && (
-                <button
+                <Button
+                    icon
+                    size="sm"
+                    className="game-log-trigger"
+                    label={`Log ${title} result`}
                     onClick={(e) => {
                         e.preventDefault();
                         setShowLogInput(!showLogInput);
                     }}
-                    className="game-log-trigger"
-                    title="Log Result"
-                    aria-label="Log game result"
                 >
                     <GiQuill />
-                </button>
+                </Button>
             )}
 
             {/* Log Input Popover */}
@@ -87,17 +86,15 @@ const GameLauncher = ({ title = "Game", icon: Icon, url = "#", description, acce
                         <input
                             type="text"
                             placeholder="Score / Result..."
+                            aria-label={`${title} score or result`}
                             value={logValue}
                             onChange={(e) => setLogValue(e.target.value)}
                             autoFocus
                             className="game-log-input"
                         />
-                        <button
-                            type="submit"
-                            className="game-log-submit"
-                        >
+                        <Button type="submit" variant="solid" size="sm" className="game-log-submit">
                             Save
-                        </button>
+                        </Button>
                     </form>
                 </div>
             )}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useRecipes } from '../hooks/useRecipes';
 import { useIngredients } from '../hooks/useIngredients';
 import RecipeList from '../components/RecipeList';
@@ -7,95 +7,113 @@ import RecipeDetail from '../components/RecipeDetail';
 import CookMode from '../components/CookMode';
 import MealPlanner from '../components/MealPlanner';
 import GroceryList from '../components/GroceryList';
-import ProvisionsWidget from '../widgets/ProvisionsWidget';
 import DaySelector from '../components/DaySelector';
 import MenuBuilder from '../components/MenuBuilder';
 import { useMenus } from '../hooks/useMenus';
-import { GiQuill, GiMagnifyingGlass, GiFunnel, GiHourglass, GiTrashCan } from 'react-icons/gi';
+import {
+    GiQuill, GiMagnifyingGlass, GiFunnel, GiHourglass, GiCookingPot,
+    GiHerbsBundle, GiBasket, GiScrollQuill, GiScrollUnfurled, GiCauldron, GiTrashCan
+} from 'react-icons/gi';
 import EmojiPicker from 'emoji-picker-react';
+import {
+    Button, Card, ConfirmButton, EmptyState, Field, Modal, PageHeader, Tabs, TabPanel, Tag
+} from '../components/ui';
+import '../styles/Larder.css';
+
+const TABS = [
+    { id: 'collection', label: 'Recipe Collection' },
+    { id: 'hearth', label: 'The Hearth' },
+    { id: 'menus', label: 'Menu Builder' },
+    { id: 'pantry', label: 'Pantry' },
+    { id: 'provisions', label: 'Provisions' }
+];
+
+const TAB_SUBTITLES = {
+    hearth: 'Select recipes from the Collection to check your stock. Arrange your sustenance here.',
+    menus: 'Curate your grandest menus for the most exceptional occasions.'
+};
+
+const PROVISION_CATEGORIES = ['Pantry', 'Produce', 'Dairy', 'Protein', 'Spices'];
+
+const RECIPE_SORTS = [
+    { value: 'newest', label: 'Newest First' },
+    { value: 'title', label: 'Alphabetical' },
+    { value: 'match', label: '% Pantry Match' }
+];
+
+const PANTRY_SORTS = [
+    { value: 'category', label: 'Category (Groups)' },
+    { value: 'name', label: 'Name (A-Z)' },
+    { value: 'stocked', label: 'In Stock First' }
+];
+
+const EMPTY_PROVISION = { name: '', category: 'Pantry', icon: '🍽️' };
+
+/**
+ * One filter bar, used by both the Collection and the Pantry. These were two
+ * byte-identical blocks with two different border treatments.
+ */
+const LarderFilters = ({
+    search, onSearch, searchPlaceholder,
+    filter, onFilter, filterLabel, filterAllLabel, filterOptions,
+    sort, onSort, sortOptions
+}) => (
+    <div className="larder-filters">
+        <Field
+            label={<><GiMagnifyingGlass /> Search</>}
+            type="search"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder={searchPlaceholder}
+        />
+        <Field label={<><GiFunnel /> {filterLabel}</>}>
+            <select className="select" value={filter} onChange={(e) => onFilter(e.target.value)}>
+                <option value="">{filterAllLabel}</option>
+                {filterOptions.map(option => (
+                    <option key={option} value={option}>{option}</option>
+                ))}
+            </select>
+        </Field>
+        <Field label={<><GiHourglass /> Sort</>}>
+            <select className="select" value={sort} onChange={(e) => onSort(e.target.value)}>
+                {sortOptions.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+            </select>
+        </Field>
+    </div>
+);
 
 const PantryItem = ({ item, pantryStock, togglePantryStock, deleteIngredient }) => {
-    const [confirmDelete, setConfirmDelete] = useState(false);
-    const inStock = pantryStock[item.id];
+    const inStock = !!pantryStock[item.id];
 
     return (
-        <div
-            style={{
-                background: inStock ? 'rgba(207, 181, 59, 0.1)' : 'rgba(255,255,255,0.02)',
-                border: inStock ? '1px solid var(--accent-gold)' : '1px solid var(--border-dim)',
-                padding: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                opacity: inStock ? 1 : 0.8,
-                transition: 'all 0.2s',
-                position: 'relative'
-            }}
-        >
-            {/* Card Body - Click to Toggle Stock */}
-            <div
+        <div className={['pantry-item', inStock ? 'pantry-item--stocked' : ''].filter(Boolean).join(' ')}>
+            <button
+                type="button"
+                className="pantry-item__toggle"
+                aria-pressed={inStock}
                 onClick={() => togglePantryStock(item.id)}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}
             >
-                <span style={{ fontSize: '2rem' }}>{item.icon}</span>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ color: inStock ? 'var(--text-gold)' : 'var(--text-muted)', fontWeight: inStock ? 'bold' : 'normal' }}>
-                        {item.label}
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                        {inStock ? 'IN STOCK' : 'OUT'}
-                    </span>
-                </div>
-            </div>
+                <span className="pantry-item__icon" aria-hidden="true">{item.icon}</span>
+                <span className="pantry-item__text">
+                    <span className="pantry-item__label">{item.label}</span>
+                    <Tag tone={inStock ? 'gold' : 'default'}>{inStock ? 'IN STOCK' : 'OUT'}</Tag>
+                </span>
+            </button>
 
-            {/* Delete Button (For All) */}
-            {confirmDelete ? (
-                <div style={{ display: 'flex', gap: '4px' }}>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            deleteIngredient(item.id);
-                        }}
-                        style={{ background: 'var(--accent-crimson)', border: 'none', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', borderRadius: '2px' }}
-                    >
-                        CONFIRM
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDelete(false);
-                        }}
-                        style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-dim)', color: 'var(--text-muted)', fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', borderRadius: '2px' }}
-                    >
-                        X
-                    </button>
-                </div>
-            ) : (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation(); // Prevent toggling stock
-                        setConfirmDelete(true);
-                    }}
-                    style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--accent-crimson)',
-                        cursor: 'pointer',
-                        opacity: 0.5,
-                        padding: '4px'
-                    }}
-                    title="Remove Provision"
-                    aria-label={`Remove ${item.label} from the larder`}
-                >
-                    <GiTrashCan />
-                </button>
-            )}
+            <ConfirmButton
+                label={`Remove ${item.label} from the larder`}
+                confirmLabel="CONFIRM"
+                icon={<GiTrashCan />}
+                onConfirm={() => deleteIngredient(item.id)}
+            />
         </div>
     );
 };
 
 const Larder = () => {
-    const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'hearth', 'provisions'
+    const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'hearth', 'menus', 'pantry', 'provisions'
     const [view, setView] = useState('list'); // 'list', 'form', 'detail', 'cook'
     const [editingRecipe, setEditingRecipe] = useState(null);
     const [viewingRecipe, setViewingRecipe] = useState(null);
@@ -105,19 +123,30 @@ const Larder = () => {
     // Filter & Sort State
     const [searchQuery, setSearchQuery] = useState('');
     const [filterTag, setFilterTag] = useState('');
-    const [sortBy, setSortBy] = useState('newest'); // 'newest', 'title'
+    const [sortBy, setSortBy] = useState('newest'); // 'newest', 'title', 'match'
 
     const { recipes, loading, error, addRecipe, deleteRecipe, updateRecipe, mealPlan, addToPlan, clearDay, importRecipe } = useRecipes();
     const { ingredientsByCategory, pantryStock, togglePantryStock, addCustomIngredient, deleteIngredient, ingredientsByName } = useIngredients();
-    const { menus, loading: menusLoading, addMenu, updateMenu, deleteMenu } = useMenus();
+    const { menus, addMenu, updateMenu, deleteMenu } = useMenus();
 
-    const [newIngIcon, setNewIngIcon] = useState('🍽️');
+    // The Hearth: which day a picked formula lands on
+    const [picker, setPicker] = useState({ open: false, day: null });
+    const [pickerQuery, setPickerQuery] = useState('');
+
+    // Menu Builder: create/edit mode lives here so the page header owns the action
+    const [isBuildingMenu, setIsBuildingMenu] = useState(false);
+
+    // Pantry quick-add (controlled; no more document.getElementById)
+    const [isProvisionModalOpen, setIsProvisionModalOpen] = useState(false);
+    const [newProvision, setNewProvision] = useState(EMPTY_PROVISION);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
     // Pantry Filter & Sort State
     const [pantrySearch, setPantrySearch] = useState('');
     const [pantryFilter, setPantryFilter] = useState(''); // Category
     const [pantrySort, setPantrySort] = useState('category'); // 'category', 'name', 'stocked'
+
+    const groceryInputRef = useRef(null);
 
     // Derived Logic
     const allTags = useMemo(() => {
@@ -127,7 +156,7 @@ const Larder = () => {
     }, [recipes]);
 
     // Helper: Calculate Pantry Match
-    const calculatePantryMatch = (recipe) => {
+    const calculatePantryMatch = useCallback((recipe) => {
         if (!recipe.ingredients || recipe.ingredients.length === 0) return { percentage: 0, missing: [], total: 0 };
 
         let matchCount = 0;
@@ -139,10 +168,6 @@ const Larder = () => {
             // but for now we often rely on strings.
             const name = (ing.item || ing.name || '').toLowerCase().trim();
             const ingObj = ingredientsByName[name];
-
-            // If we have a pantry object and it is in stock -> Match
-            // OR if we just search the pantryStock keys (if we knew IDs) - but here recipes might just have text.
-            // Let's assume recipes might not have IDs yet, so we use the name map.
 
             let isStocked = false;
             if (ingObj && pantryStock[ingObj.id]) {
@@ -159,7 +184,7 @@ const Larder = () => {
         const total = recipe.ingredients.length;
         const percentage = total === 0 ? 0 : Math.round((matchCount / total) * 100);
         return { percentage, missing, total };
-    };
+    }, [ingredientsByName, pantryStock]);
 
     const filteredRecipes = useMemo(() => {
         // First map all to include match data
@@ -184,7 +209,7 @@ const Larder = () => {
 
         // Sort
         if (sortBy === 'title') {
-            result.sort((a, b) => a.title.localeCompare(b.title));
+            result.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
         } else if (sortBy === 'newest') {
             result.sort((a, b) => {
                 if (typeof b.id === 'string' && typeof a.id === 'string') {
@@ -196,12 +221,12 @@ const Larder = () => {
             // Sort by percentage DESC, then by title
             result.sort((a, b) => {
                 if (b.percentage !== a.percentage) return b.percentage - a.percentage;
-                return a.title.localeCompare(b.title);
+                return (a.title || '').localeCompare(b.title || '');
             });
         }
 
         return result;
-    }, [recipes, searchQuery, filterTag, sortBy, ingredientsByName, pantryStock]);
+    }, [recipes, searchQuery, filterTag, sortBy, calculatePantryMatch]);
 
     // Derived Pantry List (Filtered & Sorted)
     const processedPantry = useMemo(() => {
@@ -224,32 +249,29 @@ const Larder = () => {
 
         // 4. Sort
         if (pantrySort === 'name') {
-            allIngredients.sort((a, b) => a.label.localeCompare(b.label));
+            allIngredients.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
         } else if (pantrySort === 'stocked') {
             allIngredients.sort((a, b) => {
                 const stockA = pantryStock[a.id] ? 1 : 0;
                 const stockB = pantryStock[b.id] ? 1 : 0;
                 if (stockB !== stockA) return stockB - stockA; // Stocked first
-                return a.label.localeCompare(b.label);
+                return (a.label || '').localeCompare(b.label || '');
             });
-        }
-        // If sort is 'category', we typically defer to the grouped view, 
-        // BUT if search is active, we might want a flat list sorted by category?
-        // Let's stick to the plan: if 'category' AND no search, show Groups. 
-        // If Search is active, show Flat list? Or allow Groups with Search?
-        // Simplest: 
-        // If sort === 'category' AND !pantrySearch, return null (signal to use grouped view).
-        // Actually, let's return the list and handle view switching in render.
-
-        if (pantrySort === 'category') {
+        } else if (pantrySort === 'category') {
             // Sort flat list by category just in case we render it flat
-            allIngredients.sort((a, b) => a.category.localeCompare(b.category) || a.label.localeCompare(b.label));
+            allIngredients.sort((a, b) => (a.category || '').localeCompare(b.category || '') || (a.label || '').localeCompare(b.label || ''));
         }
 
         return allIngredients;
     }, [ingredientsByCategory, pantrySearch, pantryFilter, pantrySort, pantryStock]);
 
     const showFlatPantry = pantrySort !== 'category' || pantrySearch !== '';
+
+    const pickerResults = useMemo(() => {
+        const q = pickerQuery.toLowerCase().trim();
+        if (!q) return recipes.slice(0, 30);
+        return recipes.filter(r => (r.title || '').toLowerCase().includes(q)).slice(0, 30);
+    }, [recipes, pickerQuery]);
 
     const handleEdit = (recipe) => {
         setEditingRecipe(recipe);
@@ -271,10 +293,6 @@ const Larder = () => {
     };
 
     const handleSave = (recipe) => {
-        // 1. Auto-Add Removed - User manually confirms in form now.
-
-
-        // 2. Save Recipe
         // Check for ID to determine Update vs Create.
         // Importantly, imported recipes might be in 'editingRecipe' state but lack an ID.
         if (recipe.id) {
@@ -298,390 +316,255 @@ const Larder = () => {
     const handleDaySelect = (day) => {
         if (selectedRecipeForPlan) {
             addToPlan(day, selectedRecipeForPlan.id);
-            // Optional: Success toast could go here
         }
         setIsDaySelectorOpen(false);
         setSelectedRecipeForPlan(null);
     };
 
+    const openPicker = (day) => {
+        setPickerQuery('');
+        setPicker({ open: true, day });
+    };
+
+    const closePicker = () => setPicker({ open: false, day: null });
+
+    const handlePickRecipe = (recipe) => {
+        const { day } = picker;
+        closePicker();
+        if (day) {
+            addToPlan(day, recipe.id);
+        } else {
+            // No day chosen yet — fall through to the day selector.
+            setSelectedRecipeForPlan(recipe);
+            setIsDaySelectorOpen(true);
+        }
+    };
+
+    const closeProvisionModal = () => {
+        setIsProvisionModalOpen(false);
+        setShowEmojiPicker(false);
+        setNewProvision(EMPTY_PROVISION);
+    };
+
+    const handleAddProvision = () => {
+        const name = newProvision.name.trim();
+        if (!name) return;
+        addCustomIngredient(name.toLowerCase(), {
+            icon: newProvision.icon,
+            category: newProvision.category,
+            label: name,
+            defaultUnit: 'pcs'
+        });
+        closeProvisionModal();
+    };
+
     if (loading) {
         return (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-gold)' }}>
-                <GiHourglass size={48} className="spin-animation" />
-                <p style={{ marginTop: 'var(--space-md)', fontFamily: 'var(--font-display)' }}>Consulting the archives...</p>
-                <style>{`
-                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(180deg); } }
-                    .spin-animation { animation: spin 2s infinite ease-in-out; }
-                `}</style>
+            <div className="larder-loading">
+                <span className="spin"><GiHourglass size={48} /></span>
+                <p>Consulting the archives...</p>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div style={{ padding: 'var(--space-xl)', textAlign: 'center', color: 'var(--accent-crimson)' }}>
-                <h3 style={{ fontFamily: 'var(--font-display)' }}>The pantry is locked.</h3>
-                <p>Error connecting to the archives: {error}</p>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Did you run the SQL setup script?</p>
+            <div className="larder-error">
+                <EmptyState
+                    icon={<GiCauldron />}
+                    message="The pantry is locked."
+                    hint={<>Error connecting to the archives: {error}<br />Did you run the SQL setup script?</>}
+                />
             </div>
         );
     }
 
+    // Every tab gets its own primary action, named for that tab.
+    const headerAction = (() => {
+        if (activeTab === 'collection') {
+            return view === 'list' ? (
+                <Button variant="primary" onClick={handleCreate}>
+                    <GiQuill /> New Formula
+                </Button>
+            ) : (
+                <Button variant="ghost" onClick={handleCancel}>
+                    <GiScrollUnfurled /> Back to the Archives
+                </Button>
+            );
+        }
+        if (activeTab === 'hearth') {
+            return (
+                <Button variant="primary" onClick={() => openPicker(null)}>
+                    <GiCookingPot /> Plan a Meal
+                </Button>
+            );
+        }
+        if (activeTab === 'menus') {
+            return isBuildingMenu ? null : (
+                <Button variant="primary" onClick={() => setIsBuildingMenu(true)}>
+                    <GiScrollQuill /> New Menu
+                </Button>
+            );
+        }
+        if (activeTab === 'pantry') {
+            return (
+                <Button variant="primary" onClick={() => setIsProvisionModalOpen(true)}>
+                    <GiHerbsBundle /> New Provision
+                </Button>
+            );
+        }
+        return (
+            <Button variant="primary" onClick={() => groceryInputRef.current?.focus()}>
+                <GiBasket /> Scribble Item
+            </Button>
+        );
+    })();
+
     return (
-        <div className="larder-container" style={{ maxWidth: '1400px', margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
-                <h1 className="box-header" style={{
-                    fontSize: '2rem',
-                    margin: 0,
-                    color: 'var(--text-main)',
-                }}>
-                    The Larder
-                </h1>
+        <div className="page larder">
+            <PageHeader
+                title="The Larder"
+                subtitle={TAB_SUBTITLES[activeTab]}
+                actions={headerAction}
+            />
 
-                {activeTab === 'collection' && view === 'list' && (
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <button
-                            onClick={handleCreate}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 'var(--space-sm)',
-                                padding: 'var(--space-sm) var(--space-md)',
-                                border: '1px solid var(--accent-gold)',
-                                background: 'rgba(207, 181, 59, 0.1)',
-                                color: 'var(--text-gold)',
-                                fontFamily: 'var(--font-display)',
-                                textTransform: 'uppercase',
-                                letterSpacing: '1px',
-                                cursor: 'pointer'
-                            }}>
-                            <GiQuill /> New Formula
-                        </button>
+            <Tabs
+                tabs={TABS}
+                active={activeTab}
+                onChange={setActiveTab}
+                label="The Larder"
+            />
 
-                    </div>
-                )}
-            </div>
-
-            <div style={{ borderBottom: 'var(--border-double)', marginBottom: 'var(--space-lg)' }}></div>
-
-            {/* Tab Navigation */}
-            <div style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-                {['collection', 'hearth', 'menus', 'pantry', 'provisions'].map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        style={{
-                            padding: 'var(--space-sm) var(--space-md)',
-                            border: '1px solid var(--border-gold)',
-                            background: activeTab === tab ? 'var(--accent-crimson)' : 'transparent',
-                            color: activeTab === tab ? 'var(--text-main)' : 'var(--text-gold)',
-                            fontFamily: 'var(--font-display)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '2px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            opacity: activeTab === tab ? 1 : 0.7
-                        }}
-                    >
-                        {tab === 'collection' && 'Recipe Collection'}
-                        {tab === 'hearth' && 'The Hearth'}
-                        {tab === 'menus' && 'Menu Builder'}
-                        {tab === 'pantry' && 'Pantry'}
-                        {tab === 'provisions' && 'Provisions'}
-                    </button>
-                ))}
-            </div>
-
-            {/* Collection Controls (Search/Filter) */}
-            {
-                activeTab === 'collection' && view === 'list' && (
-                    <div style={{
-                        display: 'flex',
-                        gap: 'var(--space-md)',
-                        marginBottom: 'var(--space-lg)',
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        background: 'var(--bg-panel)',
-                        padding: 'var(--space-sm)',
-                        border: '1px solid var(--border-dim)'
-                    }}>
-                        {/* Search */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
-                            <GiMagnifyingGlass style={{ color: 'var(--text-muted)' }} />
-                            <input
-                                type="text"
-                                placeholder="Search formulas..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    borderBottom: '1px solid var(--border-dim)',
-                                    color: 'var(--text-main)',
-                                    fontFamily: 'var(--font-body)',
-                                    width: '100%',
-                                    padding: '4px',
-                                    outline: 'none'
-                                }}
+            <div className="larder__content">
+                <TabPanel id="collection" active={activeTab}>
+                    {view === 'list' ? (
+                        <div className="stack">
+                            <LarderFilters
+                                search={searchQuery}
+                                onSearch={setSearchQuery}
+                                searchPlaceholder="Search formulas..."
+                                filter={filterTag}
+                                onFilter={setFilterTag}
+                                filterLabel="Tag"
+                                filterAllLabel="All Tags"
+                                filterOptions={allTags}
+                                sort={sortBy}
+                                onSort={setSortBy}
+                                sortOptions={RECIPE_SORTS}
                             />
-                        </div>
-
-                        {/* Filter Tag */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <GiFunnel style={{ color: 'var(--text-muted)' }} />
-                            <select
-                                value={filterTag}
-                                onChange={(e) => setFilterTag(e.target.value)}
-                                style={{
-                                    background: 'var(--bg-main)',
-                                    color: 'var(--text-main)',
-                                    border: '1px solid var(--border-dim)',
-                                    padding: '4px 8px',
-                                    fontFamily: 'var(--font-mono)',
-                                    outline: 'none'
-                                }}
-                            >
-                                <option value="">All Tags</option>
-                                {allTags.map(tag => (
-                                    <option key={tag} value={tag}>{tag}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Sort */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <GiHourglass style={{ color: 'var(--text-muted)' }} />
-                            <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
-                                style={{
-                                    background: 'var(--bg-main)',
-                                    color: 'var(--text-main)',
-                                    border: '1px solid var(--border-dim)',
-                                    padding: '4px 8px',
-                                    fontFamily: 'var(--font-mono)',
-                                    outline: 'none'
-                                }}
-                            >
-                                <option value="newest">Newest First</option>
-                                <option value="title">Alphabetical</option>
-                                <option value="match">% Pantry Match</option>
-                            </select>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Content Area */}
-            <div className="larder-content" style={{ flex: 1, overflowY: 'auto', paddingRight: 'var(--space-sm)' }}>
-                {activeTab === 'collection' && (
-                    <>
-                        {view === 'list' ? (
                             <RecipeList
                                 recipes={filteredRecipes}
                                 onEdit={handleEdit}
                                 onDelete={deleteRecipe}
                                 onAddToPlan={handleAddToPlan}
                                 onView={handleView}
+                                onCreate={handleCreate}
                             />
-                        ) : view === 'form' ? (
-                            <RecipeForm
-                                recipe={editingRecipe}
-                                onSave={handleSave}
-                                onCancel={handleCancel}
-                                ingredientsByName={ingredientsByName}
-                                onAddIngredientToPantry={addCustomIngredient}
-                                onImport={importRecipe}
-                                allTags={allTags}
-                            />
-                        ) : view === 'detail' && viewingRecipe ? (
-                            <RecipeDetail
-                                recipe={viewingRecipe}
-                                onClose={() => setView('list')}
-                                onEdit={() => handleEdit(viewingRecipe)}
-                                onCook={handleCook}
-                                pantryStock={pantryStock}
-                                ingredientsByName={ingredientsByName}
-                            />
-                        ) : view === 'cook' && viewingRecipe ? (
-                            <CookMode
-                                recipe={viewingRecipe}
-                                onClose={() => setView('detail')}
-                            />
-                        ) : null}
-                    </>
-                )}
-                {activeTab === 'pantry' && (
-                    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                        {/* Quick Add Form */}
-                        <div style={{ marginBottom: '2rem', padding: '1rem', background: 'var(--bg-panel)', border: '1px solid var(--border-gold)', borderRadius: '4px', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                            <span style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)' }}>NEW PROVISION:</span>
-                            <input id="newIngName" placeholder="Name (e.g. Saffron)" style={{ background: 'transparent', border: 'none', borderBottom: '1px solid var(--text-muted)', color: 'var(--text-main)', padding: '4px' }} />
-                            <select id="newIngCat" style={{ background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-dim)', padding: '4px' }}>
-                                <option value="Pantry">Pantry</option>
-                                <option value="Produce">Produce</option>
-                                <option value="Dairy">Dairy</option>
-                                <option value="Protein">Protein</option>
-                                <option value="Spices">Spices</option>
-                            </select>
-
-                            {/* Emoji Picker */}
-                            <div style={{ position: 'relative' }}>
-                                <button
-                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                    aria-label="Choose provision symbol"
-                                    style={{
-                                        width: '40px', height: '40px',
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: '1px solid var(--border-dim)',
-                                        color: 'var(--text-main)',
-                                        cursor: 'pointer',
-                                        fontSize: '1.5rem',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                    }}
-                                >
-                                    {newIngIcon}
-                                </button>
-                                {showEmojiPicker && (
-                                    <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100 }}>
-                                        <EmojiPicker
-                                            theme="dark"
-                                            onEmojiClick={(emojiData) => {
-                                                setNewIngIcon(emojiData.emoji);
-                                                setShowEmojiPicker(false);
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-
-                            <button
-                                onClick={() => {
-                                    const name = document.getElementById('newIngName').value;
-                                    const cat = document.getElementById('newIngCat').value;
-
-                                    if (name) {
-                                        addCustomIngredient(name.toLowerCase(), {
-                                            icon: newIngIcon, category: cat, label: name, defaultUnit: 'pcs'
-                                        });
-                                        document.getElementById('newIngName').value = '';
-                                        setNewIngIcon('🍽️'); // Reset to default
-                                    }
-                                }}
-                                style={{
-                                    background: 'var(--accent-gold)', color: 'var(--bg-main)', border: 'none', padding: '6px 12px', cursor: 'pointer', fontFamily: 'var(--font-display)', fontWeight: 'bold'
-                                }}
-                            >
-                                ADD TO PANTRY
-                            </button>
                         </div>
+                    ) : view === 'form' ? (
+                        <RecipeForm
+                            recipe={editingRecipe}
+                            onSave={handleSave}
+                            onCancel={handleCancel}
+                            ingredientsByName={ingredientsByName}
+                            onAddIngredientToPantry={addCustomIngredient}
+                            onImport={importRecipe}
+                            allTags={allTags}
+                        />
+                    ) : view === 'detail' && viewingRecipe ? (
+                        <RecipeDetail
+                            recipe={viewingRecipe}
+                            onClose={() => setView('list')}
+                            onEdit={() => handleEdit(viewingRecipe)}
+                            onCook={handleCook}
+                            pantryStock={pantryStock}
+                            ingredientsByName={ingredientsByName}
+                        />
+                    ) : view === 'cook' && viewingRecipe ? (
+                        <CookMode
+                            recipe={viewingRecipe}
+                            onClose={() => setView('detail')}
+                        />
+                    ) : null}
+                </TabPanel>
 
+                <TabPanel id="hearth" active={activeTab}>
+                    <div className="larder__pane">
+                        <MealPlanner
+                            plan={mealPlan}
+                            recipes={recipes}
+                            onAddToDay={openPicker}
+                            onClearDay={clearDay}
+                        />
+                    </div>
+                </TabPanel>
 
-                        {/* Pantry Controls */}
-                        <div style={{
-                            display: 'flex',
-                            gap: 'var(--space-md)',
-                            marginBottom: 'var(--space-lg)',
-                            flexWrap: 'wrap',
-                            alignItems: 'center',
-                            background: 'var(--bg-panel)',
-                            padding: 'var(--space-sm)',
-                            border: '1px solid var(--border-dim)'
-                        }}>
-                            {/* Search */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
-                                <GiMagnifyingGlass style={{ color: 'var(--text-muted)' }} />
-                                <input
-                                    type="text"
-                                    placeholder="Search provisions..."
-                                    value={pantrySearch}
-                                    onChange={(e) => setPantrySearch(e.target.value)}
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderBottom: '1px solid var(--border-dim)',
-                                        color: 'var(--text-main)',
-                                        fontFamily: 'var(--font-body)',
-                                        width: '100%',
-                                        padding: '4px',
-                                        outline: 'none'
-                                    }}
-                                />
-                            </div>
+                <TabPanel id="menus" active={activeTab}>
+                    <MenuBuilder
+                        recipes={recipes}
+                        menus={menus}
+                        onSaveMenu={addMenu}
+                        onUpdateMenu={updateMenu}
+                        onDeleteMenu={deleteMenu}
+                        creating={isBuildingMenu}
+                        onCreatingChange={setIsBuildingMenu}
+                    />
+                </TabPanel>
 
-                            {/* Filter Category */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <GiFunnel style={{ color: 'var(--text-muted)' }} />
-                                <select
-                                    value={pantryFilter}
-                                    onChange={(e) => setPantryFilter(e.target.value)}
-                                    style={{
-                                        background: 'var(--bg-main)',
-                                        color: 'var(--text-main)',
-                                        border: '1px solid var(--border-dim)',
-                                        padding: '4px 8px',
-                                        fontFamily: 'var(--font-mono)',
-                                        outline: 'none'
-                                    }}
-                                >
-                                    <option value="">All Categories</option>
-                                    {Object.keys(ingredientsByCategory).map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                            </div>
+                <TabPanel id="pantry" active={activeTab}>
+                    <div className="larder__pane stack">
+                        <LarderFilters
+                            search={pantrySearch}
+                            onSearch={setPantrySearch}
+                            searchPlaceholder="Search provisions..."
+                            filter={pantryFilter}
+                            onFilter={setPantryFilter}
+                            filterLabel="Category"
+                            filterAllLabel="All Categories"
+                            filterOptions={Object.keys(ingredientsByCategory)}
+                            sort={pantrySort}
+                            onSort={setPantrySort}
+                            sortOptions={PANTRY_SORTS}
+                        />
 
-                            {/* Sort */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <GiHourglass style={{ color: 'var(--text-muted)' }} />
-                                <select
-                                    value={pantrySort}
-                                    onChange={(e) => setPantrySort(e.target.value)}
-                                    style={{
-                                        background: 'var(--bg-main)',
-                                        color: 'var(--text-main)',
-                                        border: '1px solid var(--border-dim)',
-                                        padding: '4px 8px',
-                                        fontFamily: 'var(--font-mono)',
-                                        outline: 'none'
-                                    }}
-                                >
-                                    <option value="category">Category (Groups)</option>
-                                    <option value="name">Name (A-Z)</option>
-                                    <option value="stocked">In Stock First</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Render Pantry List */}
                         {showFlatPantry ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
-                                {processedPantry.map(item => (
-                                    <PantryItem
-                                        key={item.id}
-                                        item={item}
-                                        pantryStock={pantryStock}
-                                        togglePantryStock={togglePantryStock}
-                                        deleteIngredient={deleteIngredient}
-                                    />
-                                ))}
-                                {processedPantry.length === 0 && (
-                                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', gridColumn: '1/-1' }}>
-                                        No provisions match your criteria.
-                                    </div>
-                                )}
-                            </div>
+                            processedPantry.length === 0 ? (
+                                <EmptyState
+                                    icon={<GiHerbsBundle />}
+                                    message="No provisions match your criteria."
+                                    actionLabel="New Provision"
+                                    onAction={() => setIsProvisionModalOpen(true)}
+                                />
+                            ) : (
+                                <div className="pantry-grid">
+                                    {processedPantry.map(item => (
+                                        <PantryItem
+                                            key={item.id}
+                                            item={item}
+                                            pantryStock={pantryStock}
+                                            togglePantryStock={togglePantryStock}
+                                            deleteIngredient={deleteIngredient}
+                                        />
+                                    ))}
+                                </div>
+                            )
+                        ) : Object.keys(ingredientsByCategory).length === 0 ? (
+                            <EmptyState
+                                icon={<GiHerbsBundle />}
+                                message="The pantry stands empty."
+                                hint="Catalogue a provision to begin."
+                                actionLabel="New Provision"
+                                onAction={() => setIsProvisionModalOpen(true)}
+                            />
                         ) : (
                             Object.entries(ingredientsByCategory).map(([category, items]) => {
-                                // If filtering by category, only show that category (redundant if using flat view for filter, but good backup)
+                                // If filtering by category, only show that category
                                 if (pantryFilter && category !== pantryFilter) return null;
 
                                 return (
-                                    <div key={category} style={{ marginBottom: '2rem' }}>
-                                        <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', borderBottom: '1px solid var(--border-dim)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
-                                            {category}
-                                        </h3>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
+                                    <section key={category} className="pantry-group">
+                                        <h3 className="section-title">{category}</h3>
+                                        <div className="pantry-grid">
                                             {items.map(item => (
                                                 <PantryItem
                                                     key={item.id}
@@ -692,38 +575,18 @@ const Larder = () => {
                                                 />
                                             ))}
                                         </div>
-                                    </div>
+                                    </section>
                                 );
                             })
                         )}
                     </div>
-                )}
-                {activeTab === 'hearth' && (
-                    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                        <div style={{ marginBottom: 'var(--space-md)', color: 'var(--text-muted)' }}>
-                            Select recipes from the Collection to check your stock. Arrange your sustenance here.
-                        </div>
-                        <MealPlanner
-                            plan={mealPlan}
-                            recipes={recipes}
-                            onClearDay={clearDay}
-                        />
+                </TabPanel>
+
+                <TabPanel id="provisions" active={activeTab}>
+                    <div className="larder__pane larder__pane--narrow">
+                        <GroceryList plan={mealPlan} recipes={recipes} inputRef={groceryInputRef} />
                     </div>
-                )}
-                {activeTab === 'provisions' && (
-                    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                        <GroceryList plan={mealPlan} recipes={recipes} />
-                    </div>
-                )}
-                {activeTab === 'menus' && (
-                    <MenuBuilder
-                        recipes={recipes}
-                        menus={menus}
-                        onSaveMenu={addMenu}
-                        onUpdateMenu={updateMenu}
-                        onDeleteMenu={deleteMenu}
-                    />
-                )}
+                </TabPanel>
             </div>
 
             <DaySelector
@@ -731,7 +594,101 @@ const Larder = () => {
                 onClose={() => setIsDaySelectorOpen(false)}
                 onSelect={handleDaySelect}
             />
-        </div >
+
+            {/* The Hearth's recipe picker */}
+            <Modal
+                open={picker.open}
+                onClose={closePicker}
+                title={picker.day ? `Plan for ${picker.day}` : 'Plan a Meal'}
+                footer={<Button variant="ghost" onClick={closePicker}>Cancel</Button>}
+            >
+                <Field
+                    label="Seek formula"
+                    type="search"
+                    value={pickerQuery}
+                    onChange={(e) => setPickerQuery(e.target.value)}
+                    placeholder="Search formulas..."
+                />
+                <div className="recipe-picker">
+                    {pickerResults.map(recipe => (
+                        <button
+                            key={recipe.id}
+                            type="button"
+                            className="recipe-picker__item"
+                            onClick={() => handlePickRecipe(recipe)}
+                        >
+                            <span className="recipe-picker__title">{recipe.title}</span>
+                            <span className="muted">{recipe.total_time || ''}</span>
+                        </button>
+                    ))}
+                    {pickerResults.length === 0 && (
+                        <EmptyState
+                            icon={<GiCauldron />}
+                            message="No formulae answer to that name."
+                            hint="Add a new formula to begin."
+                        />
+                    )}
+                </div>
+            </Modal>
+
+            {/* Pantry quick-add */}
+            <Modal
+                open={isProvisionModalOpen}
+                onClose={closeProvisionModal}
+                title="NEW PROVISION"
+                footer={(
+                    <>
+                        <Button variant="ghost" onClick={closeProvisionModal}>Cancel</Button>
+                        <Button variant="solid" onClick={handleAddProvision} disabled={!newProvision.name.trim()}>
+                            ADD TO PANTRY
+                        </Button>
+                    </>
+                )}
+            >
+                <Field
+                    label="Name"
+                    type="text"
+                    value={newProvision.name}
+                    onChange={(e) => setNewProvision(p => ({ ...p, name: e.target.value }))}
+                    placeholder="Name (e.g. Saffron)"
+                />
+                <div className="field-row">
+                    <Field label="Category">
+                        <select
+                            className="select"
+                            value={newProvision.category}
+                            onChange={(e) => setNewProvision(p => ({ ...p, category: e.target.value }))}
+                        >
+                            {PROVISION_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </Field>
+                    <div className="field larder-symbol">
+                        <span className="field__label" id="provision-symbol">Symbol</span>
+                        <Button
+                            label="Choose provision symbol"
+                            aria-describedby="provision-symbol"
+                            aria-expanded={showEmojiPicker}
+                            className="larder-symbol__btn"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        >
+                            {newProvision.icon}
+                        </Button>
+                        {showEmojiPicker && (
+                            <div className="larder-symbol__picker">
+                                <EmojiPicker
+                                    theme="dark"
+                                    width={300}
+                                    onEmojiClick={(emojiData) => {
+                                        setNewProvision(p => ({ ...p, icon: emojiData.emoji }));
+                                        setShowEmojiPicker(false);
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </Modal>
+        </div>
     );
 };
 

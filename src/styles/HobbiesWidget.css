@@ -1,20 +1,29 @@
 /* Hobbies Widget - Active Pursuits */
 
+/* The progress footer pins to the bottom of the card, so the body is a
+   flex column rather than a plain block. */
+.hobbies-widget .card__body {
+    display: flex;
+    flex-direction: column;
+}
+
 .hobby-form {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
 }
 
 .hobby-input {
     flex: 1;
     background: transparent;
     border: none;
-    border-bottom: 1px solid var(--border-dim);
-    padding: 0.5rem;
+    border-bottom: var(--rule-hair);
+    padding: var(--space-2);
     color: var(--text-main);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     font-family: var(--font-body);
+    min-width: 0;
 }
 
 .hobby-input:focus {
@@ -28,29 +37,21 @@
 }
 
 .hobby-add-btn {
-    background: none;
-    border: none;
     color: var(--text-gold);
-    cursor: pointer;
-    font-size: 1.2rem;
-    transition: transform 0.2s ease;
-}
-
-.hobby-add-btn:hover {
-    transform: scale(1.1);
-    color: var(--text-highlight);
+    flex-shrink: 0;
+    font-size: var(--text-lg);
 }
 
 .hobby-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: var(--space-4);
 }
 
 .hobby-item {
-    border: 1px solid var(--border-dim);
-    padding: 0.8rem;
-    border-radius: 4px;
+    border: var(--rule-hair);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
     background: transparent;
     opacity: 0.6;
     position: relative;
@@ -58,7 +59,7 @@
 }
 
 .hobby-item.active {
-    background: rgba(207, 181, 59, 0.1);
+    background: var(--accent-gold-dim);
     opacity: 1;
     border-color: var(--border-gold);
 }
@@ -67,13 +68,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.3rem;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
 }
 
 .hobby-name {
-    font-weight: bold;
+    font-weight: var(--weight-bold);
     font-family: var(--font-display);
     color: var(--text-muted);
+    min-width: 0;
 }
 
 .hobby-item.active .hobby-name {
@@ -81,39 +84,38 @@
 }
 
 .hobby-delete-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 1.1rem;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    font-size: var(--text-lg);
+    line-height: 1;
 }
 
-.hobby-item:hover .hobby-delete-btn {
+.hobby-item:hover .hobby-delete-btn,
+.hobby-delete-btn:focus-visible {
     opacity: 1;
 }
 
 .hobby-delete-btn:hover {
-    color: var(--accent-crimson);
+    color: var(--accent-red);
 }
 
 .hobby-actions {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--space-2);
 }
 
 .hobby-action-btn {
     flex: 1;
-    font-size: 0.7rem;
-    padding: 2px 6px;
-    border: 1px solid var(--border-dim);
+    font-size: var(--text-2xs);
+    padding: 2px var(--space-1);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
     text-transform: uppercase;
     font-family: var(--font-mono);
-    transition: all 0.2s ease;
+    transition: border-color var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
 }
 
 .hobby-action-btn:hover {
@@ -123,15 +125,16 @@
 
 .hobby-log-btn {
     flex: 1;
-    font-size: 0.7rem;
-    padding: 2px 6px;
-    border: 1px solid var(--accent-gold);
+    font-size: var(--text-2xs);
+    padding: 2px var(--space-1);
+    border: var(--rule-accent);
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--accent-gold);
     cursor: pointer;
     text-transform: uppercase;
     font-family: var(--font-mono);
-    transition: all 0.2s ease;
+    transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
 }
 
 .hobby-log-btn:hover {
@@ -147,7 +150,7 @@
 }
 
 .hobby-progress-container {
-    margin-top: 1rem;
-    border-top: 1px solid var(--border-dim);
-    padding-top: 0.5rem;
+    margin-top: auto;
+    padding-top: var(--space-2);
+    border-top: var(--rule-hair);
 }

@@ -1,30 +1,36 @@
-/* Todo Widget - Daily Pursuits */
+/* Todo Widget - Daily Pursuits
+   Card shell and list ceiling come from <Card scroll="tall">. */
 
-.todo-widget {
-    max-height: 600px;
+/* The progress footer pins to the bottom of the card, so the body is a
+   flex column rather than a plain block. */
+.todo-widget .card__body {
+    display: flex;
+    flex-direction: column;
 }
 
 .todo-form {
     display: flex;
-    gap: var(--space-sm);
-    margin-bottom: var(--space-lg);
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
     flex-shrink: 0;
 }
 
 .todo-input {
     flex: 1;
+    min-width: 0;
     background: transparent;
     border: none;
-    border-bottom: 1px solid var(--border-gold);
+    border-bottom: var(--rule-accent);
     border-radius: 0;
-    padding: var(--space-sm) 0;
+    padding: var(--space-2) 0;
     color: var(--text-main);
     /* UA outline is replaced below, not simply removed */
     outline: none;
     font-family: var(--font-display);
-    font-size: 1rem;
+    font-size: var(--text-base);
     font-style: italic;
-    transition: border-color 0.3s ease;
+    transition: border-color var(--dur-slow) var(--ease);
 }
 
 .todo-input:focus-visible {
@@ -43,65 +49,29 @@
 
 .todo-add-btn {
     color: var(--text-gold);
-    padding: 0 var(--space-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.8;
-    cursor: pointer;
-    background: none;
-    border: none;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.todo-add-btn:hover {
-    opacity: 1;
-    transform: scale(1.1);
-    color: var(--text-highlight);
+    flex-shrink: 0;
 }
 
 .todo-add-btn:disabled {
     cursor: wait;
-    opacity: 0.5;
 }
 
 .todo-list-container {
     display: flex;
     flex-direction: column;
-    gap: var(--space-sm);
-    flex: 1;
-    overflow-y: auto;
+    gap: var(--space-1);
     min-height: 0;
-    padding-right: 4px;
-}
-
-.todo-empty-state {
-    color: var(--text-muted);
-    font-style: italic;
-    padding: var(--space-sm);
 }
 
 .todo-item {
     display: flex;
     align-items: center;
-    gap: var(--space-md);
-    padding: var(--space-xs) 0;
-    transition: all 0.2s;
+    gap: var(--space-2);
+    transition: opacity var(--dur-base) var(--ease);
 }
 
 .todo-item.completed {
     opacity: 0.5;
-}
-
-.todo-status-btn {
-    color: var(--text-muted);
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s ease;
 }
 
 .todo-item.completed .todo-status-btn {
@@ -114,10 +84,11 @@
 
 .todo-text {
     flex: 1;
+    min-width: 0;
     font-style: italic;
     color: var(--text-main);
-    transition: color 0.2s ease;
     font-family: var(--font-body);
+    transition: color var(--dur-base) var(--ease);
 }
 
 .todo-item.completed .todo-text {
@@ -126,26 +97,22 @@
 }
 
 .todo-delete-btn {
-    color: var(--text-muted);
     opacity: 0;
-    background: none;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
 }
 
-.todo-item:hover .todo-delete-btn {
-    opacity: 0.5;
+.todo-item:hover .todo-delete-btn,
+.todo-delete-btn:focus-visible {
+    opacity: 1;
 }
 
 .todo-delete-btn:hover {
-    opacity: 1;
-    color: var(--accent-crimson);
+    color: var(--accent-red);
 }
 
 .todo-progress-area {
-    margin-top: 1rem;
-    border-top: 1px solid var(--border-gold);
-    padding-top: 0.5rem;
+    margin-top: auto;
+    padding-top: var(--space-2);
+    border-top: var(--rule-hair);
     flex-shrink: 0;
 }

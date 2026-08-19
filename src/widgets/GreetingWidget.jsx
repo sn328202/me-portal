@@ -87,16 +87,19 @@ const GreetingWidget = () => {
                         onChange={(e) => setTempName(e.target.value)}
                         onBlur={handleSave}
                         onKeyDown={handleKeyDown}
+                        aria-label="Your name"
                         className="greeting-name-input"
                     />
                 ) : (
-                    <span
+                    <button
+                        type="button"
                         onClick={handleNameClick}
                         className="greeting-name-display"
                         title="Click to edit name"
+                        aria-label={`Your name is ${displayName}. Edit it.`}
                     >
                         {displayName}.
-                    </span>
+                    </button>
                 )}
             </h2>
         </div>

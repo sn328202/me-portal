@@ -1,88 +1,34 @@
-/* Library Stats - The Archives */
-
-.library-stats-container {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    color: var(--text-main);
-    padding: 1.5rem 0;
-}
-
-.library-section-title {
-    margin: 0 0 1rem 0;
-    font-family: var(--font-display);
-    color: var(--text-gold);
-    border-bottom: 1px solid var(--border-dim);
-    padding-bottom: 0.5rem;
-    letter-spacing: var(--game-tracking);
-    font-size: 1rem;
-}
+/* Library Stats - The Archives
+   The KPI tiles are <Stat>; the card shell and title are <Card>. There used
+   to be a third stat-box design and a fifth card-title size in here. */
 
 .library-kpi-grid {
-    display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 0.5rem;
-    text-align: center;
-}
-
-.library-stat-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.2rem;
-    padding: 0.5rem;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
-}
-
-.library-stat-box:hover {
-    border-color: var(--border-dim);
-    background: var(--bg-hover);
-}
-
-.library-stat-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--text-main);
-    font-family: var(--font-display);
-}
-
-.library-stat-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    text-transform: uppercase;
 }
 
 .library-now-consuming-container {
-    flex: 1;
     display: flex;
     flex-direction: column;
+    margin-top: var(--space-5);
 }
 
-.library-now-consuming-title {
-    margin: 1rem 0;
+/* Sub-heading *inside* a card: quieter than the card title, never louder. */
+.library-subtitle {
+    margin: 0 0 var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: var(--rule-hair);
     font-family: var(--font-display);
-    color: var(--text-gold);
-    border-bottom: 1px solid var(--border-dim);
-    padding-bottom: 0.5rem;
-    letter-spacing: var(--game-tracking);
-    font-size: 1rem;
-}
-
-.library-empty-state {
-    font-style: italic;
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
     color: var(--text-muted);
-    text-align: center;
-    margin-top: 1rem;
 }
 
 .library-consuming-list {
     display: flex;
-    gap: 1rem;
+    gap: var(--space-4);
     overflow-x: auto;
-    padding-bottom: 0.5rem;
+    padding-bottom: var(--space-2);
     align-items: flex-start;
 }
 
@@ -95,17 +41,17 @@
 .library-item-poster {
     width: 80px;
     height: 120px;
+    margin-bottom: var(--space-2);
+    border: var(--rule-hair);
     border-radius: var(--radius-sm);
     overflow: hidden;
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--border-dim);
     position: relative;
-    transition: transform 0.2s ease, border-color 0.2s ease;
+    transition: transform var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
 
 .library-item-poster:hover {
-    transform: translateY(-2px);
-    border-color: var(--text-gold);
+    transform: var(--lift);
+    border-color: var(--border-gold);
     box-shadow: var(--glow-gold);
 }
 
@@ -124,21 +70,20 @@
     justify-content: center;
     color: var(--text-muted);
     font-family: var(--font-display);
-    font-size: 1.5rem;
+    font-size: var(--text-xl);
 }
 
 .library-item-title {
-    font-size: 0.7rem;
     max-height: 2.4em;
     overflow: hidden;
-    line-height: 1.2;
+    line-height: var(--leading-snug);
     color: var(--text-muted);
     font-family: var(--font-body);
+    font-size: var(--text-2xs);
 }
 
-.library-loading {
-    padding: 1rem;
-    color: var(--text-muted);
-    text-align: center;
-    font-style: italic;
+@media (max-width: 768px) {
+    .library-kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    }
 }

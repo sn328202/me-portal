@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../hooks/useSettings';
+import WidgetCard from '../components/WidgetCard';
+import Button from '../components/ui/Button';
+import Field from '../components/ui/Field';
+import EmptyState from '../components/EmptyState';
 import '../styles/StatusConsole.css';
 
 const StatusConsole = () => {
@@ -22,49 +26,67 @@ const StatusConsole = () => {
         setEditMode(false);
     };
 
+    // The embed URL is user-entered. Anything that isn't absolute http(s)
+    // never reaches the iframe.
+    const safeUrl = /^https?:\/\//i.test(url || '') ? url : '';
+
     return (
-        <div className="status-console">
-            {/* Header / Controls */}
-            <div className="status-header">
-                <h3 className="status-title">
-                    {getIcon('status')} {getLabel('status')}
-                </h3>
-                <button
+        <WidgetCard
+            title={getLabel('status')}
+            icon={getIcon('status')}
+            span={2}
+            className="status-console"
+            actions={
+                <Button
+                    size="sm"
+                    variant="ghost"
                     onClick={() => setEditMode(!editMode)}
-                    className="status-config-btn"
+                    label={editMode ? 'Cancel' : getLabel('statusConfig')}
                 >
                     {editMode ? 'Cancel' : getLabel('statusConfig')}
-                </button>
-            </div>
-
-            {/* Content Area */}
+                </Button>
+            }
+        >
             <div className="status-content-area">
                 {editMode ? (
-                    <div className="status-config-overlay">
-                        <form onSubmit={handleSave} className="status-form">
-                            <p>Enter the URL of your Dashboard (Retool, Google Data Studio, etc.)</p>
+                    <form onSubmit={handleSave} className="status-form">
+                        <Field
+                            label="Dashboard URL"
+                            hint="Retool, Google Data Studio, Grafana — anything embeddable."
+                        >
                             <input
                                 name="urlUrl"
                                 defaultValue={url}
                                 placeholder="https://..."
                                 type="url"
-                                className="status-input"
+                                className="input"
                                 required
                             />
-                            <button type="submit" className="status-submit-btn">
-                                {getLabel('statusEstablish')}
-                            </button>
-                        </form>
-                    </div>
+                        </Field>
+                        <Button type="submit" variant="primary">
+                            {getLabel('statusEstablish')}
+                        </Button>
+                    </form>
+                ) : !safeUrl ? (
+                    <EmptyState
+                        message={`No ${getLabel('status').toLowerCase()} linked yet.`}
+                        actionLabel={getLabel('statusConfig')}
+                        onAction={() => setEditMode(true)}
+                        inline
+                    />
                 ) : (
                     <iframe
-                        src={url}
+                        src={safeUrl}
                         className="status-iframe"
-                        title="Status Dashboard"
+                        title={getLabel('status')}
+                        /* allow-same-origin is deliberately absent: combined with
+                           allow-scripts it would neutralise the sandbox entirely. */
+                        sandbox="allow-scripts allow-popups allow-forms"
+                        referrerPolicy="no-referrer"
                     />
                 )}
             </div>
-        </div>
+        </WidgetCard>
     );
 };
 

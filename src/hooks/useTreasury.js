@@ -104,7 +104,7 @@ export const useTreasury = () => {
                 .single();
 
             if (error) throw error;
-            setBrands(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+            setBrands(prev => [...prev, data].sort((a, b) => (a.name || '').localeCompare(b.name || '')));
             return data;
         } catch (err) {
             console.error('Error adding brand:', err);

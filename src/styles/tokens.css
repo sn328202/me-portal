@@ -1,0 +1,176 @@
+/* ============================================================
+   Design tokens
+   ------------------------------------------------------------
+   The measurable half of the design system: spacing, type,
+   shape, depth, motion, density. Colour and font *families*
+   live in theme.css and are overridden per theme in
+   configs/themes.jsx.
+
+   Anything in this file that a theme is allowed to change is
+   marked THEMEABLE and re-declared in themes.jsx. Everything
+   else is constant across all seven skins so the app stays
+   recognisably itself.
+   ============================================================ */
+
+:root {
+
+    /* --- Spacing -------------------------------------------
+       One ramp, eight steps. Previously five tokens covering
+       ~18% of usage while 30 raw values covered the rest;
+       0.75/1.5/3rem are the steps the codebase kept inventing. */
+    --space-1: 0.25rem;
+    /* 4px  - icon gaps, tag padding */
+    --space-2: 0.5rem;
+    /* 8px  - inline gaps, label/field */
+    --space-3: 0.75rem;
+    /* 12px - list row padding */
+    --space-4: 1rem;
+    /* 16px - card padding, default gap */
+    --space-5: 1.5rem;
+    /* 24px - between cards */
+    --space-6: 2rem;
+    /* 32px - section separation */
+    --space-7: 3rem;
+    /* 48px - page gutters */
+    --space-8: 4rem;
+    /* 64px - major breaks */
+
+    /* Legacy aliases. Existing markup keeps working; new work
+       should use the numeric scale. */
+    --space-xs: var(--space-1);
+    --space-sm: var(--space-2);
+    --space-md: var(--space-4);
+    --space-lg: var(--space-6);
+    --space-xl: var(--space-8);
+
+
+    /* --- Type ----------------------------------------------
+       Ten steps. The old app used ~25 sizes, seven of them
+       crammed between 0.7 and 0.95rem where no reader can tell
+       them apart. */
+    --text-2xs: 0.6875rem;
+    /* 11px - micro labels, timestamps. Use sparingly. */
+    --text-xs: 0.75rem;
+    /* 12px - metadata, tag text */
+    --text-sm: 0.875rem;
+    /* 14px - secondary copy, dense lists */
+    --text-base: 1rem;
+    /* 16px - body */
+    --text-lg: 1.125rem;
+    /* 18px - lead paragraphs, card titles */
+    --text-xl: 1.375rem;
+    /* 22px - subsection headings */
+    --text-2xl: 1.75rem;
+    /* 28px - card/section headings */
+    --text-3xl: 2.25rem;
+    /* 36px - page titles */
+    --text-4xl: 3rem;
+    /* 48px - hero */
+    --text-5xl: 4rem;
+    /* 64px - the greeting, and only the greeting */
+
+    --leading-tight: 1.15;
+    --leading-snug: 1.35;
+    --leading-normal: 1.6;
+
+    --weight-normal: 400;
+    --weight-medium: 600;
+    --weight-bold: 700;
+
+    /* THEMEABLE. Victorian skins want wide tracking on caps;
+       Press Start 2P and handwriting faces are destroyed by it. */
+    --tracking-heading: 0.12em;
+    --tracking-label: 0.08em;
+    --case-heading: uppercase;
+    --game-tracking: var(--tracking-heading);
+    /* legacy alias */
+
+
+    /* --- Shape ---------------------------------------------
+       THEMEABLE. 8-Bit wants 0 everywhere, Lofi wants soft. */
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 8px;
+    --radius-pill: 999px;
+
+
+    /* --- Rules and borders ---------------------------------
+       `--rule` is the single most defining property in the app.
+       It was hardcoded to a 3px Victorian double rule and no
+       theme overrode it, which is why all seven skins read as
+       one skin with the hue rotated. THEMEABLE. */
+    --rule: 3px double var(--border-gold);
+    --rule-hair: 1px solid var(--border-dim);
+    --rule-accent: 1px solid var(--border-gold);
+    --border-width: 1px;
+
+    /* Legacy aliases */
+    --border-double: var(--rule);
+    --border-single: var(--rule-accent);
+
+    /* Corner ornaments on cards. THEMEABLE: set opacity 0 to
+       remove them entirely for the digital skins. */
+    --ornament-size: 10px;
+    --ornament-width: 2px;
+    --ornament-opacity: 0.5;
+    --ornament-opacity-hover: 1;
+
+
+    /* --- Depth ---------------------------------------------
+       THEMEABLE. Heavy black drops look wrong on Cottagecore's
+       cream paper and 8-Bit shouldn't have soft shadows at all. */
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.28);
+    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.38);
+    --shadow-lift: 0 12px 28px rgba(0, 0, 0, 0.45);
+
+
+    /* --- Motion --------------------------------------------
+       THEMEABLE. 8-Bit should snap in steps; Lofi should ease
+       long and soft. */
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --dur-slow: 360ms;
+    --ease: cubic-bezier(0.2, 0, 0.2, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --lift: translateY(-2px);
+
+
+    /* --- Density -------------------------------------------
+       THEMEABLE multiplier on interior padding. Cottagecore
+       wants air, Matrix wants a dense terminal. */
+    --density: 1;
+    --pad-card: calc(var(--space-4) * var(--density));
+    --pad-row: calc(var(--space-3) * var(--density));
+    --pad-page: var(--space-6);
+
+
+    /* --- Layout --------------------------------------------
+       Constant across themes. */
+    --page-max: 1440px;
+    --rail-width: 84px;
+    --rail-width-open: 260px;
+    --tap-min: 44px;
+    /* minimum touch target */
+    --field-bg: rgba(0, 0, 0, 0.2);
+    /* THEMEABLE - light themes need the inverse */
+}
+
+/* Respect the OS setting. The app leans on transitions heavily
+   enough that ignoring this is a real accessibility problem. */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --dur-fast: 0ms;
+        --dur-base: 0ms;
+        --dur-slow: 0ms;
+        --lift: none;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

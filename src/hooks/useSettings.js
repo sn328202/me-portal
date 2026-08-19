@@ -7,7 +7,7 @@ const DEFAULT_SETTINGS = {
     enabledWidgets: [
         'greeting', 'status', 'habits', 'todos', 'provisions',
         'chores', 'social', 'goals', 'hobbies', 'travel',
-        'calendar', 'library', 'links', 'games'
+        'calendar', 'library', 'workouts', 'links', 'games'
     ],
     calendarId: '',
     calendarIcalUrl: '',

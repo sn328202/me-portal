@@ -1,0 +1,299 @@
+/* ============================================================
+   The Library
+   ------------------------------------------------------------
+   The archive of consumed media. One card design serves both
+   the shelf and the search results — they are the same object,
+   so they look the same. Everything measurable is a token.
+   ============================================================ */
+
+.library-page {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.archives-loading {
+    padding: var(--space-6);
+    text-align: center;
+    font-family: var(--font-display);
+    letter-spacing: var(--tracking-label);
+    color: var(--text-gold);
+}
+
+
+/* ---------- Toolbar: what's on the shelf, and how ----------- */
+
+.library-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: end;
+}
+
+.library-toolbar__stats {
+    grid-template-columns: repeat(2, minmax(110px, 150px));
+}
+
+.library-toolbar__filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-4);
+    justify-self: end;
+    width: 100%;
+    max-width: 26rem;
+}
+
+
+/* ---------- The media card --------------------------------- */
+
+.shelf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
+    gap: var(--space-5);
+    align-items: start;
+}
+
+.media-card {
+    overflow: hidden;
+}
+
+/* The result variant is the same card rendered as a button, so
+   the whole tile is one keyboard-reachable target. */
+.media-card--result {
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.media-card__body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.media-card__cover {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-hover);
+    border-bottom: var(--rule-hair);
+}
+
+.media-card__cover img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.media-card__nocover {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.media-card__status {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    background: rgba(var(--bg-main-rgb), 0.85);
+    backdrop-filter: blur(2px);
+}
+
+.media-card__info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+}
+
+.media-card__title {
+    display: block;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: var(--weight-bold);
+    line-height: var(--leading-tight);
+    color: var(--text-main);
+    overflow-wrap: anywhere;
+}
+
+.media-card__creator {
+    display: block;
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.media-card__link {
+    align-self: flex-start;
+    font-size: var(--text-xs);
+    color: var(--text-gold);
+    text-decoration: underline;
+}
+
+.media-card__link:hover {
+    color: var(--text-highlight);
+}
+
+.media-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: var(--space-2);
+    border-top: 1px dashed var(--border-dim);
+}
+
+.media-card__cta {
+    margin-top: auto;
+    padding-top: var(--space-2);
+    font-family: var(--font-display);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: var(--case-heading);
+    color: var(--text-gold);
+}
+
+
+/* ---------- Rating ----------------------------------------- */
+
+.rating {
+    display: flex;
+    gap: 2px;
+    color: var(--accent-gold);
+}
+
+.rating__star {
+    opacity: 0.3;
+}
+
+.rating__star--on {
+    opacity: 1;
+}
+
+/* The editable version: five real buttons, not five click
+   handlers on an <svg>. */
+.rating-input {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: var(--tap-min);
+}
+
+.rating-input button {
+    display: inline-flex;
+    padding: var(--space-1);
+    border: none;
+    background: none;
+    font-size: var(--text-lg);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease);
+}
+
+.rating-input button[aria-pressed='true'] {
+    color: var(--accent-gold);
+}
+
+
+/* ---------- Search ----------------------------------------- */
+
+.search-form {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+}
+
+.search-form .field {
+    flex: 1;
+}
+
+.search-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
+    gap: var(--space-4);
+}
+
+
+/* ---------- Forms ------------------------------------------ */
+
+.field-with-action {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+}
+
+.field-with-action .field {
+    flex: 1;
+}
+
+.field-with-image {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+}
+
+.field-with-image .field {
+    flex: 1;
+}
+
+.cover-thumb {
+    flex-shrink: 0;
+    width: 50px;
+    height: 75px;
+    overflow: hidden;
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+}
+
+.cover-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+
+/* ---------- Mobile ----------------------------------------- */
+
+@media (max-width: 900px) {
+    .library-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .library-toolbar__filters {
+        justify-self: stretch;
+        max-width: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .shelf-grid,
+    .search-results {
+        grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+        gap: var(--space-4);
+    }
+
+    .library-toolbar__stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .search-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

@@ -450,3 +450,214 @@ export const THEMES = {
         }
     }
 };
+
+/* ============================================================
+   Theme character
+   ------------------------------------------------------------
+   Colour alone was never going to make seven distinct skins.
+   `--rule` — the 3px Victorian double border — was hardcoded in
+   theme.css and overridden by exactly zero themes, so The Matrix
+   and 8-Bit Arcade rendered Victorian double rules on every card.
+   Same for radius, shadow, tracking, density and motion.
+
+   This map gives each theme the rest of its body language. Every
+   theme must define every key: ThemeContext writes these as
+   inline properties on :root, so a key left out would inherit the
+   previously-selected theme's value.
+   ============================================================ */
+
+// Type ramps are shared but scaled: Press Start 2P is enormous at a
+// given px size, VT323 is tiny, and a handwriting face needs room.
+const typeScale = (f = 1) => {
+    const steps = {
+        '--text-2xs': 0.6875,
+        '--text-xs': 0.75,
+        '--text-sm': 0.875,
+        '--text-base': 1,
+        '--text-lg': 1.125,
+        '--text-xl': 1.375,
+        '--text-2xl': 1.75,
+        '--text-3xl': 2.25,
+        '--text-4xl': 3,
+        '--text-5xl': 4
+    };
+    return Object.fromEntries(
+        Object.entries(steps).map(([k, v]) => [k, `${+(v * f).toFixed(4)}rem`])
+    );
+};
+
+const characterBase = {
+    ...typeScale(1),
+    '--rule': '3px double var(--border-gold)',
+    '--rule-hair': '1px solid var(--border-dim)',
+    '--rule-accent': '1px solid var(--border-gold)',
+    '--radius-sm': '2px',
+    '--radius-md': '4px',
+    '--radius-lg': '8px',
+    '--tracking-heading': '0.12em',
+    '--tracking-label': '0.08em',
+    '--case-heading': 'uppercase',
+    '--ornament-opacity': '0.5',
+    '--ornament-opacity-hover': '1',
+    '--ornament-width': '2px',
+    '--ornament-size': '10px',
+    '--shadow-sm': '0 2px 6px rgba(0, 0, 0, 0.28)',
+    '--shadow-md': '0 8px 20px rgba(0, 0, 0, 0.38)',
+    '--shadow-lift': '0 12px 28px rgba(0, 0, 0, 0.45)',
+    '--dur-fast': '120ms',
+    '--dur-base': '200ms',
+    '--dur-slow': '360ms',
+    '--ease': 'cubic-bezier(0.2, 0, 0.2, 1)',
+    '--ease-out': 'cubic-bezier(0.16, 1, 0.3, 1)',
+    '--lift': 'translateY(-2px)',
+    '--density': '1',
+    '--field-bg': 'rgba(0, 0, 0, 0.2)'
+};
+
+export const THEME_CHARACTER = {
+    // Victorian: double rules, corner brackets, wide caps.
+    'dark-academia': { ...characterBase },
+
+    // Renaissance shares the Victorian bones; Cinzel is a caps face,
+    // so tracking stays generous and corners stay square.
+    renaissance: {
+        ...characterBase,
+        '--radius-sm': '0px',
+        '--radius-md': '2px',
+        '--radius-lg': '3px',
+        '--tracking-heading': '0.14em',
+        '--density': '1.05'
+    },
+
+    // Press Start 2P is ~1.4x the visual size of a normal face and has
+    // enormous built-in sidebearing, so: scale down, kill tracking.
+    // Hard 3px borders, zero radius, a pixel drop shadow, no easing.
+    'eight-bit': {
+        ...characterBase,
+        ...typeScale(0.72),
+        '--rule': '3px solid var(--border-gold)',
+        '--rule-hair': '2px solid var(--border-dim)',
+        '--rule-accent': '2px solid var(--border-gold)',
+        '--radius-sm': '0px',
+        '--radius-md': '0px',
+        '--radius-lg': '0px',
+        '--tracking-heading': '0em',
+        '--tracking-label': '0em',
+        '--ornament-opacity': '0',
+        '--ornament-opacity-hover': '0',
+        '--shadow-sm': '3px 3px 0 rgba(0, 0, 0, 1)',
+        '--shadow-md': '5px 5px 0 rgba(0, 0, 0, 1)',
+        '--shadow-lift': '7px 7px 0 rgba(0, 0, 0, 1)',
+        '--dur-fast': '0ms',
+        '--dur-base': '0ms',
+        '--dur-slow': '0ms',
+        '--ease': 'steps(2, end)',
+        '--ease-out': 'steps(2, end)',
+        '--lift': 'translate(-2px, -2px)',
+        '--density': '0.95',
+        '--field-bg': 'rgba(0, 0, 0, 0.85)'
+    },
+
+    // Cottagecore is the only light theme and its display face is a
+    // handwriting script. Uppercasing handwriting is the one thing you
+    // never do, so case-heading is none and the display sizes grow.
+    // Shadows go warm and soft; black drops look like grime on cream.
+    cottagecore: {
+        ...characterBase,
+        ...typeScale(1.06),
+        '--rule': '1px solid var(--border-gold)',
+        '--rule-hair': '1px solid var(--border-dim)',
+        '--radius-sm': '6px',
+        '--radius-md': '10px',
+        '--radius-lg': '16px',
+        '--tracking-heading': '0.01em',
+        '--tracking-label': '0.06em',
+        '--case-heading': 'none',
+        '--ornament-opacity': '0',
+        '--ornament-opacity-hover': '0',
+        '--shadow-sm': '0 2px 8px rgba(120, 96, 62, 0.12)',
+        '--shadow-md': '0 8px 22px rgba(120, 96, 62, 0.16)',
+        '--shadow-lift': '0 14px 32px rgba(120, 96, 62, 0.2)',
+        '--dur-base': '260ms',
+        '--dur-slow': '460ms',
+        '--ease': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        '--density': '1.2',
+        '--field-bg': 'rgba(92, 75, 55, 0.06)'
+    },
+
+    // VT323 is a narrow terminal face with a small x-height: scale up,
+    // pack tight, square everything off, no ornament, no soft shadow.
+    matrix: {
+        ...characterBase,
+        ...typeScale(1.22),
+        '--rule': '1px solid var(--border-gold)',
+        '--rule-hair': '1px solid var(--border-dim)',
+        '--rule-accent': '1px solid var(--accent-green)',
+        '--radius-sm': '0px',
+        '--radius-md': '0px',
+        '--radius-lg': '0px',
+        '--tracking-heading': '0.04em',
+        '--tracking-label': '0.04em',
+        '--ornament-opacity': '0',
+        '--ornament-opacity-hover': '0',
+        '--shadow-sm': 'none',
+        '--shadow-md': '0 0 12px rgba(0, 255, 0, 0.18)',
+        '--shadow-lift': '0 0 20px rgba(0, 255, 0, 0.25)',
+        '--dur-fast': '60ms',
+        '--dur-base': '100ms',
+        '--dur-slow': '160ms',
+        '--lift': 'none',
+        '--density': '0.85',
+        '--field-bg': 'rgba(0, 30, 0, 0.6)'
+    },
+
+    // Comfortaa and Quicksand are rounded geometric faces. Everything
+    // soft: big radii, no caps, long gentle easing, generous padding.
+    lofi: {
+        ...characterBase,
+        '--rule': '1px solid var(--border-gold)',
+        '--rule-hair': '1px solid var(--border-dim)',
+        '--radius-sm': '8px',
+        '--radius-md': '14px',
+        '--radius-lg': '22px',
+        '--tracking-heading': '0.02em',
+        '--tracking-label': '0.05em',
+        '--case-heading': 'none',
+        '--ornament-opacity': '0',
+        '--ornament-opacity-hover': '0',
+        '--shadow-sm': '0 3px 10px rgba(0, 0, 0, 0.3)',
+        '--shadow-md': '0 10px 26px rgba(0, 0, 0, 0.35)',
+        '--shadow-lift': '0 16px 36px rgba(0, 0, 0, 0.4)',
+        '--dur-base': '280ms',
+        '--dur-slow': '520ms',
+        '--ease': 'cubic-bezier(0.34, 1.2, 0.64, 1)',
+        '--density': '1.12',
+        '--field-bg': 'rgba(255, 255, 255, 0.04)'
+    },
+
+    // Orbitron and Michroma are wide, engineered faces. Hairline rules,
+    // neon bleed instead of drop shadow, quick snappy motion.
+    cybercity: {
+        ...characterBase,
+        ...typeScale(0.94),
+        '--rule': '1px solid var(--border-gold)',
+        '--rule-hair': '1px solid var(--border-dim)',
+        '--radius-sm': '0px',
+        '--radius-md': '2px',
+        '--radius-lg': '2px',
+        '--tracking-heading': '0.1em',
+        '--tracking-label': '0.1em',
+        '--ornament-opacity': '0.35',
+        '--ornament-opacity-hover': '0.9',
+        '--ornament-width': '1px',
+        '--ornament-size': '14px',
+        '--shadow-sm': '0 0 8px rgba(255, 0, 174, 0.18)',
+        '--shadow-md': '0 0 18px rgba(255, 0, 174, 0.26)',
+        '--shadow-lift': '0 0 30px rgba(255, 0, 174, 0.34)',
+        '--dur-fast': '80ms',
+        '--dur-base': '140ms',
+        '--dur-slow': '220ms',
+        '--density': '0.95',
+        '--field-bg': 'rgba(0, 0, 0, 0.6)'
+    }
+};

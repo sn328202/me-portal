@@ -51,15 +51,15 @@ const Dashboard = () => {
         <div className="dashboard-grid">
             {showWelcome && isNewUser && <WelcomeHero onDismiss={dismissWelcome} />}
 
-            {/* Header: Greeting & Trophies */}
+            {/* The entrance hall: a greeting and a mantelpiece, nothing else.
+                The Status Console used to sit between them at 600px tall and
+                flatten both. */}
             <div className="dashboard-header-row">
                 {isEnabled('greeting') && (
                     <div className="greeting-container">
                         <GreetingWidget />
                     </div>
                 )}
-
-                {isEnabled('status') && <StatusConsole />}
 
                 <div className="trophy-case">
                     <StreakBadge
@@ -77,7 +77,9 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Main Widget Grid */}
+            {/* One grid. Widgets opt into a wider cell via span, so the cards
+                carrying today's signal are not the same size as a bookmark
+                list. Order is unchanged. */}
             <div className="widget-masonry">
                 {isEnabled('habits') && <HabitTracker />}
                 {isEnabled('todos') && <TodoWidget />}
@@ -95,23 +97,12 @@ const Dashboard = () => {
                         icon={getIcon('games')}
                         url="https://www.nytimes.com/crosswords/game/daily"
                         description="The daily crossword challenge."
-                        accentColor="#000"
                     />
                 )}
+                {isEnabled('status') && <StatusConsole />}
+                {isEnabled('calendar') && <CalendarWidget />}
+                {isEnabled('library') && <LibraryStats />}
             </div>
-
-            {/* Wide/Span Widgets */}
-            {isEnabled('calendar') && (
-                <div className="wide-widget">
-                    <CalendarWidget />
-                </div>
-            )}
-
-            {isEnabled('library') && (
-                <div className="wide-widget">
-                    <LibraryStats />
-                </div>
-            )}
         </div>
     );
 };

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import WidgetCard from '../components/WidgetCard';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/EmptyState';
 import { useChores } from '../hooks/useChores';
 import '../styles/ChoresWidget.css';
 
@@ -24,7 +26,7 @@ const ChoresWidget = () => {
     const visibleChores = chores.filter(c => c.room === selectedRoom);
 
     return (
-        <WidgetCard title={getLabel('chores')} icon={getIcon('chores')}>
+        <WidgetCard title={getLabel('chores')} icon={getIcon('chores')} scroll>
             {/* Room Tabs */}
             <div className="chores-room-tabs">
                 {ROOMS.map(room => (
@@ -47,35 +49,44 @@ const ChoresWidget = () => {
                     placeholder={`Task for ${selectedRoom}...`}
                     disabled={loading}
                     className="chores-input"
+                    aria-label={`New task for ${selectedRoom}`}
                 />
-                <button type="submit" className="chores-add-btn" aria-label={`Add chore to ${selectedRoom}`}>+</button>
+                <Button icon size="sm" type="submit" className="chores-add-btn" label={`Add ${getLabel('chores').toLowerCase()} to ${selectedRoom}`}>+</Button>
             </form>
 
             {/* List */}
             <div className="chores-list">
                 {visibleChores.length === 0 && !loading && (
-                    <div className="chores-empty">
-                        No maintenance required in this sector.
-                    </div>
+                    <EmptyState
+                        message="No maintenance required in this sector."
+                        icon={getIcon('chores')}
+                        inline
+                    />
                 )}
                 {visibleChores.map(chore => (
                     <div key={chore.id} className="chores-item">
-                        <div
-                            onClick={() => toggleChore(chore.id)}
-                            className={`chores-checkbox ${chore.completed ? 'completed' : ''}`}
-                        >
-                            {chore.completed && <span className="chores-check-icon">✓</span>}
-                        </div>
-                        <span className={`chores-text ${chore.completed ? 'completed' : ''}`}>
-                            {chore.text}
-                        </span>
                         <button
-                            onClick={() => deleteChore(chore.id)}
+                            type="button"
+                            onClick={() => toggleChore(chore.id)}
+                            className="chores-toggle"
+                            aria-pressed={!!chore.completed}
+                        >
+                            <span className={`chores-checkbox ${chore.completed ? 'completed' : ''}`}>
+                                {chore.completed && <span className="chores-check-icon">✓</span>}
+                            </span>
+                            <span className={`chores-text ${chore.completed ? 'completed' : ''}`}>
+                                {chore.text}
+                            </span>
+                        </button>
+                        <Button
+                            icon
+                            size="sm"
                             className="chores-delete-btn"
-                            aria-label={`Delete chore "${chore.text}"`}
+                            onClick={() => deleteChore(chore.id)}
+                            label={`Delete ${getLabel('chores').toLowerCase()} "${chore.text}"`}
                         >
                             ×
-                        </button>
+                        </Button>
                     </div>
                 ))}
             </div>

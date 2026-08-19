@@ -3,7 +3,9 @@ import { GiFeather, GiCheckMark, GiEmptyHourglass, GiTrashCan } from 'react-icon
 import { useTheme } from '../contexts/ThemeContext';
 import ProgressBar from '../components/gamification/ProgressBar';
 import { useTodos } from '../hooks/useTodos';
+import WidgetCard from '../components/WidgetCard';
 import EmptyState from '../components/EmptyState';
+import Button from '../components/ui/Button';
 import '../styles/TodoWidget.css';
 
 const TodoWidget = () => {
@@ -20,76 +22,77 @@ const TodoWidget = () => {
     };
 
     return (
-        <div className="widget-card todo-widget">
-            <div className="widget-header">
-                <h3 className="widget-title">
-                    {getIcon('todos')} {getLabel('todos')}
-                </h3>
-            </div>
-            <div className="widget-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <form onSubmit={handleSubmit} className="todo-form">
-                    <input
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder={loading ? "Loading..." : "New entry..."}
-                        disabled={loading}
-                        className="todo-input"
-                    />
-                    <button
-                        type="submit"
-                        className="todo-add-btn"
-                        aria-label="Add todo"
-                        disabled={loading}
-                    >
-                        <GiFeather size={20} />
-                    </button>
-                </form>
+        <WidgetCard title={getLabel('todos')} icon={getIcon('todos')} className="todo-widget" scroll="tall">
+            <form onSubmit={handleSubmit} className="todo-form">
+                <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={loading ? 'Loading...' : 'New entry...'}
+                    aria-label={`New ${getLabel('todos').toLowerCase()}`}
+                    disabled={loading}
+                    className="todo-input"
+                />
+                <Button
+                    icon
+                    size="sm"
+                    type="submit"
+                    className="todo-add-btn"
+                    label={`Add ${getLabel('todos').toLowerCase()}`}
+                    disabled={loading}
+                >
+                    <GiFeather size={20} />
+                </Button>
+            </form>
 
-                <div className="todo-list-container">
-                    {todos.length === 0 && !loading && (
-                        <EmptyState
-                            message={`Your ${getLabel('todos').toLowerCase()} archives are empty.`}
-                            icon={getIcon('todos')}
-                        />
-                    )}
-
-                    {todos.map((todo) => (
-                        <div
-                            key={todo.id}
-                            className={`todo-item ${todo.completed ? 'completed' : ''}`}
-                        >
-                            <button
-                                onClick={() => toggleTodo(todo.id)}
-                                className="todo-status-btn"
-                                aria-label={todo.completed ? `Mark "${todo.text}" as not done` : `Mark "${todo.text}" as done`}
-                            >
-                                {todo.completed ? <GiCheckMark size={16} /> : <GiEmptyHourglass size={16} />}
-                            </button>
-                            <span className="todo-text">
-                                {todo.text}
-                            </span>
-                            <button
-                                onClick={() => deleteTodo(todo.id)}
-                                className="todo-delete-btn"
-                                aria-label={`Delete todo "${todo.text}"`}
-                            >
-                                <GiTrashCan size={14} />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="todo-progress-area">
-                    <ProgressBar
-                        current={todos.filter(t => t.completed).length}
-                        max={todos.length}
+            <div className="todo-list-container">
+                {todos.length === 0 && !loading && (
+                    <EmptyState
+                        message={`Your ${getLabel('todos').toLowerCase()} archives are empty.`}
                         icon={getIcon('todos')}
-                        color="var(--accent-gold)"
                     />
-                </div>
+                )}
+
+                {todos.map((todo) => (
+                    <div
+                        key={todo.id}
+                        className={`todo-item ${todo.completed ? 'completed' : ''}`}
+                    >
+                        <Button
+                            icon
+                            size="sm"
+                            className="todo-status-btn"
+                            onClick={() => toggleTodo(todo.id)}
+                            label={todo.completed ? `Mark "${todo.text}" as not done` : `Mark "${todo.text}" as done`}
+                            aria-pressed={!!todo.completed}
+                        >
+                            {todo.completed ? <GiCheckMark size={16} /> : <GiEmptyHourglass size={16} />}
+                        </Button>
+                        <span className="todo-text">
+                            {todo.text}
+                        </span>
+                        <Button
+                            icon
+                            size="sm"
+                            className="todo-delete-btn"
+                            onClick={() => deleteTodo(todo.id)}
+                            label={`Delete ${getLabel('todos').toLowerCase()} "${todo.text}"`}
+                        >
+                            <GiTrashCan size={14} />
+                        </Button>
+                    </div>
+                ))}
             </div>
-        </div>
+
+            <div className="todo-progress-area">
+                <ProgressBar
+                    current={todos.filter(t => t.completed).length}
+                    max={todos.length}
+                    icon={getIcon('todos')}
+                    color="var(--accent-gold)"
+                />
+            </div>
+        </WidgetCard>
     );
 };
 

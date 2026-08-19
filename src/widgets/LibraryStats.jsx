@@ -2,7 +2,19 @@ import React, { useMemo } from 'react';
 import { useLibrary } from '../hooks/useLibrary';
 import { useTheme } from '../contexts/ThemeContext';
 import { GiBookshelf, GiFilmStrip, GiCompactDisc, GiTv, GiGamepad } from 'react-icons/gi';
+import WidgetCard from '../components/WidgetCard';
+import WidgetLoading from '../components/WidgetLoading';
+import EmptyState from '../components/EmptyState';
+import Stat from '../components/ui/Stat';
 import '../styles/LibraryStats.css';
+
+const KINDS = [
+    { key: 'Books', type: 'Book', icon: <GiBookshelf size={24} /> },
+    { key: 'Movies', type: 'Movie', icon: <GiFilmStrip size={24} /> },
+    { key: 'Albums', type: 'Album', icon: <GiCompactDisc size={24} /> },
+    { key: 'Shows', type: 'TV Show', icon: <GiTv size={24} /> },
+    { key: 'Games', type: 'Game', icon: <GiGamepad size={24} /> },
+];
 
 const LibraryStats = () => {
     const { items, loading } = useLibrary();
@@ -10,86 +22,59 @@ const LibraryStats = () => {
 
     const stats = useMemo(() => {
         const completed = items.filter(i => i.status === 'Completed');
-        return {
-            Books: completed.filter(i => i.type === 'Book').length,
-            Movies: completed.filter(i => i.type === 'Movie').length,
-            Albums: completed.filter(i => i.type === 'Album').length,
-            Shows: completed.filter(i => i.type === 'TV Show').length,
-            Games: completed.filter(i => i.type === 'Game').length,
-        };
+        return KINDS.reduce((acc, kind) => {
+            acc[kind.key] = completed.filter(i => i.type === kind.type).length;
+            return acc;
+        }, {});
     }, [items]);
 
     const nowConsuming = useMemo(() => {
         return items.filter(i => i.status === 'In Progress');
     }, [items]);
 
-    if (loading) return <div className="library-loading">Loading Archive...</div>;
-
     return (
-        <div className="library-stats-container">
-
-            {/* KPI STATS */}
-            <div>
-                <h3 className="library-section-title">
-                    {getLabel('library')} Consumed
-                </h3>
-                <div className="library-kpi-grid">
-                    <div className="library-stat-box">
-                        <GiBookshelf size={24} color="var(--border-gold)" />
-                        <div className="library-stat-value">{stats.Books}</div>
-                        <div className="library-stat-label">Books</div>
-                    </div>
-                    <div className="library-stat-box">
-                        <GiFilmStrip size={24} color="var(--border-gold)" />
-                        <div className="library-stat-value">{stats.Movies}</div>
-                        <div className="library-stat-label">Movies</div>
-                    </div>
-                    <div className="library-stat-box">
-                        <GiCompactDisc size={24} color="var(--border-gold)" />
-                        <div className="library-stat-value">{stats.Albums}</div>
-                        <div className="library-stat-label">Albums</div>
-                    </div>
-                    <div className="library-stat-box">
-                        <GiTv size={24} color="var(--border-gold)" />
-                        <div className="library-stat-value">{stats.Shows}</div>
-                        <div className="library-stat-label">Shows</div>
-                    </div>
-                    <div className="library-stat-box">
-                        <GiGamepad size={24} color="var(--border-gold)" />
-                        <div className="library-stat-value">{stats.Games}</div>
-                        <div className="library-stat-label">Games</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* NOW CONSUMING SHELF */}
-            <div className="library-now-consuming-container">
-                <h3 className="library-now-consuming-title">
-                    {getLabel('nowConsuming')}
-                </h3>
-
-                {nowConsuming.length === 0 ? (
-                    <div className="library-empty-state">
-                        Nothing {getLabel('nowConsuming').toLowerCase()}.
-                    </div>
-                ) : (
-                    <div className="library-consuming-list">
-                        {nowConsuming.map(item => (
-                            <div key={item.id} className="library-item-card">
-                                <div className="library-item-poster">
-                                    {item.image_url ? (
-                                        <img src={item.image_url} alt={item.title} className="library-item-image" />
-                                    ) : (
-                                        <div className="library-item-placeholder">?</div>
-                                    )}
-                                </div>
-                                <div className="library-item-title">{item.title}</div>
-                            </div>
+        <WidgetCard title={`${getLabel('library')} Consumed`} icon={<GiBookshelf />} span={3}>
+            {loading ? (
+                <WidgetLoading />
+            ) : (
+                <>
+                    <div className="stat-row library-kpi-grid">
+                        {KINDS.map(kind => (
+                            <Stat key={kind.key} icon={kind.icon} value={stats[kind.key]} label={kind.key} />
                         ))}
                     </div>
-                )}
-            </div>
-        </div>
+
+                    <div className="library-now-consuming-container">
+                        <h4 className="library-subtitle">
+                            {getLabel('nowConsuming')}
+                        </h4>
+
+                        {nowConsuming.length === 0 ? (
+                            <EmptyState
+                                message={`Nothing ${getLabel('nowConsuming').toLowerCase()}.`}
+                                icon={<GiBookshelf />}
+                                inline
+                            />
+                        ) : (
+                            <div className="library-consuming-list">
+                                {nowConsuming.map(item => (
+                                    <div key={item.id} className="library-item-card">
+                                        <div className="library-item-poster">
+                                            {item.image_url ? (
+                                                <img src={item.image_url} alt="" className="library-item-image" />
+                                            ) : (
+                                                <div className="library-item-placeholder" aria-hidden="true">?</div>
+                                            )}
+                                        </div>
+                                        <div className="library-item-title">{item.title}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
+        </WidgetCard>
     );
 };
 

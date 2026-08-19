@@ -3,8 +3,10 @@ import { useProvisions } from '../hooks/useProvisions';
 import { useIngredients } from '../hooks/useIngredients';
 import { GiCheckMark, GiHouse, GiFiles } from 'react-icons/gi';
 import { useTheme } from '../contexts/ThemeContext';
+import WidgetCard from '../components/WidgetCard';
 import WidgetLoading from '../components/WidgetLoading';
 import EmptyState from '../components/EmptyState';
+import Button from '../components/ui/Button';
 import '../styles/ProvisionsWidget.css';
 
 const ProvisionsWidget = ({ plan, recipes }) => {
@@ -29,7 +31,7 @@ const ProvisionsWidget = ({ plan, recipes }) => {
             if (recipe) {
                 recipe.ingredients.forEach(ing => {
                     // Normalize
-                    const lowerName = ing.item.toLowerCase().trim();
+                    const lowerName = (ing.item || '').toLowerCase().trim();
                     const match = ingredientsByName ? ingredientsByName[lowerName] : null;
 
                     const key = match ? match.id : lowerName;
@@ -103,28 +105,32 @@ const ProvisionsWidget = ({ plan, recipes }) => {
     };
 
 
-    return (
-        <div className="provisions-widget">
-            <div className="provisions-header">
-                <h3 className="provisions-title">
-                    {getIcon('provisions')} {getLabel('provisions')}
-                </h3>
-                <div className="provisions-actions">
-                    <button
-                        onClick={handleCopy}
-                        className={`provisions-action-btn ${isCopied ? 'copied' : ''}`}
-                        title="Copy to Clipboard"
-                    >
-                        {isCopied ? <GiCheckMark /> : <GiFiles />} {isCopied ? 'Copied!' : 'Copy'}
-                    </button>
-                    {items.some(i => i.checked) && (
-                        <button onClick={clearChecked} className="provisions-clear-btn">
-                            Clear Bought
-                        </button>
-                    )}
-                </div>
-            </div>
+    const headerActions = (
+        <>
+            <Button
+                size="sm"
+                variant="ghost"
+                className={isCopied ? 'provisions-copied' : ''}
+                onClick={handleCopy}
+                label="Copy list to clipboard"
+            >
+                {isCopied ? <GiCheckMark /> : <GiFiles />} {isCopied ? 'Copied' : 'Copy'}
+            </Button>
+            {items.some(i => i.checked) && (
+                <Button size="sm" variant="ghost" onClick={clearChecked} label="Clear bought items">
+                    Clear
+                </Button>
+            )}
+        </>
+    );
 
+    return (
+        <WidgetCard
+            title={getLabel('provisions')}
+            icon={getIcon('provisions')}
+            actions={headerActions}
+            scroll="tall"
+        >
             {loading ? (
                 <WidgetLoading />
             ) : (
@@ -135,7 +141,8 @@ const ProvisionsWidget = ({ plan, recipes }) => {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Add item..."
-                            className="provisions-input"
+                            aria-label="Add provision"
+                            className="input provisions-input"
                         />
                     </form>
 
@@ -151,22 +158,26 @@ const ProvisionsWidget = ({ plan, recipes }) => {
                             {/* Manual Items */}
                             {items.map(item => (
                                 <li key={item.id} className="provisions-item">
-                                    <div
+                                    <button
+                                        type="button"
                                         onClick={() => toggleItem(item.id)}
                                         className={`provisions-item-content ${item.checked ? 'checked' : ''}`}
+                                        aria-pressed={!!item.checked}
                                     >
-                                        <div className={`provisions-checkbox ${item.checked ? 'checked' : ''}`}>
+                                        <span className={`provisions-checkbox ${item.checked ? 'checked' : ''}`}>
                                             {item.checked && <GiCheckMark size={10} color="var(--bg-main)" />}
-                                        </div>
+                                        </span>
                                         <span className={`provisions-text ${item.checked ? 'checked' : ''}`}>{item.text}</span>
-                                    </div>
-                                    <button
-                                        onClick={() => deleteItem(item.id)}
+                                    </button>
+                                    <Button
+                                        icon
+                                        size="sm"
                                         className="provisions-delete-btn"
-                                        title="Discard"
+                                        onClick={() => deleteItem(item.id)}
+                                        label={`Discard "${item.text}"`}
                                     >
                                         &times;
-                                    </button>
+                                    </Button>
                                 </li>
                             ))}
 
@@ -196,7 +207,7 @@ const ProvisionsWidget = ({ plan, recipes }) => {
                     </div>
                 </>
             )}
-        </div>
+        </WidgetCard>
     );
 };
 

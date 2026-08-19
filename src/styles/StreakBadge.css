@@ -1,37 +1,39 @@
+/* The mantelpiece. Two badges, escalating their icon at 3 and 7 days, with a
+   Victorian hairline flourish above. Tokenised, not toned down. */
+
 .streak-badge {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0.5rem 1rem;
-    border: 2px solid var(--badge-color, var(--text-gold));
-    border-radius: 8px;
-    background: var(--bg-panel);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    padding: var(--space-2) var(--space-4);
     min-width: 100px;
-    position: relative;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: var(--ornament-width) solid var(--badge-color, var(--text-gold));
+    border-radius: var(--radius-lg);
+    background: var(--bg-panel);
+    box-shadow: var(--shadow-sm);
     cursor: default;
+    transition: transform var(--dur-slow) var(--ease), box-shadow var(--dur-slow) var(--ease);
 }
 
 .streak-badge:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: var(--lift);
+    box-shadow: var(--shadow-md);
 }
 
 .streak-icon {
-    font-size: 2rem;
+    margin-bottom: var(--space-1);
+    font-size: var(--text-2xl);
     color: var(--badge-color, var(--text-gold));
-    margin-bottom: 0.2rem;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .streak-count {
     font-family: var(--font-display);
-    font-size: 2.2rem;
-    font-weight: bold;
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-bold);
     line-height: 1;
     color: var(--badge-color, var(--text-gold));
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .streak-count.zero {
@@ -39,12 +41,13 @@
 }
 
 .streak-label {
+    margin-top: var(--space-1);
     font-family: var(--font-display);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    margin-top: 0.2rem;
-    letter-spacing: 0.15em;
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
     color: var(--text-muted);
+    text-align: center;
 }
 
 /* Victorian Flourish */
@@ -57,5 +60,5 @@
     height: 2px;
     background: var(--badge-color, var(--text-gold));
     opacity: 0.6;
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
 }

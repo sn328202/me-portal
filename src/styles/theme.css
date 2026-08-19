@@ -1,138 +1,130 @@
+/* ============================================================
+   Theme — palette, faces, and base element styling
+   ------------------------------------------------------------
+   These values are the Dark Academia defaults AND the fallback
+   for any variable a theme forgets to set. configs/themes.jsx
+   overrides them on :root at runtime.
+
+   Scales (spacing, type, shape, motion) live in tokens.css.
+   Components live in primitives.css.
+   ============================================================ */
+
 :root {
-    /* The Old Box Palette - Victorian Mystery */
-    /* Deep, rich, dark backgrounds */
+    /* --- Surfaces: The Old Box palette, Victorian mystery --- */
     --bg-main: #0c0a09;
-    /* Very dark slightly warm black */
     --bg-panel: #141210;
-    /* Slightly lighter panel bg */
     --bg-hover: #1f1a16;
-    /* Hover state */
 
-    /* Text Colors */
+    /* --- Text --- */
     --text-main: #e8e6e3;
-    /* Off-white/Parchment-like text */
     --text-muted: #8c857b;
-    /* Muted warm grey */
     --text-dim: #a39b8f;
-    /* De-emphasised helper copy (still >=4.5:1) */
     --text-gold: #cfb53b;
-    /* Old Gold */
     --text-highlight: #ffdd99;
-    /* Bright gold for active states */
 
-    /* Accents */
-    --accent-crimson: #be606b;
-    /* Dried Blood/Wine, lifted to stay legible as text */
-    --accent-green: #6f9c8a;
-    /* Verdigris/Slate Green */
+    /* --- Accents --- */
     --accent-gold: #cfb53b;
     --accent-gold-dim: rgba(207, 181, 59, 0.18);
-    /* Faint gold wash for hovered/selected rows */
+    --accent-crimson: #be606b;
+    --accent-green: #6f9c8a;
     --accent-red: #e2707c;
-    /* Error text & borders (auth failures, destructive confirms) */
 
-    /* Borders */
+    /* --- Borders --- */
     --border-gold: #8a7e57;
-    /* Dull Gold */
     --border-bright: #cfb53b;
-    /* Bright Gold for focus */
     --border-dim: #6e675a;
-    /* Quiet rule, still >=3:1 on the panel */
     --active-border: #cfb53b;
-    /* Colour only - consumed as `1px solid var(--active-border)` */
 
-    /* Typography */
+    /* --- Faces --- */
     --font-display: 'Playfair Display', serif;
-    /* Victorian Headers */
     --font-body: 'Inter', sans-serif;
-    /* Readable body */
     --font-mono: 'Courier Prime', monospace;
-    /* Typewriter touches */
-    --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
-    /* Base reading face - what `body` actually renders in */
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
 
-    --game-tracking: 0.15em;
-    /* Letter spacing for headers */
-
-    /* Spacing */
-    --space-xs: 0.25rem;
-    --space-sm: 0.5rem;
-    --space-md: 1rem;
-    --space-lg: 2rem;
-    --space-xl: 4rem;
-
-    /* Shape */
-    --radius-sm: 2px;
-    --radius-md: 4px;
-    --radius-lg: 8px;
-    /* Slightly rounded for organic feel, but mostly boxy */
-
-    --border-width: 1px;
-    --border-double: 3px double var(--border-gold);
-    --border-single: 1px solid var(--border-gold);
-
-    /* Texture & Effects */
+    /* --- Effects --- */
     --glass-panel: rgba(20, 18, 16, 0.95);
     --bg-main-rgb: 12, 10, 9;
-    /* Channels of --bg-main, for rgba() composition */
-    --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 8px 12px rgba(0, 0, 0, 0.4);
     --glow-gold: 0 0 10px rgba(207, 181, 59, 0.2);
 
     --bg-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.07'/%3E%3C/svg%3E");
 }
 
+
+/* ---------- Base ------------------------------------------- */
+
 body {
+    margin: 0;
+    /* Body copy renders in the reading face, not the display face.
+       This previously pointed at an undeclared variable, so every
+       unstyled string in the app fell back to browser-default Times. */
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    color: var(--text-main);
     background-color: var(--bg-main);
     background-image: var(--bg-texture);
-    color: var(--text-main);
-    font-family: var(--font-serif);
-    margin: 0;
-    min-height: 100vh;
-    /* Fallback for browsers without dynamic viewport units */
-    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
-    /* The Frame */
+    -moz-osx-font-smoothing: grayscale;
+
+    /* The frame */
     border: 1px solid var(--border-gold);
     height: 100vh;
-    /* Fallback for browsers without dynamic viewport units */
     height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
     overflow: hidden;
-    /* App content handles scrolling */
     position: relative;
 }
 
-/* Scrollbar - minimal */
+/* Long-form prose opts into the serif. */
+.prose {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+}
+
+::selection {
+    background: var(--accent-gold-dim);
+    color: var(--text-highlight);
+}
+
+
+/* ---------- Scrollbars ------------------------------------- */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-dim) transparent;
+}
+
 ::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--bg-main);
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
+    background: var(--border-dim);
+    border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
     background: var(--border-gold);
 }
 
-/* Utility for the signature headers */
-.box-header {
-    font-family: var(--font-display);
-    text-transform: uppercase;
-    letter-spacing: var(--game-tracking);
-    color: var(--text-gold);
-    font-weight: 700;
-    font-size: 0.875rem;
-}
 
-/* Focus - one visible ring for every interactive element.
-   Individual stylesheets that kill the UA outline must re-state this. */
+/* ---------- Focus ------------------------------------------
+   One visible ring for every interactive element. Stylesheets
+   that kill the UA outline must re-state this. */
+
 :focus-visible {
     outline: 2px solid var(--border-bright);
     outline-offset: 2px;
+    border-radius: var(--radius-sm);
 }
 
-/* Keyboard focus inside a panel needs to read against the panel, not the page */
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {

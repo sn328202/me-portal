@@ -1,5 +1,20 @@
 import React from 'react';
+import Card from './ui/Card';
+import Button from './ui/Button';
 
+/**
+ * The dashboard's card. This used to be a second, slightly different
+ * implementation of `<Card>` — and it emitted `.widget-icon`,
+ * `.widget-actions` and `.widget-action-btn`, none of which existed in any
+ * stylesheet, so the "+" on Goals and Social rendered as bare inherited text.
+ *
+ * It is now a thin adapter over `<Card>`: it normalises the icon (themes hand
+ * back elements, a few widgets hand back components) and turns the
+ * `onAction` shorthand into a real labelled `<Button>`.
+ *
+ * span: 2 lets a high-signal widget claim two columns of the masonry grid;
+ * span: 3 makes it a full-width row.
+ */
 const WidgetCard = ({
     children,
     title,
@@ -9,34 +24,44 @@ const WidgetCard = ({
     onAction,
     actionIcon = '+',
     actionLabel,
-    style = {}
+    scroll = false,
+    span = 1,
+    ...rest
 }) => {
+    const iconNode = typeof Icon === 'function' ? <Icon /> : Icon;
+
+    const headerActions =
+        actions || onAction ? (
+            <>
+                {actions}
+                {onAction && (
+                    <Button
+                        icon
+                        size="sm"
+                        label={actionLabel || (title ? `Add to ${title}` : 'Add')}
+                        onClick={onAction}
+                    >
+                        {actionIcon}
+                    </Button>
+                )}
+            </>
+        ) : null;
+
+    const spanClass = span >= 3 ? 'widget--span-full' : span === 2 ? 'widget--span-2' : '';
+    const classes = [spanClass, className].filter(Boolean).join(' ');
+
     return (
-        <div className={`widget-card ${className}`} style={style}>
-            {(title || actions || Icon || onAction) && (
-                <div className="widget-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        {Icon && <span className="widget-icon">{typeof Icon === 'function' ? <Icon /> : Icon}</span>}
-                        {title && <h3 className="widget-title">{title}</h3>}
-                    </div>
-                    <div className="widget-actions">
-                        {actions}
-                        {onAction && (
-                            <button
-                                onClick={onAction}
-                                className="widget-action-btn"
-                                aria-label={actionLabel || (title ? `Add to ${title}` : 'Add')}
-                            >
-                                {actionIcon}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
-            <div className="widget-content">
-                {children}
-            </div>
-        </div>
+        <Card
+            title={title}
+            icon={iconNode}
+            actions={headerActions}
+            interactive
+            scroll={scroll}
+            className={classes}
+            {...rest}
+        >
+            {children}
+        </Card>
     );
 };
 

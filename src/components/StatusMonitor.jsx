@@ -1,12 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { GiSatelliteCommunication, GiGears } from 'react-icons/gi';
 import { useAuth } from '../contexts/AuthContext';
+import { Button, Card, Field, EmptyState } from './ui';
+import '../styles/StatusConsole.css';
+
+/* The embed URL is typed by the user and goes straight into an iframe src,
+   so anything that is not absolute http(s) is refused rather than framed. */
+const safeHttpUrl = (raw) => {
+    if (typeof raw !== 'string' || !raw.trim()) return null;
+    try {
+        const url = new URL(raw.trim());
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+    } catch {
+        return null;
+    }
+};
 
 const StatusMonitor = () => {
     const { user } = useAuth();
     const [embedUrl, setEmbedUrl] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [inputVal, setInputVal] = useState('');
+    const [error, setError] = useState('');
 
     useEffect(() => {
         if (user) {
@@ -29,99 +44,79 @@ const StatusMonitor = () => {
 
     const handleSave = (e) => {
         e.preventDefault();
-        if (inputVal.trim() && user) {
-            localStorage.setItem(`me_portal_retool_url_${user.id}`, inputVal.trim());
-            setEmbedUrl(inputVal.trim());
-            setIsEditing(false);
+        if (!user) return;
+        const url = safeHttpUrl(inputVal);
+        if (!url) {
+            setError('That is not a web address the monitor can reach. Use http:// or https://.');
+            return;
         }
+        setError('');
+        localStorage.setItem(`me_portal_retool_url_${user.id}`, url);
+        setEmbedUrl(url);
+        setIsEditing(false);
     };
 
+    const frameUrl = safeHttpUrl(embedUrl);
+
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#121212', borderRadius: '4px', border: '1px solid var(--border-dim)', overflow: 'hidden' }}>
-            {/* Header / Controls */}
-            <div style={{
-                padding: '0.5rem 1rem',
-                background: '#1a1a1a',
-                borderBottom: '1px solid var(--border-gold)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-gold)' }}>
-                    <GiSatelliteCommunication size={20} />
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>Signal Feed</span>
-                </div>
-
-                <button
-                    onClick={() => setIsEditing(!isEditing)}
-                    style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '0.8rem'
-                    }}
-                >
-                    <GiGears /> Configure Signal
-                </button>
-            </div>
-
+        <Card
+            className="status-monitor"
+            bodyClassName="status-monitor__body"
+            title="Signal Feed"
+            icon={<GiSatelliteCommunication />}
+            actions={
+                <Button size="sm" onClick={() => setIsEditing(!isEditing)}>
+                    <GiGears /> {isEditing && frameUrl ? 'Cancel' : 'Configure Signal'}
+                </Button>
+            }
+        >
             {/* Configuration Mode */}
             {isEditing && (
-                <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-main)' }}>
-                    <h3 style={{ fontFamily: 'var(--font-display)', marginBottom: '1rem' }}>Establish Connection</h3>
-                    <p style={{ marginBottom: '1.5rem', opacity: 0.7, maxWidth: '400px', textAlign: 'center' }}>
+                <form onSubmit={handleSave} className="status-monitor__config stack">
+                    <h3 className="section-title">Establish Connection</h3>
+                    <p className="muted">
                         Enter the public URL or Embed URL of your Retool Dashboard (or any other embeddable status page).
                     </p>
-                    <form onSubmit={handleSave} style={{ display: 'flex', gap: '0.5rem', width: '100%', maxWidth: '500px' }}>
-                        <input
-                            value={inputVal}
-                            onChange={(e) => setInputVal(e.target.value)}
-                            placeholder="https://retool.com/embed/..."
-                            style={{
-                                flex: 1,
-                                padding: '0.8rem',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid var(--border-gold)',
-                                color: 'var(--text-main)',
-                                fontFamily: 'monospace'
-                            }}
-                        />
-                        <button
-                            type="submit"
-                            style={{
-                                padding: '0 1.5rem',
-                                background: 'var(--accent-gold)',
-                                color: 'var(--bg-main)',
-                                border: 'none',
-                                fontWeight: 'bold',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Connect
-                        </button>
-                    </form>
-                </div>
+                    <Field
+                        label="Embed URL"
+                        type="url"
+                        value={inputVal}
+                        onChange={(e) => setInputVal(e.target.value)}
+                        placeholder="https://retool.com/embed/..."
+                        error={error || undefined}
+                        required
+                    />
+                    <div className="row">
+                        <Button type="submit" variant="primary">Connect</Button>
+                    </div>
+                </form>
             )}
 
             {/* Live Feed */}
-            {!isEditing && embedUrl && (
+            {!isEditing && frameUrl && (
                 <iframe
-                    src={embedUrl}
+                    src={frameUrl}
                     title="Status Monitor"
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                        background: '#fff' // Retool usually needs light bg backing or it looks weird loading
-                    }}
-                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                    className="status-iframe"
+                    referrerPolicy="no-referrer"
+                    /* `allow-same-origin` alongside `allow-scripts` lets the
+                       framed page reach back into this origin and remove its
+                       own sandbox attribute, which is the same as no sandbox
+                       at all. Dropped. */
+                    sandbox="allow-scripts allow-popups allow-forms"
                 />
             )}
-        </div>
+
+            {!isEditing && !frameUrl && (
+                <EmptyState
+                    icon={<GiSatelliteCommunication />}
+                    message="No signal is bound to this monitor."
+                    hint="Point it at a dashboard and it will keep watch."
+                    actionLabel="Configure Signal"
+                    onAction={() => setIsEditing(true)}
+                />
+            )}
+        </Card>
     );
 };
 

@@ -1,34 +1,64 @@
 import React, { createContext, useContext, useEffect } from 'react';
-import { THEMES } from '../configs/themes.jsx';
+import { THEMES, THEME_CHARACTER } from '../configs/themes.jsx';
 import { useSettings } from '../hooks/useSettings';
 
 const ThemeContext = createContext();
 
+const CACHE_KEY = 'me_portal_vibe';
+const FALLBACK = 'dark-academia';
+
+const applyTheme = (id) => {
+    const theme = THEMES[id] || THEMES[FALLBACK];
+    const character = THEME_CHARACTER[id] || THEME_CHARACTER[FALLBACK];
+    const root = document.documentElement;
+
+    // Character first so a palette can still override a shared value.
+    Object.entries({ ...character, ...theme.cssVars }).forEach(([key, value]) => {
+        root.style.setProperty(key, value);
+    });
+
+    document.body.setAttribute('data-theme', theme.id);
+};
+
+// Paint the last-known theme before React mounts. Without this, every
+// non-default theme flashes Dark Academia for the length of a Supabase
+// round trip on each load.
+if (typeof document !== 'undefined') {
+    try {
+        applyTheme(localStorage.getItem(CACHE_KEY) || FALLBACK);
+    } catch {
+        applyTheme(FALLBACK);
+    }
+}
+
 export const ThemeProvider = ({ children }) => {
     const { settings, updateSetting, loading } = useSettings();
-    const themeId = settings.vibe || 'dark-academia';
+    const themeId = settings.vibe || FALLBACK;
 
-    const currentTheme = THEMES[themeId] || THEMES['dark-academia'];
+    const currentTheme = THEMES[themeId] || THEMES[FALLBACK];
 
     useEffect(() => {
         if (loading) return;
-
-        // Apply CSS variables to root
-        const root = document.documentElement;
-        const vars = currentTheme.cssVars;
-
-        Object.entries(vars).forEach(([key, value]) => {
-            root.style.setProperty(key, value);
-        });
-
-        // Apply theme-id to body for specific CSS overrides
-        document.body.setAttribute('data-theme', themeId);
-    }, [themeId, currentTheme, loading]);
+        applyTheme(themeId);
+        try {
+            localStorage.setItem(CACHE_KEY, themeId);
+        } catch {
+            /* private mode — the theme still applies, it just won't preload */
+        }
+    }, [themeId, loading]);
 
     const getLabel = (key) => currentTheme.labels[key] || key;
     const getIcon = (key) => currentTheme.icons[key] || null;
 
     const setTheme = (id) => {
+        // Apply immediately so the switch feels instant rather than waiting
+        // on the settings round trip.
+        applyTheme(id);
+        try {
+            localStorage.setItem(CACHE_KEY, id);
+        } catch {
+            /* ignore */
+        }
         updateSetting('vibe', id);
     };
 

@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GiClockwork } from 'react-icons/gi';
+import Button from './ui/Button';
 
-const SmartTimeInput = ({ value, onChange, onBlur }) => {
+/**
+ * Free-text time entry with a 15-minute quick list. Used only by The
+ * Daydream, so its styling lives in styles/DayPlanner.css.
+ */
+const SmartTimeInput = ({ value, onChange, onBlur, label = 'Start time' }) => {
     const [inputValue, setInputValue] = useState(value || '');
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef(null);
@@ -98,73 +103,47 @@ const SmartTimeInput = ({ value, onChange, onBlur }) => {
 
     const timeOptions = generateTimeOptions();
 
-    // Filter options based on input if it resembles a partial time
-    const filteredOptions = inputValue && !value // only filter if typing fresh
-        ? timeOptions.filter(t => t.startsWith(inputValue))
-        : timeOptions;
-
-    // Actually, simple dropdown usage is better
     const displayOptions = timeOptions;
 
     return (
-        <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-dim)', borderRadius: '4px', padding: '0 4px' }}>
+        <div ref={containerRef} className="time-input">
+            <div className="time-input__control">
                 <input
                     type="text"
+                    className="time-input__field"
+                    aria-label={label}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onFocus={() => setIsOpen(true)}
                     onKeyDown={handleKeyDown}
                     placeholder="--:--"
-                    style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-main)',
-                        padding: '4px',
-                        width: '60px',
-                        fontSize: '0.9rem',
-                        fontFamily: 'monospace',
-                        outline: 'none'
-                    }}
                 />
-                <GiClockwork style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => setIsOpen(!isOpen)} />
+                <Button
+                    icon
+                    size="sm"
+                    label={isOpen ? 'Hide time options' : 'Show time options'}
+                    aria-expanded={isOpen}
+                    onClick={() => setIsOpen(!isOpen)}
+                >
+                    <GiClockwork />
+                </Button>
             </div>
 
             {isOpen && (
-                <ul style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    width: '100px',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    background: 'var(--bg-panel)',
-                    border: '1px solid var(--border-dim)',
-                    zIndex: 1000,
-                    margin: 0,
-                    padding: 0,
-                    listStyle: 'none',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                }}>
+                <ul className="time-input__list">
                     {displayOptions.map(time => (
-                        <li
-                            key={time}
-                            onClick={() => {
-                                setInputValue(time);
-                                onChange(time);
-                                setIsOpen(false);
-                            }}
-                            style={{
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                fontSize: '0.9rem',
-                                background: time === value ? 'var(--accent-gold-dim)' : 'transparent'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = time === value ? 'var(--accent-gold-dim)' : 'transparent'}
-                        >
-                            {time}
+                        <li key={time}>
+                            <button
+                                type="button"
+                                className={`time-input__option${time === value ? ' is-current' : ''}`}
+                                onClick={() => {
+                                    setInputValue(time);
+                                    onChange(time);
+                                    setIsOpen(false);
+                                }}
+                            >
+                                {time}
+                            </button>
                         </li>
                     ))}
                 </ul>

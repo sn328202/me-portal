@@ -2,8 +2,19 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { GiSkeletonKey, GiScrollUnfurled } from 'react-icons/gi';
+import { GiSkeletonKey } from 'react-icons/gi';
+import { Button } from '../components/ui';
 
+/**
+ * The best-looking screen in the app, and deliberately left that way: key
+ * glyph, gold display-face heading, italic subtitle, a bordered panel
+ * floating on the noise texture.
+ *
+ * The only change is that every literal it used to hardcode (3rem padding,
+ * a 450px panel, rgba(255,0,0,0.1), a 10px input, a 1.1rem gold button) is
+ * now a token, so the panel takes on each skin's rule, radius, shadow and
+ * type ramp instead of staying Victorian on all seven.
+ */
 const Auth = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
@@ -45,42 +56,76 @@ const Auth = () => {
         }
     };
 
+    const fieldStyle = {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-2)'
+    };
+
+    const inputStyle = {
+        background: 'var(--field-bg)',
+        border: 'var(--rule-hair)',
+        borderRadius: 'var(--radius-sm)',
+        padding: 'var(--space-3)',
+        color: 'var(--text-main)',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--text-base)'
+    };
+
+    const labelStyle = {
+        fontFamily: 'var(--font-display)',
+        color: 'var(--text-gold)',
+        fontSize: 'var(--text-sm)',
+        letterSpacing: 'var(--tracking-label)'
+    };
+
+    const bannerStyle = {
+        padding: 'var(--space-4)',
+        borderRadius: 'var(--radius-sm)',
+        fontSize: 'var(--text-sm)',
+        lineHeight: 'var(--leading-snug)'
+    };
+
     return (
-        <div style={{
+        <main style={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             minHeight: '80vh',
-            padding: '2rem'
+            padding: 'var(--space-6)'
         }}>
             <div style={{
                 background: 'var(--bg-panel)',
-                border: 'var(--border-double)',
-                padding: '3rem',
+                border: 'var(--rule)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-7)',
                 width: '100%',
-                maxWidth: '450px',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                maxWidth: '28rem',
+                boxShadow: 'var(--shadow-lift)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '1.5rem'
+                gap: 'var(--space-5)'
             }}>
-                <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-                    <GiSkeletonKey style={{ fontSize: '3rem', color: 'var(--accent-gold)' }} />
-                    <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', margin: '0.5rem 0' }}>
+                <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
+                    <GiSkeletonKey style={{ fontSize: 'var(--text-4xl)', color: 'var(--accent-gold)' }} />
+                    <h1 style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize: 'var(--text-2xl)',
+                        color: 'var(--text-gold)',
+                        margin: 'var(--space-2) 0'
+                    }}>
                         {isLogin ? 'Grant Access' : 'New Registry'}
                     </h1>
-                    <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>
                         {isLogin ? 'Enter your credentials to unlock the archive.' : 'Inscribe your signature to begin a new collection.'}
                     </p>
                 </div>
 
                 {error && (
-                    <div style={{
-                        background: 'rgba(255, 0, 0, 0.1)',
+                    <div role="alert" style={{
+                        ...bannerStyle,
                         border: '1px solid var(--accent-red)',
-                        color: 'var(--accent-red)',
-                        padding: '1rem',
-                        fontSize: '0.9rem'
+                        color: 'var(--accent-red)'
                     }}>
                         {error}
                     </div>
@@ -88,19 +133,18 @@ const Auth = () => {
 
                 {notice && (
                     <div role="status" style={{
-                        background: 'rgba(212, 175, 55, 0.1)',
-                        border: '1px solid var(--accent-gold)',
-                        color: 'var(--text-gold)',
-                        padding: '1rem',
-                        fontSize: '0.9rem'
+                        ...bannerStyle,
+                        background: 'var(--accent-gold-dim)',
+                        border: 'var(--rule-accent)',
+                        color: 'var(--text-gold)'
                     }}>
                         {notice}
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label htmlFor="auth-email" style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', fontSize: '0.9rem' }}>Email Cipher</label>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    <div style={fieldStyle}>
+                        <label htmlFor="auth-email" style={labelStyle}>Email Cipher</label>
                         <input
                             id="auth-email"
                             name="email"
@@ -109,17 +153,11 @@ const Auth = () => {
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            style={{
-                                background: 'rgba(0,0,0,0.2)',
-                                border: '1px solid var(--border-dim)',
-                                padding: '10px',
-                                color: 'var(--text-main)',
-                                fontFamily: 'var(--font-mono)'
-                            }}
+                            style={inputStyle}
                         />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label htmlFor="auth-password" style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', fontSize: '0.9rem' }}>Secret Key</label>
+                    <div style={fieldStyle}>
+                        <label htmlFor="auth-password" style={labelStyle}>Secret Key</label>
                         <input
                             id="auth-password"
                             name="password"
@@ -128,37 +166,26 @@ const Auth = () => {
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            style={{
-                                background: 'rgba(0,0,0,0.2)',
-                                border: '1px solid var(--border-dim)',
-                                padding: '10px',
-                                color: 'var(--text-main)',
-                                fontFamily: 'var(--font-mono)'
-                            }}
+                            style={inputStyle}
                         />
                     </div>
 
-                    <button
+                    <Button
                         type="submit"
+                        variant="solid"
+                        block
                         disabled={loading}
                         style={{
-                            marginTop: '1rem',
-                            padding: '12px',
-                            background: 'var(--accent-gold)',
-                            color: 'var(--bg-main)',
-                            border: 'none',
-                            fontFamily: 'var(--font-display)',
-                            fontSize: '1.1rem',
-                            fontWeight: 'bold',
-                            cursor: loading ? 'wait' : 'pointer',
-                            opacity: loading ? 0.7 : 1
+                            marginTop: 'var(--space-4)',
+                            fontSize: 'var(--text-lg)',
+                            cursor: loading ? 'wait' : 'pointer'
                         }}
                     >
                         {loading ? 'Authenticating...' : (isLogin ? 'UNLOCK' : 'INSCRIBE')}
-                    </button>
+                    </Button>
                 </form>
 
-                <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <div style={{ textAlign: 'center' }}>
                     <button
                         type="button"
                         onClick={() => { setIsLogin(!isLogin); setError(''); setNotice(''); }}
@@ -168,14 +195,15 @@ const Auth = () => {
                             color: 'var(--text-dim)',
                             textDecoration: 'underline',
                             cursor: 'pointer',
-                            fontFamily: 'var(--font-body)'
+                            fontFamily: 'var(--font-body)',
+                            fontSize: 'var(--text-sm)'
                         }}
                     >
                         {isLogin ? 'Need a new ledger? Sign up.' : 'Already have a key? Sign in.'}
                     </button>
                 </div>
             </div>
-        </div>
+        </main>
     );
 };
 

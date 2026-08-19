@@ -1,15 +1,35 @@
 import React, { useState } from 'react';
 import WidgetCard from '../components/WidgetCard';
+import WidgetLoading from '../components/WidgetLoading';
+import EmptyState from '../components/EmptyState';
+import Button from '../components/ui/Button';
 import { useWorkouts } from '../hooks/useWorkouts';
-import { GiWeightLiftingUp, GiSettingsKnobs, GiCheckMark, GiPencil } from 'react-icons/gi';
+import { GiWeightLiftingUp, GiSettingsKnobs, GiCheckMark } from 'react-icons/gi';
 
 const WorkoutWidget = () => {
     const { getTodayWorkout, updateWorkout, loading } = useWorkouts();
     const [isEditing, setIsEditing] = useState(false);
     const todayWorkout = getTodayWorkout();
 
-    if (loading) return <WidgetCard><div style={{ padding: '20px', color: 'var(--text-muted)' }}>Consulting the training manuals...</div></WidgetCard>;
-    if (!todayWorkout) return <WidgetCard><div style={{ padding: '20px', color: 'var(--text-muted)' }}>No training scheduled for today. Rest well.</div></WidgetCard>;
+    if (loading) {
+        return (
+            <WidgetCard title="Physical Readiness" icon={<GiWeightLiftingUp />}>
+                <WidgetLoading />
+            </WidgetCard>
+        );
+    }
+
+    if (!todayWorkout) {
+        return (
+            <WidgetCard title="Physical Readiness" icon={<GiWeightLiftingUp />}>
+                <EmptyState
+                    icon={<GiWeightLiftingUp />}
+                    message="No training scheduled for today."
+                    hint="Rest well."
+                />
+            </WidgetCard>
+        );
+    }
 
     const steps = todayWorkout.details || [];
 
@@ -33,13 +53,14 @@ const WorkoutWidget = () => {
                     <h4 style={{ margin: 0, color: 'var(--text-gold)', fontStyle: 'italic', fontSize: '1.1rem' }}>
                         {todayWorkout.title}
                     </h4>
-                    <button
+                    <Button
+                        icon
+                        size="sm"
                         onClick={() => setIsEditing(!isEditing)}
-                        aria-label={isEditing ? 'Stop editing workout' : 'Edit workout'}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                        label={isEditing ? 'Stop editing workout' : 'Edit workout'}
                     >
                         <GiSettingsKnobs />
-                    </button>
+                    </Button>
                 </div>
 
                 {isEditing ? (
@@ -119,6 +140,7 @@ const WorkoutEditor = ({ workout, onSave, onCancel }) => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Workout Title"
+                aria-label="Workout title"
                 style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid var(--border-gold)',
@@ -133,6 +155,7 @@ const WorkoutEditor = ({ workout, onSave, onCancel }) => {
                         value={step.text}
                         onChange={(e) => handleStepChange(idx, e.target.value)}
                         placeholder="Step description"
+                        aria-label={`Step ${idx + 1} description`}
                         style={{
                             flex: 1,
                             background: 'transparent',
@@ -142,28 +165,24 @@ const WorkoutEditor = ({ workout, onSave, onCancel }) => {
                             fontSize: '0.85rem'
                         }}
                     />
-                    <button
+                    <Button
+                        icon
+                        size="sm"
+                        variant="danger"
                         type="button"
                         onClick={() => removeStep(idx)}
-                        aria-label={`Remove step ${idx + 1}`}
-                        style={{ color: 'var(--accent-crimson)', background: 'transparent', border: 'none' }}
-                    >×</button>
+                        label={`Remove step ${idx + 1}`}
+                    >×</Button>
                 </div>
             ))}
-            <button onClick={addStep} style={{ fontSize: '0.7rem', color: 'var(--text-gold)', background: 'transparent', border: 'none', textAlign: 'left' }}>+ Add Step</button>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button
-                    onClick={() => onSave(title, details)}
-                    style={{ background: 'var(--text-gold)', color: '#000', border: 'none', padding: '4px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer' }}
-                >
+            <Button variant="ghost" size="sm" onClick={addStep}>+ Add Step</Button>
+            <div className="row">
+                <Button variant="solid" size="sm" onClick={() => onSave(title, details)}>
                     Keep Changes
-                </button>
-                <button
-                    onClick={onCancel}
-                    style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--text-muted)', padding: '4px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer' }}
-                >
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onCancel}>
                     Discard
-                </button>
+                </Button>
             </div>
         </div>
     );

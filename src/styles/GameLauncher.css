@@ -11,15 +11,20 @@
     height: 100%;
 }
 
+/* <Card> sizes to its content; the launcher wants the full grid cell. */
+.game-launcher-link>.card {
+    height: 100%;
+}
+
 .game-content {
-    padding: var(--space-md) 0;
+    padding: var(--space-4) 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
-    gap: var(--space-md);
-    transition: all 0.3s ease;
+    gap: var(--space-4);
+    transition: filter var(--dur-slow) var(--ease), opacity var(--dur-slow) var(--ease);
 }
 
 .game-content.played {
@@ -28,49 +33,55 @@
 }
 
 .game-icon-container {
-    font-size: 3rem;
-    transition: transform 0.3s ease, color 0.3s ease;
+    font-size: var(--text-4xl);
+    color: var(--text-main);
+    transition: transform var(--dur-slow) var(--ease), color var(--dur-slow) var(--ease);
+}
+
+/* Dashboard used to pass accentColor="#000" here — black on near-black. */
+.game-content.played .game-icon-container {
+    color: var(--text-gold);
 }
 
 .game-launcher-link:hover .game-icon-container {
     transform: scale(1.1) rotate(5deg);
-    color: var(--text-highlight) !important;
+    color: var(--text-highlight);
 }
 
 .game-description {
     text-align: center;
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     font-style: italic;
-    line-height: 1.4;
+    line-height: var(--leading-snug);
     font-family: var(--font-body);
 }
 
 .game-played-note {
     text-align: center;
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     color: var(--text-gold);
     font-style: italic;
     font-family: var(--font-display);
 }
 
 .game-streak-info {
-    font-size: 0.7em;
+    font-size: var(--text-2xs);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: var(--tracking-label);
 }
 
 .game-launch-btn {
     margin-top: auto;
-    padding: var(--space-xs) var(--space-md);
-    border: 1px solid var(--border-dim);
+    padding: var(--space-1) var(--space-4);
+    border: var(--rule-hair);
     border-radius: var(--radius-sm);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-size: var(--text-xs);
+    text-transform: var(--case-heading);
+    letter-spacing: var(--tracking-label);
     color: var(--text-gold);
     font-family: var(--font-display);
-    transition: all 0.2s ease;
+    transition: border-color var(--dur-base) var(--ease), background var(--dur-base) var(--ease);
 }
 
 .game-launcher-link:hover .game-launch-btn {
@@ -80,53 +91,48 @@
 
 .game-log-trigger {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border-dim);
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    cursor: pointer;
+    top: var(--space-2);
+    right: var(--space-2);
     z-index: 10;
-    transition: all 0.2s ease;
+    background: var(--bg-panel);
+    border-color: var(--border-dim);
+    border-radius: var(--radius-pill);
 }
 
 .game-log-trigger:hover {
     color: var(--accent-gold);
-    border-color: var(--text-gold);
+    border-color: var(--border-gold);
 }
 
 .game-log-popover {
     position: absolute;
-    top: 45px;
-    right: 10px;
-    width: 200px;
+    top: calc(var(--tap-min) + var(--space-2));
+    right: var(--space-2);
+    width: 14rem;
     background: var(--bg-main);
-    border: 1px solid var(--border-gold);
-    padding: var(--space-sm);
+    border: var(--rule-accent);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2);
     z-index: 20;
     box-shadow: var(--shadow-md);
 }
 
 .game-log-form {
     display: flex;
-    gap: 5px;
+    align-items: center;
+    gap: var(--space-1);
 }
 
 .game-log-input {
     width: 100%;
     background: transparent;
     border: none;
-    border-bottom: 1px solid var(--border-dim);
+    border-bottom: var(--rule-hair);
     color: var(--text-main);
     font-family: var(--font-display);
-    font-size: 0.8rem;
-    padding: 4px;
+    font-size: var(--text-xs);
+    padding: var(--space-1);
+    min-width: 0;
     /* UA outline is replaced below, not simply removed */
     outline: none;
 }
@@ -137,12 +143,5 @@
 }
 
 .game-log-submit {
-    background: var(--text-gold);
-    border: none;
-    color: var(--bg-main);
-    font-size: 0.7rem;
-    cursor: pointer;
-    padding: 0 8px;
-    text-transform: uppercase;
-    font-family: var(--font-display);
+    flex-shrink: 0;
 }

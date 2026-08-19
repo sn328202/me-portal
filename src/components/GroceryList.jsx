@@ -3,26 +3,30 @@ import { useProvisions } from '../hooks/useProvisions'; // Shared state
 import { useIngredients } from '../hooks/useIngredients';
 import { findIngredient } from '../data/ingredients';
 import { GiCheckMark, GiBasket } from 'react-icons/gi';
+import { EmptyState, Field } from './ui';
 
-const GroceryList = ({ plan, recipes }) => {
+const GroceryList = ({ plan, recipes, inputRef }) => {
     // 1. Shared Manual Items (from Dashboard)
-    const { items: manualItems, addItem, toggleItem, deleteItem, clearChecked } = useProvisions();
+    const { items: manualItems, addItem, toggleItem, clearChecked } = useProvisions();
     const { ingredientsByName } = useIngredients();
     const [newItemInput, setNewItemInput] = useState('');
 
     // 2. Aggregate Planned Ingredients (from Hearth)
-    const plannedIngredients = [];
-    if (plan && recipes) {
-        Object.values(plan).flat().forEach(recipeId => {
-            const recipe = recipes.find(r => r.id === recipeId);
-            if (recipe) {
-                recipe.ingredients.forEach(ing => {
-                    const uniqueKey = `planned-${recipe.id}-${ing.id}`;
-                    plannedIngredients.push({ ...ing, recipeName: recipe.title, uniqueKey, isPlanned: true });
-                });
-            }
-        });
-    }
+    const plannedIngredients = useMemo(() => {
+        const planned = [];
+        if (plan && recipes) {
+            Object.values(plan).flat().forEach(recipeId => {
+                const recipe = recipes.find(r => r.id === recipeId);
+                if (recipe) {
+                    recipe.ingredients.forEach(ing => {
+                        const uniqueKey = `planned-${recipe.id}-${ing.id}`;
+                        planned.push({ ...ing, recipeName: recipe.title, uniqueKey, isPlanned: true });
+                    });
+                }
+            });
+        }
+        return planned;
+    }, [plan, recipes]);
 
     // 3. Categorize Everything
     const categoricalGroups = useMemo(() => {
@@ -73,19 +77,20 @@ const GroceryList = ({ plan, recipes }) => {
 
     if (isEmpty) {
         return (
-            <div style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--text-muted)' }}>
-                <p style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', fontStyle: 'italic' }}>
-                    "A list is but a promise to oneself."
-                </p>
-                <p>Plan meals in The Hearth or add items manually to generate your provisions list.</p>
-
-                <form onSubmit={handleAddManual} style={{ marginTop: '2rem', maxWidth: '300px', margin: '2rem auto' }}>
-                    <input
+            <div className="grocery-empty">
+                <EmptyState
+                    icon={<GiBasket />}
+                    message={'"A list is but a promise to oneself."'}
+                    hint="Plan meals in The Hearth or add items manually to generate your provisions list."
+                />
+                <form onSubmit={handleAddManual} className="grocery-empty__form">
+                    <Field
+                        label="Add manual item"
                         type="text"
                         value={newItemInput}
                         onChange={(e) => setNewItemInput(e.target.value)}
                         placeholder="Add manual item..."
-                        style={{ padding: '0.5rem', background: 'transparent', border: '1px solid var(--border-gold)', color: 'var(--text-main)', width: '100%' }}
+                        ref={inputRef}
                     />
                 </form>
             </div>
@@ -93,101 +98,71 @@ const GroceryList = ({ plan, recipes }) => {
     }
 
     return (
-        <div className="grocery-paper" style={{
-            background: '#e8e6e3', // Paper texture
-            color: '#1a1a1a', // Ink color
-            padding: 'var(--space-xl)',
-            maxWidth: '600px',
-            margin: '0 auto',
-            boxShadow: 'var(--shadow-md)',
-            position: 'relative',
-            fontFamily: 'var(--font-mono)', // Typewriter
-            minHeight: '600px',
-            transform: 'rotate(-0.5deg)'
-        }}>
-            <h2 style={{
-                textAlign: 'center',
-                fontFamily: 'var(--font-display)',
-                borderBottom: '2px solid #1a1a1a',
-                paddingBottom: 'var(--space-md)',
-                marginBottom: 'var(--space-lg)',
-                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'
-            }}>
+        <div className="grocery-paper">
+            <h2 className="grocery-paper__title">
                 <GiBasket /> Provisions
                 {manualItems.some(i => i.checked) && (
                     <button
+                        type="button"
                         onClick={clearChecked}
-                        style={{ position: 'absolute', right: '2rem', fontSize: '0.7rem', textDecoration: 'underline', color: '#555', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                        className="grocery-paper__clear"
                     >
                         Clear Checked
                     </button>
                 )}
             </h2>
 
-            <form onSubmit={handleAddManual} style={{ marginBottom: '2rem', borderBottom: '1px dashed #aaa', paddingBottom: '1rem' }}>
+            <form onSubmit={handleAddManual} className="grocery-paper__form">
+                <label className="visually-hidden" htmlFor="grocery-scribble">Scribble new item</label>
                 <input
+                    id="grocery-scribble"
+                    ref={inputRef}
                     type="text"
                     value={newItemInput}
                     onChange={(e) => setNewItemInput(e.target.value)}
                     placeholder="🖊️ Scribble new item..."
-                    style={{
-                        width: '100%', padding: '0.5rem',
-                        background: 'transparent', border: 'none',
-                        fontFamily: 'var(--font-mono)', fontSize: '1.1rem',
-                        color: '#1a1a1a', outline: 'none'
-                    }}
+                    className="grocery-paper__input"
                 />
             </form>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="grocery-paper__groups">
                 {categoricalGroups.sortedCategories.map(cat => (
                     <div key={cat}>
-                        <h4 style={{
-                            margin: '0 0 0.5rem 0',
-                            fontSize: '0.8rem',
-                            letterSpacing: '2px',
-                            color: '#666',
-                            borderBottom: '1px solid #ccc',
-                            paddingBottom: '4px'
-                        }}>
-                            {cat}
-                        </h4>
-                        <ul style={{ listStyle: 'none', padding: 0 }}>
-                            {categoricalGroups.groups[cat].map((item, idx) => {
+                        <h4 className="grocery-paper__category">{cat}</h4>
+                        <ul className="grocery-paper__list">
+                            {categoricalGroups.groups[cat].map((item) => {
                                 if (item.type === 'manual') {
                                     return (
-                                        <li key={item.id}
-                                            onClick={() => toggleItem(item.id)}
-                                            style={{
-                                                display: 'flex', alignItems: 'baseline', gap: '12px', padding: '8px 0', borderBottom: '1px dashed #ccc',
-                                                cursor: 'pointer', opacity: item.checked ? 0.5 : 1, textDecoration: item.checked ? 'line-through' : 'none'
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: '18px', height: '18px', border: '1.5px solid #1a1a1a', borderRadius: '50%', flexShrink: 0,
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center', background: item.checked ? '#1a1a1a' : 'transparent',
-                                                marginTop: '2px'
-                                            }}>
-                                                {item.checked && <GiCheckMark size={10} color="#e8e6e3" />}
-                                            </div>
-                                            <span style={{ fontWeight: 'bold' }}>{item.text}</span>
-                                            <div style={{ marginLeft: 'auto', fontSize: '0.6rem', color: '#888', fontStyle: 'italic' }}>Manual</div>
-                                        </li>
-                                    );
-                                } else {
-                                    const ing = item.originalData;
-                                    return (
-                                        <li key={ing.uniqueKey} style={{
-                                            display: 'flex', alignItems: 'baseline', gap: '12px', padding: '8px 0', borderBottom: '1px dashed #ccc'
-                                        }}>
-                                            <div style={{ width: '18px', height: '18px', border: '1.5px solid #aaa', borderRadius: '50%', flexShrink: 0, marginTop: '2px' }} />
-                                            <div>
-                                                <span style={{ fontWeight: 'bold' }}>{ing.amount} {ing.unit}</span> {ing.item}
-                                                <div style={{ fontSize: '0.6rem', color: '#888', fontStyle: 'italic' }}>for {ing.recipeName}</div>
-                                            </div>
+                                        <li key={item.id} className="grocery-paper__row">
+                                            <button
+                                                type="button"
+                                                className={[
+                                                    'grocery-paper__check',
+                                                    item.checked ? 'is-checked' : ''
+                                                ].filter(Boolean).join(' ')}
+                                                aria-pressed={!!item.checked}
+                                                onClick={() => toggleItem(item.id)}
+                                            >
+                                                <span className="grocery-paper__box">
+                                                    {item.checked && <GiCheckMark size={10} color="#e8e6e3" />}
+                                                </span>
+                                                <span className="grocery-paper__item">{item.text}</span>
+                                            </button>
+                                            <span className="grocery-paper__origin">Manual</span>
                                         </li>
                                     );
                                 }
+
+                                const ing = item.originalData;
+                                return (
+                                    <li key={ing.uniqueKey} className="grocery-paper__row">
+                                        <span className="grocery-paper__box grocery-paper__box--planned" />
+                                        <div>
+                                            <span className="grocery-paper__item">{ing.amount} {ing.unit}</span> {ing.item}
+                                            <div className="grocery-paper__origin">for {ing.recipeName}</div>
+                                        </div>
+                                    </li>
+                                );
                             })}
                         </ul>
                     </div>

@@ -1,110 +1,22 @@
-/* Provisions Widget - The Hearth & Larder */
+/* Provisions Widget - The Hearth & Larder
+   The card shell comes from <Card>; the list ceiling comes from
+   <Card scroll="tall">. */
 
-.provisions-widget {
-    height: 100%;
-    max-height: 600px;
-    padding: 1.5rem;
-    background: var(--bg-panel);
-    border: var(--border-double);
-    border-radius: var(--radius-md);
-    display: flex;
-    flex-direction: column;
-}
-
-.provisions-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid var(--border-gold);
-    padding-bottom: 0.5rem;
-    flex-shrink: 0;
-}
-
-.provisions-title {
-    margin: 0;
-    font-family: var(--font-display);
-    color: var(--text-gold);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1.25rem;
-}
-
-.provisions-actions {
-    display: flex;
-    gap: 1rem;
-}
-
-.provisions-action-btn {
-    font-size: 0.8rem;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transition: all 0.2s ease;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-}
-
-.provisions-action-btn:hover {
-    color: var(--text-main);
-}
-
-.provisions-action-btn.copied {
+.provisions-copied {
     color: var(--accent-green);
-    font-weight: bold;
-}
-
-.provisions-clear-btn {
-    font-size: 0.8rem;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    text-decoration: underline;
-    font-family: var(--font-mono);
-}
-
-.provisions-clear-btn:hover {
-    color: var(--accent-crimson);
 }
 
 .provisions-form {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-4);
     flex-shrink: 0;
 }
 
 .provisions-input {
-    width: 100%;
-    padding: 0.5rem;
-    background: var(--bg-hover);
-    border: 1px solid var(--border-dim);
-    color: var(--text-main);
     font-family: var(--font-body);
 }
 
-.provisions-input:focus {
-    border-color: var(--border-bright);
-    outline: none;
-    box-shadow: var(--glow-gold);
-}
-
 .provisions-list-container {
-    flex: 1;
-    overflow-y: auto;
     min-height: 0;
-    padding-right: 4px;
-}
-
-.provisions-empty {
-    color: var(--text-muted);
-    font-style: italic;
-    text-align: center;
-    margin-top: 2rem;
 }
 
 .provisions-list {
@@ -117,14 +29,22 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.5rem;
-    transition: opacity 0.2s ease;
+    gap: var(--space-2);
 }
 
+/* The row is the toggle, so it is a button — it was a div with an onClick
+   and no keyboard path. */
 .provisions-item-content {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
+    flex: 1;
+    min-width: 0;
+    min-height: var(--tap-min);
+    padding: 0;
+    border: none;
+    background: transparent;
+    text-align: left;
     cursor: pointer;
 }
 
@@ -135,13 +55,13 @@
 .provisions-checkbox {
     width: 18px;
     height: 18px;
-    border: 1px solid var(--border-gold);
+    border: var(--rule-accent);
     display: flex;
     align-items: center;
     justify-content: center;
     background: transparent;
     flex-shrink: 0;
-    transition: background 0.2s ease;
+    transition: background var(--dur-base) var(--ease);
 }
 
 .provisions-checkbox.checked {
@@ -159,42 +79,38 @@
 }
 
 .provisions-delete-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 1.2rem;
-    padding: 0 4px;
-    line-height: 1;
     opacity: 0;
-    transition: all 0.2s ease;
+    flex-shrink: 0;
+    font-size: var(--text-lg);
+    line-height: 1;
 }
 
-.provisions-item:hover .provisions-delete-btn {
+.provisions-item:hover .provisions-delete-btn,
+.provisions-delete-btn:focus-visible {
     opacity: 1;
 }
 
 .provisions-delete-btn:hover {
-    color: var(--accent-crimson);
+    color: var(--accent-red);
 }
 
 .provisions-separator {
-    margin: 1rem 0 0.5rem 0;
-    font-size: 0.75rem;
-    color: var(--text-gold);
-    border-bottom: 1px solid var(--border-dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    margin: var(--space-4) 0 var(--space-2);
+    padding-bottom: var(--space-1);
     font-family: var(--font-display);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: var(--case-heading);
+    color: var(--text-gold);
+    border-bottom: var(--rule-hair);
 }
 
 .provisions-planned-item {
     display: flex;
     align-items: center;
-    margin-bottom: 0.5rem;
-    padding-left: 0.5rem;
-    border-left: 2px solid var(--border-dim);
-    opacity: 1;
+    margin-bottom: var(--space-2);
+    padding-left: var(--space-2);
+    border-left: var(--ornament-width) solid var(--border-dim);
 }
 
 .provisions-planned-item.in-stock {
@@ -205,33 +121,37 @@
 .provisions-planned-content {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
     color: var(--text-main);
     flex: 1;
 }
 
 .provisions-icon {
-    font-size: 1.2rem;
+    font-size: var(--text-lg);
     flex-shrink: 0;
     color: var(--text-muted);
 }
 
 .provisions-amount {
-    font-weight: bold;
+    font-weight: var(--weight-bold);
     color: var(--text-gold);
 }
 
 .provisions-stock-badge {
-    font-size: 0.7rem;
-    background: var(--accent-green);
-    color: var(--text-main);
-    padding: 1px 4px;
-    border-radius: var(--radius-sm);
-    text-transform: uppercase;
     display: flex;
     align-items: center;
-    gap: 4px;
-    white-space: nowrap;
-    margin-left: 8px;
+    gap: var(--space-1);
+    margin-left: var(--space-2);
+    padding: 1px var(--space-1);
+    border-radius: var(--radius-sm);
+    /* Filled green + --text-main collapses to ~1.3:1 on the light theme,
+       which rendered this badge as an unreadable blob. Outline reads on
+       every skin. */
+    background: transparent;
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
     font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    text-transform: uppercase;
+    white-space: nowrap;
 }

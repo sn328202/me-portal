@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import WidgetCard from '../components/WidgetCard';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/EmptyState';
 import { useHobbies } from '../hooks/useHobbies';
 import ProgressBar from '../components/gamification/ProgressBar';
 import '../styles/HobbiesWidget.css';
@@ -18,18 +20,27 @@ const HobbiesWidget = () => {
     };
 
     return (
-        <WidgetCard title={getLabel('hobbies')} icon={getIcon('hobbies')}>
+        <WidgetCard title={getLabel('hobbies')} icon={getIcon('hobbies')} className="hobbies-widget" scroll>
             <form onSubmit={handleAdd} className="hobby-form">
                 <input
                     type="text"
                     value={newItem}
                     onChange={(e) => setNewItem(e.target.value)}
                     placeholder={loading ? 'Loading...' : `New ${getLabel('hobbies').toLowerCase()}...`}
+                    aria-label={`New ${getLabel('hobbies').toLowerCase()}`}
                     disabled={loading}
                     className="hobby-input"
                 />
-                <button type="submit" className="hobby-add-btn" aria-label={`Add ${getLabel('hobbies').toLowerCase()}`}>+</button>
+                <Button icon size="sm" type="submit" className="hobby-add-btn" label={`Add ${getLabel('hobbies').toLowerCase()}`}>+</Button>
             </form>
+
+            {hobbies.length === 0 && !loading && (
+                <EmptyState
+                    message={`No ${getLabel('hobbies').toLowerCase()} taken up yet.`}
+                    icon={getIcon('hobbies')}
+                    inline
+                />
+            )}
 
             <div className="hobby-grid">
                 {hobbies.map(hobby => {
@@ -42,7 +53,15 @@ const HobbiesWidget = () => {
                                 <span className="hobby-name">
                                     {hobby.name}
                                 </span>
-                                <button onClick={() => deleteHobby(hobby.id)} className="hobby-delete-btn" aria-label={`Delete ${hobby.name}`}>×</button>
+                                <Button
+                                    icon
+                                    size="sm"
+                                    className="hobby-delete-btn"
+                                    onClick={() => deleteHobby(hobby.id)}
+                                    label={`Delete ${hobby.name}`}
+                                >
+                                    ×
+                                </Button>
                             </div>
                             <div className="hobby-actions">
                                 <button

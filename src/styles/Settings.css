@@ -1,48 +1,45 @@
-/* Settings Page Styling */
+/* Settings Page Styling
+   The page header, cards, fields and buttons come from the primitives now;
+   what is left here is the two things this page actually invents — the
+   widget manifest and the theme picker. */
 
 .settings-container {
     max-width: 800px;
     margin: 0 auto;
-    padding-bottom: 4rem;
+    width: 100%;
 }
 
-.settings-title {
-    font-size: 2rem;
-    margin-bottom: var(--space-lg);
-    color: var(--text-main);
-    border-bottom: var(--border-double);
-    padding-bottom: var(--space-md);
-    font-family: var(--font-display);
-}
-
-.settings-section {
-    padding: var(--space-xl);
-}
-
+/* .section-title supplies the face, size, case and tracking; this only
+   adds the two-column layout and the rule under it. */
 .settings-section-title {
-    font-family: var(--font-display);
-    border-bottom: 1px solid var(--border-dim);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1.5rem;
+    /* .section-title ships a bottom margin; the Card's own gap covers it. */
+    margin: 0;
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
-    align-items: center;
-    color: var(--text-gold);
+    align-items: baseline;
+    gap: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-bottom: var(--rule-hair);
 }
 
 .settings-section-subtitle {
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     font-family: var(--font-mono);
+    letter-spacing: normal;
+    text-transform: none;
 }
 
 .account-actions {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    gap: var(--space-4);
     background: var(--bg-hover);
-    padding: 1rem;
-    border: 1px solid var(--border-dim);
+    padding: var(--pad-row);
+    border: var(--rule-hair);
     border-radius: var(--radius-sm);
 }
 
@@ -51,51 +48,36 @@
 }
 
 .account-info-label {
-    font-weight: bold;
+    font-weight: var(--weight-bold);
     color: var(--text-main);
 }
 
 .account-info-desc {
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
-}
-
-.logout-btn {
-    padding: 0.5rem 1.5rem;
-    background: transparent;
-    border: 1px solid var(--accent-crimson);
-    color: var(--accent-crimson);
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.2s ease;
-    font-family: var(--font-display);
-}
-
-.logout-btn:hover {
-    background: var(--accent-crimson);
-    color: #fff;
 }
 
 /* Dashboard Manifest / Widget Picker */
 
 .widget-manifest {
     display: grid;
-    gap: 1rem;
+    gap: var(--space-3);
 }
 
 .widget-option {
     display: flex;
     align-items: flex-start;
-    gap: 1rem;
-    padding: 1rem;
+    gap: var(--space-4);
+    padding: var(--pad-row);
     background: var(--bg-hover);
-    border: 1px solid var(--border-dim);
+    border: var(--rule-hair);
     border-radius: var(--radius-sm);
-    transition: all 0.2s ease;
+    transition: border-color var(--dur-base) var(--ease);
 }
 
-.widget-option:hover {
-    border-color: var(--text-gold);
+.widget-option:hover,
+.widget-option:focus-within {
+    border-color: var(--border-gold);
 }
 
 .widget-checkbox {
@@ -103,135 +85,135 @@
     width: 1.2rem;
     height: 1.2rem;
     cursor: pointer;
-    accent-color: var(--text-gold);
+    accent-color: var(--accent-gold);
+    flex-shrink: 0;
 }
 
 .widget-option-details {
     flex: 1;
+    cursor: pointer;
 }
 
 .widget-option-label {
     display: block;
-    font-weight: bold;
+    font-weight: var(--weight-bold);
     color: var(--text-main);
     font-family: var(--font-display);
-    margin-bottom: 0.2rem;
+    margin-bottom: var(--space-1);
 }
 
 .widget-option-desc {
     display: block;
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     font-style: italic;
 }
 
 /* Integrations */
 
+.integration-note,
+.integration-warning,
+.integration-msg {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+}
+
 .integration-note {
-    font-size: 0.8rem;
     color: var(--text-muted);
-    margin-bottom: 0.5rem;
 }
 
 .integration-warning {
-    font-size: 0.8rem;
-    color: var(--accent-crimson);
-    margin-bottom: 0.5rem;
+    color: var(--accent-red);
     font-style: italic;
+}
+
+.integration-msg {
+    color: var(--text-gold);
 }
 
 .integration-input-group {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2);
 }
 
-.integration-input {
-    flex: 1;
-    padding: 0.5rem;
-    border: 1px solid var(--border-dim);
-    background: var(--bg-main);
-    color: var(--text-main);
-    font-family: var(--font-mono);
-}
-
-.integration-input:focus {
-    outline: none;
-    border-color: var(--text-gold);
-}
-
-.save-btn {
-    padding: 0.5rem 1rem;
-    background: var(--text-gold);
-    color: var(--bg-main);
-    border: none;
-    cursor: pointer;
-    font-family: var(--font-display);
-    text-transform: uppercase;
-    transition: background 0.2s ease;
-}
-
-.save-btn:hover {
-    background: var(--text-highlight);
+.integration-field {
+    flex: 1 1 16rem;
 }
 
 .settings-footer {
     text-align: center;
     font-style: italic;
     color: var(--text-muted);
-    margin-top: 3rem;
+    margin: var(--space-6) 0 0;
     font-family: var(--font-body);
 }
 
-/* Theme Picker */
+/* ---------- Theme picker ----------------------------------------
+   Each tile is a real radio: role="radio" + aria-checked, arrow keys
+   move the selection, and the preview shows rule, radius, shadow,
+   density, tracking and case as well as colour — because a theme
+   changes all of those.
+   ---------------------------------------------------------------- */
 
 .theme-picker {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 1.5rem;
-    margin-top: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(10rem, 100%), 1fr));
+    gap: var(--space-4);
 }
 
 .theme-card {
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
-    border: 1px solid var(--border-dim);
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: var(--rule-hair);
     border-radius: var(--radius-lg);
     background: var(--bg-hover);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
+    font: inherit;
+    color: inherit;
+    transition: transform var(--dur-base) var(--ease),
+        border-color var(--dur-base) var(--ease),
+        box-shadow var(--dur-base) var(--ease);
 }
 
 .theme-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--text-gold);
+    transform: var(--lift);
+    border-color: var(--border-gold);
 }
 
-.theme-card.active {
-    border-color: var(--text-gold);
-    background: rgba(207, 181, 59, 0.1);
-    box-shadow: 0 0 15px rgba(207, 181, 59, 0.2);
+.theme-card[aria-checked='true'] {
+    border-color: var(--border-bright);
+    background: var(--accent-gold-dim);
+    box-shadow: var(--glow-gold);
 }
 
 .theme-preview {
+    position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
-    border-radius: var(--radius-md);
-    border: 1px solid transparent;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    position: relative;
+    gap: 0.35em;
     overflow: hidden;
 }
 
 .theme-preview-text {
-    font-size: 1.25rem;
-    font-weight: bold;
+    font-weight: var(--weight-bold);
+    line-height: 1.1;
+}
+
+.theme-preview-chip {
+    padding: 0.15em 0.6em;
+    line-height: 1.4;
+    white-space: nowrap;
 }
 
 .theme-preview-accent {
@@ -244,7 +226,13 @@
 
 .theme-name {
     font-family: var(--font-display);
-    font-size: 0.9rem;
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
     color: var(--text-main);
     text-align: center;
+}
+
+/* The checked tile announces itself to sighted users too, not only AT. */
+.theme-card[aria-checked='true'] .theme-name {
+    color: var(--text-gold);
 }

@@ -1,6 +1,13 @@
 import React from 'react';
 import { GiHourglass } from 'react-icons/gi';
 
+/**
+ * The first screen every user sees. It used to hardcode #1a1a1a, #c5a059 and
+ * '"Playfair Display", serif', so the portal opened in Dark Academia and then
+ * snapped to whatever skin you had actually chosen. ThemeContext paints the
+ * cached theme onto :root before React mounts, so reading the variables here
+ * means the loader is already in the right skin on the very first frame.
+ */
 const LoadingScreen = () => {
     return (
         <div style={{
@@ -8,10 +15,12 @@ const LoadingScreen = () => {
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            height: '100vh',
+            minHeight: '100vh',
+            height: '100dvh',
             width: '100vw',
-            background: '#1a1a1a', // Dark background
-            color: '#c5a059', // Gold color
+            background: 'var(--bg-main)',
+            backgroundImage: 'var(--bg-texture)',
+            color: 'var(--text-gold)',
             position: 'fixed',
             top: 0,
             left: 0,
@@ -19,34 +28,44 @@ const LoadingScreen = () => {
         }}>
             <style>
                 {`
-                    @keyframes spin {
+                    @keyframes loading-turn {
                         0% { transform: rotate(0deg); }
                         50% { transform: rotate(180deg); }
                         100% { transform: rotate(360deg); }
                     }
-                    @keyframes pulse {
+                    @keyframes loading-pulse {
                         0% { opacity: 0.5; }
                         50% { opacity: 1; }
                         100% { opacity: 0.5; }
                     }
+                    @media (prefers-reduced-motion: reduce) {
+                        .loading-screen__glyph,
+                        .loading-screen__caption { animation: none !important; }
+                    }
                 `}
             </style>
-            <div style={{
-                animation: 'spin 3s infinite ease-in-out',
-                fontSize: '4rem',
-                marginBottom: '1rem',
-                filter: 'drop-shadow(0 0 10px rgba(197, 160, 89, 0.3))'
-            }}>
+            <div
+                className="loading-screen__glyph"
+                style={{
+                    animation: 'loading-turn 3s infinite ease-in-out',
+                    fontSize: 'var(--text-4xl)',
+                    marginBottom: 'var(--space-4)',
+                    filter: 'drop-shadow(0 0 10px var(--accent-gold-dim))'
+                }}
+            >
                 <GiHourglass />
             </div>
-            <div style={{
-                fontFamily: '"Playfair Display", serif',
-                fontSize: '1.2rem',
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                animation: 'pulse 2s infinite ease-in-out',
-                marginTop: '1rem'
-            }}>
+            <div
+                className="loading-screen__caption"
+                style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'var(--text-lg)',
+                    letterSpacing: 'var(--tracking-heading)',
+                    textTransform: 'var(--case-heading)',
+                    animation: 'loading-pulse 2s infinite ease-in-out',
+                    marginTop: 'var(--space-4)'
+                }}
+            >
                 Accessing Archive...
             </div>
         </div>

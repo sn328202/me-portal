@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useHabits } from '../hooks/useHabits';
-import { GiCheckMark, GiTrashCan, GiCandleLight } from 'react-icons/gi';
+import { GiCheckMark, GiTrashCan } from 'react-icons/gi';
 import { useTheme } from '../contexts/ThemeContext';
 import ProgressBar from '../components/gamification/ProgressBar';
+import WidgetCard from '../components/WidgetCard';
 import WidgetLoading from '../components/WidgetLoading';
 import EmptyState from '../components/EmptyState';
+import Button from '../components/ui/Button';
 import '../styles/HabitTracker.css';
 
 const HabitTracker = () => {
@@ -22,19 +24,18 @@ const HabitTracker = () => {
         }
     };
 
-    return (
-        <div className="habit-tracker-widget">
-            <div className="habit-header">
-                <h3 className="habit-title">
-                    {getIcon('habits')} {getLabel('habits')}
-                </h3>
-                <button
-                    onClick={() => setIsAdding(!isAdding)}
-                    className="habit-toggle-btn"
-                    aria-label={isAdding ? `Cancel adding ${getLabel('habits').toLowerCase()}` : `Add ${getLabel('habits').toLowerCase()}`}
-                >+</button>
-            </div>
+    const noun = getLabel('habits').toLowerCase();
 
+    return (
+        <WidgetCard
+            title={getLabel('habits')}
+            icon={getIcon('habits')}
+            className="habit-tracker"
+            scroll="tall"
+            onAction={() => setIsAdding(!isAdding)}
+            actionIcon={isAdding ? '×' : '+'}
+            actionLabel={isAdding ? `Cancel adding ${noun}` : `Add ${noun}`}
+        >
             {loading ? (
                 <WidgetLoading />
             ) : (
@@ -46,15 +47,16 @@ const HabitTracker = () => {
                                 type="text"
                                 value={newHabit}
                                 onChange={(e) => setNewHabit(e.target.value)}
-                                placeholder={`New ${getLabel('habits').toLowerCase()}...`}
-                                className="habit-input"
+                                placeholder={`New ${noun}...`}
+                                aria-label={`New ${noun}`}
+                                className="input habit-input"
                             />
                         </form>
                     )}
 
                     {habits.length === 0 && !isAdding ? (
                         <EmptyState
-                            message={`No ${getLabel('habits').toLowerCase()} established. Start your first ritual.`}
+                            message={`No ${noun} established. Start your first ritual.`}
                             actionLabel={`Add ${getLabel('habits')}`}
                             onAction={() => setIsAdding(true)}
                             icon={getIcon('habits')}
@@ -63,24 +65,28 @@ const HabitTracker = () => {
                         <ul className="habit-list">
                             {habits.map(habit => (
                                 <li key={habit.id} className={`habit-item ${habit.completed ? 'completed' : ''}`}>
-                                    <div
+                                    <button
+                                        type="button"
                                         onClick={() => toggleHabit(habit.id)}
                                         className="habit-item-content"
+                                        aria-pressed={!!habit.completed}
                                     >
-                                        <div className={`habit-checkbox ${habit.completed ? 'completed' : ''}`}>
+                                        <span className={`habit-checkbox ${habit.completed ? 'completed' : ''}`}>
                                             {habit.completed && <GiCheckMark size={12} color="var(--bg-main)" />}
-                                        </div>
+                                        </span>
                                         <span className={`habit-text ${habit.completed ? 'completed' : ''}`}>
                                             {habit.text}
                                         </span>
-                                    </div>
-                                    <button
-                                        onClick={() => deleteHabit(habit.id)}
+                                    </button>
+                                    <Button
+                                        icon
+                                        size="sm"
                                         className="habit-delete-btn"
-                                        aria-label={`Delete habit "${habit.text}"`}
+                                        onClick={() => deleteHabit(habit.id)}
+                                        label={`Delete ${noun} "${habit.text}"`}
                                     >
                                         <GiTrashCan />
-                                    </button>
+                                    </Button>
                                 </li>
                             ))}
                         </ul>
@@ -96,7 +102,7 @@ const HabitTracker = () => {
                     color="var(--accent-gold)"
                 />
             </div>
-        </div>
+        </WidgetCard>
     );
 };
 

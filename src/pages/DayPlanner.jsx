@@ -3,40 +3,53 @@ import { GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, 
 import { useJsApiLoader } from '@react-google-maps/api';
 import PlacesSearch from '../components/PlacesSearch';
 import SmartTimeInput from '../components/SmartTimeInput';
+import { Button, Card, ConfirmButton, EmptyState, Field } from '../components/ui';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { addHours, format, parse, isValid, addMinutes } from 'date-fns';
+import { addHours, format, parse } from 'date-fns';
+import '../styles/DayPlanner.css';
 
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 const libraries = ['places'];
 
-// Sortable Item Component
+/**
+ * Sortable wrapper. The drag listeners deliberately do NOT go on this
+ * container — it holds buttons and links, and dnd-kit's attributes turn a
+ * container into role="button" with tabIndex=0. `children` is a function so
+ * the row can put them on a real handle instead.
+ */
 const SortableItem = ({ item, children }) => {
     const {
         attributes,
         listeners,
         setNodeRef,
+        setActivatorNodeRef,
         transform,
         transition,
+        isDragging
     } = useSortable({ id: item.id });
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
+        transition
     };
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-            {children}
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={isDragging ? 'sortable is-dragging' : 'sortable'}
+        >
+            {children({ ...attributes, ...listeners, ref: setActivatorNodeRef })}
         </div>
     );
 };
 
-const PlaceImage = ({ photo, style = {} }) => {
+const PlaceImage = ({ photo, className = '' }) => {
     const [failed, setFailed] = React.useState(false);
     const [loaded, setLoaded] = React.useState(false);
 
@@ -50,29 +63,31 @@ const PlaceImage = ({ photo, style = {} }) => {
 
     if (!photo || failed) {
         return (
-            <div style={{
-                ...style,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'var(--text-muted)'
-            }}>
-                <GiPositionMarker size={24} style={{ opacity: 0.3 }} />
+            <div className={`place-image place-image--empty ${className}`}>
+                <GiPositionMarker size={24} />
             </div>
         );
     }
 
-    if (!loaded) return <div style={{ ...style, background: 'rgba(255,255,255,0.05)' }} />;
+    if (!loaded) return <div className={`place-image place-image--empty ${className}`} />;
 
     return (
-        <div style={{
-            ...style,
-            backgroundImage: `url(${photo.url})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-        }} />
+        <div
+            className={`place-image ${className}`}
+            style={{ backgroundImage: `url(${photo.url})` }}
+        />
     );
+};
+
+/** Stable per-item tilt for the brainstorm notes — Math.random() in render
+ *  re-rolled the angle on every keystroke. */
+const noteTilt = (id) => {
+    const key = String(id);
+    let hash = 0;
+    for (let i = 0; i < key.length; i += 1) {
+        hash = (hash * 31 + key.charCodeAt(i)) % 401;
+    }
+    return `${(hash / 100 - 2).toFixed(2)}deg`;
 };
 
 const DayPlanner = () => {
@@ -89,7 +104,6 @@ const DayPlanner = () => {
     const [loading, setLoading] = useState(true);
     const [travelTimes, setTravelTimes] = useState({});
 
-    const [deleteConfirm, setDeleteConfirm] = useState(null); // ID of plan pending delete confirmation
     const [processingDelete, setProcessingDelete] = useState(false);
 
     // Form States
@@ -126,11 +140,6 @@ const DayPlanner = () => {
         }
     }, [items, isLoaded]);
 
-    // Clear delete confirmation if user clicks away or changes selection
-    useEffect(() => {
-        setDeleteConfirm(null);
-    }, [selectedPlan]);
-
     const calculateTravelTimes = async () => {
         const timelineItems = items.filter(i => !i.is_brainstorm);
         if (timelineItems.length < 2) return;
@@ -155,7 +164,7 @@ const DayPlanner = () => {
                     newTravelTimes[timelineItems[i].id] = response.rows[0].elements[0].duration.text;
                 }
             } catch (error) {
-                console.error("Error calculating distance:", error);
+                console.error('Error calculating distance:', error);
             }
         }
         setTravelTimes(newTravelTimes);
@@ -196,7 +205,7 @@ const DayPlanner = () => {
 
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-            alert("You must be logged in to create a plan.");
+            alert('You must be logged in to create a plan.');
             return;
         }
 
@@ -220,8 +229,6 @@ const DayPlanner = () => {
         }
     };
 
-
-
     // Helper to sort items by start_time
     const sortItems = (itemsList) => {
         return [...itemsList].sort((a, b) => {
@@ -233,7 +240,7 @@ const DayPlanner = () => {
             if (!a.start_time) return 1;
             if (!b.start_time) return -1;
             // Handle potentially different time formats (though we try to enforce HH:mm:ss)
-            return a.start_time.localeCompare(b.start_time);
+            return (a.start_time || '').localeCompare(b.start_time || '');
         });
     };
 
@@ -252,76 +259,77 @@ const DayPlanner = () => {
     const handleDragEnd = (event) => {
         const { active, over } = event;
 
-        if (over && active.id !== over.id) {
-            setItems((items) => {
-                const oldIndex = items.findIndex(i => i.id === active.id);
-                const newIndex = items.findIndex(i => i.id === over.id);
+        if (!over || active.id === over.id) return;
 
-                // 1. Move the item in the array
-                const newItems = arrayMove(items, oldIndex, newIndex);
+        // State updaters must stay pure — StrictMode double-invokes them, so
+        // the dirty flag is set here rather than inside the updater.
+        setItems((current) => {
+            const oldIndex = current.findIndex(i => i.id === active.id);
+            const newIndex = current.findIndex(i => i.id === over.id);
 
-                // 2. Smart Time Adjustment
-                // Get the item itself
-                const activeItem = newItems[newIndex];
+            // 1. Move the item in the array
+            const newItems = arrayMove(current, oldIndex, newIndex);
 
-                // Get neighbors in the TIMELINE list (exclude brainstorm)
-                const timelineItems = newItems.filter(i => !i.is_brainstorm);
-                const activeTimelineIndex = timelineItems.findIndex(i => i.id === active.id);
+            // 2. Smart Time Adjustment
+            // Get the item itself
+            const activeItem = newItems[newIndex];
 
-                const prevItem = activeTimelineIndex > 0 ? timelineItems[activeTimelineIndex - 1] : null;
+            // Get neighbors in the TIMELINE list (exclude brainstorm)
+            const timelineItems = newItems.filter(i => !i.is_brainstorm);
+            const activeTimelineIndex = timelineItems.findIndex(i => i.id === active.id);
 
-                let newStartTime = activeItem.start_time;
+            const prevItem = activeTimelineIndex > 0 ? timelineItems[activeTimelineIndex - 1] : null;
 
-                if (prevItem && prevItem.start_time) {
-                    // Start after previous item ends
-                    try {
-                        const prevStart = parse(prevItem.start_time, 'HH:mm:ss', new Date());
-                        let prevEnd;
+            let newStartTime = activeItem.start_time;
 
-                        // Add duration or default 1 hour
-                        if (prevItem.duration) {
-                            // Format is likely "X hours" or just a number or HH:MM? 
-                            // Let's assume HH:MM or simple string for now.
-                            // If it's just a string like "2 hours", this parsing might fail.
-                            // The duration input type was not specified strictly.
-                            // Let's safe guard.
-                            const durationMatch = prevItem.duration.match(/(\d+)/);
-                            if (prevItem.duration.includes(':')) {
-                                const [h, m] = prevItem.duration.split(':').map(Number);
-                                prevEnd = new Date(prevStart.getTime() + (h * 60 * 60 * 1000) + (m * 60 * 1000));
-                            } else if (durationMatch) {
-                                // Assume hours if just a number? Or minutes? 
-                                // Let's assume hours for simplicity in itinerary context
-                                prevEnd = addHours(prevStart, parseInt(durationMatch[0]));
-                            } else {
-                                prevEnd = addHours(prevStart, 1);
-                            }
+            if (prevItem && prevItem.start_time) {
+                // Start after previous item ends
+                try {
+                    const prevStart = parse(prevItem.start_time, 'HH:mm:ss', new Date());
+                    let prevEnd;
+
+                    // Add duration or default 1 hour
+                    if (prevItem.duration) {
+                        // Format is likely "X hours" or just a number or HH:MM?
+                        // Let's assume HH:MM or simple string for now.
+                        // If it's just a string like "2 hours", this parsing might fail.
+                        // The duration input type was not specified strictly.
+                        // Let's safe guard.
+                        const durationMatch = prevItem.duration.match(/(\d+)/);
+                        if (prevItem.duration.includes(':')) {
+                            const [h, m] = prevItem.duration.split(':').map(Number);
+                            prevEnd = new Date(prevStart.getTime() + (h * 60 * 60 * 1000) + (m * 60 * 1000));
+                        } else if (durationMatch) {
+                            // Assume hours if just a number? Or minutes?
+                            // Let's assume hours for simplicity in itinerary context
+                            prevEnd = addHours(prevStart, parseInt(durationMatch[0]));
                         } else {
-                            // Default gap: 1 hour
                             prevEnd = addHours(prevStart, 1);
                         }
-
-                        newStartTime = format(prevEnd, 'HH:mm:ss');
-
-                    } catch (e) {
-                        console.error("Time calc error", e);
+                    } else {
+                        // Default gap: 1 hour
+                        prevEnd = addHours(prevStart, 1);
                     }
-                } else if (!prevItem) {
-                    // First item: Default to 9am
-                    newStartTime = '09:00:00';
+
+                    newStartTime = format(prevEnd, 'HH:mm:ss');
+
+                } catch (e) {
+                    console.error('Time calc error', e);
                 }
+            } else if (!prevItem) {
+                // First item: Default to 9am
+                newStartTime = '09:00:00';
+            }
 
-                // Update the moved item's time
-                newItems[newIndex] = { ...activeItem, start_time: newStartTime };
+            // Update the moved item's time
+            newItems[newIndex] = { ...activeItem, start_time: newStartTime };
 
-                // CRITICAL: Re-sort based on the new times to ensure chronology
-                // This prevents "18:00 before 15:00" scenarios if the drop target wasn't perfect
-                const reSorted = sortItems(newItems);
+            // CRITICAL: Re-sort based on the new times to ensure chronology
+            // This prevents "18:00 before 15:00" scenarios if the drop target wasn't perfect
+            return sortItems(newItems);
+        });
 
-                setIsDirty(true);
-                return reSorted;
-            });
-        }
+        setIsDirty(true);
     };
 
     const deleteItem = async (id) => {
@@ -335,15 +343,7 @@ const DayPlanner = () => {
         setIsDirty(true);
     };
 
-    const deletePlan = async (e, id) => {
-        if (e) e.stopPropagation();
-
-        if (deleteConfirm !== id) {
-            setDeleteConfirm(id);
-            setTimeout(() => setDeleteConfirm(null), 3000);
-            return;
-        }
-
+    const deletePlan = async (id) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -351,20 +351,19 @@ const DayPlanner = () => {
 
         const { error: itemsError } = await supabase.from('plan_items').delete().eq('plan_id', id);
         if (itemsError) {
-            console.error("Error deleting items:", itemsError);
-            alert("Error clearing itinerary items.");
+            console.error('Error deleting items:', itemsError);
+            alert('Error clearing itinerary items.');
             setProcessingDelete(false);
             return;
         }
 
         const { error } = await supabase.from('day_plans').delete().eq('id', id).eq('user_id', user.id);
         if (error) {
-            console.error("Error deleting plan:", error);
-            alert("Failed to delete plan: " + error.message);
+            console.error('Error deleting plan:', error);
+            alert('Failed to delete plan: ' + error.message);
         } else {
             setPlans(plans.filter(p => p.id !== id));
             if (selectedPlan?.id === id) setSelectedPlan(null);
-            setDeleteConfirm(null);
         }
         setProcessingDelete(false);
     };
@@ -391,6 +390,11 @@ const DayPlanner = () => {
         setIsDirty(true);
     };
 
+    const selectPlan = (plan) => {
+        if (isDirty && !window.confirm('You have unsaved changes. Discard them?')) return;
+        setSelectedPlan(plan);
+    };
+
     const saveChanges = async () => {
         if (!editedPlan) return;
 
@@ -412,8 +416,8 @@ const DayPlanner = () => {
             .select();
 
         if (planError) {
-            console.error("Error saving plan details:", planError);
-            alert("Failed to save plan details.");
+            console.error('Error saving plan details:', planError);
+            alert('Failed to save plan details.');
             return;
         }
 
@@ -425,7 +429,7 @@ const DayPlanner = () => {
                 .in('id', deletedItemIds);
 
             if (deleteError) {
-                console.error("Error deleting items:", deleteError);
+                console.error('Error deleting items:', deleteError);
             } else {
                 setDeletedItemIds([]);
             }
@@ -466,8 +470,8 @@ const DayPlanner = () => {
                 })));
 
             if (updateError) {
-                console.error("Error updating items:", updateError);
-                alert("Failed to save some items: " + updateError.message);
+                console.error('Error updating items:', updateError);
+                alert('Failed to save some items: ' + updateError.message);
                 return;
             }
         }
@@ -492,8 +496,8 @@ const DayPlanner = () => {
                 })));
 
             if (insertError) {
-                console.error("Error inserting items:", insertError);
-                alert("Failed to create some items: " + insertError.message);
+                console.error('Error inserting items:', insertError);
+                alert('Failed to create some items: ' + insertError.message);
                 return;
             }
         }
@@ -503,7 +507,7 @@ const DayPlanner = () => {
             const updated = planData[0];
             setPlans(plans.map(p => p.id === id ? updated : p));
             setSelectedPlan(updated); // This triggers fetchItems which will get authoritative state from DB
-            alert("Itinerary saved successfully!");
+            alert('Itinerary saved successfully!');
         }
     };
 
@@ -516,8 +520,6 @@ const DayPlanner = () => {
         }
     }, [isLoaded, placesServiceRef.current]);
 
-    // ... existing code ...
-
     const addItem = async (isBrainstorm = true) => {
         if (!selectedPlan || !newItem.activity) return;
 
@@ -525,7 +527,7 @@ const DayPlanner = () => {
 
         if (newItem.place_id && placesService) {
             try {
-                const details = await new Promise((resolve, reject) => {
+                const details = await new Promise((resolve) => {
                     placesService.getDetails({
                         placeId: newItem.place_id,
                         fields: ['photos', 'rating', 'user_ratings_total', 'url', 'icon']
@@ -551,13 +553,12 @@ const DayPlanner = () => {
                     };
                 }
             } catch (err) {
-                console.error("Error fetching place details:", err);
+                console.error('Error fetching place details:', err);
             }
         }
 
         const newItemObj = {
             id: `temp-${Date.now()}`, // Temporary ID
-            // plan_id: selectedPlan.id, // Not strictly needed for local, but good for consistency
             ...newItem,
             cost: newItem.cost === '' ? null : newItem.cost,
             duration: newItem.duration === '' ? null : newItem.duration,
@@ -574,330 +575,253 @@ const DayPlanner = () => {
         setIsDirty(true);
     };
 
-    // ... existing functions ...
+    const timelineItems = items.filter(i => !i.is_brainstorm);
+    const brainstormItems = items.filter(i => i.is_brainstorm);
 
     return (
-        <div style={{ height: '100%', display: 'flex', gap: '2rem', padding: '1rem', overflow: 'hidden' }}>
-            {/* Hidden div for Places Service */}
-            <div ref={placesServiceRef} style={{ display: 'none' }}></div>
+        <div className="daydream">
+            {/* Hidden node the Google PlacesService attaches to */}
+            <div ref={placesServiceRef} className="daydream__places-anchor" />
 
             {/* Sidebar: Plans List */}
-            {/* ... existing sidebar ... */}
-            <div style={{ width: '300px', display: 'flex', flexDirection: 'column', gap: '1rem', borderRight: '1px solid var(--border-dim)', paddingRight: '1rem' }}>
-                {/* ... same sidebar content ... */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 className="box-header" style={{ margin: 0, fontSize: '1.5rem' }}><GiTreasureMap /> Itineraries</h2>
-                    <button
-                        onClick={() => setIsCreating(true)}
-                        aria-label="Create itinerary"
-                        style={{ background: 'var(--accent-gold)', border: 'none', color: 'var(--bg-main)', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer', fontWeight: 'bold' }}
-                    >
-                        +
-                    </button>
+            <aside className="daydream__sidebar">
+                <div className="daydream__sidebar-head">
+                    <h2 className="section-title daydream__heading">
+                        <GiTreasureMap /> Itineraries
+                    </h2>
+                    <Button icon label="Create itinerary" onClick={() => setIsCreating(true)}>+</Button>
                 </div>
 
                 {isCreating && (
-                    <div style={{ padding: '1rem', background: 'var(--bg-panel)', border: '1px solid var(--border-gold)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <input
+                    <Card variant="flat" className="daydream__create">
+                        <Field
+                            label="Title"
                             placeholder="Title (e.g. Day in SF)"
                             value={newPlan.title}
                             onChange={e => setNewPlan({ ...newPlan, title: e.target.value })}
-                            style={{ padding: '4px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-dim)', color: 'var(--text-main)' }}
                         />
 
                         {isLoaded ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <Field label="Location">
                                 <PlacesSearch
                                     onSelect={(place) => setNewPlan({ ...newPlan, location: place.address })}
                                     placeholder="Location (City/Area)"
                                 />
-                                <input
-                                    type="date"
-                                    value={newPlan.planned_date || ''}
-                                    onChange={e => setNewPlan({ ...newPlan, planned_date: e.target.value })}
-                                    style={{ padding: '4px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-dim)', color: 'var(--text-main)', width: '100%' }}
-                                />
-                            </div>
+                            </Field>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <input
-                                    placeholder="Location"
-                                    value={newPlan.location}
-                                    onChange={e => setNewPlan({ ...newPlan, location: e.target.value })}
-                                    style={{ padding: '4px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-dim)', color: 'var(--text-main)' }}
-                                />
-                                <input
-                                    type="date"
-                                    value={newPlan.planned_date || ''}
-                                    onChange={e => setNewPlan({ ...newPlan, planned_date: e.target.value })}
-                                    style={{ padding: '4px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-dim)', color: 'var(--text-main)', width: '100%' }}
-                                />
-                            </div>
+                            <Field
+                                label="Location"
+                                placeholder="Location"
+                                value={newPlan.location}
+                                onChange={e => setNewPlan({ ...newPlan, location: e.target.value })}
+                            />
                         )}
-                        <button onClick={createPlan} style={{ background: 'var(--accent-gold)', border: 'none', padding: '4px', cursor: 'pointer', color: 'var(--bg-main)', fontWeight: 'bold' }}>Create</button>
-                        <button onClick={() => setIsCreating(false)} style={{ background: 'transparent', border: '1px solid var(--border-dim)', padding: '4px', cursor: 'pointer', color: 'var(--text-muted)' }}>Cancel</button>
-                    </div>
+
+                        <Field
+                            label="Date"
+                            type="date"
+                            value={newPlan.planned_date || ''}
+                            onChange={e => setNewPlan({ ...newPlan, planned_date: e.target.value })}
+                        />
+
+                        <div className="row">
+                            <Button variant="primary" onClick={createPlan}>Create</Button>
+                            <Button variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
+                        </div>
+                    </Card>
                 )}
 
-                <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <ul className="daydream__list">
                     {plans.map(plan => (
-                        <div
-                            key={plan.id}
-                            onClick={() => {
-                                if (isDirty) {
-                                    if (window.confirm("You have unsaved changes. Discard them?")) {
-                                        setSelectedPlan(plan);
-                                    }
-                                } else {
-                                    setSelectedPlan(plan);
-                                }
-                            }}
-                            style={{
-                                padding: '1rem',
-                                background: selectedPlan?.id === plan.id ? 'var(--accent-gold)' : 'var(--bg-panel)',
-                                color: selectedPlan?.id === plan.id ? 'var(--bg-main)' : 'var(--text-main)',
-                                border: '1px solid var(--border-dim)',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                position: 'relative'
-                            }}
-                        >
-                            <h3 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontFamily: 'var(--font-display)' }}>{plan.title}</h3>
-                            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{plan.location || 'Unknown Locale'}</div>
-                            {plan.planned_date && <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{plan.planned_date}</div>}
-
-                            <button
-                                onClick={(e) => deletePlan(e, plan.id)}
-                                aria-label={deleteConfirm === plan.id ? `Confirm deletion of ${plan.title}` : `Delete itinerary ${plan.title}`}
-                                style={{
-                                    position: 'absolute',
-                                    top: '5px',
-                                    right: '5px',
-                                    background: deleteConfirm === plan.id ? 'var(--bg-main)' : 'transparent',
-                                    border: 'none',
-                                    color: deleteConfirm === plan.id ? 'var(--accent-crimson)' : 'inherit',
-                                    opacity: deleteConfirm === plan.id ? 1 : 0.5,
-                                    cursor: 'pointer',
-                                    borderRadius: '4px',
-                                    padding: '2px 4px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: deleteConfirm === plan.id ? 'bold' : 'normal'
-                                }}
+                        <li key={plan.id}>
+                            <Card
+                                variant="flat"
+                                className={`plan-card${selectedPlan?.id === plan.id ? ' is-selected' : ''}`}
                             >
-                                {deleteConfirm === plan.id ? 'Confirm?' : <GiCancel />}
-                            </button>
-                        </div>
+                                <h3 className="plan-card__title">
+                                    <button
+                                        type="button"
+                                        className="plan-card__open"
+                                        onClick={() => selectPlan(plan)}
+                                    >
+                                        {plan.title}
+                                    </button>
+                                </h3>
+                                <p className="plan-card__meta">{plan.location || 'Unknown Locale'}</p>
+                                <p className="plan-card__meta plan-card__date">{plan.planned_date || ''}</p>
+
+                                <ConfirmButton
+                                    className="plan-card__delete"
+                                    icon={<GiCancel />}
+                                    label={`Delete itinerary ${plan.title}`}
+                                    confirmLabel="Confirm?"
+                                    onConfirm={() => deletePlan(plan.id)}
+                                />
+                            </Card>
+                        </li>
                     ))}
-                </div>
-            </div>
+                    {!loading && plans.length === 0 && (
+                        <li>
+                            <p className="muted daydream__list-empty">No daydreams yet.</p>
+                        </li>
+                    )}
+                </ul>
+            </aside>
 
             {/* Main Area: Planner */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <section className="daydream__detail">
                 {editedPlan ? (
                     <>
                         {/* Header Area */}
-                        <div style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-dim)', paddingBottom: '1rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <header className="daydream__head">
+                            <div className="daydream__head-row">
                                 <input
+                                    className="daydream__title-input"
+                                    aria-label="Itinerary title"
                                     value={editedPlan.title}
                                     onChange={(e) => handlePlanChange('title', e.target.value)}
-                                    style={{
-                                        fontFamily: 'var(--font-display)',
-                                        color: 'var(--text-gold)',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        fontSize: '2rem',
-                                        width: '100%',
-                                        marginBottom: '0.5rem'
-                                    }}
                                 />
-                                {isDirty && (
-                                    <button
-                                        onClick={saveChanges}
-                                        style={{
-                                            background: 'var(--accent-gold)',
-                                            color: 'var(--bg-main)',
-                                            border: 'none',
-                                            padding: '8px 16px',
-                                            borderRadius: '4px',
-                                            cursor: 'pointer',
-                                            fontWeight: 'bold',
-                                            whiteSpace: 'nowrap',
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                <div className="row daydream__head-actions">
+                                    {isDirty && (
+                                        <Button variant="primary" onClick={saveChanges}>
+                                            Save Changes
+                                        </Button>
+                                    )}
+                                    <Button
+                                        onClick={() => {
+                                            const icsContent = generateICS(editedPlan, items);
+                                            if (icsContent) {
+                                                downloadICS(`${editedPlan.title || 'Itinerary'}.ics`, icsContent);
+                                            } else {
+                                                alert('No scheduled items to export.');
+                                            }
                                         }}
+                                        title="Export to Calendar (.ics)"
                                     >
-                                        Save Changes
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => {
-                                        const icsContent = generateICS(editedPlan, items);
-                                        if (icsContent) {
-                                            downloadICS(`${editedPlan.title || 'Itinerary'}.ics`, icsContent);
-                                        } else {
-                                            alert("No scheduled items to export.");
-                                        }
-                                    }}
-                                    style={{
-                                        background: 'transparent',
-                                        color: 'var(--text-gold)',
-                                        border: '1px solid var(--border-gold)',
-                                        padding: '8px 16px',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontWeight: 'bold',
-                                        whiteSpace: 'nowrap',
-                                        marginLeft: '1rem'
-                                    }}
-                                    title="Export to Calendar (.ics)"
-                                >
-                                    Export .ics
-                                </button>
+                                        Export .ics
+                                    </Button>
+                                </div>
                             </div>
 
-                            <div style={{ color: 'var(--text-muted)', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div className="daydream__meta">
+                                <span className="daydream__meta-item">
                                     <GiPositionMarker />
                                     <input
+                                        className="daydream__meta-input"
                                         value={editedPlan.location || ''}
                                         onChange={(e) => handlePlanChange('location', e.target.value)}
                                         placeholder="Location"
-                                        style={{ background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit' }}
+                                        aria-label="Itinerary location"
                                     />
                                 </span>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span className="daydream__meta-item">
                                     <GiSandsOfTime />
                                     <input
+                                        className="daydream__meta-input"
                                         type="date"
                                         value={editedPlan.planned_date || ''}
                                         onChange={(e) => handlePlanChange('planned_date', e.target.value)}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: 'inherit',
-                                            fontFamily: 'inherit',
-                                            fontSize: 'inherit',
-                                            cursor: 'pointer'
-                                        }}
+                                        aria-label="Planned date"
                                     />
                                 </span>
-                                <button
-                                    onClick={(e) => deletePlan(null, editedPlan.id)}
+                                <ConfirmButton
+                                    className="daydream__delete"
+                                    label="Delete Itinerary"
+                                    confirmLabel="Click to Confirm Delete"
                                     disabled={processingDelete}
-                                    style={{
-                                        marginLeft: 'auto',
-                                        background: deleteConfirm === editedPlan.id ? 'var(--accent-crimson)' : 'rgba(255, 99, 71, 0.1)',
-                                        border: '1px solid var(--accent-crimson)',
-                                        color: deleteConfirm === editedPlan.id ? 'var(--bg-main)' : 'var(--accent-crimson)',
-                                        padding: '4px 12px',
-                                        borderRadius: '4px',
-                                        cursor: processingDelete ? 'wait' : 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        fontSize: '0.8rem',
-                                        transition: 'all 0.2s',
-                                        fontWeight: deleteConfirm === editedPlan.id ? 'bold' : 'normal'
-                                    }}
+                                    onConfirm={() => deletePlan(editedPlan.id)}
                                 >
-                                    <GiCancel /> {processingDelete ? 'Deleting...' : (deleteConfirm === editedPlan.id ? 'Click to Confirm Delete' : 'Delete Itinerary')}
-                                </button>
+                                    <GiCancel /> {processingDelete ? 'Deleting...' : 'Delete Itinerary'}
+                                </ConfirmButton>
                             </div>
-                        </div>
+                        </header>
 
-                        <div style={{ display: 'flex', gap: '2rem', flex: 1, overflow: 'hidden' }}>
+                        <div className="daydream__boards">
 
                             {/* Brainstorming Board */}
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', borderRight: '1px dashed var(--border-dim)', paddingRight: '1rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-gold)' }}>
-                                    <GiFeather size={24} />
-                                    <h3 style={{ fontFamily: 'var(--font-display)', margin: 0 }}>Brainstorming</h3>
-                                </div>
-                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', border: '1px solid var(--border-dim)' }}>
-                                    <input
+                            <div className="board board--ideas">
+                                <h3 className="board__title">
+                                    <GiFeather size={24} /> Brainstorming
+                                </h3>
+
+                                <Card variant="flat" className="idea-form">
+                                    <Field
+                                        label="Activity"
                                         placeholder="Add activity idea..."
                                         value={newItem.activity}
                                         onChange={e => setNewItem({ ...newItem, activity: e.target.value })}
-                                        style={{ width: '100%', marginBottom: '0.5rem', padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-dim)', color: 'var(--text-main)' }}
                                     />
-                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <div className="idea-form__row">
                                         {isLoaded ? (
-                                            <div style={{ flex: 1 }}>
+                                            <Field label="Location">
                                                 <PlacesSearch
                                                     onSelect={(place) => setNewItem({ ...newItem, location: place.address, lat: place.lat, lng: place.lng, link: place.link, place_id: place.place_id })}
                                                     placeholder="Search Location..."
                                                 />
-                                            </div>
+                                            </Field>
                                         ) : (
-                                            <input
+                                            <Field
+                                                label="Location/Link"
                                                 placeholder="Location/Link"
                                                 value={newItem.link} // Fallback to existing behavior
                                                 onChange={e => setNewItem({ ...newItem, link: e.target.value })}
-                                                style={{ flex: 1, padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-dim)', color: 'var(--text-main)' }}
                                             />
                                         )}
-                                        <input
+                                        <Field
+                                            label="Cost ($)"
+                                            className="idea-form__cost"
                                             placeholder="Cost ($)"
                                             value={newItem.cost}
                                             onChange={e => setNewItem({ ...newItem, cost: e.target.value })}
-                                            style={{ width: '80px', padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-dim)', color: 'var(--text-main)' }}
                                         />
                                     </div>
-                                    {newItem.link && <div style={{ fontSize: '0.8rem', color: 'var(--accent-gold)', marginBottom: '0.5rem' }}>Linked: {newItem.location}</div>}
-                                    <button onClick={() => addItem(true)} style={{ width: '100%', padding: '8px', background: 'rgba(207, 181, 59, 0.2)', border: '1px solid var(--accent-gold)', color: 'var(--text-gold)', cursor: 'pointer' }}>
+                                    {newItem.link && <p className="idea-form__linked">Linked: {newItem.location}</p>}
+                                    <Button variant="primary" block onClick={() => addItem(true)}>
                                         Add to Board
-                                    </button>
-                                </div>
+                                    </Button>
+                                </Card>
 
-                                <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '1rem', gridAutoRows: 'max-content' }}>
-                                    {items.filter(i => i.is_brainstorm).map(item => (
-                                        <div
+                                <ul className="idea-grid">
+                                    {brainstormItems.map(item => (
+                                        <li
                                             key={item.id}
+                                            className="idea"
+                                            style={{ '--tilt': noteTilt(item.id) }}
                                             draggable
                                             onDragStart={(e) => e.dataTransfer.setData('text/plain', item.id)}
-                                            style={{
-                                                background: '#fff9c4',
-                                                color: '#333',
-                                                padding: '1rem',
-                                                boxShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                                                transform: `rotate(${Math.random() * 4 - 2}deg)`,
-                                                position: 'relative',
-                                                cursor: 'grab',
-                                                overflow: 'hidden'
-                                            }}>
-
-                                            {/* Place Image */}
+                                        >
                                             <PlaceImage
                                                 photo={item.place_data?.photos?.[0]}
-                                                style={{ height: '80px', marginBottom: '8px' }}
+                                                className="idea__photo"
                                             />
 
-                                            <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{item.activity}</div>
+                                            <p className="idea__title">{item.activity}</p>
 
                                             {item.place_data && item.place_data.rating && (
-                                                <div style={{ fontSize: '0.8rem', color: '#f39c12', marginBottom: '4px' }}>
-                                                    ★ {item.place_data.rating} <span style={{ color: '#777' }}>({item.place_data.user_ratings_total})</span>
-                                                </div>
+                                                <p className="idea__rating">
+                                                    ★ {item.place_data.rating} <span>({item.place_data.user_ratings_total})</span>
+                                                </p>
                                             )}
 
-                                            {item.location && <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '4px' }}><GiPositionMarker /> {item.location}</div>}
-                                            {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '0.8rem', color: 'blue', marginBottom: '4px' }}>Map ↗</a>}
-                                            {item.cost && <div style={{ fontSize: '0.8rem', color: '#555' }}><GiCoins /> {item.cost}</div>}
-                                            <button
-                                                onClick={() => deleteItem(item.id)}
-                                                aria-label={`Delete ${item.title || 'item'}`}
-                                                style={{ position: 'absolute', top: '2px', right: '2px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#888' }}
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
+                                            {item.location && <p className="idea__line"><GiPositionMarker /> {item.location}</p>}
+                                            {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="idea__link">Map ↗</a>}
+                                            {item.cost && <p className="idea__line"><GiCoins /> {item.cost}</p>}
+
+                                            <ConfirmButton
+                                                className="idea__delete"
+                                                icon="×"
+                                                label={`Delete ${item.activity || 'idea'}`}
+                                                confirmLabel="Confirm?"
+                                                onConfirm={() => deleteItem(item.id)}
+                                            />
+                                        </li>
                                     ))}
-                                </div>
+                                </ul>
                             </div>
 
                             {/* Timeline / Itinerary */}
                             <div
-                                style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                                className="board board--timeline"
                                 onDragOver={(e) => e.preventDefault()}
                                 onDrop={(e) => {
                                     e.preventDefault();
@@ -905,26 +829,17 @@ const DayPlanner = () => {
                                     if (itemId) moveItemToTimeline(itemId);
                                 }}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-crimson)' }}>
-                                    <GiHourglass size={24} />
-                                    <h3 style={{ fontFamily: 'var(--font-display)', margin: 0 }}>The Itinerary</h3>
-                                </div>
+                                <h3 className="board__title board__title--crimson">
+                                    <GiHourglass size={24} /> The Itinerary
+                                </h3>
 
-                                <div style={{ flex: 1, borderLeft: '2px solid var(--border-dim)', paddingLeft: '2rem', position: 'relative', overflowY: 'auto' }}>
-
-                                    {items.filter(i => !i.is_brainstorm).length === 0 && (
-                                        <div style={{
-                                            padding: '2rem',
-                                            textAlign: 'center',
-                                            color: 'var(--text-muted)',
-                                            border: '2px dashed var(--border-dim)',
-                                            borderRadius: '8px'
-                                        }}>
-                                            Drag brainstorm items here to schedule them
-                                        </div>
+                                <div className="timeline">
+                                    {timelineItems.length === 0 && (
+                                        <EmptyState
+                                            icon={<GiHourglass />}
+                                            message="Drag brainstorm items here to schedule them"
+                                        />
                                     )}
-
-
 
                                     <DndContext
                                         sensors={sensors}
@@ -932,178 +847,136 @@ const DayPlanner = () => {
                                         onDragEnd={handleDragEnd}
                                     >
                                         <SortableContext
-                                            items={items.filter(i => !i.is_brainstorm).map(i => i.id)}
+                                            items={timelineItems.map(i => i.id)}
                                             strategy={verticalListSortingStrategy}
                                         >
-                                            {items.filter(i => !i.is_brainstorm).map((item, index, arr) => (
+                                            {timelineItems.map((item, index, arr) => (
                                                 <React.Fragment key={item.id}>
                                                     <SortableItem item={item}>
-                                                        <div style={{ position: 'relative', touchAction: 'none' }}>
-                                                            {/* Decor: Timeline Line */}
-                                                            {index !== arr.length - 1 && (
-                                                                <div style={{
-                                                                    position: 'absolute',
-                                                                    left: '26px', // Center of the timeline
-                                                                    top: '50px',
-                                                                    bottom: '-2rem', // Connect to next
-                                                                    width: '2px',
-                                                                    background: 'var(--border-dim)',
-                                                                    zIndex: 0
-                                                                }} />
-                                                            )}
+                                                        {(handleProps) => (
+                                                            <div className="tl-row">
+                                                                {/* Decor: Timeline Line */}
+                                                                {index !== arr.length - 1 && <span className="tl-row__thread" />}
 
-                                                            <div style={{
-                                                                background: 'var(--bg-panel)',
-                                                                padding: '1rem',
-                                                                border: '1px solid var(--border-dim)',
-                                                                display: 'flex',
-                                                                gap: '1rem',
-                                                                alignItems: 'flex-start',
-                                                                borderRadius: '4px',
-                                                                position: 'relative',
-                                                                zIndex: 1
-                                                            }}>
-
-                                                                {/* Time & Drag Column */}
-                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', minWidth: '60px' }}>
-                                                                    {/* Drag Handle */}
-                                                                    <div style={{ cursor: 'grab', color: 'var(--text-muted)' }} {...item.dragHandleProps}>
-                                                                        <GiRoughWound size={20} style={{ transform: 'rotate(90deg)' }} />
+                                                                <Card variant="flat" className="tl-item">
+                                                                    {/* Time & Drag Column */}
+                                                                    <div className="tl-item__aside">
+                                                                        <Button
+                                                                            icon
+                                                                            size="sm"
+                                                                            className="tl-item__handle"
+                                                                            label="Reorder item"
+                                                                            {...handleProps}
+                                                                        >
+                                                                            <GiRoughWound size={20} />
+                                                                        </Button>
+                                                                        <SmartTimeInput
+                                                                            label={`Start time for ${item.activity || 'item'}`}
+                                                                            value={item.start_time ? item.start_time.substring(0, 5) : ''}
+                                                                            onChange={(newTime) => updateItem(item.id, { start_time: newTime ? newTime + ':00' : null })}
+                                                                        />
                                                                     </div>
-                                                                    {/* Time */}
-                                                                    <SmartTimeInput
-                                                                        value={item.start_time ? item.start_time.substring(0, 5) : ''}
-                                                                        onChange={(newTime) => updateItem(item.id, { start_time: newTime ? newTime + ":00" : null })}
+
+                                                                    <PlaceImage
+                                                                        photo={item.place_data?.photos?.[0]}
+                                                                        className="tl-item__photo"
                                                                     />
-                                                                </div>
 
-                                                                {/* Image */}
-                                                                <PlaceImage
-                                                                    photo={item.place_data?.photos?.[0]}
-                                                                    style={{
-                                                                        width: '80px',
-                                                                        height: '80px',
-                                                                        borderRadius: '4px',
-                                                                        flexShrink: 0,
-                                                                        boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)'
-                                                                    }}
-                                                                />
+                                                                    {/* Main Content */}
+                                                                    <div className="tl-item__main">
+                                                                        <div className="tl-item__head">
+                                                                            <div>
+                                                                                <h4 className="tl-item__title">{item.activity}</h4>
+                                                                                {item.location && (
+                                                                                    <p className="tl-item__location">
+                                                                                        <GiPositionMarker />
+                                                                                        {item.link ? (
+                                                                                            <a href={item.link} target="_blank" rel="noopener noreferrer">{item.location}</a>
+                                                                                        ) : (
+                                                                                            item.location
+                                                                                        )}
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
 
-                                                                {/* Main Content */}
-                                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
-                                                                        <div>
-                                                                            <h4 style={{
-                                                                                fontSize: '1.2rem',
-                                                                                fontFamily: 'var(--font-display)',
-                                                                                margin: '0 0 4px 0',
-                                                                                color: 'var(--text-main)',
-                                                                                lineHeight: '1.2'
-                                                                            }}>
-                                                                                {item.activity}
-                                                                            </h4>
-                                                                            {item.location && (
-                                                                                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                                    <GiPositionMarker />
-                                                                                    {item.link ? (
-                                                                                        <a href={item.link} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>{item.location}</a>
-                                                                                    ) : (
-                                                                                        item.location
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* Action Icons (Grouped & Smaller) */}
-                                                                        <div style={{ display: 'flex', gap: '4px' }}>
-                                                                            {editedPlan.planned_date && item.start_time && (
-                                                                                <a
-                                                                                    href={generateGoogleCalendarUrl(item, editedPlan.planned_date)}
-                                                                                    target="_blank"
-                                                                                    rel="noopener noreferrer"
-                                                                                    style={{ padding: '4px', opacity: 0.6, cursor: 'pointer', color: 'var(--text-main)' }}
-                                                                                    title="Add to Google Calendar"
+                                                                            {/* Action Icons (Grouped & Smaller) */}
+                                                                            <div className="tl-item__actions">
+                                                                                {editedPlan.planned_date && item.start_time && (
+                                                                                    <Button
+                                                                                        as="a"
+                                                                                        icon
+                                                                                        size="sm"
+                                                                                        href={generateGoogleCalendarUrl(item, editedPlan.planned_date)}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        label="Add to Google Calendar"
+                                                                                    >
+                                                                                        📅
+                                                                                    </Button>
+                                                                                )}
+                                                                                <Button
+                                                                                    icon
+                                                                                    size="sm"
+                                                                                    label="Move back to brainstorm"
+                                                                                    onClick={() => updateItem(item.id, { is_brainstorm: true })}
                                                                                 >
-                                                                                    📅
-                                                                                </a>
+                                                                                    <GiNotebook size={16} />
+                                                                                </Button>
+                                                                                <ConfirmButton
+                                                                                    icon={<GiCancel size={16} />}
+                                                                                    label="Delete plan item"
+                                                                                    confirmLabel="Confirm?"
+                                                                                    onConfirm={() => deleteItem(item.id)}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Metadata Row */}
+                                                                        <div className="tl-item__meta">
+                                                                            {item.place_data && item.place_data.rating && (
+                                                                                <span className="tl-item__rating">★ {item.place_data.rating}</span>
                                                                             )}
-                                                                            <button
-                                                                                onClick={() => updateItem(item.id, { is_brainstorm: true })}
-                                                                                title="Move back to brainstorm"
-                                                                                aria-label="Move back to brainstorm"
-                                                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.5, padding: '4px', color: 'var(--text-main)' }}
-                                                                            >
-                                                                                <GiNotebook size={16} />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => deleteItem(item.id)}
-                                                                                aria-label="Delete plan item"
-                                                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-crimson)', padding: '4px' }}
-                                                                            >
-                                                                                <GiCancel size={16} />
-                                                                            </button>
+                                                                            {item.cost && (
+                                                                                <span><GiCoins /> {item.cost}</span>
+                                                                            )}
+                                                                            {item.duration && (
+                                                                                <span><GiHourglass /> {item.duration}</span>
+                                                                            )}
                                                                         </div>
                                                                     </div>
-
-                                                                    {/* Metadata Row */}
-                                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                                                        {item.place_data && item.place_data.rating && (
-                                                                            <span style={{ color: '#f39c12' }}>★ {item.place_data.rating}</span>
-                                                                        )}
-                                                                        {item.cost && (
-                                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}><GiCoins /> {item.cost}</span>
-                                                                        )}
-                                                                        {item.duration && (
-                                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}><GiHourglass /> {item.duration}</span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
+                                                                </Card>
                                                             </div>
-                                                        </div>
+                                                        )}
                                                     </SortableItem>
 
                                                     {/* Travel Time Connector */}
                                                     {travelTimes[item.id] && index !== arr.length - 1 && (
-                                                        <div style={{
-                                                            paddingLeft: '60px', // Align with content
-                                                            margin: '0.5rem 0',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '8px',
-                                                            color: 'var(--text-gold)',
-                                                            fontSize: '0.85rem',
-                                                            fontFamily: 'var(--font-mono)'
-                                                        }}>
-                                                            <div style={{ width: '2px', height: '20px', background: 'var(--border-gold)', margin: '0 8px' }}></div>
-                                                            <span>🚗 {travelTimes[item.id]} drive</span>
-                                                        </div>
+                                                        <p className="tl-travel">
+                                                            <span className="tl-travel__tick" />
+                                                            🚗 {travelTimes[item.id]} drive
+                                                        </p>
                                                     )}
                                                     {/* Spacer if no travel time but not last */}
-                                                    {!travelTimes[item.id] && index !== arr.length - 1 && <div style={{ height: '1rem' }}></div>}
+                                                    {!travelTimes[item.id] && index !== arr.length - 1 && <span className="tl-gap" />}
                                                 </React.Fragment>
                                             ))}
                                         </SortableContext>
                                     </DndContext>
-
-                                    {/* Link Travel Times based on ORDER index */}
-                                    {/* NOTE: travelTimes uses ID to map, so it might lag a bit behind drag until recalculate happens. 
-                                        But re-render will map correctly. 
-                                    */}
-                                    {/* We can't easily intersperse travel time divs inside SortableContext efficiently without making them sortable too or complex.
-                                        Alternative: put them inside the SortableItem bottom? 
-                                    */}
-
                                 </div>
                             </div>
                         </div>
                     </>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-                        <GiTreasureMap size={64} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-                        <p style={{ fontSize: '1.2rem' }}>Select an itinerary or start a new daydream.</p>
+                    <div className="daydream__blank">
+                        <EmptyState
+                            icon={<GiTreasureMap />}
+                            message="Select an itinerary or start a new daydream."
+                            actionLabel="Start a new daydream"
+                            onAction={() => setIsCreating(true)}
+                        />
                     </div>
                 )}
-            </div>
+            </section>
         </div>
     );
 };

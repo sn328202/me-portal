@@ -5,7 +5,12 @@ import usePlacesAutocomplete, {
 } from 'use-places-autocomplete';
 import { GiPositionMarker } from 'react-icons/gi';
 
-const PlacesSearch = ({ onSelect, placeholder = "Search for locations...", style = {} }) => {
+/**
+ * Google Places autocomplete. Used only by The Daydream, so its styling
+ * lives in styles/DayPlanner.css. `id` is forwarded to the input so a
+ * <Field> label can point at it.
+ */
+const PlacesSearch = ({ onSelect, placeholder = 'Search for locations...', id, className = '', ...rest }) => {
     const {
         ready,
         value,
@@ -44,44 +49,24 @@ const PlacesSearch = ({ onSelect, placeholder = "Search for locations...", style
                 place_id
             });
         } catch (error) {
-            console.error("Error: ", error);
+            console.error('Error: ', error);
         }
     };
 
     return (
-        <div style={{ position: 'relative', width: '100%', ...style }}>
+        <div className="places-search">
             <input
+                id={id}
+                className={['input', className].filter(Boolean).join(' ')}
                 value={value}
                 onChange={handleInput}
                 disabled={!ready}
                 placeholder={placeholder}
-                style={{
-                    width: '100%',
-                    padding: '8px',
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid var(--border-dim)',
-                    color: 'var(--text-main)',
-                    fontFamily: 'inherit',
-                    ...style
-                }}
+                {...rest}
             />
 
-            {status === "OK" && (
-                <ul style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    background: 'var(--bg-panel)',
-                    border: '1px solid var(--border-dim)',
-                    zIndex: 1000,
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0,
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                }}>
+            {status === 'OK' && (
+                <ul className="places-search__list">
                     {data.map((suggestion) => {
                         const {
                             place_id,
@@ -89,25 +74,18 @@ const PlacesSearch = ({ onSelect, placeholder = "Search for locations...", style
                         } = suggestion;
 
                         return (
-                            <li
-                                key={place_id}
-                                onClick={() => handleSelect(suggestion)}
-                                style={{
-                                    padding: '8px 12px',
-                                    cursor: 'pointer',
-                                    borderBottom: '1px solid var(--border-dim)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-gold-dim)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                            >
-                                <GiPositionMarker style={{ opacity: 0.5 }} />
-                                <div>
-                                    <strong>{main_text}</strong>
-                                    <span style={{ fontSize: '0.8rem', opacity: 0.7, marginLeft: '6px' }}>{secondary_text}</span>
-                                </div>
+                            <li key={place_id}>
+                                <button
+                                    type="button"
+                                    className="places-search__option"
+                                    onClick={() => handleSelect(suggestion)}
+                                >
+                                    <GiPositionMarker />
+                                    <span>
+                                        <strong>{main_text}</strong>
+                                        <span className="places-search__secondary">{secondary_text}</span>
+                                    </span>
+                                </button>
                             </li>
                         );
                     })}

@@ -1,5 +1,9 @@
 import React, { useMemo } from 'react';
-import { GiKnifeFork, GiClockwork, GiFire, GiCheckMark, GiCancel, GiCookingPot, GiQuill, GiWorld } from 'react-icons/gi';
+import {
+    GiKnifeFork, GiClockwork, GiFire, GiCheckMark,
+    GiCancel, GiCookingPot, GiQuill, GiWorld
+} from 'react-icons/gi';
+import { Button, Card, Stat, Tag } from './ui';
 
 const RecipeDetail = ({ recipe, onClose, onEdit, onCook, ingredientsByName }) => {
 
@@ -8,7 +12,7 @@ const RecipeDetail = ({ recipe, onClose, onEdit, onCook, ingredientsByName }) =>
         if (!recipe.ingredients || recipe.ingredients.length === 0) return { percent: 0, matches: [] };
 
         const matches = recipe.ingredients.map(ing => {
-            const cleanName = ing.item.toLowerCase().trim();
+            const cleanName = (ing.item || '').toLowerCase().trim();
             // Check by name
             const pantryItem = ingredientsByName[cleanName];
             const inStock = pantryItem && pantryItem.in_stock;
@@ -21,150 +25,91 @@ const RecipeDetail = ({ recipe, onClose, onEdit, onCook, ingredientsByName }) =>
         return { percent, matches };
     }, [recipe, ingredientsByName]);
 
-    // Better Match Logic:
-    // We render the list. The user can visually check. 
-    // Automating "Do I have 'large eggs'?" when I have "Eggs" is hard without fuzzy logic.
-    // Let's just list them nicely.
-
-    const formatTime = (iso) => {
-        if (!iso) return '-';
-        return iso; // Already formatted in hook usually (1h 30m)
-    };
+    const sourceHost = (() => {
+        if (!recipe.source_url) return null;
+        try {
+            return new URL(recipe.source_url).hostname;
+        } catch {
+            return 'External Link';
+        }
+    })();
 
     return (
-        <div style={{
-            background: 'var(--bg-panel)',
-            border: 'var(--border-double)',
-            padding: '2rem',
-            maxWidth: '900px',
-            margin: '0 auto',
-            position: 'relative',
-            color: 'var(--text-main)',
-            fontFamily: 'var(--font-body)'
-        }}>
+        <Card className="recipe-detail">
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
-                <h1 style={{ fontFamily: 'var(--font-display)', margin: 0, fontSize: '2.5rem', color: 'var(--text-gold)', lineHeight: 1.2 }}>
-                    {recipe.title}
-                </h1>
-                {recipe.source_url && (
-                    <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'underline', marginTop: '0.5rem' }}>
-                        <GiWorld /> Original Formula ({(() => {
-                            try {
-                                return new URL(recipe.source_url).hostname;
-                            } catch {
-                                return 'External Link';
-                            }
-                        })()})
-                    </a>
-                )}
-                <div style={{ marginLeft: '1rem', padding: '4px 8px', background: 'var(--bg-main)', border: '1px solid var(--accent-gold)', borderRadius: '4px', color: 'var(--text-gold)', fontSize: '0.9rem', fontFamily: 'var(--font-mono)' }}>
-                    Pantry Match: {matchData.percent}%
+            <div className="recipe-detail__head">
+                <div className="recipe-detail__identity">
+                    <h1 className="recipe-detail__title">{recipe.title}</h1>
+                    <div className="recipe-detail__meta">
+                        <Tag tone="gold">Pantry Match: {matchData.percent}%</Tag>
+                        {recipe.source_url && (
+                            <a
+                                className="recipe-detail__source"
+                                href={recipe.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <GiWorld /> Original Formula ({sourceHost})
+                            </a>
+                        )}
+                    </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button onClick={onEdit} style={btnStyle}>
-                        <GiQuill /> Edit
-                    </button>
-                    <button onClick={onClose} style={{ ...btnStyle, color: 'var(--accent-crimson)', borderColor: 'var(--accent-crimson)' }}>
-                        <GiCancel /> Close
-                    </button>
+                <div className="recipe-detail__actions">
+                    <Button onClick={onEdit}><GiQuill /> Edit</Button>
+                    <Button variant="danger" onClick={onClose}><GiCancel /> Close</Button>
                 </div>
             </div>
 
-            {/* Metadata Grid */}
-            <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-                gap: '1rem', marginBottom: '2rem',
-                borderTop: '1px solid var(--border-gold)', borderBottom: '1px solid var(--border-gold)',
-                padding: '1rem 0'
-            }}>
-                <Stat icon={<GiKnifeFork />} label="Servings" value={recipe.servings} />
-                <Stat icon={<GiClockwork />} label="Prep" value={recipe.prep_time} />
-                <Stat icon={<GiFire />} label="Cook" value={recipe.cook_time} />
-                <Stat icon={<GiCheckMark />} label="Total" value={recipe.total_time} />
+            {/* Metadata */}
+            <div className="stat-row recipe-detail__stats">
+                <Stat icon={<GiKnifeFork />} label="Servings" value={recipe.servings || '-'} />
+                <Stat icon={<GiClockwork />} label="Prep" value={recipe.prep_time || '-'} />
+                <Stat icon={<GiFire />} label="Cook" value={recipe.cook_time || '-'} />
+                <Stat icon={<GiCheckMark />} label="Total" value={recipe.total_time || '-'} />
             </div>
 
-            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+            <div className="recipe-detail__columns">
                 {/* Ingredients Column */}
-                <div style={{ flex: 1, minWidth: '300px' }}>
-                    <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', borderBottom: '1px dashed var(--text-muted)' }}>Provisions</h3>
-                    <ul style={{ listStyle: 'none', padding: 0 }}>
+                <div>
+                    <h3 className="section-title">Provisions</h3>
+                    <ul className="recipe-detail__provisions">
                         {matchData.matches.map((ing, i) => (
-                            <li key={i} style={{
-                                padding: '8px 0',
-                                borderBottom: '1px solid var(--border-dim)',
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                            }}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {ing.inStock ?
-                                        <GiCheckMark style={{ color: 'var(--accent-gold)' }} /> :
-                                        <span style={{ width: '16px' }}></span>
-                                    }
-                                    <span style={{ opacity: ing.inStock ? 1 : 0.7 }}>
+                            <li key={i} className="recipe-detail__provision">
+                                <span className="recipe-detail__provision-name">
+                                    <span className="recipe-detail__check" aria-hidden={!ing.inStock}>
+                                        {ing.inStock && <GiCheckMark />}
+                                    </span>
+                                    <span>
                                         <strong>{ing.amount} {ing.unit}</strong> {ing.item}
                                     </span>
+                                    {ing.inStock && <span className="visually-hidden">(in stock)</span>}
                                 </span>
-                                {ing.notes && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>({ing.notes})</span>}
+                                {ing.notes && <span className="recipe-detail__note">({ing.notes})</span>}
                             </li>
                         ))}
                     </ul>
                 </div>
 
                 {/* Instructions Column & Image */}
-                <div style={{ flex: 1.5, minWidth: '300px' }}>
+                <div className="recipe-detail__method-col">
                     {recipe.image_url && (
-                        <div style={{
-                            width: '100%', height: '300px', marginBottom: '2rem',
-                            borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-gold)'
-                        }}>
-                            <img src={recipe.image_url} alt={recipe.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div className="recipe-detail__image">
+                            <img src={recipe.image_url} alt={recipe.title} />
                         </div>
                     )}
 
-                    <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-gold)', borderBottom: '1px dashed var(--text-muted)' }}>The Ritual</h3>
-                    <div style={{ whiteSpace: 'pre-line', lineHeight: '1.8' }}>
+                    <h3 className="section-title">The Ritual</h3>
+                    <div className="recipe-detail__method prose">
                         {recipe.instructions}
                     </div>
 
-                    <button onClick={onCook} style={{
-                        marginTop: '3rem',
-                        width: '100%',
-                        padding: '1rem',
-                        background: 'var(--accent-gold)',
-                        color: 'var(--bg-main)',
-                        border: '1px solid var(--border-gold)',
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '1.5rem',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
-                        textTransform: 'uppercase'
-                    }}>
-                        <GiCookingPot size={32} /> Commence Cooking
-                    </button>
+                    <Button variant="solid" block className="recipe-detail__cook" onClick={onCook}>
+                        <GiCookingPot size={28} /> Commence Cooking
+                    </Button>
                 </div>
             </div>
-        </div>
+        </Card>
     );
-};
-
-const Stat = ({ icon, label, value }) => (
-    <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '1.5rem', color: 'var(--text-gold)', marginBottom: '0.2rem' }}>{icon}</div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>
-        <div style={{ fontWeight: 'bold' }}>{value || '-'}</div>
-    </div>
-);
-
-const btnStyle = {
-    background: 'transparent',
-    border: '1px solid var(--border-dim)',
-    color: 'var(--text-main)',
-    padding: '8px 16px',
-    cursor: 'pointer',
-    fontFamily: 'var(--font-display)',
-    display: 'flex', alignItems: 'center', gap: '0.5rem',
-    textTransform: 'uppercase'
 };
 
 export default RecipeDetail;

@@ -1,7 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { GiRoundBottomFlask, GiTestTubes, GiCheckMark, GiFeather, GiTiedScroll } from 'react-icons/gi';
+import { GiRoundBottomFlask, GiTestTubes, GiCheckMark, GiFeather, GiTiedScroll, GiTrashCan } from 'react-icons/gi';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { Button, Card, Field, ConfirmButton, EmptyState } from './ui';
+
+/* Column accents used to be a hardcoded Material palette (#795548,
+   #d84315, #fbc02d, #2e7d32) that stayed brown-and-orange on all seven
+   skins. They are now palette variables, so the board recolours with
+   the room. */
+const COLUMNS = {
+    backlog: { id: 'backlog', title: 'Ideas & Backlog', icon: GiFeather, color: 'var(--text-muted)' },
+    inprogress: { id: 'inprogress', title: 'In the Workshop', icon: GiRoundBottomFlask, color: 'var(--accent-gold)' },
+    review: { id: 'review', title: 'Review', icon: GiTestTubes, color: 'var(--accent-crimson)' },
+    deployed: { id: 'deployed', title: 'Deployed', icon: GiCheckMark, color: 'var(--accent-green)' }
+};
+
+const COLUMN_KEYS = Object.keys(COLUMNS);
+
+/* Project spine colours. Stored verbatim in `projects.color`; rows
+   written before this change still hold hex literals and keep working,
+   because an inline style accepts either. */
+const PROJECT_COLORS = [
+    'var(--accent-gold)',
+    'var(--accent-green)',
+    'var(--accent-crimson)',
+    'var(--accent-red)',
+    'var(--text-highlight)',
+    'var(--border-gold)'
+];
 
 const KanbanBoard = () => {
     const { user } = useAuth();
@@ -14,15 +40,6 @@ const KanbanBoard = () => {
     const [selectedProjectFilter, setSelectedProjectFilter] = useState('All');
     const [addingToColumn, setAddingToColumn] = useState(null); // Column ID being added to
     const [editingTask, setEditingTask] = useState(null); // Task ID being edited
-    const [deleteConfirm, setDeleteConfirm] = useState(null); // ID of item being confirmed for delete (proj or task)
-
-    // Config: Columns
-    const COLUMNS = {
-        backlog: { id: 'backlog', title: 'Ideas & Backlog', icon: GiFeather, color: '#795548' },
-        inprogress: { id: 'inprogress', title: 'In the Workshop', icon: GiRoundBottomFlask, color: '#d84315' },
-        review: { id: 'review', title: 'Review', icon: GiTestTubes, color: '#fbc02d' },
-        deployed: { id: 'deployed', title: 'Deployed', icon: GiCheckMark, color: '#2e7d32' }
-    };
 
     // Load Filter Preference
     useEffect(() => {
@@ -32,6 +49,11 @@ const KanbanBoard = () => {
         }
     }, [user]);
 
+    // NOTE: intentionally not keyed on `user`. `projects` / `project_tasks`
+    // carry no user_id column yet (see the audit's schema item), so the query
+    // is identical for every session and adding the dependency would only
+    // refetch the same rows each time auth state settles. Revisit when those
+    // tables get a user_id and the select starts filtering on it.
     useEffect(() => {
         fetchData();
     }, []);
@@ -69,8 +91,7 @@ const KanbanBoard = () => {
     const handleAddProject = async (e) => {
         e.preventDefault();
         if (!newProjectName.trim()) return;
-        const colors = ['#5d4037', '#00695c', '#c62828', '#283593', '#4e342e', '#f9a825'];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        const randomColor = PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)];
 
         const { data, error } = await supabase
             .from('projects')
@@ -88,20 +109,14 @@ const KanbanBoard = () => {
     };
 
     const handleDeleteProject = async (pid) => {
-        if (deleteConfirm === pid) {
-            const { error } = await supabase.from('projects').delete().eq('id', pid);
-            if (error) {
-                console.error(error);
-                alert('Failed to delete project');
-            } else {
-                setProjects(prev => prev.filter(p => p.id !== pid));
-                setTasks(prev => prev.filter(t => t.project_id !== pid));
-                if (selectedProjectFilter === pid) setSelectedProjectFilter('All');
-                setDeleteConfirm(null);
-            }
+        const { error } = await supabase.from('projects').delete().eq('id', pid);
+        if (error) {
+            console.error(error);
+            alert('Failed to delete project');
         } else {
-            setDeleteConfirm(pid);
-            setTimeout(() => setDeleteConfirm(null), 3000);
+            setProjects(prev => prev.filter(p => p.id !== pid));
+            setTasks(prev => prev.filter(t => t.project_id !== pid));
+            if (selectedProjectFilter === pid) setSelectedProjectFilter('All');
         }
     };
 
@@ -165,12 +180,11 @@ const KanbanBoard = () => {
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
 
-        const colKeys = Object.keys(COLUMNS);
-        const idx = colKeys.indexOf(task.status);
+        const idx = COLUMN_KEYS.indexOf(task.status);
         const newIdx = idx + direction;
 
-        if (newIdx >= 0 && newIdx < colKeys.length) {
-            const newStatus = colKeys[newIdx];
+        if (newIdx >= 0 && newIdx < COLUMN_KEYS.length) {
+            const newStatus = COLUMN_KEYS[newIdx];
 
             // Optimistic Update
             setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
@@ -189,22 +203,16 @@ const KanbanBoard = () => {
     };
 
     const handleDeleteTask = async (taskId) => {
-        if (deleteConfirm === taskId) {
-            // Optimistic
-            setTasks(prev => prev.filter(t => t.id !== taskId));
-            setDeleteConfirm(null);
+        // Optimistic
+        setTasks(prev => prev.filter(t => t.id !== taskId));
 
-            const { error } = await supabase.from('project_tasks').delete().eq('id', taskId);
-            if (error) {
-                console.error(error);
-                // Actually hard to revert a delete easily without refetching or keeping copy.
-                // Just alert user.
-                alert('Failed to delete task');
-                fetchData(); // Sync back
-            }
-        } else {
-            setDeleteConfirm(taskId);
-            setTimeout(() => setDeleteConfirm(null), 3000);
+        const { error } = await supabase.from('project_tasks').delete().eq('id', taskId);
+        if (error) {
+            console.error(error);
+            // Actually hard to revert a delete easily without refetching or keeping copy.
+            // Just alert user.
+            alert('Failed to delete task');
+            fetchData(); // Sync back
         }
     };
 
@@ -213,198 +221,208 @@ const KanbanBoard = () => {
         ? tasks
         : tasks.filter(t => t.project_id === selectedProjectFilter);
 
+    const activeProject = projects.find(p => p.id === selectedProjectFilter);
 
     return (
-        <div style={{ padding: '1rem', fontFamily: 'var(--font-mono)', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div className="stack">
 
             {/* --- Control Deck --- */}
-            <div style={{ padding: '1rem', background: 'var(--bg-panel)', borderRadius: '4px', border: '1px solid var(--border-gold)', marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Card variant="flat">
+                <div className="row row--wrap" style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    {/* Project Filter */}
+                    <div className="row row--wrap" style={{ alignItems: 'flex-end' }}>
+                        <Field label="Active Project">
+                            <select
+                                className="select"
+                                value={selectedProjectFilter}
+                                onChange={(e) => setSelectedProjectFilter(e.target.value)}
+                            >
+                                <option value="All">All Projects</option>
+                                {projects.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </Field>
+                        {activeProject && (
+                            <ConfirmButton
+                                label="Dissolve Project"
+                                confirmLabel="Confirm Dissolve?"
+                                onConfirm={() => handleDeleteProject(activeProject.id)}
+                            >
+                                Dissolve Project
+                            </ConfirmButton>
+                        )}
+                    </div>
 
-                {/* Project Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <label style={{ fontWeight: 'bold', color: 'var(--text-gold)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <GiTiedScroll size={20} /> Active Project:
-                    </label>
-                    <select
-                        value={selectedProjectFilter}
-                        onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                        style={{ padding: '0.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-dim)', color: 'var(--text-main)', minWidth: '150px' }}
-                    >
-                        <option value="All">All Projects</option>
-                        {projects.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
-                    {selectedProjectFilter !== 'All' && (
-                        <button
-                            onClick={() => handleDeleteProject(selectedProjectFilter)}
-                            style={{
-                                fontSize: '0.8rem',
-                                color: deleteConfirm === selectedProjectFilter ? 'var(--text-main)' : 'var(--accent-crimson)',
-                                background: deleteConfirm === selectedProjectFilter ? 'var(--accent-crimson)' : 'transparent',
-                                border: 'none', cursor: 'pointer', textDecoration: deleteConfirm === selectedProjectFilter ? 'none' : 'underline',
-                                padding: deleteConfirm === selectedProjectFilter ? '0.2rem 0.5rem' : '0',
-                                borderRadius: '4px'
-                            }}
-                        >
-                            {deleteConfirm === selectedProjectFilter ? 'Confim Dissolve?' : 'Dissolve Project'}
-                        </button>
-                    )}
+                    {/* Add New Project */}
+                    <form onSubmit={handleAddProject} className="row" style={{ alignItems: 'flex-end' }}>
+                        <Field
+                            label="New Project"
+                            value={newProjectName}
+                            onChange={(e) => setNewProjectName(e.target.value)}
+                            placeholder="Name the undertaking..."
+                        />
+                        <Button type="submit" variant="primary">
+                            <GiTiedScroll /> Create
+                        </Button>
+                    </form>
                 </div>
-
-                {/* Add New Project */}
-                <form onSubmit={handleAddProject} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <input
-                        type="text"
-                        value={newProjectName}
-                        onChange={(e) => setNewProjectName(e.target.value)}
-                        placeholder="New Project Name..."
-                        style={{ padding: '0.5rem', border: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.2)', color: 'var(--text-main)', width: '200px' }}
-                    />
-                    <button type="submit" style={{ padding: '0.5rem 1rem', background: 'var(--accent-gold)', color: 'var(--bg-main)', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-                        Create Project
-                    </button>
-                </form>
-            </div>
-
+            </Card>
 
             {/* --- The Board --- */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', flex: 1, alignItems: 'start', overflow: 'hidden' }}>
-                {Object.values(COLUMNS).map(col => (
-                    <div key={col.id} style={{
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px dashed var(--border-dim)',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        height: '100%',
-                        overflow: 'hidden'
-                    }}>
-                        {/* Column Header */}
-                        <div style={{
-                            padding: '0.75rem',
-                            background: 'var(--bg-panel)',
-                            borderBottom: '1px solid var(--border-dim)',
-                            color: 'var(--text-main)',
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            flexShrink: 0
-                        }}>
-                            <span style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <col.icon color={col.color} /> {col.title}
-                            </span>
-                            <button
-                                onClick={() => setAddingToColumn(col.id)}
-                                title="Add Task to this Column"
-                                aria-label={`Add task to ${col.title}`}
-                                style={{
-                                    background: col.color, color: '#fff',
-                                    border: 'none', borderRadius: '50%',
-                                    width: '24px', height: '24px',
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '1.2rem', paddingBottom: '2px'
-                                }}
+            {loading ? (
+                <p className="muted">Opening the ledger...</p>
+            ) : projects.length === 0 ? (
+                <EmptyState
+                    icon={<GiTiedScroll />}
+                    message="No undertakings on the ledger."
+                    hint="Name one above and the board will draw itself."
+                />
+            ) : (
+                /* Four fixed 1fr columns used to squeeze to ~85px each on a
+                   phone under `overflow: hidden`. Columns now hold a floor of
+                   15rem and the board scrolls sideways instead. */
+                <div
+                    style={{
+                        display: 'grid',
+                        gridAutoFlow: 'column',
+                        gridAutoColumns: 'minmax(15rem, 1fr)',
+                        gap: 'var(--space-4)',
+                        overflowX: 'auto',
+                        alignItems: 'start',
+                        paddingBottom: 'var(--space-2)'
+                    }}
+                >
+                    {Object.values(COLUMNS).map((col, colIndex) => {
+                        const columnTasks = filteredTasks.filter(t => t.status === col.id);
+
+                        return (
+                            <Card
+                                key={col.id}
+                                variant="flat"
+                                scroll
+                                icon={<col.icon color={col.color} />}
+                                title={col.title}
+                                actions={
+                                    <Button
+                                        icon
+                                        size="sm"
+                                        label={`Add task to ${col.title}`}
+                                        onClick={() => setAddingToColumn(col.id)}
+                                    >
+                                        +
+                                    </Button>
+                                }
                             >
-                                +
-                            </button>
-                        </div>
-
-                        {/* Quick Add Form */}
-                        {addingToColumn === col.id && (
-                            <div style={{ padding: '0.5rem', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border-dim)' }}>
-                                <form onSubmit={(e) => handleSaveNewTask(e, col.id)}>
-                                    <input
-                                        name="taskTitle"
-                                        autoFocus
-                                        placeholder="New task..."
-                                        style={{ width: '100%', padding: '0.4rem', border: '1px solid var(--border-dim)', marginBottom: '0.4rem', background: 'rgba(0,0,0,0.1)', color: 'var(--text-main)' }}
-                                    />
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button type="submit" style={{ flex: 1, background: 'var(--accent-gold)', color: 'var(--bg-main)', border: 'none', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem', fontWeight: 'bold' }}>Add</button>
-                                        <button type="button" onClick={() => setAddingToColumn(null)} style={{ flex: 1, background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-dim)', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem' }}>Cancel</button>
-                                    </div>
-                                </form>
-                            </div>
-                        )}
-
-                        {/* Task List */}
-                        <div style={{ flex: 1, padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' }}>
-                            {filteredTasks.filter(t => t.status === col.id).map(task => {
-                                const proj = projects.find(p => p.id === task.project_id);
-
-                                return (
-                                    <div key={task.id} style={{
-                                        background: 'var(--bg-panel)',
-                                        padding: '0.75rem',
-                                        borderRadius: '2px',
-                                        boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                                        borderLeft: `4px solid ${proj ? proj.color : '#999'}`,
-                                        border: '1px solid var(--border-dim)', // Main border
-                                        borderLeftWidth: '4px', // Override left
-                                        position: 'relative'
-                                    }}>
-                                        {/* Project Tag */}
-                                        <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>{proj ? proj.name : 'Unknown Project'}</span>
-                                        </div>
-
-                                        {/* Content */}
-                                        {editingTask === task.id ? (
-                                            <form onSubmit={(e) => handleUpdateTaskTitle(e, task.id)} style={{ marginBottom: '0.5rem' }}>
-                                                <input
-                                                    name="editTitle"
-                                                    defaultValue={task.title}
-                                                    autoFocus
-                                                    style={{ width: '100%', padding: '0.4rem', border: '1px solid var(--active-border)', background: 'rgba(0,0,0,0.2)', color: 'var(--text-main)' }}
-                                                    onBlur={() => setEditingTask(null)} // Save/Cancel on blur
-                                                />
-                                            </form>
-                                        ) : (
-                                            <div
-                                                onClick={() => setEditingTask(task.id)}
-                                                style={{ color: 'var(--text-main)', marginBottom: '0.5rem', cursor: 'text', fontSize: '0.9rem', lineHeight: '1.4' }}
-                                                title="Click to edit"
-                                            >
-                                                {task.title}
+                                <div className="stack">
+                                    {/* Quick Add Form */}
+                                    {addingToColumn === col.id && (
+                                        <form onSubmit={(e) => handleSaveNewTask(e, col.id)} className="stack">
+                                            <Field
+                                                label={`New task in ${col.title}`}
+                                                name="taskTitle"
+                                                autoFocus
+                                                placeholder="New task..."
+                                            />
+                                            <div className="row">
+                                                <Button type="submit" variant="primary" size="sm">Add</Button>
+                                                <Button size="sm" onClick={() => setAddingToColumn(null)}>Cancel</Button>
                                             </div>
-                                        )}
+                                        </form>
+                                    )}
 
-                                        {/* Controls */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed var(--border-dim)', paddingTop: '0.5rem' }}>
-                                            <button
-                                                disabled={col.id === 'backlog'}
-                                                onClick={() => handleMoveTask(task.id, -1)}
-                                                aria-label={`Move "${task.title}" to the previous column`}
-                                                style={{ cursor: 'pointer', border: 'none', background: 'transparent', opacity: col.id === 'backlog' ? 0.2 : 0.6, color: 'var(--text-main)' }}
-                                            >←</button>
+                                    {columnTasks.length === 0 && addingToColumn !== col.id && (
+                                        <p className="muted">Nothing filed here.</p>
+                                    )}
 
-                                            <button
-                                                onClick={() => handleDeleteTask(task.id)}
-                                                aria-label={deleteConfirm === task.id ? `Confirm deletion of "${task.title}"` : `Delete task "${task.title}"`}
-                                                style={{
-                                                    cursor: 'pointer', border: 'none', background: 'transparent',
-                                                    color: deleteConfirm === task.id ? 'var(--accent-crimson)' : 'var(--text-muted)',
-                                                    fontWeight: deleteConfirm === task.id ? 'bold' : 'normal',
-                                                    opacity: deleteConfirm === task.id ? 1 : 0.5,
-                                                    fontSize: '0.8rem'
-                                                }}
+                                    {columnTasks.map(task => {
+                                        const proj = projects.find(p => p.id === task.project_id);
+                                        const spine = proj?.color || 'var(--border-dim)';
+
+                                        return (
+                                            <Card
+                                                key={task.id}
+                                                variant="flat"
+                                                style={{ borderLeft: `4px solid ${spine}` }}
                                             >
-                                                {deleteConfirm === task.id ? 'Confirm?' : '×'}
-                                            </button>
+                                                {/* Project Tag */}
+                                                <p className="muted" style={{ margin: 0, fontSize: 'var(--text-2xs)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)' }}>
+                                                    {proj ? proj.name : 'Unknown Project'}
+                                                </p>
 
-                                            <button
-                                                disabled={col.id === 'deployed'}
-                                                onClick={() => handleMoveTask(task.id, 1)}
-                                                aria-label={`Move "${task.title}" to the next column`}
-                                                style={{ cursor: 'pointer', border: 'none', background: 'transparent', opacity: col.id === 'deployed' ? 0.2 : 0.6, color: 'var(--text-main)' }}
-                                            >→</button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))}
-            </div>
+                                                {/* Content */}
+                                                {editingTask === task.id ? (
+                                                    <form onSubmit={(e) => handleUpdateTaskTitle(e, task.id)}>
+                                                        <Field
+                                                            label={`Rename "${task.title}"`}
+                                                            name="editTitle"
+                                                            defaultValue={task.title}
+                                                            autoFocus
+                                                            onBlur={() => setEditingTask(null)} // Save/Cancel on blur
+                                                        />
+                                                    </form>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditingTask(task.id)}
+                                                        title="Click to edit"
+                                                        style={{
+                                                            display: 'block',
+                                                            width: '100%',
+                                                            textAlign: 'left',
+                                                            font: 'inherit',
+                                                            color: 'var(--text-main)',
+                                                            fontSize: 'var(--text-sm)',
+                                                            lineHeight: 'var(--leading-snug)',
+                                                            cursor: 'text'
+                                                        }}
+                                                    >
+                                                        {task.title}
+                                                    </button>
+                                                )}
+
+                                                {/* Controls */}
+                                                <div className="row" style={{ justifyContent: 'space-between', borderTop: 'var(--rule-hair)', paddingTop: 'var(--space-2)' }}>
+                                                    <Button
+                                                        icon
+                                                        size="sm"
+                                                        disabled={colIndex === 0}
+                                                        onClick={() => handleMoveTask(task.id, -1)}
+                                                        label={colIndex === 0
+                                                            ? `"${task.title}" is already in the first column`
+                                                            : `Move "${task.title}" to ${COLUMNS[COLUMN_KEYS[colIndex - 1]].title}`}
+                                                    >
+                                                        &larr;
+                                                    </Button>
+
+                                                    <ConfirmButton
+                                                        icon={<GiTrashCan />}
+                                                        label={`Delete task "${task.title}"`}
+                                                        confirmLabel="Confirm?"
+                                                        onConfirm={() => handleDeleteTask(task.id)}
+                                                    />
+
+                                                    <Button
+                                                        icon
+                                                        size="sm"
+                                                        disabled={colIndex === COLUMN_KEYS.length - 1}
+                                                        onClick={() => handleMoveTask(task.id, 1)}
+                                                        label={colIndex === COLUMN_KEYS.length - 1
+                                                            ? `"${task.title}" is already in the last column`
+                                                            : `Move "${task.title}" to ${COLUMNS[COLUMN_KEYS[colIndex + 1]].title}`}
+                                                    >
+                                                        &rarr;
+                                                    </Button>
+                                                </div>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 };
