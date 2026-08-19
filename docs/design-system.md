@@ -77,32 +77,44 @@ Utility classes: `.page` `.stack` `.row` `.row--wrap` `.spacer` `.muted`
 
 ## Dark Academia — what the palette is doing
 
-The aesthetic's own sources are consistent: deep browns, forest green,
-burgundy/oxblood, navy, and ivory/cream, with **brass as an accent**, and a
-chiaroscuro contrast between candlelight and shadow. The reference points are
-Gothic and Neoclassical interiors — mahogany panelling, wrought iron, leather
-bindings, rusticated stone.
+The aesthetic's sources are consistent: deep browns, forest green,
+burgundy/oxblood, ivory and cream, with chiaroscuro between candlelight and
+shadow. But they also describe it as *romantic* — Pre-Raphaelite, velvet,
+wine, firelight — and a first pass that reads the sources as "brown plus
+brass" lands somewhere colder and more austere than the aesthetic actually
+is. Brass is a real part of the palette; it just should not be the loudest
+thing in the room.
 
-The original theme was near-black `#0c0a09` plus a saturated yellow gold
-`#cfb53b`, and that gold was assigned to every role at once: headings, borders,
-buttons, corner ornaments, values and active states. Two colours doing
-everything reads as goth or arcade, not as a library.
+The original theme was near-black `#0c0a09` plus saturated yellow gold
+`#cfb53b`, with that gold assigned to every role at once — headings,
+borders, buttons, ornaments, values, active states. Measured by hue, its
+accent (42°), border (41°) and muted text (36°) all sat in the khaki band,
+which is precisely what made it read as "yellow and dark brown".
 
-What it is now:
+Where it landed:
 
-| role | value | why |
-|---|---|---|
-| ground | `#171310` | bistre, not black — the room is made of something |
-| panel | `#201a15` | walnut, lifted so cards read as objects on a surface |
-| text | `#ece2d2` | parchment, warm — cream is core to the palette |
-| brass | `#c9a961` | antique brass, desaturated from the old yellow gold |
-| oxblood | `#7b2d3a` (`--fill-strong`) | structural fill; 7.19:1 under parchment |
-| moss | `#3f5b45` (`--fill-quiet`) | the forest green the palette calls for |
+| role | value | hue | why |
+|---|---|---|---|
+| ground | `#201620` | plum-cocoa | lifted out of near-black; velvet, not ink |
+| panel | `#2b1f2a` | — | a clear step above the page, so cards are objects on a surface |
+| text | `#f2e6de` | 21° | warm ivory with a pink bias |
+| metal | `#d9a37c` | 24° | **copper, not brass** — the single change that removes the yellow |
+| rose | `#dc8b95` | 352° | antique rose for accents and destructive states |
+| burgundy | `#71263c` (`--fill-strong`) | 342° | structural fill; 8.39:1 under parchment |
+| sage | `#4f5d4d` (`--fill-quiet`) | — | the palette's green, kept quiet |
 
-And brass now has a job rather than every job: headings take
-`--text-heading` (parchment), while brass is reserved for accent, value,
-active state and the corner ornaments — which dropped to `0.38` opacity so
-they read as a glint rather than a gilt frame.
+**No token sits between hue 40 and 70** — the khaki band is empty by
+construction, and that is the property to preserve if this ever gets
+adjusted again.
+
+Brass/copper also has one job rather than all of them: headings take
+`--text-heading` (parchment), and the metal is reserved for accent, value,
+active state and the corner ornaments, which sit at `0.38` opacity.
+
+The background is a pair of very low-opacity radial washes — candlelight
+falling into the room from the top left, wine pooling bottom right — rather
+than the previous `feTurbulence` fractal-noise SVG, which rendered as a
+visible grey speckle over everything.
 
 Every text token clears 4.5:1 and every border 3:1 against both the page and
 the panel. `node scripts/shots.mjs --themes dark-academia` re-renders it.
