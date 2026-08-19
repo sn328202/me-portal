@@ -11,29 +11,29 @@
 
 :root {
     /* --- Surfaces: The Old Box palette, Victorian mystery --- */
-    --bg-main: #0c0a09;
-    --bg-panel: #141210;
-    --bg-hover: #1f1a16;
+    --bg-main: #171310;
+    --bg-panel: #201a15;
+    --bg-hover: #2c241c;
 
     /* --- Text --- */
-    --text-main: #e8e6e3;
-    --text-muted: #8c857b;
-    --text-dim: #a39b8f;
-    --text-gold: #cfb53b;
-    --text-highlight: #ffdd99;
+    --text-main: #ece2d2;
+    --text-muted: #a4957f;
+    --text-dim: #c0b29a;
+    --text-gold: #c9a961;
+    --text-highlight: #e9d4a0;
 
     /* --- Accents --- */
-    --accent-gold: #cfb53b;
-    --accent-gold-dim: rgba(207, 181, 59, 0.18);
-    --accent-crimson: #be606b;
-    --accent-green: #6f9c8a;
-    --accent-red: #e2707c;
+    --accent-gold: #c9a961;
+    --accent-gold-dim: rgba(201, 169, 97, 0.16);
+    --accent-crimson: #c4757a;
+    --accent-green: #8aa87f;
+    --accent-red: #d97a7a;
 
     /* --- Borders --- */
-    --border-gold: #8a7e57;
-    --border-bright: #cfb53b;
-    --border-dim: #6e675a;
-    --active-border: #cfb53b;
+    --border-gold: #8c7645;
+    --border-bright: #c9a961;
+    --border-dim: #776a58;
+    --active-border: #c9a961;
 
     /* --- Faces --- */
     --font-display: 'Playfair Display', serif;
@@ -42,9 +42,9 @@
     --font-serif: 'Cormorant Garamond', Georgia, serif;
 
     /* --- Effects --- */
-    --glass-panel: rgba(20, 18, 16, 0.95);
-    --bg-main-rgb: 12, 10, 9;
-    --glow-gold: 0 0 10px rgba(207, 181, 59, 0.2);
+    --glass-panel: rgba(32, 26, 21, 0.95);
+    --bg-main-rgb: 23, 19, 16;
+    --glow-gold: 0 0 12px rgba(201, 169, 97, 0.18);
 
     --bg-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.07'/%3E%3C/svg%3E");
 }

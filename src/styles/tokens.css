@@ -144,6 +144,21 @@
     --pad-page: var(--space-6);
 
 
+    /* --- Semantic roles ------------------------------------
+       Brass was doing every job in the app at once — heading,
+       border, button, ornament and value — which is as much of
+       why Dark Academia read as goth rather than as a library
+       as the hue was. Headings take the reading colour; brass
+       is reserved for accent, value and active state. */
+    --text-heading: var(--text-main);
+
+    /* Structural fills: deep enough to sit under parchment text,
+       for things that want to be a material rather than an
+       outline (mission tags, category rules). THEMEABLE. */
+    --fill-strong: #7b2d3a;
+    --fill-quiet: #3f5b45;
+
+
     /* --- Layout --------------------------------------------
        Constant across themes. */
     --page-max: 1440px;

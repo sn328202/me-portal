@@ -111,8 +111,11 @@
     top: var(--space-2);
     right: var(--space-2);
     padding: 2px var(--space-2);
-    background: var(--accent-crimson);
-    color: #fff;
+    /* A Mission File tag should read as stamped oxblood leather, not as a
+       pink chip. --fill-strong is deep enough to carry parchment text and
+       is themed, so it stays coherent on every skin. */
+    background: var(--fill-strong);
+    color: var(--text-main);
     font-family: var(--font-body);
     font-size: var(--text-2xs);
     letter-spacing: var(--tracking-label);

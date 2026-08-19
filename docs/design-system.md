@@ -74,3 +74,38 @@ Utility classes: `.page` `.stack` `.row` `.row--wrap` `.spacer` `.muted`
 4. **Destructive actions use `ConfirmButton`**, never `window.confirm`.
 5. **Card list heights** come from `scroll` / `scroll="tall"`, not a
    hand-picked pixel height. Cards in a row should line up.
+
+## Dark Academia — what the palette is doing
+
+The aesthetic's own sources are consistent: deep browns, forest green,
+burgundy/oxblood, navy, and ivory/cream, with **brass as an accent**, and a
+chiaroscuro contrast between candlelight and shadow. The reference points are
+Gothic and Neoclassical interiors — mahogany panelling, wrought iron, leather
+bindings, rusticated stone.
+
+The original theme was near-black `#0c0a09` plus a saturated yellow gold
+`#cfb53b`, and that gold was assigned to every role at once: headings, borders,
+buttons, corner ornaments, values and active states. Two colours doing
+everything reads as goth or arcade, not as a library.
+
+What it is now:
+
+| role | value | why |
+|---|---|---|
+| ground | `#171310` | bistre, not black — the room is made of something |
+| panel | `#201a15` | walnut, lifted so cards read as objects on a surface |
+| text | `#ece2d2` | parchment, warm — cream is core to the palette |
+| brass | `#c9a961` | antique brass, desaturated from the old yellow gold |
+| oxblood | `#7b2d3a` (`--fill-strong`) | structural fill; 7.19:1 under parchment |
+| moss | `#3f5b45` (`--fill-quiet`) | the forest green the palette calls for |
+
+And brass now has a job rather than every job: headings take
+`--text-heading` (parchment), while brass is reserved for accent, value,
+active state and the corner ornaments — which dropped to `0.38` opacity so
+they read as a glint rather than a gilt frame.
+
+Every text token clears 4.5:1 and every border 3:1 against both the page and
+the panel. `node scripts/shots.mjs --themes dark-academia` re-renders it.
+
+Sources: [Aesthetics Wiki](https://aesthetics.fandom.com/wiki/Dark_Academia) ·
+[97 Decor palette guide](https://97decor.com/blogs/news/dark-academia-color-palette-a-complete-guide-to-aesthetic-color-combinations)

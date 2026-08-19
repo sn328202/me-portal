@@ -20,33 +20,39 @@ export const THEMES = {
         id: 'dark-academia',
         fontImports: ['Playfair Display', 'Inter', 'Courier Prime'],
         cssVars: {
-            '--bg-main': '#0c0a09',
-            '--bg-panel': '#141210',
-            '--bg-hover': '#1f1a16',
-            '--bg-main-rgb': '12, 10, 9',
-            '--text-main': '#e8e6e3',
-            '--text-muted': '#8c857b',
-            '--text-dim': '#837c72',
-            '--text-gold': '#cfb53b',
-            '--text-highlight': '#ffdd99',
-            '--accent-crimson': '#be606b',
-            '--accent-red': '#e2707c',
-            '--accent-green': '#6f9c8a',
-            '--accent-gold': '#cfb53b',
-            '--accent-gold-dim': 'rgba(207, 181, 59, 0.18)',
-            '--border-gold': '#8a7e57',
-            '--border-bright': '#cfb53b',
-            '--border-dim': '#6e675a',
-            '--active-border': '#cfb53b',
+            /* Candlelit library: walnut and bistre ground, parchment,
+               antique brass. Dark academia's palette is browns, oxblood,
+               forest and cream with brass as an accent — not black and
+               yellow gold, which is what this was. */
+            '--bg-main': '#171310',
+            '--bg-panel': '#201a15',
+            '--bg-hover': '#2c241c',
+            '--bg-main-rgb': '23, 19, 16',
+            '--text-main': '#ece2d2',
+            '--text-muted': '#a4957f',
+            '--text-dim': '#c0b29a',
+            '--text-gold': '#c9a961',
+            '--text-highlight': '#e9d4a0',
+            '--accent-crimson': '#c4757a',
+            '--accent-red': '#d97a7a',
+            '--accent-green': '#8aa87f',
+            '--accent-gold': '#c9a961',
+            '--accent-gold-dim': 'rgba(201, 169, 97, 0.16)',
+            '--border-gold': '#8c7645',
+            '--border-bright': '#c9a961',
+            '--border-dim': '#776a58',
+            '--active-border': '#c9a961',
+            '--fill-strong': '#7b2d3a',
+            '--fill-quiet': '#3f5b45',
             '--font-display': "'Playfair Display', serif",
             '--font-body': "'Inter', sans-serif",
             '--font-mono': "'Courier Prime', monospace",
-            '--font-serif': "'Playfair Display', Georgia, 'Times New Roman', serif",
+            '--font-serif': "'Cormorant Garamond', Georgia, serif",
             '--radius-lg': '8px',
-            '--glass-panel': 'rgba(20, 18, 16, 0.95)',
-            '--glow-gold': '0 0 10px rgba(207, 181, 59, 0.2)',
+            '--glass-panel': 'rgba(32, 26, 21, 0.95)',
+            '--glow-gold': '0 0 12px rgba(201, 169, 97, 0.18)',
             '--bg-texture': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.07\'/%3E%3C/svg%3E")'
-        },
+                },
         labels: {
             provisions: 'Provisions',
             larderEmpty: 'The larder is empty.',
@@ -511,17 +517,27 @@ const characterBase = {
     '--ease-out': 'cubic-bezier(0.16, 1, 0.3, 1)',
     '--lift': 'translateY(-2px)',
     '--density': '1',
-    '--field-bg': 'rgba(0, 0, 0, 0.2)'
+    '--field-bg': 'rgba(0, 0, 0, 0.2)',
+    // Structural fills — deep enough to carry parchment text on top.
+    '--fill-strong': '#7b2d3a',
+    '--fill-quiet': '#3f5b45'
 };
 
 export const THEME_CHARACTER = {
     // Victorian: double rules, corner brackets, wide caps.
-    'dark-academia': { ...characterBase },
+    'dark-academia': {
+        ...characterBase,
+        // Brass reads best as a glint, not a gilt frame.
+        '--ornament-opacity': '0.38',
+        '--tracking-heading': '0.1em'
+    },
 
     // Renaissance shares the Victorian bones; Cinzel is a caps face,
     // so tracking stays generous and corners stay square.
     renaissance: {
         ...characterBase,
+        '--fill-strong': '#6d2a2a',
+        '--fill-quiet': '#38493c',
         '--radius-sm': '0px',
         '--radius-md': '2px',
         '--radius-lg': '3px',
@@ -534,6 +550,8 @@ export const THEME_CHARACTER = {
     // Hard 3px borders, zero radius, a pixel drop shadow, no easing.
     'eight-bit': {
         ...characterBase,
+        '--fill-strong': '#aa0000',
+        '--fill-quiet': '#006600',
         ...typeScale(0.72),
         '--rule': '3px solid var(--border-gold)',
         '--rule-hair': '2px solid var(--border-dim)',
@@ -564,6 +582,8 @@ export const THEME_CHARACTER = {
     // Shadows go warm and soft; black drops look like grime on cream.
     cottagecore: {
         ...characterBase,
+        '--fill-strong': '#8a5340',
+        '--fill-quiet': '#55703f',
         ...typeScale(1.06),
         '--rule': '1px solid var(--border-gold)',
         '--rule-hair': '1px solid var(--border-dim)',
@@ -589,6 +609,8 @@ export const THEME_CHARACTER = {
     // pack tight, square everything off, no ornament, no soft shadow.
     matrix: {
         ...characterBase,
+        '--fill-strong': '#004400',
+        '--fill-quiet': '#002b00',
         ...typeScale(1.22),
         '--rule': '1px solid var(--border-gold)',
         '--rule-hair': '1px solid var(--border-dim)',
@@ -615,6 +637,8 @@ export const THEME_CHARACTER = {
     // soft: big radii, no caps, long gentle easing, generous padding.
     lofi: {
         ...characterBase,
+        '--fill-strong': '#5b4a76',
+        '--fill-quiet': '#3d5570',
         '--rule': '1px solid var(--border-gold)',
         '--rule-hair': '1px solid var(--border-dim)',
         '--radius-sm': '8px',
@@ -639,6 +663,8 @@ export const THEME_CHARACTER = {
     // neon bleed instead of drop shadow, quick snappy motion.
     cybercity: {
         ...characterBase,
+        '--fill-strong': '#7a0044',
+        '--fill-quiet': '#00505e',
         ...typeScale(0.94),
         '--rule': '1px solid var(--border-gold)',
         '--rule-hair': '1px solid var(--border-dim)',

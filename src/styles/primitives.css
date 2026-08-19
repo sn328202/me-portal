@@ -265,7 +265,7 @@
     font-weight: var(--weight-bold);
     letter-spacing: var(--tracking-heading);
     text-transform: var(--case-heading);
-    color: var(--text-gold);
+    color: var(--text-heading);
     line-height: var(--leading-tight);
 }
 
@@ -371,7 +371,7 @@
     font-weight: var(--weight-bold);
     letter-spacing: var(--tracking-heading);
     text-transform: var(--case-heading);
-    color: var(--text-gold);
+    color: var(--text-heading);
     line-height: var(--leading-tight);
 }
 
