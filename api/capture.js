@@ -369,20 +369,50 @@ async function runTool(sb, userId, name, input, actions) {
 
 /* ---------- handler ---------------------------------------------------- */
 
+const REQUIRED = [
+    'ANTHROPIC_API_KEY',
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'PORTAL_USER_ID',
+    'CAPTURE_TOKEN',
+];
+
 export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
 
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'POST only' });
-    }
-    if (!tokenOk(req.headers['x-capture-token'])) {
-        return res.status(401).json({ error: 'Bad capture token' });
+    // GET is a health check: which variables the *running* deployment can see.
+    // Booleans only — no values, ever. Unauthenticated on purpose, because the
+    // thing it most often has to diagnose is the token itself being missing.
+    if (req.method === 'GET') {
+        const configured = Object.fromEntries(REQUIRED.map((k) => [k, Boolean(process.env[k])]));
+        const missing = REQUIRED.filter((k) => !configured[k]);
+        return res.status(200).json({
+            ok: missing.length === 0,
+            configured,
+            missing,
+            model: MODEL,
+            hint: missing.length
+                ? 'Add these in Vercel, then redeploy — env changes only reach the function on a new deployment.'
+                : 'Ready. POST with the x-capture-token header.',
+        });
     }
 
-    const missing = ['ANTHROPIC_API_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'PORTAL_USER_ID']
-        .filter((k) => !process.env[k]);
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'GET for health, POST to capture' });
+    }
+
+    const missing = REQUIRED.filter((k) => !process.env[k]);
     if (missing.length) {
-        return res.status(500).json({ error: `Server not configured: ${missing.join(', ')}` });
+        // Report this before the token check — otherwise a server that is
+        // simply missing CAPTURE_TOKEN reports "bad token" and sends you off
+        // hunting a mismatch that does not exist.
+        return res.status(500).json({
+            error: `Not configured: ${missing.join(', ')}. Add them in Vercel and redeploy.`,
+        });
+    }
+
+    if (!tokenOk(req.headers['x-capture-token'])) {
+        return res.status(401).json({ error: 'Bad capture token' });
     }
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
