@@ -1,0 +1,85 @@
+.captures-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.capture {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding-bottom: var(--space-3);
+    border-bottom: var(--rule-hair);
+}
+
+.capture:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.capture__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+/* Her words, in the reading face — this is the thing she actually said. */
+.capture__transcript {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-snug);
+    color: var(--text-main);
+}
+
+/* What the portal did with it — quieter, it is the machine talking back. */
+.capture__summary {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.capture__meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+}
+
+.capture__time {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
+}
+
+.capture--undone {
+    opacity: 0.45;
+}
+
+.capture--undone .capture__transcript {
+    text-decoration: line-through;
+}
+
+.capture__undone-flag {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.captures-foot {
+    margin: 0;
+    padding-top: var(--space-2);
+    border-top: var(--rule-hair);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+}

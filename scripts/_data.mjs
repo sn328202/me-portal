@@ -2,6 +2,11 @@ const USER = '00000000-0000-4000-8000-000000000001';
 const day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 
 export const DATA = {
+    captures: [
+        { id: 'cap1', user_id: USER, transcript: 'oh i want to check out that ramen place in hayes valley sometime', summary: 'Added "Ramen in Hayes Valley" to a new itinerary, A Hayes Valley Day.', actions: [{ tool: 'add_to_itinerary', table: 'day_plans', id: 'x1', label: 'A Hayes Valley Day' }, { tool: 'add_to_itinerary', table: 'plan_items', id: 'x2', label: 'Ramen in Hayes Valley' }], undone: false, created_at: new Date(Date.now() - 22 * 6e4).toISOString() },
+        { id: 'cap2', user_id: USER, transcript: "we're out of oat milk and gochujang, and i keep thinking about that stamp choker", summary: 'Added 2 to the grocery list, and "Stamp Choker" to the Treasury.', actions: [{ tool: 'add_groceries', table: 'provisions', id: 'x3', label: 'oat milk' }, { tool: 'add_groceries', table: 'provisions', id: 'x4', label: 'gochujang' }, { tool: 'add_desire', table: 'treasury_items', id: 'x5', label: 'Stamp Choker' }], undone: false, created_at: new Date(Date.now() - 3 * 36e5).toISOString() },
+        { id: 'cap3', user_id: USER, transcript: 'remind me to descale the kettle', summary: 'Added "descale the kettle" to Kitchen.', actions: [{ tool: 'add_chore', table: 'chores', id: 'x6', label: 'descale the kettle' }], undone: true, created_at: new Date(Date.now() - 26 * 36e5).toISOString() },
+    ],
     habits: [
         { id: 'h1', user_id: USER, text: 'drink water', completed: true, last_completed: new Date().toDateString(), streak: 4 },
         { id: 'h2', user_id: USER, text: 'morning workout', completed: false, last_completed: null },

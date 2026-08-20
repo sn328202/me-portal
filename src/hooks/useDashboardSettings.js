@@ -14,6 +14,7 @@ export const ALL_WIDGETS = [
     { id: 'calendar', label: 'Chronometer', description: 'Embedded Google Calendar' },
     { id: 'library', label: 'Archives Consumed', description: 'Reading stats and book list' },
     { id: 'workouts', label: 'Physical Readiness', description: 'Daily training regimen and 5K tracker' },
+    { id: 'captures', label: 'Dictations', description: 'Thoughts spoken into your phone and where they landed' },
     { id: 'links', label: 'Quick Reference', description: 'Essential external links' },
     { id: 'games', label: 'Arcade Terminal', description: 'Quick access to entertainment' }
 ];
