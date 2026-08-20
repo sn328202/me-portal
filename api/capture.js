@@ -27,6 +27,16 @@ const db = () =>
         auth: { persistSession: false, autoRefreshToken: false },
     });
 
+// Supabase hands back several error shapes — PostgrestError, a fetch failure,
+// or a bare object. Reading `.message` alone yields "undefined" for some of
+// them, which is how a real failure ended up reported as nothing at all.
+const errText = (e) => {
+    if (!e) return null;
+    if (typeof e === 'string') return e;
+    const parts = [e.message, e.details, e.hint, e.code && `code ${e.code}`].filter(Boolean);
+    return parts.length ? parts.join(' | ') : JSON.stringify(e).slice(0, 300);
+};
+
 // Both sides get trimmed. Env-var panels and copy-paste add trailing
 // newlines and spaces constantly, and a token that is right except for an
 // invisible \n is the single most likely reason this ever fails.
@@ -412,7 +422,30 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         const configured = Object.fromEntries(REQUIRED.map((k) => [k, Boolean(process.env[k])]));
         const missing = REQUIRED.filter((k) => !configured[k]);
+
+        // Prove the service client can actually reach the right project.
+        // Host only — never the key.
+        let dbCheck = { ok: false, error: 'not attempted' };
+        let supabaseHost = null;
+        try {
+            supabaseHost = new URL(process.env.SUPABASE_URL).host;
+        } catch {
+            supabaseHost = 'SUPABASE_URL is not a valid URL';
+        }
+        if (!missing.length) {
+            try {
+                const probe = await db().from('captures').select('id', { count: 'exact', head: true });
+                dbCheck = probe.error
+                    ? { ok: false, error: errText(probe.error) }
+                    : { ok: true, capturesRows: probe.count ?? 0 };
+            } catch (e) {
+                dbCheck = { ok: false, error: errText(e) };
+            }
+        }
+
         return res.status(200).json({
+            supabaseHost,
+            dbCheck,
             ok: missing.length === 0,
             configured,
             missing,
@@ -465,6 +498,7 @@ export default async function handler(req, res) {
     let summary = null;
     let narration = null;
     let failure = null;
+    const allToolErrors = [];
 
     try {
         const ctx = await loadContext(sb, userId);
@@ -472,6 +506,7 @@ export default async function handler(req, res) {
         const system = systemPrompt(ctx, new Date());
         const done = [];
         let skipped = null;
+        const toolErrors = [];
 
         // Two passes is enough: one to call tools, one to summarise.
         for (let turn = 0; turn < 2; turn += 1) {
@@ -519,7 +554,9 @@ export default async function handler(req, res) {
                     done.push(outcome);
                     results.push({ type: 'tool_result', tool_use_id: call.id, content: `Filed: ${outcome}` });
                 } catch (err) {
-                    results.push({ type: 'tool_result', tool_use_id: call.id, is_error: true, content: err.message });
+                    const why = errText(err);
+                    toolErrors.push(`${call.name}: ${why}`);
+                    results.push({ type: 'tool_result', tool_use_id: call.id, is_error: true, content: why });
                 }
             }
             messages.push({ role: 'user', content: results });
@@ -527,10 +564,13 @@ export default async function handler(req, res) {
 
         // Summary is derived from rows that actually landed. `narration` is
         // only allowed to speak when there is something to speak about.
+        allToolErrors.push(...toolErrors);
         if (actions.length) {
             summary = narration || `Added ${done.join(', and ')}.`;
         } else if (skipped) {
             summary = `Nothing filed — ${skipped}`;
+        } else if (toolErrors.length) {
+            summary = 'Nothing was filed — every write failed.';
         } else {
             summary = 'Nothing was filed. Say it again with a bit more detail?';
         }
@@ -551,7 +591,7 @@ export default async function handler(req, res) {
     if (logError) {
         // Swallowing this is how a completely silent failure looked like a
         // success. If the log did not land, say so.
-        failure = [failure, `capture log failed: ${logError.message}`].filter(Boolean).join('; ');
+        failure = [failure, `capture log failed: ${errText(logError)}`].filter(Boolean).join('; ');
     }
 
     const wrote = actions.length > 0;
@@ -560,5 +600,6 @@ export default async function handler(req, res) {
         wrote,
         actions,
         error: failure,
+        toolErrors: allToolErrors.length ? allToolErrors : undefined,
     });
 }
