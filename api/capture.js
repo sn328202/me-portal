@@ -183,6 +183,16 @@ const TOOLS = [
         },
     },
     {
+        name: 'nothing_to_file',
+        description:
+            'Use when the text contains nothing worth filing — a false start, a stray recording, or something with no home in the portal. Say why in one short clause.',
+        input_schema: {
+            type: 'object',
+            properties: { because: { type: 'string' } },
+            required: ['because'],
+        },
+    },
+    {
         name: 'add_pantry_item',
         description: 'Record that an ingredient is now in the pantry, or add a new ingredient to the pantry catalogue.',
         input_schema: {
@@ -453,6 +463,7 @@ export default async function handler(req, res) {
     const userId = process.env.PORTAL_USER_ID;
     const actions = [];
     let summary = null;
+    let narration = null;
     let failure = null;
 
     try {
@@ -460,6 +471,7 @@ export default async function handler(req, res) {
         const messages = [{ role: 'user', content: text }];
         const system = systemPrompt(ctx, new Date());
         const done = [];
+        let skipped = null;
 
         // Two passes is enough: one to call tools, one to summarise.
         for (let turn = 0; turn < 2; turn += 1) {
@@ -470,7 +482,17 @@ export default async function handler(req, res) {
                     'x-api-key': process.env.ANTHROPIC_API_KEY,
                     'anthropic-version': '2023-06-01',
                 },
-                body: JSON.stringify({ model: MODEL, max_tokens: 1024, system, tools: TOOLS, messages }),
+                body: JSON.stringify({
+                    model: MODEL,
+                    max_tokens: 1024,
+                    system,
+                    tools: TOOLS,
+                    messages,
+                    // First pass must call something — `nothing_to_file` is the
+                    // escape hatch. Without this the model answers in prose and
+                    // the endpoint reports success having written nothing.
+                    tool_choice: turn === 0 ? { type: 'any' } : { type: 'auto' },
+                }),
             });
 
             if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 300)}`);
@@ -478,13 +500,20 @@ export default async function handler(req, res) {
             messages.push({ role: 'assistant', content: reply.content });
 
             const calls = reply.content.filter((c) => c.type === 'tool_use');
+            // Deliberately NOT used as the summary. Model prose describing
+            // work it has not done is worse than no summary at all.
             const said = reply.content.filter((c) => c.type === 'text').map((c) => c.text).join(' ').trim();
-            if (said) summary = said;
+            if (said) narration = said;
 
             if (!calls.length) break;
 
             const results = [];
             for (const call of calls) {
+                if (call.name === 'nothing_to_file') {
+                    skipped = call.input?.because || 'nothing actionable in it.';
+                    results.push({ type: 'tool_result', tool_use_id: call.id, content: 'Noted.' });
+                    continue;
+                }
                 try {
                     const outcome = await runTool(sb, userId, call.name, call.input, actions);
                     done.push(outcome);
@@ -496,13 +525,21 @@ export default async function handler(req, res) {
             messages.push({ role: 'user', content: results });
         }
 
-        if (!summary) summary = done.length ? `Added ${done.join(', and ')}.` : 'Saved, but nothing was filed.';
+        // Summary is derived from rows that actually landed. `narration` is
+        // only allowed to speak when there is something to speak about.
+        if (actions.length) {
+            summary = narration || `Added ${done.join(', and ')}.`;
+        } else if (skipped) {
+            summary = `Nothing filed — ${skipped}`;
+        } else {
+            summary = 'Nothing was filed. Say it again with a bit more detail?';
+        }
     } catch (err) {
         failure = err.message;
         summary = 'Saved the transcript, but filing it failed.';
     }
 
-    await sb.from('captures').insert([{
+    const { error: logError } = await sb.from('captures').insert([{
         user_id: userId,
         transcript: text,
         summary,
@@ -511,6 +548,17 @@ export default async function handler(req, res) {
         error: failure,
         source: body.source || 'shortcut',
     }]);
+    if (logError) {
+        // Swallowing this is how a completely silent failure looked like a
+        // success. If the log did not land, say so.
+        failure = [failure, `capture log failed: ${logError.message}`].filter(Boolean).join('; ');
+    }
 
-    return res.status(failure && !actions.length ? 502 : 200).json({ summary, actions, error: failure });
+    const wrote = actions.length > 0;
+    return res.status(failure && !wrote ? 502 : 200).json({
+        summary,
+        wrote,
+        actions,
+        error: failure,
+    });
 }
