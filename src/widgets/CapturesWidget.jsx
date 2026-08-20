@@ -23,7 +23,9 @@ const ROOM = {
     chores: 'Duty',
     goals: 'Aspirations',
     habits: 'Rituals',
-    pantry_ingredients: 'Pantry',
+    pantry_ingredients: 'Larder',
+    recipes: 'Larder',
+    ingredients: 'Larder',
 };
 
 const CapturesWidget = () => {

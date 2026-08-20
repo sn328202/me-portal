@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef } from 'react';
 import { useSettings } from './useSettings';
 
 export const ALL_WIDGETS = [
@@ -16,19 +17,53 @@ export const ALL_WIDGETS = [
     { id: 'workouts', label: 'Physical Readiness', description: 'Daily training regimen and 5K tracker' },
     { id: 'captures', label: 'Dictations', description: 'Thoughts spoken into your phone and where they landed' },
     { id: 'links', label: 'Quick Reference', description: 'Essential external links' },
-    { id: 'games', label: 'Arcade Terminal', description: 'Quick access to entertainment' }
+    { id: 'games', label: 'Arcade Terminal', description: 'Quick access to entertainment' },
+];
+
+/**
+ * Every widget that existed before `knownWidgets` was introduced. Anything in
+ * ALL_WIDGETS but missing from here is genuinely new, so its absence from a
+ * saved preference means "did not exist yet", not "she turned it off".
+ *
+ * Without this distinction a new widget can never appear: an existing account's
+ * saved `enabledWidgets` array replaces the default wholesale, so the widget
+ * stays invisible forever and looks like a bug in the widget rather than in the
+ * preference merge. Do not add new ids to this list.
+ */
+const LEGACY_WIDGET_IDS = [
+    'greeting', 'status', 'habits', 'todos', 'provisions', 'chores', 'social',
+    'goals', 'hobbies', 'travel', 'calendar', 'library', 'workouts', 'links', 'games',
 ];
 
 export const useDashboardSettings = () => {
-    const { settings, updateSetting, loading } = useSettings();
-    const enabledWidgets = settings.enabledWidgets || [];
+    const { settings, updateSetting, updateSettings, loading } = useSettings();
+    const enabledWidgets = useMemo(() => settings.enabledWidgets || [], [settings.enabledWidgets]);
+    const reconciled = useRef(false);
+
+    // Turn on any widget she has never been offered, once, then record that
+    // she has now seen every current widget.
+    useEffect(() => {
+        if (loading || reconciled.current) return;
+        const allIds = ALL_WIDGETS.map((w) => w.id);
+        const known = settings.knownWidgets || LEGACY_WIDGET_IDS;
+        const unseen = allIds.filter((id) => !known.includes(id));
+
+        reconciled.current = true;
+        if (!unseen.length && settings.knownWidgets) return;
+
+        updateSettings({
+            enabledWidgets: [...new Set([...enabledWidgets, ...unseen])],
+            knownWidgets: allIds,
+        });
+    }, [loading, settings.knownWidgets, enabledWidgets, updateSettings]);
 
     const toggleWidget = (id) => {
-        const newWidgets = enabledWidgets.includes(id)
-            ? enabledWidgets.filter(w => w !== id)
-            : [...enabledWidgets, id];
-
-        updateSetting('enabledWidgets', newWidgets);
+        updateSetting(
+            'enabledWidgets',
+            enabledWidgets.includes(id)
+                ? enabledWidgets.filter((w) => w !== id)
+                : [...enabledWidgets, id]
+        );
     };
 
     const isEnabled = (id) => enabledWidgets.includes(id);

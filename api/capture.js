@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { timingSafeEqual } from 'node:crypto';
+import { extractRecipe, parseIngredient } from './_recipe.js';
 
 /**
  * POST /api/capture   { text: "..." }
@@ -133,14 +134,19 @@ const TOOLS = [
     },
     {
         name: 'add_library_item',
-        description: 'Add something to read, watch, listen to or play to The Library.',
+        description:
+            'Add something to read, watch, listen to or play to The Library. NOT for recipes — those belong in the Larder, use import_recipe or add_recipe.',
         input_schema: {
             type: 'object',
             properties: {
                 title: { type: 'string' },
                 creator: { type: 'string' },
-                type: { type: 'string', enum: ['books', 'movies', 'tv shows', 'albums', 'games', 'items'] },
-                status: { type: 'string', enum: ['wishlist', 'consuming', 'finished'] },
+                type: {
+                    type: 'string',
+                    enum: ['Book', 'Movie', 'TV Show', 'Album', 'Game'],
+                    description: 'Must be exactly one of these — the Library has a tab per type and anything else is invisible.',
+                },
+                status: { type: 'string', enum: ['Not Started', 'In Progress', 'Completed', 'Dropped'] },
             },
             required: ['title', 'type'],
         },
@@ -193,6 +199,40 @@ const TOOLS = [
         },
     },
     {
+        name: 'import_recipe',
+        description:
+            'Import a recipe into the Larder from a web link. Use whenever she gives a URL to a recipe — the page is fetched and the ingredients, instructions and timings are pulled out automatically. Strongly preferred over add_recipe when a link exists.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                url: { type: 'string', description: 'The recipe page URL.' },
+                tags: { type: 'array', items: { type: 'string' }, description: 'Optional extra tags, e.g. Weeknight, Vegetarian.' },
+            },
+            required: ['url'],
+        },
+    },
+    {
+        name: 'add_recipe',
+        description:
+            'Add a recipe to the Larder without a link — dictated from memory, or named without a URL. If she names a recipe from a site (New York Times Cooking, Serious Eats) but gives no link, use this and leave ingredients empty; she can share the link later to fill it in.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                title: { type: 'string' },
+                ingredients: {
+                    type: 'array',
+                    description: 'Only what she actually said. Plain lines like "2 cups flour" are fine.',
+                    items: { type: 'string' },
+                },
+                instructions: { type: 'string' },
+                servings: { type: 'string' },
+                tags: { type: 'array', items: { type: 'string' } },
+                source: { type: 'string', description: 'Where it came from, e.g. "New York Times Cooking".' },
+            },
+            required: ['title'],
+        },
+    },
+    {
         name: 'nothing_to_file',
         description:
             'Use when the text contains nothing worth filing — a false start, a stray recording, or something with no home in the portal. Say why in one short clause.',
@@ -219,50 +259,201 @@ const TOOLS = [
 
 /* ---------- context: what already exists ------------------------------ */
 
-async function loadContext(sb, userId) {
-    const q = (table, cols, order) =>
-        sb.from(table).select(cols).eq('user_id', userId).order(order, { ascending: false }).limit(25);
+/**
+ * Spoken language and stored text rarely match character for character:
+ * "lemons" against "lemon", "the ricotta" against "ricotta", "Oat Milk"
+ * against "oat milk". All duplicate comparison happens on this normalised
+ * form, so the check survives plurals, articles, case and punctuation.
+ */
+const norm = (s) => {
+    let t = String(s || '')
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]+/g, ' ')
+        .replace(/\b(a|an|the|some|more|of|my|our|any)\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-    const [plans, trips, treasury, chores, pantry] = await Promise.all([
-        q('day_plans', 'id, title, location, planned_date', 'created_at'),
-        q('atlas_trips', 'destination, status', 'created_at'),
-        q('treasury_items', 'category', 'created_at'),
-        q('chores', 'room', 'created_at'),
-        q('pantry_ingredients', 'name', 'created_at'),
+    // Crude singularisation. Wrong on a handful of irregulars, right on a
+    // grocery list, which is the only place duplicates actually happen.
+    t = t
+        .replace(/\b(\w{3,}?)ies\b/g, '$1y')
+        .replace(/\b(\w{2,}?(?:s|x|z|ch|sh|o))es\b/g, '$1')
+        .replace(/\b(\w{3,}?)s\b/g, (m, stem) => (/[sui]$/.test(stem) ? m : stem));
+
+    return t;
+};
+
+const setOf = (values) => new Set((values || []).map(norm).filter(Boolean));
+
+/**
+ * Everything already in the portal that could make this capture a duplicate,
+ * or that it could attach to instead of creating a fifth near-identical row.
+ *
+ * Two consumers: the system prompt (so the model can *choose* to attach), and
+ * ctx.index (so the writer can *enforce* it regardless of what the model chose).
+ */
+async function loadContext(sb, userId) {
+    const q = (table, cols, opts = {}) => {
+        let query = sb.from(table).select(cols).eq('user_id', userId);
+        if (opts.where) query = query.eq(opts.where[0], opts.where[1]);
+        return query.order('created_at', { ascending: false }).limit(opts.limit || 40);
+    };
+
+    const [
+        plans, planItems, trips, treasury, library,
+        chores, pantry, provisions, todos, goals, habits, social, recipes,
+    ] = await Promise.all([
+        q('day_plans', 'id, title, location, planned_date', { limit: 25 }),
+        q('plan_items', 'plan_id, activity', { limit: 150 }),
+        q('atlas_trips', 'id, destination, status', { limit: 30 }),
+        q('treasury_items', 'id, title, category', { limit: 60 }),
+        q('library_items', 'id, title, type, status', { limit: 80 }),
+        q('chores', 'room', { limit: 60 }),
+        q('pantry_ingredients', 'name, label, in_stock', { limit: 120 }),
+        q('provisions', 'text', { where: ['checked', false], limit: 80 }),
+        q('todos', 'text', { where: ['completed', false], limit: 60 }),
+        q('goals', 'text, horizon', { limit: 40 }),
+        q('habits', 'text', { limit: 40 }),
+        q('social_plans', 'who, what, when_date', { limit: 30 }),
+        q('recipes', 'title, source_url', { limit: 80 }),
     ]);
 
-    const uniq = (rows, key) => [...new Set((rows.data || []).map((r) => r[key]).filter(Boolean))];
+    // A single failed sub-query must not take the whole capture down; the
+    // endpoint should still file the thought, just with less to compare against.
+    const rows = (r) => (r && !r.error && Array.isArray(r.data) ? r.data : []);
+    const uniq = (r, key) => [...new Set(rows(r).map((x) => x[key]).filter(Boolean))];
 
-    return {
-        itineraries: (plans.data || []).map((p) => ({
+    const itemsByPlan = {};
+    rows(planItems).forEach((it) => {
+        if (!it.plan_id) return;
+        (itemsByPlan[it.plan_id] = itemsByPlan[it.plan_id] || []).push(it.activity);
+    });
+
+    const ctx = {
+        itineraries: rows(plans).map((p) => ({
             id: p.id,
             title: p.title,
             location: p.location,
             date: p.planned_date,
+            items: (itemsByPlan[p.id] || []).slice(0, 8),
         })),
-        trips: uniq(trips, 'destination'),
+        trips: rows(trips).map((t) => ({ id: t.id, destination: t.destination, status: t.status })),
+        treasury: rows(treasury).map((t) => ({ title: t.title, category: t.category })),
         treasuryCategories: uniq(treasury, 'category'),
+        library: rows(library).map((l) => ({ title: l.title, type: l.type, status: l.status })),
         rooms: uniq(chores, 'room'),
-        pantry: uniq(pantry, 'name').slice(0, 60),
+        pantry: rows(pantry).filter((p) => p.in_stock !== false).map((p) => p.label || p.name),
+        groceries: uniq(provisions, 'text'),
+        todos: uniq(todos, 'text'),
+        goals: rows(goals).map((g) => `${g.text}${g.horizon ? ` (${g.horizon})` : ''}`),
+        habits: uniq(habits, 'text'),
+        social: rows(social).map((s) => `${s.what} with ${s.who}`),
+        recipes: uniq(recipes, 'title'),
     };
+
+    // The enforceable half. Keyed by table name so the writer can look up
+    // `ctx.index[table]` without a second mapping to keep in sync.
+    ctx.index = {
+        provisions: setOf(ctx.groceries),
+        todos: setOf(ctx.todos),
+        treasury_items: setOf(ctx.treasury.map((t) => t.title)),
+        library_items: setOf(ctx.library.map((l) => l.title)),
+        atlas_trips: setOf(ctx.trips.map((t) => t.destination)),
+        habits: setOf(ctx.habits),
+        goals: setOf(rows(goals).map((g) => g.text)),
+        pantry_ingredients: setOf(rows(pantry).map((p) => p.name)),
+        social_plans: setOf(ctx.social),
+        recipes: setOf(ctx.recipes),
+        // Same dish saved twice from the same page is the likeliest repeat,
+        // and titles drift between imports where the URL does not.
+        recipeUrls: new Set(rows(recipes).map((r) => r.source_url).filter(Boolean)),
+        planItems: Object.fromEntries(
+            Object.entries(itemsByPlan).map(([id, list]) => [id, setOf(list)])
+        ),
+    };
+
+    return ctx;
 }
 
+/**
+ * The duplicate guard. The model is *told* what already exists, but being told
+ * is not the same as complying, and two captures seconds apart can race each
+ * other. This is the part that actually holds: nothing is written if its
+ * normalised form is already present, and anything skipped is reported rather
+ * than silently dropped.
+ */
+const dedupe = (ctx, key, values, where, dupes) => {
+    const seen = ctx.index[key] || (ctx.index[key] = new Set());
+    const fresh = [];
+    for (const value of values || []) {
+        const n = norm(value);
+        if (!n) continue;
+        if (seen.has(n)) {
+            dupes.push({ item: value, where });
+            continue;
+        }
+        // Added before the insert, so a repeat inside one utterance
+        // ("eggs, milk, eggs") is caught too.
+        seen.add(n);
+        fresh.push(value);
+    }
+    return fresh;
+};
+
+const bullets = (items) => (items.length ? items.map((i) => `\n  - ${i}`).join('') : ' none yet');
+
 function systemPrompt(ctx, now) {
+    const dateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+    const dayStr = now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/Los_Angeles' });
+
+    const itineraryLines = ctx.itineraries.map((i) => {
+        const bits = [i.location, i.date].filter(Boolean).join(', ');
+        const has = i.items.length ? ` — already has: ${i.items.join('; ')}` : '';
+        return `"${i.title}"${bits ? ` (${bits})` : ''} id=${i.id}${has}`;
+    });
+
     return `You route spoken thoughts into a personal dashboard called Me Portal. The speaker is talking to herself, quickly, often mid-thought. Your job is to file it where she would have filed it.
 
-Today is ${now.toISOString().slice(0, 10)} (${now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/Los_Angeles' })}), timezone America/Los_Angeles.
+Today is ${dateStr} (${dayStr}), timezone America/Los_Angeles.
 
-What already exists — prefer attaching to these over creating duplicates:
-- Itineraries: ${ctx.itineraries.length ? ctx.itineraries.map((i) => `"${i.title}"${i.location ? ` (${i.location})` : ''} id=${i.id}`).join('; ') : 'none yet'}
-- Trips: ${ctx.trips.join(', ') || 'none yet'}
-- Treasury categories: ${ctx.treasuryCategories.join(', ') || 'none yet'}
-- Chore rooms: ${ctx.rooms.join(', ') || 'none yet'}
-- In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
+# What is already in the portal
 
-Rules:
-- Call one or more tools. A single sentence often contains two things ("we're out of oat milk and I want to try that ramen place") — file both.
+This is the current state. Read it before you write anything. Prefer attaching to what exists over creating something new, and never re-add something that is already listed here.
+
+Itineraries (The Daydream):${bullets(itineraryLines)}
+Trips (The Atlas):${bullets(ctx.trips.map((t) => `${t.destination}${t.status ? ` — ${t.status}` : ''}`))}
+Grocery list, still unbought:${bullets(ctx.groceries)}
+Open tasks:${bullets(ctx.todos)}
+Treasury (things she wants to buy):${bullets(ctx.treasury.map((t) => `${t.title}${t.category ? ` [${t.category}]` : ''}`))}
+Treasury categories in use: ${ctx.treasuryCategories.join(', ') || 'none yet'}
+Library:${bullets(ctx.library.map((l) => `${l.title} (${l.type}, ${l.status})`))}
+Aspirations:${bullets(ctx.goals)}
+Daily rituals:${bullets(ctx.habits)}
+Social plans:${bullets(ctx.social)}
+Recipes in the Larder:${bullets(ctx.recipes)}
+Chore rooms in use: ${ctx.rooms.join(', ') || 'none yet'}
+In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
+
+# The rooms, and what she may call them
+
+This arrives as phone dictation, so words come through mangled. Map near-misses onto the right room rather than taking the transcription literally — "larger", "lauder" and "ladder" all mean **Larder**; "day dream" means the Daydream; "treasure" means the Treasury.
+
+- **Larder** — recipes and the pantry. A recipe ALWAYS belongs here, never the Library.
+- **Library** — books, films, TV, albums, games. Things consumed, not cooked.
+- **Provisions** — the grocery list.
+- **Treasury** — things she wants to buy.
+- **Daydream** — day itineraries. **Atlas** — travel to other cities.
+- **Register** — plans with other people. **Duty** — chores. **Aspirations** — goals. **Rituals** — daily habits.
+
+# How to file
+
+- Call one or more tools. A single sentence often contains two separate things ("we're out of oat milk and I want to try that ramen place") — file both.
+- **Already there?** If she names something that appears above, do not add it again. If everything she said is already filed, call nothing_to_file and say what she already has. Adding it anyway will be rejected before it is written, so you gain nothing by trying.
+- **Attach, don't duplicate.** A restaurant in a city where an itinerary already exists belongs on that itinerary — pass its id. Only pass an id that appears in the list above; a made-up id is discarded and a stray new itinerary is created instead.
 - Distinguish needing from wanting. Groceries are needs; the Treasury is for wants.
-- A restaurant, exhibition, shop or activity she wants to visit is an itinerary item, not a todo. If an existing itinerary matches by city or theme, add to it; otherwise create one with a title she would recognise.
+- A restaurant, exhibition, shop or activity she wants to visit is an itinerary item, not a todo.
 - A day out is an itinerary. Travel to another city or country is a trip.
 - Do not invent dates, prices or times she did not say.
 - If a thought is genuinely just a note with no home, add it as a todo.
@@ -275,28 +466,92 @@ After the tool calls, reply with one short sentence in plain language describing
 
 const label = (s, n = 60) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s || '');
 
-async function runTool(sb, userId, name, input, actions) {
+/**
+ * Executes one tool call. `ctx` carries the duplicate index, `dupes` collects
+ * anything refused so it can be reported instead of vanishing.
+ *
+ * Returns a short outcome clause for the summary, or null when the whole call
+ * turned out to be things she already had.
+ */
+/**
+ * Writes a recipe and its ingredients. Ingredients cascade on delete, so a
+ * single action row is enough for undo to remove the whole thing.
+ */
+async function writeRecipe(sb, userId, recipe, actions, toolName) {
+    const [row] = (await sb
+        .from('recipes')
+        .insert([{
+            title: recipe.title,
+            instructions: recipe.instructions || null,
+            tags: recipe.tags && recipe.tags.length ? recipe.tags : ['Imported'],
+            image_url: recipe.image_url || null,
+            prep_time: recipe.prep_time || null,
+            cook_time: recipe.cook_time || null,
+            total_time: recipe.total_time || null,
+            servings: recipe.servings || null,
+            source_url: recipe.source_url || null,
+            user_id: userId,
+        }])
+        .select('id')
+        .then(({ data, error }) => {
+            if (error) throw new Error(`recipes: ${error.message}`);
+            return data || [];
+        }));
+
+    actions.push({ tool: toolName, table: 'recipes', id: row.id, label: label(recipe.title) });
+
+    const ingredients = (recipe.ingredients || []).filter((i) => i && i.item);
+    if (ingredients.length) {
+        const { error } = await sb.from('ingredients').insert(
+            ingredients.map((i) => ({
+                recipe_id: row.id,
+                item: i.item,
+                amount: i.amount || null,
+                unit: i.unit || null,
+                notes: i.notes || null,
+                user_id: userId,
+            }))
+        );
+        // The recipe itself is the valuable part. If the ingredient rows fail,
+        // keep the recipe and say so rather than losing everything.
+        if (error) return { id: row.id, ingredientCount: 0, ingredientError: error.message };
+    }
+    return { id: row.id, ingredientCount: ingredients.length, ingredientError: null };
+}
+
+async function runTool(sb, userId, name, input, actions, ctx, dupes) {
     const push = (table, id, text) => actions.push({ tool: name, table, id, label: label(text) });
     const ins = async (table, rows) => {
         const { data, error } = await sb.from(table).insert(rows).select('id');
         if (error) throw new Error(`${table}: ${error.message}`);
         return data || [];
     };
+    // Single-value tools: refuse and report, or return the value to write.
+    const once = (key, value, where) => {
+        const [fresh] = dedupe(ctx, key, [value], where, dupes);
+        return fresh;
+    };
 
     switch (name) {
         case 'add_groceries': {
-            const rows = input.items.map((text) => ({ text, checked: false, user_id: userId }));
-            (await ins('provisions', rows)).forEach((r, i) => push('provisions', r.id, input.items[i]));
-            return `${input.items.length} to the grocery list`;
+            const items = dedupe(ctx, 'provisions', input.items, 'on your grocery list', dupes);
+            if (!items.length) return null;
+            const rows = items.map((text) => ({ text, checked: false, user_id: userId }));
+            (await ins('provisions', rows)).forEach((r, i) => push('provisions', r.id, items[i]));
+            return `${items.join(', ')} to the grocery list`;
         }
         case 'add_todo': {
-            const rows = input.items.map((text) => ({ text, completed: false, user_id: userId }));
-            (await ins('todos', rows)).forEach((r, i) => push('todos', r.id, input.items[i]));
-            return `${input.items.length} task${input.items.length > 1 ? 's' : ''}`;
+            const items = dedupe(ctx, 'todos', input.items, 'on your task list', dupes);
+            if (!items.length) return null;
+            const rows = items.map((text) => ({ text, completed: false, user_id: userId }));
+            (await ins('todos', rows)).forEach((r, i) => push('todos', r.id, items[i]));
+            return `${items.length} task${items.length > 1 ? 's' : ''}`;
         }
         case 'add_desire': {
+            const title = once('treasury_items', input.title, 'in the Treasury');
+            if (!title) return null;
             const [r] = await ins('treasury_items', [{
-                title: input.title,
+                title,
                 category: input.category || 'Uncategorised',
                 price: input.price || null,
                 priority: input.priority || 'Low',
@@ -304,23 +559,52 @@ async function runTool(sb, userId, name, input, actions) {
                 status: 'desired',
                 user_id: userId,
             }]);
-            push('treasury_items', r.id, input.title);
-            return `"${input.title}" to the Treasury`;
+            push('treasury_items', r.id, title);
+            return `"${title}" to the Treasury`;
         }
         case 'add_to_itinerary': {
             let planId = input.plan_id;
             let planTitle = null;
-            if (!planId) {
+
+            // Only honour an id we actually handed the model. A hallucinated
+            // one would otherwise become an orphaned plan_item pointing at
+            // nothing, or fail the foreign key and lose the thought entirely.
+            if (planId && !ctx.itineraries.some((p) => String(p.id) === String(planId))) {
+                planId = null;
+            }
+
+            if (planId) {
+                // Same activity, same itinerary — she is repeating herself.
+                const seen = ctx.index.planItems[planId] || (ctx.index.planItems[planId] = new Set());
+                const n = norm(input.activity);
+                if (seen.has(n)) {
+                    const plan = ctx.itineraries.find((p) => String(p.id) === String(planId));
+                    dupes.push({ item: input.activity, where: `on "${plan ? plan.title : 'that itinerary'}"` });
+                    return null;
+                }
+                seen.add(n);
+            } else {
+                planTitle = input.new_plan_title || input.activity;
                 const [p] = await ins('day_plans', [{
-                    title: input.new_plan_title || input.activity,
+                    title: planTitle,
                     location: input.new_plan_location || input.location || null,
                     planned_date: input.new_plan_date || null,
                     user_id: userId,
                 }]);
                 planId = p.id;
-                planTitle = input.new_plan_title || input.activity;
                 push('day_plans', p.id, planTitle);
+                // Register it so a second call in the same utterance attaches
+                // rather than creating a twin.
+                ctx.itineraries.push({
+                    id: p.id,
+                    title: planTitle,
+                    location: input.new_plan_location || input.location || null,
+                    date: input.new_plan_date || null,
+                    items: [],
+                });
+                ctx.index.planItems[p.id] = setOf([input.activity]);
             }
+
             const [item] = await ins('plan_items', [{
                 plan_id: planId,
                 activity: input.activity,
@@ -331,33 +615,41 @@ async function runTool(sb, userId, name, input, actions) {
                 user_id: userId,
             }]);
             push('plan_items', item.id, input.activity);
+
+            const plan = ctx.itineraries.find((p) => String(p.id) === String(planId));
             return planTitle
                 ? `"${input.activity}" to a new itinerary, ${planTitle}`
-                : `"${input.activity}" to an itinerary`;
+                : `"${input.activity}" to ${plan ? `"${plan.title}"` : 'an itinerary'}`;
         }
         case 'add_trip': {
+            const destination = once('atlas_trips', input.destination, 'in the Atlas');
+            if (!destination) return null;
             const [r] = await ins('atlas_trips', [{
-                destination: input.destination,
+                destination,
                 status: input.status || 'Dreaming',
                 start_date: input.start_date || null,
                 notes: input.notes || null,
                 user_id: userId,
             }]);
-            push('atlas_trips', r.id, input.destination);
-            return `${input.destination} to the Atlas`;
+            push('atlas_trips', r.id, destination);
+            return `${destination} to the Atlas`;
         }
         case 'add_library_item': {
+            const title = once('library_items', input.title, 'in the Library');
+            if (!title) return null;
             const [r] = await ins('library_items', [{
-                title: input.title,
+                title,
                 creator: input.creator || null,
                 type: input.type,
-                status: input.status || 'wishlist',
+                status: input.status || 'Not Started',
                 user_id: userId,
             }]);
-            push('library_items', r.id, input.title);
-            return `"${input.title}" to the Library`;
+            push('library_items', r.id, title);
+            return `"${title}" to the Library`;
         }
         case 'add_social_plan': {
+            const key = `${input.what} with ${input.who}`;
+            if (!once('social_plans', key, 'in the Social Register')) return null;
             const [r] = await ins('social_plans', [{
                 who: input.who,
                 what: input.what,
@@ -365,10 +657,68 @@ async function runTool(sb, userId, name, input, actions) {
                 where_loc: input.where_loc || null,
                 user_id: userId,
             }]);
-            push('social_plans', r.id, `${input.what} with ${input.who}`);
-            return `${input.what} with ${input.who}`;
+            push('social_plans', r.id, key);
+            return key;
+        }
+        case 'import_recipe': {
+            // The URL is the reliable identity; two imports of one page are the
+            // most common repeat, and the titles can differ between them.
+            if (ctx.index.recipeUrls.has(input.url)) {
+                dupes.push({ item: 'that recipe', where: 'in the Larder' });
+                return null;
+            }
+
+            let recipe;
+            try {
+                recipe = await extractRecipe(input.url);
+            } catch (err) {
+                // Never lose the link. A stub she can open and finish beats an
+                // error message and nothing saved.
+                recipe = {
+                    title: 'Recipe to sort out',
+                    instructions: '',
+                    ingredients: [],
+                    source_url: input.url,
+                    tags: ['Imported', 'Needs detail'],
+                    complete: false,
+                    problem: err.message,
+                };
+            }
+
+            if (!once('recipes', recipe.title, 'in the Larder')) return null;
+
+            if (input.tags && input.tags.length) {
+                recipe.tags = [...new Set([...(recipe.tags || []), ...input.tags])];
+            }
+            ctx.index.recipeUrls.add(input.url);
+
+            const { ingredientCount } = await writeRecipe(sb, userId, recipe, actions, name);
+            if (recipe.problem) return `"${recipe.title}" to the Larder — but ${recipe.problem}, so it needs filling in`;
+            if (!ingredientCount) return `"${recipe.title}" to the Larder, but no ingredients were listed on the page`;
+            return `"${recipe.title}" to the Larder with ${ingredientCount} ingredients`;
+        }
+        case 'add_recipe': {
+            const title = once('recipes', input.title, 'in the Larder');
+            if (!title) return null;
+
+            const tags = [...new Set(['Dictated', ...(input.tags || [])])];
+            const { ingredientCount } = await writeRecipe(sb, userId, {
+                title,
+                instructions: input.instructions || '',
+                ingredients: (input.ingredients || []).map(parseIngredient),
+                servings: input.servings || null,
+                tags,
+                source_url: null,
+            }, actions, name);
+
+            if (!ingredientCount) {
+                return `"${title}" to the Larder — no ingredients yet, share the link to fill it in`;
+            }
+            return `"${title}" to the Larder with ${ingredientCount} ingredients`;
         }
         case 'add_chore': {
+            // Chores repeat by nature — the same room needs sweeping weekly —
+            // so this one is deliberately not deduplicated.
             const [r] = await ins('chores', [{
                 text: input.text, room: input.room, completed: false, user_id: userId,
             }]);
@@ -376,32 +726,59 @@ async function runTool(sb, userId, name, input, actions) {
             return `"${input.text}" to ${input.room}`;
         }
         case 'add_goal': {
+            const text = once('goals', input.text, 'in your aspirations');
+            if (!text) return null;
             const [r] = await ins('goals', [{
-                text: input.text, horizon: input.horizon, completed: false, user_id: userId,
+                text, horizon: input.horizon, completed: false, user_id: userId,
             }]);
-            push('goals', r.id, input.text);
-            return `"${input.text}" as a ${input.horizon} goal`;
+            push('goals', r.id, text);
+            return `"${text}" as a ${input.horizon} goal`;
         }
         case 'add_habit': {
-            const [r] = await ins('habits', [{ text: input.text, completed: false, user_id: userId }]);
-            push('habits', r.id, input.text);
-            return `"${input.text}" as a daily ritual`;
+            const text = once('habits', input.text, 'in your rituals');
+            if (!text) return null;
+            const [r] = await ins('habits', [{ text, completed: false, user_id: userId }]);
+            push('habits', r.id, text);
+            return `"${text}" as a daily ritual`;
         }
         case 'add_pantry_item': {
+            const nameIn = once('pantry_ingredients', input.name, 'in the pantry');
+            if (!nameIn) return null;
             const [r] = await ins('pantry_ingredients', [{
-                name: input.name.toLowerCase(),
-                label: input.name,
+                name: nameIn.toLowerCase(),
+                label: nameIn,
                 category: input.category || 'Pantry',
                 in_stock: input.in_stock !== false,
                 user_id: userId,
             }]);
-            push('pantry_ingredients', r.id, input.name);
-            return `${input.name} to the pantry`;
+            push('pantry_ingredients', r.id, nameIn);
+            return `${nameIn} to the pantry`;
         }
         default:
             throw new Error(`unknown tool ${name}`);
     }
 }
+
+/** "a", "a and b", "a, b and c" */
+const listOf = (items) =>
+    items.length <= 1
+        ? items[0] || ''
+        : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+
+/** "pasta was already on your grocery list; Rome was already in the Atlas" */
+const describeDupes = (dupes) => {
+    if (!dupes.length) return null;
+    const byWhere = new Map();
+    dupes.forEach(({ item, where }) => {
+        if (!byWhere.has(where)) byWhere.set(where, []);
+        byWhere.get(where).push(item);
+    });
+    return [...byWhere.entries()]
+        .map(([where, items]) => `${listOf(items)} ${items.length > 1 ? 'were' : 'was'} already ${where}`)
+        .join('; ');
+};
+
+const sentenceCase = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 /* ---------- handler ---------------------------------------------------- */
 
@@ -433,14 +810,25 @@ export default async function handler(req, res) {
             supabaseHost = 'SUPABASE_URL is not a valid URL';
         }
         if (!missing.length) {
-            try {
-                const probe = await db().from('captures').select('id', { count: 'exact', head: true });
-                dbCheck = probe.error
-                    ? { ok: false, error: errText(probe.error) }
-                    : { ok: true, capturesRows: probe.count ?? 0 };
-            } catch (e) {
-                dbCheck = { ok: false, error: errText(e) };
-            }
+            // Deliberately not `head: true` — a HEAD request has no response
+            // body, so PostgREST's error payload never arrives and every
+            // failure renders as an empty message. Ask for a real row, and
+            // report the HTTP status, which is the part that actually says
+            // whether the key was rejected.
+            const probe = async (table) => {
+                try {
+                    const r = await db().from(table).select('id').limit(1);
+                    return r.error
+                        ? { ok: false, status: r.status, statusText: r.statusText, error: errText(r.error) }
+                        : { ok: true, status: r.status };
+                } catch (e) {
+                    return { ok: false, error: errText(e) };
+                }
+            };
+            const [cap, prov] = await Promise.all([probe('captures'), probe('provisions')]);
+            // Probing two tables separates "this one table is missing" from
+            // "the key is being rejected for everything".
+            dbCheck = { captures: cap, provisions: prov, ok: cap.ok && prov.ok };
         }
 
         return res.status(200).json({
@@ -490,11 +878,24 @@ export default async function handler(req, res) {
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
     const text = (body.text || '').toString().trim().slice(0, MAX_TEXT);
-    if (!text) return res.status(400).json({ error: 'Nothing to file — say something first.' });
+
+    // The share-sheet Shortcut sends a link instead of speech — from NYT
+    // Cooking, Serious Eats, anywhere. Recognise it here, whether it arrives as
+    // `url` or as text that is nothing but a URL.
+    const shared = (body.url || '').toString().trim()
+        || (/^https?:\/\/\S+$/i.test(text) ? text : '');
+
+    if (!text && !shared) {
+        return res.status(400).json({ error: 'Nothing to file — say something first.' });
+    }
 
     const sb = db();
     const userId = process.env.PORTAL_USER_ID;
     const actions = [];
+    // Things she named that were already filed. Collected rather than dropped,
+    // because "nothing happened" and "you already have that" look identical
+    // from a phone notification and mean very different things.
+    const dupes = [];
     let summary = null;
     let narration = null;
     let failure = null;
@@ -508,8 +909,19 @@ export default async function handler(req, res) {
         let skipped = null;
         const toolErrors = [];
 
+        // A shared link needs no interpretation: import it and skip the model
+        // entirely. Faster, cheaper, and it cannot pick the wrong room.
+        if (shared) {
+            try {
+                const outcome = await runTool(sb, userId, 'import_recipe', { url: shared }, actions, ctx, dupes);
+                if (outcome) done.push(outcome);
+            } catch (err) {
+                toolErrors.push(`import_recipe: ${errText(err)}`);
+            }
+        }
+
         // Two passes is enough: one to call tools, one to summarise.
-        for (let turn = 0; turn < 2; turn += 1) {
+        for (let turn = 0; !shared && turn < 2; turn += 1) {
             const r = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
@@ -550,9 +962,17 @@ export default async function handler(req, res) {
                     continue;
                 }
                 try {
-                    const outcome = await runTool(sb, userId, call.name, call.input, actions);
-                    done.push(outcome);
-                    results.push({ type: 'tool_result', tool_use_id: call.id, content: `Filed: ${outcome}` });
+                    const before = dupes.length;
+                    const outcome = await runTool(sb, userId, call.name, call.input, actions, ctx, dupes);
+                    const refused = dupes.slice(before);
+                    if (outcome) done.push(outcome);
+                    // Tell the model what was refused, so its own narration
+                    // does not claim writes the guard blocked.
+                    const content = [
+                        outcome ? `Filed: ${outcome}` : null,
+                        refused.length ? `Already present, not written: ${refused.map((d) => d.item).join(', ')}` : null,
+                    ].filter(Boolean).join('. ') || 'Nothing to file.';
+                    results.push({ type: 'tool_result', tool_use_id: call.id, content });
                 } catch (err) {
                     const why = errText(err);
                     toolErrors.push(`${call.name}: ${why}`);
@@ -565,8 +985,15 @@ export default async function handler(req, res) {
         // Summary is derived from rows that actually landed. `narration` is
         // only allowed to speak when there is something to speak about.
         allToolErrors.push(...toolErrors);
-        if (actions.length) {
+        const dupeText = describeDupes(dupes);
+        if (actions.length && dupeText) {
+            // Deterministic, not narrated: the model was never told which of
+            // its calls the guard rejected until after it had already spoken.
+            summary = `Added ${done.join(', and ')}. ${sentenceCase(dupeText)}.`;
+        } else if (actions.length) {
             summary = narration || `Added ${done.join(', and ')}.`;
+        } else if (dupeText) {
+            summary = `Nothing new — ${dupeText}.`;
         } else if (skipped) {
             summary = `Nothing filed — ${skipped}`;
         } else if (toolErrors.length) {
@@ -581,7 +1008,7 @@ export default async function handler(req, res) {
 
     const { error: logError } = await sb.from('captures').insert([{
         user_id: userId,
-        transcript: text,
+        transcript: text || shared,
         summary,
         actions,
         model: MODEL,
@@ -599,7 +1026,12 @@ export default async function handler(req, res) {
         summary,
         wrote,
         actions,
+        duplicates: dupes.length ? dupes.map((d) => d.item) : undefined,
         error: failure,
         toolErrors: allToolErrors.length ? allToolErrors : undefined,
     });
 }
+
+// Named exports for the test harness in scripts/capture-test.mjs. Vercel only
+// invokes the default export; these are inert in production.
+export { norm, dedupe, describeDupes, loadContext, systemPrompt, TOOLS };

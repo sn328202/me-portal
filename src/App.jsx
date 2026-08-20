@@ -4,6 +4,7 @@ import AppShell from './layout/AppShell';
 import Dashboard from './pages/Dashboard';
 import Auth from './pages/Auth';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import LoadingScreen from './components/LoadingScreen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -42,37 +43,39 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <ThemeProvider>
-          <Router>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/*" element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <ErrorBoundary>
-                      <Suspense fallback={<LoadingScreen />}>
-                        <Routes>
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/larder" element={<Larder />} />
-                          <Route path="/treasury" element={<Treasury />} />
-                          <Route path="/library" element={<Library />} />
-                          <Route path="/atlas" element={<Atlas />} />
-                          <Route path="/daydream" element={<DayPlanner />} />
-                          <Route path="/study" element={<Studio />} />
-                          <Route path="/learning" element={<Learning />} />
-                          <Route path="/play" element={<Play />} />
-                          <Route path="/systems" element={<Systems />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </Suspense>
-                    </ErrorBoundary>
-                  </AppShell>
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </Router>
-        </ThemeProvider>
+        <SettingsProvider>
+          <ThemeProvider>
+            <Router>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/*" element={
+                  <ProtectedRoute>
+                    <AppShell>
+                      <ErrorBoundary>
+                        <Suspense fallback={<LoadingScreen />}>
+                          <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/larder" element={<Larder />} />
+                            <Route path="/treasury" element={<Treasury />} />
+                            <Route path="/library" element={<Library />} />
+                            <Route path="/atlas" element={<Atlas />} />
+                            <Route path="/daydream" element={<DayPlanner />} />
+                            <Route path="/study" element={<Studio />} />
+                            <Route path="/learning" element={<Learning />} />
+                            <Route path="/play" element={<Play />} />
+                            <Route path="/systems" element={<Systems />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </Suspense>
+                      </ErrorBoundary>
+                    </AppShell>
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </Router>
+          </ThemeProvider>
+        </SettingsProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

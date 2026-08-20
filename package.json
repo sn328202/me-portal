@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "test": "node scripts/capture-test.mjs && node scripts/recipe-test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
