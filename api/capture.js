@@ -27,10 +27,26 @@ const db = () =>
         auth: { persistSession: false, autoRefreshToken: false },
     });
 
-const tokenOk = (given) => {
-    const expected = process.env.CAPTURE_TOKEN || '';
-    if (!given || !expected || given.length !== expected.length) return false;
-    return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+// Both sides get trimmed. Env-var panels and copy-paste add trailing
+// newlines and spaces constantly, and a token that is right except for an
+// invisible \n is the single most likely reason this ever fails.
+const compareToken = (given) => {
+    const g = String(given || '').trim();
+    const e = String(process.env.CAPTURE_TOKEN || '').trim();
+    const ok =
+        g.length > 0 &&
+        e.length > 0 &&
+        g.length === e.length &&
+        timingSafeEqual(Buffer.from(g), Buffer.from(e));
+    return {
+        ok,
+        // Lengths only — never the values. Enough to tell "invisible
+        // whitespace" apart from "two different secrets" without a guessing game.
+        givenLengthRaw: String(given || '').length,
+        givenLength: g.length,
+        expectedLength: e.length,
+        sameLength: g.length === e.length,
+    };
 };
 
 /* ---------- what the model is allowed to do -------------------------- */
@@ -411,8 +427,22 @@ export default async function handler(req, res) {
         });
     }
 
-    if (!tokenOk(req.headers['x-capture-token'])) {
-        return res.status(401).json({ error: 'Bad capture token' });
+    const auth = compareToken(req.headers['x-capture-token']);
+    if (!auth.ok) {
+        return res.status(401).json({
+            error: 'Bad capture token',
+            diagnostic: {
+                sentLength: auth.givenLength,
+                sentLengthBeforeTrim: auth.givenLengthRaw,
+                serverTokenLength: auth.expectedLength,
+                sameLength: auth.sameLength,
+                hint: auth.givenLength === 0
+                    ? 'No token arrived — check the x-capture-token header is actually being sent.'
+                    : auth.sameLength
+                        ? 'Same length, different value: the two secrets genuinely differ.'
+                        : 'Different lengths: likely a truncated paste, or extra characters on one side.',
+            },
+        });
     }
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
