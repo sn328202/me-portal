@@ -1023,7 +1023,25 @@ export default async function handler(req, res) {
         });
     }
 
-    const auth = compareToken(req.headers['x-capture-token']);
+    // Two ways in, because the two callers cannot share a secret.
+    //
+    //   - The iOS Shortcut holds CAPTURE_TOKEN. It is a shared secret in a
+    //     place only she can reach, and it maps to PORTAL_USER_ID.
+    //   - The web app holds nothing. A token shipped to the browser is not a
+    //     token, so it presents the signed-in user's own Supabase session and
+    //     the rows are written for whoever that is.
+    const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    let sessionUserId = null;
+
+    if (bearer) {
+        const { data: authData, error: authError } = await db().auth.getUser(bearer);
+        if (authError || !authData?.user) {
+            return res.status(401).json({ error: 'That session has expired — sign in again.' });
+        }
+        sessionUserId = authData.user.id;
+    }
+
+    const auth = sessionUserId ? { ok: true } : compareToken(req.headers['x-capture-token']);
     if (!auth.ok) {
         return res.status(401).json({
             error: 'Bad capture token',
@@ -1055,7 +1073,9 @@ export default async function handler(req, res) {
     }
 
     const sb = db();
-    const userId = process.env.PORTAL_USER_ID;
+    // Never trust a user id from the request body — it is taken from the
+    // verified session, or from the environment for the Shortcut.
+    const userId = sessionUserId || process.env.PORTAL_USER_ID;
     const actions = [];
     // Things she named that were already filed. Collected rather than dropped,
     // because "nothing happened" and "you already have that" look identical
@@ -1187,7 +1207,7 @@ export default async function handler(req, res) {
         summary = 'Nothing was filed. Say it again with a bit more detail?';
     }
 
-    const { error: logError } = await sb.from('captures').insert([{
+    const { data: logRow, error: logError } = await sb.from('captures').insert([{
         user_id: userId,
         transcript: text || shared,
         summary,
@@ -1195,7 +1215,7 @@ export default async function handler(req, res) {
         model: MODEL,
         error: failure,
         source: body.source || 'shortcut',
-    }]);
+    }]).select('id').single();
     if (logError) {
         // Swallowing this is how a completely silent failure looked like a
         // success. If the log did not land, say so.
@@ -1206,6 +1226,8 @@ export default async function handler(req, res) {
     return res.status(failure && !wrote ? 502 : 200).json({
         summary,
         wrote,
+        // The web app needs this to offer undo without refetching the log.
+        captureId: logRow?.id || null,
         actions,
         duplicates: dupes.length ? dupes.map((d) => d.item) : undefined,
         error: failure,

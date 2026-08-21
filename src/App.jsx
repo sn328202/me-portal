@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Auth from './pages/Auth';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { CaptureProvider } from './contexts/CaptureContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import LoadingScreen from './components/LoadingScreen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -44,6 +45,7 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <SettingsProvider>
+          <CaptureProvider>
           <ThemeProvider>
             <Router>
               <Routes>
@@ -75,6 +77,7 @@ function App() {
               </Routes>
             </Router>
           </ThemeProvider>
+          </CaptureProvider>
         </SettingsProvider>
       </AuthProvider>
     </ErrorBoundary>

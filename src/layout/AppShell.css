@@ -1,8 +1,19 @@
-.app-shell {
+/* The viewport is now split between the capture bar and everything else. The
+   frame owns the full height; the shell takes what is left. */
+.app-frame {
     display: flex;
+    flex-direction: column;
     height: 100vh;
     /* Fallback for browsers without dynamic viewport units */
     height: 100dvh;
+    box-sizing: border-box;
+}
+
+.app-shell {
+    display: flex;
+    flex: 1;
+    /* Without this a flex child refuses to shrink and the rail is pushed off */
+    min-height: 0;
     box-sizing: border-box;
 }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { GiSecretBook, GiScrollUnfurled, GiCardRandom, GiClockwork, GiGears, GiCookingPot, GiOpenTreasureChest, GiBookshelf, GiWorld, GiCompass, GiDesk } from 'react-icons/gi';
+import QuickCapture from '../components/QuickCapture';
 import './AppShell.css';
 
 const AppShell = ({ children }) => {
@@ -22,25 +23,31 @@ const AppShell = ({ children }) => {
   ];
 
   return (
-    <div className="app-shell">
-      <nav className="sidebar" aria-label="Rooms">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            title={item.label}
-          >
-            <span className="nav-glyph" aria-hidden="true">
-              <item.icon size={24} />
-            </span>
-            <span className="nav-label">{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-      <main className="main-content">
-        {children}
-      </main>
+    /* The capture box sits outside the shell, above both the rail and the
+       content, so it is in the same place on every page and at every width. */
+    <div className="app-frame">
+      <QuickCapture />
+
+      <div className="app-shell">
+        <nav className="sidebar" aria-label="Rooms">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              title={item.label}
+            >
+              <span className="nav-glyph" aria-hidden="true">
+                <item.icon size={24} />
+              </span>
+              <span className="nav-label">{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <main className="main-content">
+          {children}
+        </main>
+      </div>
     </div>
   );
 };

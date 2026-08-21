@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCaptureRevision } from '../contexts/CaptureContext';
 
 export const useTodos = () => {
     const { user } = useAuth();
+    // Refetch when a quick capture writes to this table.
+    const revision = useCaptureRevision();
     const [todos, setTodos] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -28,7 +31,7 @@ export const useTodos = () => {
 
     useEffect(() => {
         fetchTodos();
-    }, [user]);
+    }, [user, revision]);
 
     const toggleTodo = async (id) => {
         if (!user) return;

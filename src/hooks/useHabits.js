@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCaptureRevision } from '../contexts/CaptureContext';
 
 // last_completed has historically been stored as `new Date().toDateString()`
 // ("Tue Aug 18 2026"). Existing rows use that format, so we keep writing it,
@@ -36,6 +37,8 @@ const isSameDay = (a, b) => {
 
 export const useHabits = () => {
     const { user } = useAuth();
+    // Refetch when a quick capture writes to this table.
+    const revision = useCaptureRevision();
     const [habits, setHabits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [streak, setStreak] = useState(0);
@@ -108,7 +111,7 @@ export const useHabits = () => {
 
     useEffect(() => {
         fetchHabits();
-    }, [user]);
+    }, [user, revision]);
 
     // Streak Logic: Increment when all active habits are done
     useEffect(() => {

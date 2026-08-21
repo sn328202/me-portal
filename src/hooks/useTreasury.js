@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCaptureRevision } from '../contexts/CaptureContext';
 
 export const useTreasury = () => {
     const { user } = useAuth();
+    // Refetch when a quick capture writes to this table.
+    const revision = useCaptureRevision();
     const [items, setItems] = useState([]);
     const [brands, setBrands] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -56,7 +59,7 @@ export const useTreasury = () => {
     useEffect(() => {
         fetchItems();
         fetchBrands();
-    }, [user]);
+    }, [user, revision]);
 
     /** "$1,299.00" -> 1299. Null for anything that is not a number. */
     const numericPrice = (raw) => {
