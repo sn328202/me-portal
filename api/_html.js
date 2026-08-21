@@ -78,7 +78,7 @@ export const firstMeta = (html, props) => {
  * range, or a cloud metadata endpoint, so a pasted link cannot be used to probe
  * from the inside.
  */
-const isPrivateHost = (hostname) => {
+export const isPrivateHost = (hostname) => {
     const h = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
     if (!h) return true;
     if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true;

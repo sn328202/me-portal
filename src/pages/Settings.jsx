@@ -7,6 +7,7 @@ import { useSettings } from '../hooks/useSettings';
 import { THEME_CHARACTER } from '../configs/themes.jsx';
 import { GiGears } from 'react-icons/gi';
 import { Button, Card, PageHeader, Field } from '../components/ui';
+import CalendarFeeds from '../components/CalendarFeeds';
 import '../styles/Settings.css';
 
 /**
@@ -201,14 +202,25 @@ const Settings = () => {
                     Connected Spirits (Integrations)
                 </h2>
 
+                {/* The feed reader comes first: it is the one that shows real
+                    event titles, and the one that works on a phone. */}
+                <CalendarFeeds />
+
+                <h3 className="section-title settings-subsection-title">
+                    Google embed (fallback)
+                </h3>
+
                 <div className="stack">
                     <p className="integration-note">
-                        To embed the "Real Deal," we need your <strong>Calendar ID</strong> (e.g.,{' '}
-                        <code>yourname@gmail.com</code>).<br />
-                        For multiple calendars, separate them with a comma.
+                        The embedded Google view, by <strong>Calendar ID</strong> (e.g.{' '}
+                        <code>yourname@gmail.com</code>). Several are allowed, separated by commas.
                     </p>
                     <p className="integration-warning">
-                        Note: Your calendar must be "Public" or you must be logged into Google in this browser for it to appear.
+                        The embed only ever shows what a calendar is <em>shared</em> as. A calendar
+                        shared as &ldquo;free/busy&rdquo; renders every event as &ldquo;Busy&rdquo;
+                        with no titles, and one that is not shared at all shows nothing unless this
+                        browser is signed into the Google account that owns it &mdash; which is why
+                        it is usually blank on a phone. Add a secret address above instead.
                     </p>
 
                     <div className="integration-input-group">

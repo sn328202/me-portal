@@ -236,3 +236,64 @@
 .theme-card[aria-checked='true'] .theme-name {
     color: var(--text-gold);
 }
+
+/* --- Calendar feeds ------------------------------------------ */
+
+.settings-subsection-title {
+    margin-top: var(--space-6);
+    font-size: var(--text-sm);
+}
+
+.feed-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.feed-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    min-height: var(--tap-min);
+}
+
+.feed-row + .feed-row {
+    border-top: var(--rule-hair);
+}
+
+.feed-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-pill);
+    flex-shrink: 0;
+}
+
+.feed-meta {
+    flex: 1;
+    min-width: 0;
+    /* The address is a credential and is never rendered; the host alone is
+       enough to tell two feeds apart. */
+    overflow-wrap: anywhere;
+}
+
+.feed-add {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+    gap: var(--space-3);
+    align-items: end;
+}
+
+.feed-check {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    align-items: flex-start;
+}
+
+@media (max-width: 768px) {
+    .feed-add {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+}

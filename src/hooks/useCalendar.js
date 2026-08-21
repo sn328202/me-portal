@@ -1,122 +1,111 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { parseICS } from '../utils/icsParser';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 import { useSettings } from './useSettings';
 
+/**
+ * Calendar feeds and their events.
+ *
+ * Replaces an unused hook that fetched an iCal URL through api.codetabs.com,
+ * a public third-party proxy. Nothing consumed it, so nothing leaked — but a
+ * calendar's *secret address* is exactly the kind of thing that must never be
+ * handed to a stranger's server, and this feature is built around that address.
+ * Everything now goes through /api/calendar, which fetches and parses on our
+ * own server and returns plain events.
+ */
+
+const FEED_COLORS = [
+    'var(--text-gold)',
+    'var(--accent-crimson)',
+    'var(--fill-quiet)',
+    'var(--border-gold)',
+];
+
+const post = async (body) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('You are signed out — sign in again.');
+
+    const response = await fetch('/api/calendar', {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'The calendar could not be read.');
+    return data;
+};
+
 export const useCalendar = () => {
-    const { user } = useAuth();
     const { settings, updateSetting } = useSettings();
-    // Local Manual Events
-    const [localEvents, setLocalEvents] = useState([]);
-    const [storageKey, setStorageKey] = useState(null);
-
-    // Remote iCal Events
-    const [remoteEvents, setRemoteEvents] = useState([]);
+    const [events, setEvents] = useState([]);
+    const [feeds, setFeeds] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    // Initialize User & Keys
-    useEffect(() => {
-        if (user) {
-            const sKey = `me_portal_calendar_${user.id}`;
-            setStorageKey(sKey);
+    const saved = settings.calendarFeeds;
 
-            const saved = localStorage.getItem(sKey);
-            if (saved) {
-                try {
-                    setLocalEvents(JSON.parse(saved));
-                } catch (e) {
-                    console.error("Error parsing local events", e);
-                    setLocalEvents([]);
-                }
-            } else {
-                setLocalEvents([]);
-            }
-        } else {
-            setStorageKey(null);
-            setLocalEvents([]);
-            setRemoteEvents([]);
+    const refresh = useCallback(async () => {
+        if (!Array.isArray(saved) || saved.length === 0) {
+            setEvents([]);
+            setFeeds([]);
+            return;
         }
-    }, [user]);
-
-    // Save Local Events to Storage
-    useEffect(() => {
-        if (storageKey) {
-            localStorage.setItem(storageKey, JSON.stringify(localEvents));
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await post({});
+            setEvents(data.events || []);
+            setFeeds(data.feeds || []);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
         }
-    }, [localEvents, storageKey]);
+    }, [saved]);
 
-    // Fetch Remote Calendar
-    useEffect(() => {
-        const controller = new AbortController();
+    // Refetch when the set of feeds changes, not on every settings write.
+    useEffect(() => { refresh(); }, [refresh]);
 
-        const fetchRemote = async () => {
-            let url = settings.calendarIcalUrl;
-            if (!url) {
-                setRemoteEvents([]);
-                return;
-            }
+    /** Check an address before committing to it, so a typo is caught at entry. */
+    const probe = useCallback(async (url) => {
+        try {
+            return await post({ probe: url });
+        } catch (err) {
+            return { ok: false, error: err.message };
+        }
+    }, []);
 
-            if (url.startsWith('webcal://')) url = url.replace('webcal://', 'https://');
-            if (!url.startsWith('http')) return;
-
-            setLoading(true);
-            try {
-                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-                const res = await fetch(proxyUrl, { signal: controller.signal });
-                if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-                const text = await res.text();
-                const parsed = parseICS(text);
-                setRemoteEvents(parsed);
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    return; // Ignore intentional aborts
-                }
-                console.error("Failed to fetch calendar", err);
-            } finally {
-                setLoading(false);
-            }
+    const addFeed = useCallback(async ({ name, url }) => {
+        const list = Array.isArray(saved) ? saved : [];
+        const feed = {
+            // Enough to key one person's list; not an identifier anything
+            // else depends on.
+            id: `feed-${Date.now()}`,
+            name: (name || '').trim() || 'Calendar',
+            url: (url || '').trim(),
+            color: FEED_COLORS[list.length % FEED_COLORS.length],
         };
+        await updateSetting('calendarFeeds', [...list, feed]);
+        return feed;
+    }, [saved, updateSetting]);
 
-        fetchRemote();
+    const removeFeed = useCallback(async (id) => {
+        const list = Array.isArray(saved) ? saved : [];
+        await updateSetting('calendarFeeds', list.filter((f) => f.id !== id));
+    }, [saved, updateSetting]);
 
-        const handleUpdate = () => {
-            fetchRemote();
-        };
-        window.addEventListener('calendar-config-updated', handleUpdate);
-
-        return () => {
-            controller.abort();
-            window.removeEventListener('calendar-config-updated', handleUpdate);
-        };
-    }, [settings.calendarIcalUrl]);
-
-    const addEvent = (date, title, time = '') => {
-        if (!storageKey) return;
-        const newEvent = {
-            id: Date.now(),
-            date, // Format: YYYY-MM-DD
-            title,
-            time
-        };
-        setLocalEvents(prev => [...prev, newEvent]);
+    return {
+        events,
+        feeds,
+        savedFeeds: Array.isArray(saved) ? saved : [],
+        loading,
+        error,
+        refresh,
+        probe,
+        addFeed,
+        removeFeed,
     };
-
-    const deleteEvent = (id) => {
-        if (!storageKey) return;
-        setLocalEvents(prev => prev.filter(e => e.id !== id));
-    };
-
-    // Combine Local + Remote
-    const allEvents = [...localEvents, ...remoteEvents];
-
-    const getEventsForDate = (date) => {
-        return allEvents.filter(e => e.date === date).sort((a, b) => {
-            // Sort by time if available, otherwise alpha
-            const timeA = a.time || '';
-            const timeB = b.time || '';
-            return timeA.localeCompare(timeB);
-        });
-    };
-
-    return { events: allEvents, addEvent, deleteEvent, getEventsForDate, loading };
 };

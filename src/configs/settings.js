@@ -14,6 +14,9 @@ export const DEFAULT_SETTINGS = {
     // hooks/useDashboardSettings.js for how new widgets get switched on.
     knownWidgets: null,
     calendarId: '',
+    // Secret iCal addresses, one per calendar: { id, name, url, color }.
+    // Replaces calendarIcalUrl, which was a single URL and never had a UI.
+    calendarFeeds: [],
     calendarIcalUrl: '',
     calendarDarkMode: false,
     statusUrl: '',
