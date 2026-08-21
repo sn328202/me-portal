@@ -16,6 +16,7 @@ const ROOM = {
     todos: 'Tasks',
     treasury_items: 'Treasury',
     day_plans: 'Daydream',
+    spots: 'Spots',
     plan_items: 'Daydream',
     atlas_trips: 'Atlas',
     library_items: 'Library',

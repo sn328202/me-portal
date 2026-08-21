@@ -3,7 +3,9 @@ import { GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, 
 import { useJsApiLoader } from '@react-google-maps/api';
 import PlacesSearch from '../components/PlacesSearch';
 import SmartTimeInput from '../components/SmartTimeInput';
-import { Button, Card, ConfirmButton, EmptyState, Field } from '../components/ui';
+import { Button, Card, ConfirmButton, EmptyState, Field, Tabs } from '../components/ui';
+import SpotsLibrary from '../components/SpotsLibrary';
+import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -97,6 +99,9 @@ const DayPlanner = () => {
         libraries
     });
 
+    // 'itineraries' | 'spots'. A saved place outlives any particular day, so
+    // the two live side by side rather than one inside the other.
+    const [view, setView] = useState('itineraries');
     const [plans, setPlans] = useState([]);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [items, setItems] = useState([]); // Items for selected plan
@@ -578,7 +583,32 @@ const DayPlanner = () => {
     const timelineItems = items.filter(i => !i.is_brainstorm);
     const brainstormItems = items.filter(i => i.is_brainstorm);
 
+    const handleAddSpotToPlan = async (spot, planId) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        const created = await addSpotToPlan(spot, planId, user?.id);
+        if (!created) return;
+        // Keep the open plan in sync when the spot landed on the one on screen.
+        if (selectedPlan?.id === planId) setItems((prev) => [...prev, created]);
+        setView('itineraries');
+        const plan = plans.find((p) => p.id === planId);
+        if (plan) setSelectedPlan(plan);
+    };
+
     return (
+        <div className="daydream-page">
+            <Tabs
+                label="Daydream sections"
+                active={view}
+                onChange={setView}
+                tabs={[
+                    { id: 'itineraries', label: 'Itineraries', icon: <GiTreasureMap />, count: plans.length },
+                    { id: 'spots', label: 'Spots', icon: <GiPositionMarker /> },
+                ]}
+            />
+
+            {view === 'spots' ? (
+                <SpotsLibrary plans={plans} onAddToPlan={handleAddSpotToPlan} />
+            ) : (
         <div className="daydream">
             {/* Hidden node the Google PlacesService attaches to */}
             <div ref={placesServiceRef} className="daydream__places-anchor" />
@@ -977,6 +1007,8 @@ const DayPlanner = () => {
                     </div>
                 )}
             </section>
+        </div>
+            )}
         </div>
     );
 };

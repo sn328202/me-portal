@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { timingSafeEqual } from 'node:crypto';
 import { extractRecipe, parseIngredient } from './_recipe.js';
 import { extractProduct } from './_link.js';
+import { resolvePlace } from './_place.js';
 
 /**
  * POST /api/capture   { text: "..." }
@@ -138,9 +139,29 @@ const TOOLS = [
         },
     },
     {
+        name: 'save_spot',
+        description:
+            'Save a place she wants to go — a restaurant, bar, cafe, museum, park, hike, shop or venue. This is the default for any "I want to go to..." or "I want to try..." thought. The real place is looked up automatically, so pass the name as she said it and let the lookup supply the address, neighbourhood, map link, rating and hours. Do NOT use add_to_itinerary for this: a place she wants to go does not belong to any particular day yet.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string', description: 'The place as she named it.' },
+                city: { type: 'string', description: 'City or neighbourhood, if she said one or it is obvious. Helps the lookup find the right branch.' },
+                why: { type: 'string', description: 'Her reason, in her own words — "Ali said the tasting menu is worth it", "good for a rainy afternoon". Keep it verbatim; omit if she gave none.' },
+                category: {
+                    type: 'string',
+                    enum: ['restaurant', 'bar', 'cafe', 'museum', 'park', 'hike', 'shop', 'venue', 'wellness', 'lodging', 'other'],
+                    description: 'Only if the lookup is unlikely to work it out. It usually will.',
+                },
+                tags: { type: 'array', items: { type: 'string' }, description: 'Occasion tags she implied: date night, with friends, solo, brunch, birthday.' },
+            },
+            required: ['name'],
+        },
+    },
+    {
         name: 'add_to_itinerary',
         description:
-            'Add a place or activity to a day itinerary (The Daydream). Use for restaurants, exhibitions, shops, anything she wants to go to. Attach to an existing itinerary when the location or theme matches one; otherwise create a new one. Items with no fixed time go in as brainstorm entries.',
+            'Put something on a specific day itinerary. Use ONLY when she is planning an actual day — she named a date, said "for Saturday", or referred to an itinerary that already exists. A place she merely wants to visit someday is a spot, not an itinerary item: use save_spot instead. Items with no fixed time go in as brainstorm entries.',
         input_schema: {
             type: 'object',
             properties: {
@@ -341,7 +362,7 @@ async function loadContext(sb, userId) {
 
     const [
         plans, planItems, trips, treasury, library,
-        chores, pantry, provisions, todos, goals, habits, social, recipes,
+        chores, pantry, provisions, todos, goals, habits, social, recipes, spots,
     ] = await Promise.all([
         q('day_plans', 'id, title, location, planned_date', { limit: 25 }),
         q('plan_items', 'plan_id, activity', { limit: 150 }),
@@ -356,6 +377,7 @@ async function loadContext(sb, userId) {
         q('habits', 'text', { limit: 40 }),
         q('social_plans', 'who, what, when_date', { limit: 30 }),
         q('recipes', 'title, source_url', { limit: 80 }),
+        q('spots', 'name, city, category, status, place_id', { limit: 120 }),
     ]);
 
     // A single failed sub-query must not take the whole capture down; the
@@ -389,6 +411,9 @@ async function loadContext(sb, userId) {
         habits: uniq(habits, 'text'),
         social: rows(social).map((s) => `${s.what} with ${s.who}`),
         recipes: uniq(recipes, 'title'),
+        spots: rows(spots).map((sp) => ({
+            name: sp.name, city: sp.city, category: sp.category, status: sp.status,
+        })),
     };
 
     // The enforceable half. Keyed by table name so the writer can look up
@@ -404,6 +429,10 @@ async function loadContext(sb, userId) {
         pantry_ingredients: setOf(rows(pantry).map((p) => p.name)),
         social_plans: setOf(ctx.social),
         recipes: setOf(ctx.recipes),
+        spots: setOf(ctx.spots.map((sp) => sp.name)),
+        // Google's identifier survives her calling the same place three
+        // different things.
+        spotPlaceIds: new Set(rows(spots).map((sp) => sp.place_id).filter(Boolean)),
         // Same dish saved twice from the same page is the likeliest repeat,
         // and titles drift between imports where the URL does not.
         recipeUrls: new Set(rows(recipes).map((r) => r.source_url).filter(Boolean)),
@@ -471,6 +500,7 @@ Aspirations:${bullets(ctx.goals)}
 Daily rituals:${bullets(ctx.habits)}
 Social plans:${bullets(ctx.social)}
 Recipes in the Larder:${bullets(ctx.recipes)}
+Saved spots — places she already means to go:${bullets(ctx.spots.map((sp) => `${sp.name}${sp.city ? ` (${sp.city})` : ''}${sp.category ? ` — ${sp.category}` : ''}${sp.status === 'been' ? ' [been]' : ''}`))}
 Chore rooms in use: ${ctx.rooms.join(', ') || 'none yet'}
 In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
 
@@ -495,8 +525,9 @@ This arrives as phone dictation, so words come through mangled. Map near-misses 
   - Prefer **the brand's own product page** over Amazon, a marketplace, a reseller or a review article. Brand pages have accurate prices, real photography and stable URLs.
   - Search at most once or twice per item. If nothing convincing turns up, file it without a link rather than attaching a page you are unsure about — a wrong product is worse than a missing one.
   - Do not use web_search for anything except finding a Treasury product page.
-- A restaurant, exhibition, shop or activity she wants to visit is an itinerary item, not a todo.
-- A day out is an itinerary. Travel to another city or country is a trip.
+- **A place she wants to go is a spot, not a todo and not an itinerary.** "I want to try that ramen place", "we should check out the new wine bar", "someone told me about a garden in Berkeley" — all save_spot. The address, neighbourhood, map link and hours are looked up for you, so pass the name as she said it plus any city, and keep her reason verbatim in the why field.
+- Use add_to_itinerary only when she is planning an actual day: a date, "for Saturday", or an itinerary that already exists. If she is planning a day around places she has already saved, add them to the itinerary by name.
+- Travel to another city or country is a trip, not a spot and not an itinerary.
 - Do not invent dates, prices or times she did not say.
 - If a thought is genuinely just a note with no home, add it as a todo.
 - Keep her words. Tidy grammar, do not rewrite meaning or add flourish.
@@ -649,6 +680,52 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             if (!meta.usable) return `"${title}" to the Treasury — the link saved, but ${meta.brand || 'that site'} would not let us read the page`;
             if (amount === null) return `"${title}" to the Treasury — ${meta.brand || 'the page'} did not list a price`;
             return `"${title}" to the Treasury at ${meta.price_currency === 'USD' ? '$' : ''}${amount}`;
+        }
+        case 'save_spot': {
+            // Look the place up first: the resolved name is the one worth
+            // deduplicating against, since she may call it "that ramen place"
+            // twice and mean the same restaurant.
+            const place = await resolvePlace(input.name, { city: input.city });
+
+            if (place.place_id && ctx.index.spotPlaceIds.has(place.place_id)) {
+                dupes.push({ item: place.name, where: 'in your spots' });
+                return null;
+            }
+
+            const spotName = once('spots', place.name, 'in your spots');
+            if (!spotName) return null;
+            if (place.place_id) ctx.index.spotPlaceIds.add(place.place_id);
+
+            const [r] = await ins('spots', [{
+                name: spotName,
+                category: input.category || place.category,
+                why: input.why || null,
+                address: place.address,
+                neighborhood: place.neighborhood,
+                city: place.city || input.city || null,
+                lat: place.lat,
+                lng: place.lng,
+                maps_url: place.maps_url,
+                place_id: place.place_id,
+                website: place.website,
+                phone: place.phone,
+                rating: place.rating,
+                price_level: place.price_level,
+                hours: place.hours,
+                image_url: place.image_url,
+                tags: input.tags && input.tags.length ? input.tags : [],
+                status: 'want to go',
+                source: 'capture',
+                user_id: userId,
+            }]);
+            push('spots', r.id, spotName);
+            ctx.spots.push({ name: spotName, city: place.city, category: place.category, status: 'want to go' });
+
+            const where = place.neighborhood || place.city;
+            if (place.source === 'unresolved') {
+                return `"${spotName}" to your spots — could not find it on a map, so it is just the name for now`;
+            }
+            return `"${spotName}"${where ? ` in ${where}` : ''} to your spots`;
         }
         case 'add_to_itinerary': {
             let planId = input.plan_id;
