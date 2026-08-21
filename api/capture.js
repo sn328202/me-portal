@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { timingSafeEqual } from 'node:crypto';
 import { extractRecipe, parseIngredient } from './_recipe.js';
+import { extractProduct } from './_link.js';
 
 /**
  * POST /api/capture   { text: "..." }
@@ -20,8 +21,38 @@ import { extractRecipe, parseIngredient } from './_recipe.js';
  *   CAPTURE_TOKEN              required — shared secret with the Shortcut
  */
 
+/**
+ * A capture can involve a web search, a page fetch and up to three model turns.
+ * Vercel's default ceiling is 10 seconds, which a slow shop alone can spend.
+ */
+export const config = { maxDuration: 60 };
+
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 const MAX_TEXT = 4000;
+
+/**
+ * Anthropic runs this one itself — no implementation on our side, the results
+ * come back inside the same response. It exists so that "I want that matte
+ * black Hario kettle" can become a real product page rather than a bare title.
+ *
+ * Billed per search ($10/1000), so `max_uses` is deliberately tight and the
+ * system prompt restricts it to the one case that needs it.
+ */
+const WEB_SEARCH = {
+    // Not 20260318: that revision runs inside a code-execution container, so
+    // the follow-up turn is rejected with "container_id is required when there
+    // are pending tool uses". This one has no such requirement.
+    type: 'web_search_20250305',
+    name: 'web_search',
+    max_uses: 3,
+    user_location: {
+        type: 'approximate',
+        city: 'San Francisco',
+        region: 'California',
+        country: 'US',
+        timezone: 'America/Los_Angeles',
+    },
+};
 
 const db = () =>
     createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -86,15 +117,22 @@ const TOOLS = [
     {
         name: 'add_desire',
         description:
-            'Add something she wants to buy to the Treasury (a desire ledger, not a shopping list). Use for objects, clothes, furniture, jewellery — things wanted rather than needed.',
+            'Add something she wants to buy to the Treasury (a desire ledger, not a shopping list). Use for objects, clothes, furniture, jewellery — things wanted rather than needed. Always try to include `link`: the page is fetched and the real name, price, photo, brand and description are read off it, so anything you pass alongside a link is only a fallback. If she did not give a link, use web_search to find the product first — see the Treasury rules in the system prompt.',
         input_schema: {
             type: 'object',
             properties: {
                 title: { type: 'string' },
-                category: { type: 'string', description: 'e.g. Home, Kitchen, Closet. Reuse an existing category when one fits.' },
-                price: { type: 'string', description: 'Number only, no currency symbol. Omit if unknown.' },
+                link: {
+                    type: 'string',
+                    description: 'Direct URL to the product page. Prefer the brand\'s own site over a marketplace or reseller.',
+                },
+                category: {
+                    type: 'string',
+                    enum: ['Home', 'Kitchen', 'Closet', 'Books', 'Tech', 'Personal Care', 'Other'],
+                    description: 'Must be one of these — the Treasury groups by category and anything else is invisible.',
+                },
+                price: { type: 'string', description: 'Number only, no currency symbol. Only if she said it; the page is more reliable.' },
                 priority: { type: 'string', enum: ['Low', 'Medium', 'High'] },
-                link: { type: 'string' },
             },
             required: ['title'],
         },
@@ -453,6 +491,10 @@ This arrives as phone dictation, so words come through mangled. Map near-misses 
 - **Already there?** If she names something that appears above, do not add it again. If everything she said is already filed, call nothing_to_file and say what she already has. Adding it anyway will be rejected before it is written, so you gain nothing by trying.
 - **Attach, don't duplicate.** A restaurant in a city where an itinerary already exists belongs on that itinerary — pass its id. Only pass an id that appears in the list above; a made-up id is discarded and a stray new itinerary is created instead.
 - Distinguish needing from wanting. Groceries are needs; the Treasury is for wants.
+- **Treasury items need a link.** If she gives one, pass it and stop — the page is read for you. If she only describes the thing ("that matte black Hario kettle", "the ribbed tank from Everlane"), use web_search to find it, then pass the URL as the link parameter.
+  - Prefer **the brand's own product page** over Amazon, a marketplace, a reseller or a review article. Brand pages have accurate prices, real photography and stable URLs.
+  - Search at most once or twice per item. If nothing convincing turns up, file it without a link rather than attaching a page you are unsure about — a wrong product is worse than a missing one.
+  - Do not use web_search for anything except finding a Treasury product page.
 - A restaurant, exhibition, shop or activity she wants to visit is an itinerary item, not a todo.
 - A day out is an itinerary. Travel to another city or country is a trip.
 - Do not invent dates, prices or times she did not say.
@@ -548,19 +590,65 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             return `${items.length} task${items.length > 1 ? 's' : ''}`;
         }
         case 'add_desire': {
-            const title = once('treasury_items', input.title, 'in the Treasury');
+            // The page is the source of truth for name, price and photo; what
+            // the model inferred from speech is only a fallback.
+            let meta = {};
+            let problem = null;
+            if (input.link) {
+                try {
+                    meta = await extractProduct(input.link);
+                } catch (err) {
+                    problem = err.message;
+                }
+            }
+
+            // Her words beat a page that could not name the thing.
+            const pageNamedIt = meta.title && !meta.title_fallback;
+            const title = once('treasury_items', pageNamedIt ? meta.title : (input.title || meta.title), 'in the Treasury');
             if (!title) return null;
+
+            const amount = meta.price_amount ?? null;
             const [r] = await ins('treasury_items', [{
                 title,
-                category: input.category || 'Uncategorised',
-                price: input.price || null,
+                category: input.category || 'Other',
+                // `price` stays free text because the Treasury form writes to it
+                // directly; price_amount is the comparable copy.
+                price: amount !== null ? String(amount) : (input.price || null),
+                price_amount: amount,
+                price_currency: meta.price_currency || null,
+                description: meta.description || null,
+                brand: meta.brand || null,
+                image_url: meta.image_url || null,
                 priority: input.priority || 'Low',
-                link: input.link || null,
+                link: meta.link || input.link || null,
                 status: 'desired',
+                last_checked_at: input.link ? new Date().toISOString() : null,
                 user_id: userId,
             }]);
             push('treasury_items', r.id, title);
-            return `"${title}" to the Treasury`;
+
+            // First point on the price chart. Failing here must not cost her
+            // the item itself.
+            if (amount !== null) {
+                await sb.from('treasury_price_history').insert([{
+                    item_id: r.id,
+                    user_id: userId,
+                    price_amount: amount,
+                    price_currency: meta.price_currency || null,
+                    in_stock: meta.in_stock,
+                }]).then(({ error }) => {
+                    if (error) console.error('price history insert failed:', error.message);
+                });
+            }
+
+            if (problem) return `"${title}" to the Treasury, but ${problem} — no price or photo`;
+            if (!input.link) return `"${title}" to the Treasury, with no link to read`;
+            // Sites behind bot protection serve a challenge page that parses
+            // cleanly and contains nothing. Say so rather than implying the
+            // shop simply has no price.
+            if (!meta.usable) return `"${title}" to the Treasury — the link saved, but ${meta.brand || 'that site'} would not let us read the page`;
+            if (amount === null) return `"${title}" to the Treasury — ${meta.brand || 'the page'} did not list a price`;
+            return `"${title}" to the Treasury at ${meta.price_currency === 'USD' ? '$' : ''}${amount}`;
         }
         case 'add_to_itinerary': {
             let planId = input.plan_id;
@@ -901,13 +989,16 @@ export default async function handler(req, res) {
     let failure = null;
     const allToolErrors = [];
 
+    // Declared outside the try: the rows are already written by the time a
+    // later turn can fail, and the summary has to describe them either way.
+    const done = [];
+    const toolErrors = [];
+    let skipped = null;
+
     try {
         const ctx = await loadContext(sb, userId);
         const messages = [{ role: 'user', content: text }];
         const system = systemPrompt(ctx, new Date());
-        const done = [];
-        let skipped = null;
-        const toolErrors = [];
 
         // A shared link needs no interpretation: import it and skip the model
         // entirely. Faster, cheaper, and it cannot pick the wrong room.
@@ -920,8 +1011,8 @@ export default async function handler(req, res) {
             }
         }
 
-        // Two passes is enough: one to call tools, one to summarise.
-        for (let turn = 0; !shared && turn < 2; turn += 1) {
+        // Three passes: a search may consume one before anything is filed.
+        for (let turn = 0; !shared && turn < 3; turn += 1) {
             const r = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
@@ -931,9 +1022,9 @@ export default async function handler(req, res) {
                 },
                 body: JSON.stringify({
                     model: MODEL,
-                    max_tokens: 1024,
+                    max_tokens: 4096,
                     system,
-                    tools: TOOLS,
+                    tools: [...TOOLS, WEB_SEARCH],
                     messages,
                     // First pass must call something — `nothing_to_file` is the
                     // escape hatch. Without this the model answers in prose and
@@ -952,7 +1043,17 @@ export default async function handler(req, res) {
             const said = reply.content.filter((c) => c.type === 'text').map((c) => c.text).join(' ').trim();
             if (said) narration = said;
 
-            if (!calls.length) break;
+            // A turn can contain only server-side search — Anthropic runs it
+            // and returns the results, but nothing has been filed yet. Breaking
+            // here would throw away the search we just paid for.
+            const searched = reply.content.some((c) => c.type === 'server_tool_use');
+            if (!calls.length) {
+                if (searched && turn < 2) {
+                    messages.push({ role: 'user', content: 'Now file it with the tools.' });
+                    continue;
+                }
+                break;
+            }
 
             const results = [];
             for (const call of calls) {
@@ -982,28 +1083,31 @@ export default async function handler(req, res) {
             messages.push({ role: 'user', content: results });
         }
 
-        // Summary is derived from rows that actually landed. `narration` is
-        // only allowed to speak when there is something to speak about.
-        allToolErrors.push(...toolErrors);
-        const dupeText = describeDupes(dupes);
-        if (actions.length && dupeText) {
-            // Deterministic, not narrated: the model was never told which of
-            // its calls the guard rejected until after it had already spoken.
-            summary = `Added ${done.join(', and ')}. ${sentenceCase(dupeText)}.`;
-        } else if (actions.length) {
-            summary = narration || `Added ${done.join(', and ')}.`;
-        } else if (dupeText) {
-            summary = `Nothing new — ${dupeText}.`;
-        } else if (skipped) {
-            summary = `Nothing filed — ${skipped}`;
-        } else if (toolErrors.length) {
-            summary = 'Nothing was filed — every write failed.';
-        } else {
-            summary = 'Nothing was filed. Say it again with a bit more detail?';
-        }
     } catch (err) {
         failure = err.message;
+    }
+
+    // Summary is derived from rows that actually landed, never from model prose
+    // describing work it may not have done — and it is built out here so that a
+    // conversation that died on its last turn still reports what it wrote.
+    allToolErrors.push(...toolErrors);
+    const dupeText = describeDupes(dupes);
+    if (actions.length && dupeText) {
+        // Deterministic, not narrated: the model was never told which of its
+        // calls the guard rejected until after it had already spoken.
+        summary = `Added ${done.join(', and ')}. ${sentenceCase(dupeText)}.`;
+    } else if (actions.length) {
+        summary = narration || `Added ${done.join(', and ')}.`;
+    } else if (dupeText) {
+        summary = `Nothing new — ${dupeText}.`;
+    } else if (skipped) {
+        summary = `Nothing filed — ${skipped}`;
+    } else if (failure) {
         summary = 'Saved the transcript, but filing it failed.';
+    } else if (toolErrors.length) {
+        summary = 'Nothing was filed — every write failed.';
+    } else {
+        summary = 'Nothing was filed. Say it again with a bit more detail?';
     }
 
     const { error: logError } = await sb.from('captures').insert([{

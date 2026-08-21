@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTreasury } from '../hooks/useTreasury';
+import { supabase } from '../lib/supabase';
 import {
     GiOpenTreasureChest,
     GiQuill,
@@ -34,6 +35,8 @@ const EMPTY_ITEM = {
     price: '',
     link: '',
     image_url: '',
+    description: '',
+    brand: '',
     priority: 'Medium'
 };
 
@@ -151,29 +154,50 @@ const Treasury = () => {
         await updateItem({ ...item, status: newStatus });
     };
 
-    // The metadata scrape, themed as a spell. ✨ Auto-Fill -> ✨ Casting...
+    /**
+     * Read the product page. Themed as a spell: ✨ Auto-Fill -> ✨ Casting...
+     *
+     * This used to call api.microlink.io directly from the browser, which
+     * returns title/image/description only — the price was then guessed by
+     * running a regex over the description, which almost never found one — on a
+     * free tier of about fifty requests a day. /api/link-preview reads the
+     * shop's own schema.org Product data instead, so the price is the real one.
+     */
+    const readLink = async (url) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const response = await fetch('/api/link-preview', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                Authorization: `Bearer ${session?.access_token || ''}`,
+            },
+            body: JSON.stringify({ url }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+            throw new Error(data.error || 'the page could not be read');
+        }
+        return data.product;
+    };
+
     const castItemSpell = async () => {
         if (!newItem.link) return;
         setCastingItem(true);
         try {
-            const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(newItem.link)}`);
-            const data = await response.json();
-
-            if (data.status === 'success') {
-                const { title, image, description } = data.data;
-
-                // Update state with found data
-                setNewItem(prev => ({
-                    ...prev,
-                    title: prev.title || title || '',
-                    image_url: prev.image_url || (image?.url) || '',
-                    // Try to find price in description/title if not set
-                    price: prev.price || (description?.match(/\$[\d,]+(\.\d{2})?/) || [])[0] || ''
-                }));
-            }
+            const p = await readLink(newItem.link);
+            // Never overwrite something she has already typed.
+            setNewItem(prev => ({
+                ...prev,
+                title: prev.title || p.title || '',
+                image_url: prev.image_url || p.image_url || '',
+                price: prev.price || (p.price_amount !== null ? String(p.price_amount) : ''),
+                price_currency: p.price_currency || prev.price_currency,
+                description: prev.description || p.description || '',
+                brand: prev.brand || p.brand || '',
+            }));
         } catch (e) {
             console.error(e);
-            alert('Could not magically fetch details. You may need to enter them manually.');
+            alert(`Could not read that page — ${e.message}. You may need to enter the details manually.`);
         } finally {
             setCastingItem(false);
         }
@@ -196,23 +220,16 @@ const Treasury = () => {
         if (!newBrand.link) return;
         setCastingBrand(true);
         try {
-            const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(newBrand.link)}`);
-            const data = await response.json();
-
-            if (data.status === 'success') {
-                const { title, image, description, publisher } = data.data;
-
-                // Update state with found data
-                setNewBrand(prev => ({
-                    ...prev,
-                    name: prev.name || publisher || title || '',
-                    image_url: prev.image_url || (image?.url) || '',
-                    notes: prev.notes || description || ''
-                }));
-            }
+            const p = await readLink(newBrand.link);
+            setNewBrand(prev => ({
+                ...prev,
+                name: prev.name || p.brand || p.title || '',
+                image_url: prev.image_url || p.image_url || '',
+                notes: prev.notes || p.description || ''
+            }));
         } catch (e) {
             console.error(e);
-            alert('Could not magically fetch details.');
+            alert(`Could not read that page — ${e.message}.`);
         } finally {
             setCastingBrand(false);
         }
@@ -561,13 +578,32 @@ const Treasury = () => {
                         </Field>
                     </div>
 
-                    <Field
-                        label="Price (Est.)"
-                        type="text"
-                        placeholder="$20"
-                        value={newItem.price}
-                        onChange={e => setNewItem({ ...newItem, price: e.target.value })}
-                    />
+                    <div className="field-row">
+                        <Field
+                            label="Price (Est.)"
+                            type="text"
+                            placeholder="$20"
+                            value={newItem.price}
+                            onChange={e => setNewItem({ ...newItem, price: e.target.value })}
+                        />
+                        <Field
+                            label="Brand"
+                            type="text"
+                            placeholder="Filled in from the link"
+                            value={newItem.brand || ''}
+                            onChange={e => setNewItem({ ...newItem, brand: e.target.value })}
+                        />
+                    </div>
+
+                    <Field label="Description">
+                        <textarea
+                            className="input"
+                            rows={3}
+                            placeholder="Filled in from the link"
+                            value={newItem.description || ''}
+                            onChange={e => setNewItem({ ...newItem, description: e.target.value })}
+                        />
+                    </Field>
 
                     <div className="field-with-action">
                         <Field

@@ -58,6 +58,13 @@ export const useTreasury = () => {
         fetchBrands();
     }, [user]);
 
+    /** "$1,299.00" -> 1299. Null for anything that is not a number. */
+    const numericPrice = (raw) => {
+        if (raw === null || raw === undefined || raw === '') return null;
+        const n = Number.parseFloat(String(raw).replace(/[^\d.]/g, ''));
+        return Number.isFinite(n) ? n : null;
+    };
+
     const addItem = async (item) => {
         try {
             if (!user) throw new Error('Not authenticated');
@@ -71,6 +78,12 @@ export const useTreasury = () => {
                     link: item.link,
                     priority: item.priority,
                     image_url: item.image_url,
+                    description: item.description || null,
+                    brand: item.brand || null,
+                    // Numeric copy of `price` so price history has something
+                    // comparable to chart. `price` itself stays free text.
+                    price_amount: numericPrice(item.price),
+                    price_currency: item.price_currency || (item.price ? 'USD' : null),
                     status: 'desired',
                     user_id: user.id
                 }])
@@ -124,6 +137,10 @@ export const useTreasury = () => {
                     link: updatedItem.link,
                     priority: updatedItem.priority,
                     image_url: updatedItem.image_url,
+                    description: updatedItem.description || null,
+                    brand: updatedItem.brand || null,
+                    price_amount: numericPrice(updatedItem.price),
+                    price_currency: updatedItem.price_currency || (updatedItem.price ? 'USD' : null),
                     status: updatedItem.status
                 })
                 .eq('id', updatedItem.id)

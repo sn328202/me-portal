@@ -15,27 +15,7 @@
  * rather than publishing it as a route.
  */
 
-const UA =
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
-    '(KHTML, like Gecko) Chrome/125.0 Safari/537.36';
-
-const ENTITIES = {
-    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
-    '#39': "'", '#34': '"', frac12: '½', frac14: '¼', frac34: '¾',
-};
-
-const decode = (s) =>
-    String(s || '')
-        .replace(/&(#x?[0-9a-f]+|[a-z0-9]+);/gi, (m, code) => {
-            const key = code.toLowerCase();
-            if (ENTITIES[key]) return ENTITIES[key];
-            if (key.startsWith('#x')) return String.fromCodePoint(parseInt(key.slice(2), 16));
-            if (key.startsWith('#')) return String.fromCodePoint(parseInt(key.slice(1), 10));
-            return m;
-        })
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+import { decode, jsonLdBlocks, metaTag, fetchHtml } from './_html.js';
 
 /** schema.org allows @type to be a string or an array, and nests under @graph. */
 const isRecipe = (node) => {
@@ -137,67 +117,13 @@ export const parseIngredient = (str) => {
     return { amount, unit, item: item.trim(), notes: notes.trim() };
 };
 
-/** Pull every JSON-LD block out of raw HTML. No DOM available server-side. */
-const jsonLdBlocks = (html) => {
-    const out = [];
-    const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-    let m;
-    while ((m = re.exec(html)) !== null) {
-        const body = m[1].replace(/^\s*<!\[CDATA\[/, '').replace(/\]\]>\s*$/, '').trim();
-        try {
-            out.push(JSON.parse(body));
-        } catch {
-            // Sites ship malformed JSON-LD more often than you would hope.
-            // One bad block must not cost us the good one next to it.
-        }
-    }
-    return out;
-};
-
-const meta = (html, prop) => {
-    const re = new RegExp(
-        `<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']*)["']`, 'i'
-    );
-    const alt = new RegExp(
-        `<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${prop}["']`, 'i'
-    );
-    const m = html.match(re) || html.match(alt);
-    return m ? decode(m[1]) : null;
-};
-
 /**
  * Fetch a recipe page and extract what the Larder needs.
  * Throws with a message meant to be read aloud on a phone.
  */
 export async function extractRecipe(url) {
-    let target;
-    try {
-        target = new URL(url);
-    } catch {
-        throw new Error('that does not look like a link');
-    }
-    if (!/^https?:$/.test(target.protocol)) throw new Error('only web links can be imported');
-
-    let html;
-    try {
-        const res = await fetch(target.toString(), {
-            redirect: 'follow',
-            headers: {
-                'user-agent': UA,
-                accept: 'text/html,application/xhtml+xml',
-                'accept-language': 'en-US,en;q=0.9',
-            },
-            signal: AbortSignal.timeout(12000),
-        });
-        if (!res.ok) throw new Error(`the site answered ${res.status}`);
-        html = await res.text();
-    } catch (err) {
-        throw new Error(
-            err.name === 'TimeoutError' ? 'the site took too long to answer' : (err.message || 'the site could not be reached')
-        );
-    }
-
-    return parseRecipeHtml(html, target.toString());
+    const { html, url: finalUrl } = await fetchHtml(url);
+    return parseRecipeHtml(html, finalUrl);
 }
 
 /**
@@ -218,7 +144,7 @@ export function parseRecipeHtml(html, sourceUrl) {
         const rawIngredients = Array.isArray(recipe.recipeIngredient) ? recipe.recipeIngredient : [];
 
         return {
-            title: decode(recipe.name) || meta(html, 'og:title') || target.hostname,
+            title: decode(recipe.name) || metaTag(html, 'og:title') || target.hostname,
             instructions: steps.join('\n'),
             ingredients: rawIngredients.map(parseIngredient),
             image_url: typeof image === 'string' ? image : null,
@@ -234,13 +160,13 @@ export function parseRecipeHtml(html, sourceUrl) {
 
     // No structured data. Keep the title and the link rather than losing the
     // thought — a stub she can finish in the Larder beats an error.
-    const title = meta(html, 'og:title') || (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
+    const title = metaTag(html, 'og:title') || (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
     if (title) {
         return {
             title: decode(title),
             instructions: '',
             ingredients: [],
-            image_url: meta(html, 'og:image'),
+            image_url: metaTag(html, 'og:image'),
             prep_time: '', cook_time: '', total_time: '',
             servings: null,
             source_url: target.toString(),
