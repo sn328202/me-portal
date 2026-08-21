@@ -52,6 +52,68 @@ export const UNREADABLE = {
     reddit: 'Reddit needs an authorised app to read posts',
 };
 
+/**
+ * Share sheets hand over prose, not URLs: "check this out
+ * https://vm.tiktok.com/ZM…/ 🔥". Pull the first link out and keep the rest as
+ * her own words.
+ */
+export const firstUrl = (text) => {
+    const match = String(text || '').match(/https?:\/\/[^\s<>"')\]]+/);
+    if (!match) return null;
+    // Trailing punctuation belongs to the sentence, not the link.
+    return match[0].replace(/[.,;:!?]+$/, '');
+};
+
+/** Tracking noise that changes on every share and would defeat deduplication. */
+const JUNK_PARAMS = /^(_[rt]|is_from_webapp|sender_device|sender_web_id|web_id|utm_[a-z_]+|si|feature|fbclid|gclid|igsh|share_id|_d|checksum|share_app_id|share_link_id|share_item_id|timestamp|user_id|tt_from|source)$/i;
+
+export const canonical = (raw) => {
+    let url;
+    try {
+        url = new URL(raw);
+    } catch {
+        return raw;
+    }
+    for (const key of [...url.searchParams.keys()]) {
+        if (JUNK_PARAMS.test(key)) url.searchParams.delete(key);
+    }
+    return url.toString().replace(/\?$/, '');
+};
+
+/**
+ * Share sheets give short links — vm.tiktok.com, youtu.be, bit.ly. TikTok's
+ * oEmbed rejects those outright with a 400; it wants the canonical
+ * /@user/video/id form. Follow the redirect and take where it landed.
+ */
+const SHORTENERS = /^(vm\.tiktok\.com|vt\.tiktok\.com|m\.tiktok\.com|bit\.ly|t\.co|tinyurl\.com|pin\.it|redd\.it)$/i;
+
+export const expand = async (raw) => {
+    let url;
+    try {
+        url = new URL(raw);
+    } catch {
+        return raw;
+    }
+    if (!SHORTENERS.test(url.hostname)) return canonical(raw);
+
+    try {
+        const res = await fetch(url.toString(), {
+            redirect: 'follow',
+            headers: {
+                // A desktop user agent: some shorteners hand a mobile app deep
+                // link to anything that looks like a phone.
+                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+                accept: 'text/html',
+            },
+            signal: AbortSignal.timeout(10000),
+        });
+        return canonical(res.url || raw);
+    } catch {
+        // The original link is still worth saving even unexpanded.
+        return canonical(raw);
+    }
+};
+
 const oembed = async (endpoint) => {
     const res = await fetch(endpoint, {
         headers: { accept: 'application/json' },
@@ -126,12 +188,13 @@ export const shorten = (caption, max = 80) => {
  * to be saved with its link, and the reason is reported so the UI can say why
  * there is nothing to show.
  */
-export async function readPost(url) {
+export async function readPost(rawUrl) {
+    const url = await expand(rawUrl);
     const platform = platformOf(url);
-    if (!platform) return { platform: null, readable: false, problem: 'that is not a link' };
+    if (!platform) return { platform: null, url, readable: false, problem: 'that is not a link' };
 
     if (UNREADABLE[platform]) {
-        return { platform, readable: false, problem: UNREADABLE[platform] };
+        return { platform, url, readable: false, problem: UNREADABLE[platform] };
     }
 
     try {

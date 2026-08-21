@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { extractRecipe, parseIngredient } from './_recipe.js';
 import { extractProduct } from './_link.js';
 import { resolvePlace } from './_place.js';
-import { readPost, shorten, platformOf } from './_social.js';
+import { readPost, shorten, platformOf, firstUrl, expand } from './_social.js';
 
 /**
  * POST /api/capture   { text: "..." }
@@ -864,6 +864,19 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             return key;
         }
         case 'import_recipe': {
+            // A social URL has no recipe markup to fetch — the caption is the
+            // recipe, and it was already handed over in the prompt. Left
+            // unguarded this produces a recipe called "TikTok - Make Your Day"
+            // with no ingredients, because the page title is all the fetch can
+            // find. Refuse, and say what to use instead.
+            const source = platformOf(input.url);
+            if (source && source !== 'web') {
+                throw new Error(
+                    `${source} pages cannot be fetched for recipe data. Use add_recipe instead, `
+                    + 'building the ingredients and instructions from the caption you were given.'
+                );
+            }
+
             // The URL is the reliable identity; two imports of one page are the
             // most common repeat, and the titles can differ between them.
             if (ctx.index.recipeUrls.has(input.url)) {
@@ -886,6 +899,16 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
                     complete: false,
                     problem: err.message,
                 };
+            }
+
+            // A page that yields nothing but its own site name is not a
+            // recipe. Saving it produces a row called "Allrecipes" that has to
+            // be found and deleted later.
+            if (!recipe.problem && !recipe.ingredients.length && !recipe.instructions) {
+                throw new Error(
+                    'that page carried no recipe data at all. If you have the text, use add_recipe; '
+                    + 'otherwise save it with save_plan so the link is not lost.'
+                );
             }
 
             if (!once('recipes', recipe.title, 'in the Larder')) return null;
@@ -1133,11 +1156,11 @@ export default async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
     const text = (body.text || '').toString().trim().slice(0, MAX_TEXT);
 
-    // The share-sheet Shortcut sends a link instead of speech — from NYT
-    // Cooking, Serious Eats, anywhere. Recognise it here, whether it arrives as
-    // `url` or as text that is nothing but a URL.
-    const shared = (body.url || '').toString().trim()
-        || (/^https?:\/\/\S+$/i.test(text) ? text : '');
+    // The share sheet sends a link instead of speech. It rarely sends a bare
+    // URL: TikTok and Instagram hand over a sentence with the link buried in
+    // it, so anything containing a link counts, and whatever she wrote around
+    // it is kept as her own words.
+    const shared = (body.url || '').toString().trim() || firstUrl(text) || '';
 
     if (!text && !shared) {
         return res.status(400).json({ error: 'Nothing to file — say something first.' });
@@ -1171,11 +1194,16 @@ export default async function handler(req, res) {
         // A page carrying real schema.org Recipe data needs no interpretation:
         // import it deterministically and skip the model entirely.
         let settled = false;
-        if (shared) {
+        // Short links are resolved once, up front: TikTok's oEmbed rejects a
+        // vm.tiktok.com link outright, and tracking parameters that change on
+        // every share would defeat the duplicate check.
+        const sharedUrl = shared ? await expand(shared) : '';
+
+        if (sharedUrl) {
             try {
-                const probe = await extractRecipe(shared);
+                const probe = await extractRecipe(sharedUrl);
                 if (probe.complete) {
-                    const outcome = await runTool(sb, userId, 'import_recipe', { url: shared }, actions, ctx, dupes);
+                    const outcome = await runTool(sb, userId, 'import_recipe', { url: sharedUrl }, actions, ctx, dupes);
                     if (outcome) done.push(outcome);
                     settled = true;
                 }
@@ -1187,16 +1215,17 @@ export default async function handler(req, res) {
         // Anything else shared — a TikTok, a YouTube video, an article — is
         // read for whatever text it will give up, and that text is what the
         // model files. A post nobody can read still arrives with its link.
-        if (shared && !settled) {
-            const post = await readPost(shared);
+        if (sharedUrl && !settled) {
+            const post = await readPost(sharedUrl);
             const described = [
-                `She shared this link: ${shared}`,
+                `She shared this link: ${post.url || sharedUrl}`,
                 post.platform ? `Platform: ${post.platform}` : null,
                 post.author ? `Posted by: ${post.author}` : null,
                 post.title ? `Title: ${post.title}` : null,
                 post.excerpt ? `Caption or description:\n${post.excerpt}` : null,
                 post.problem ? `The post itself could not be read — ${post.problem}. Save it by its link and say so.` : null,
                 text && text !== shared ? `She also said: ${text}` : null,
+                'Save it under that exact link.',
             ].filter(Boolean).join('\n');
 
             messages[0] = { role: 'user', content: described };

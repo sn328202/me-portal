@@ -4,7 +4,7 @@
  * embarrassing mistakes live — calling a 200-character TikTok caption a
  * "title", or silently treating Instagram as merely broken.
  */
-import { platformOf, shorten, UNREADABLE, readPost } from '../api/_social.js';
+import { platformOf, shorten, UNREADABLE, readPost, firstUrl, canonical } from '../api/_social.js';
 
 let failed = 0;
 const check = (label, actual, expected) => {
@@ -33,6 +33,28 @@ check('truncates on a word boundary',
     shorten('The single best weeknight pasta you will ever make and it takes twelve minutes flat', 40),
     'The single best weeknight pasta you will…');
 check('nothing in, nothing out', shorten(''), null);
+
+console.log('\nfirstUrl() — share sheets send prose, not URLs:');
+check('bare url', firstUrl('https://vm.tiktok.com/ZMabc/'), 'https://vm.tiktok.com/ZMabc/');
+check('link inside a sentence',
+    firstUrl('check this out https://www.tiktok.com/@x/video/1 \ud83d\udd25'),
+    'https://www.tiktok.com/@x/video/1');
+check('trailing punctuation is not part of the link',
+    firstUrl('look at https://example.com/thing.'), 'https://example.com/thing');
+check('no link at all', firstUrl('we need oat milk'), null);
+check('takes the first of several',
+    firstUrl('a https://one.example b https://two.example'), 'https://one.example');
+
+console.log('\ncanonical() — tracking noise defeats deduplication:');
+check('strips TikTok share params',
+    canonical('https://www.tiktok.com/@x/video/1?is_from_webapp=1&sender_device=pc&_r=1'),
+    'https://www.tiktok.com/@x/video/1');
+check('strips utm and igsh',
+    canonical('https://example.com/p?utm_source=ig&igsh=abc'), 'https://example.com/p');
+check('keeps parameters that identify the thing',
+    canonical('https://www.youtube.com/watch?v=abc&si=xyz'), 'https://www.youtube.com/watch?v=abc');
+check('leaves a clean url alone',
+    canonical('https://example.com/a/b'), 'https://example.com/a/b');
 
 console.log('\nreadPost() — the ones that refuse:');
 for (const platform of Object.keys(UNREADABLE)) {
