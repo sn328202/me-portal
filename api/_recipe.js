@@ -77,7 +77,9 @@ const COMMON_UNITS = new Set([
  */
 export const parseIngredient = (str) => {
     const clean = decode(str);
-    const numberChar = '[0-9\\u00BC-\\u00BE\\u2150-\\u215E/.\\-]';
+    // En and em dashes included: recipe writers type "2\u20132.5 cups", and
+    // without them the range splits into a bogus amount and a lost unit.
+    const numberChar = '[0-9\\u00BC-\\u00BE\\u2150-\\u215E/.\\-\\u2013\\u2014]';
     const amountMatch = clean.match(new RegExp(`^(${numberChar}+(\\s+${numberChar}+)*)`));
 
     let amount = '1';

@@ -17,6 +17,7 @@ const ROOM = {
     treasury_items: 'Treasury',
     day_plans: 'Daydream',
     spots: 'Spots',
+    plans: 'Commonplace',
     plan_items: 'Daydream',
     atlas_trips: 'Atlas',
     library_items: 'Library',

@@ -33,6 +33,12 @@ check('size word is not a unit', parseIngredient('2 large eggs'),
     { amount: '2', unit: 'pcs', item: '2 large eggs'.replace('2 ', ''), notes: '' });
 check('no amount at all', parseIngredient('Kosher salt'),
     { amount: '1', unit: 'pcs', item: 'Kosher salt', notes: '' });
+// Ranges written with an en dash are ordinary in recipe captions; splitting
+// one produced "2 pcs -2.5 cups chicken broth".
+check('en-dash range stays one amount', parseIngredient('2\u20132.5 cups chicken broth'),
+    { amount: '2\u20132.5', unit: 'cups', item: 'chicken broth', notes: '' });
+check('hyphen range too', parseIngredient('2-3 green onions'),
+    { amount: '2-3', unit: 'pcs', item: 'green onions', notes: '' });
 
 console.log('\nparseRecipeHtml() — bare Recipe object:');
 {

@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { extractRecipe, parseIngredient } from './_recipe.js';
 import { extractProduct } from './_link.js';
 import { resolvePlace } from './_place.js';
+import { readPost, shorten, platformOf } from './_social.js';
 
 /**
  * POST /api/capture   { text: "..." }
@@ -292,6 +293,34 @@ const TOOLS = [
         },
     },
     {
+        name: 'save_plan',
+        description:
+            'Save something to the Commonplace as a plan she can work through and then tick off. Use for anything whose useful part is a sequence: a technique from a video, a how-to, a list of tips, a routine, a set of things to see somewhere. If it is a recipe with real quantities, prefer import_recipe or add_recipe; if it is a single place, prefer save_spot. Use save_plan when neither fits, or alongside them for the doing part.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                title: { type: 'string', description: 'Short and recognisable — not the whole caption.' },
+                intent: {
+                    type: 'string',
+                    enum: ['make it', 'go there', 'read it', 'watch it', 'listen to it', 'buy it', 'try it', 'do it'],
+                    description: 'What she would actually do with this. Decides where it surfaces.',
+                },
+                category: {
+                    type: 'string',
+                    enum: ['recipe', 'place', 'read', 'watch', 'listen', 'buy', 'make', 'try', 'other'],
+                },
+                steps: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'The actionable sequence, in order, in plain language. Only steps genuinely present in the source — never invent a method that was not described.',
+                },
+                source_url: { type: 'string' },
+                excerpt: { type: 'string', description: 'The original words, kept verbatim.' },
+            },
+            required: ['title'],
+        },
+    },
+    {
         name: 'nothing_to_file',
         description:
             'Use when the text contains nothing worth filing — a false start, a stray recording, or something with no home in the portal. Say why in one short clause.',
@@ -362,7 +391,7 @@ async function loadContext(sb, userId) {
 
     const [
         plans, planItems, trips, treasury, library,
-        chores, pantry, provisions, todos, goals, habits, social, recipes, spots,
+        chores, pantry, provisions, todos, goals, habits, social, recipes, spots, commonplace,
     ] = await Promise.all([
         q('day_plans', 'id, title, location, planned_date', { limit: 25 }),
         q('plan_items', 'plan_id, activity', { limit: 150 }),
@@ -378,6 +407,7 @@ async function loadContext(sb, userId) {
         q('social_plans', 'who, what, when_date', { limit: 30 }),
         q('recipes', 'title, source_url', { limit: 80 }),
         q('spots', 'name, city, category, status, place_id', { limit: 120 }),
+        q('plans', 'title, status, intent, source_url', { limit: 60 }),
     ]);
 
     // A single failed sub-query must not take the whole capture down; the
@@ -414,6 +444,7 @@ async function loadContext(sb, userId) {
         spots: rows(spots).map((sp) => ({
             name: sp.name, city: sp.city, category: sp.category, status: sp.status,
         })),
+        plans: rows(commonplace).map((pl) => ({ title: pl.title, status: pl.status, intent: pl.intent })),
     };
 
     // The enforceable half. Keyed by table name so the writer can look up
@@ -430,6 +461,9 @@ async function loadContext(sb, userId) {
         social_plans: setOf(ctx.social),
         recipes: setOf(ctx.recipes),
         spots: setOf(ctx.spots.map((sp) => sp.name)),
+        plans: setOf(ctx.plans.map((pl) => pl.title)),
+        // The same post saved twice is the commonest duplicate of all.
+        planUrls: new Set(rows(commonplace).map((pl) => pl.source_url).filter(Boolean)),
         // Google's identifier survives her calling the same place three
         // different things.
         spotPlaceIds: new Set(rows(spots).map((sp) => sp.place_id).filter(Boolean)),
@@ -501,6 +535,7 @@ Daily rituals:${bullets(ctx.habits)}
 Social plans:${bullets(ctx.social)}
 Recipes in the Larder:${bullets(ctx.recipes)}
 Saved spots — places she already means to go:${bullets(ctx.spots.map((sp) => `${sp.name}${sp.city ? ` (${sp.city})` : ''}${sp.category ? ` — ${sp.category}` : ''}${sp.status === 'been' ? ' [been]' : ''}`))}
+In the Commonplace — saved plans:${bullets(ctx.plans.map((pl) => `${pl.title}${pl.intent ? ` — ${pl.intent}` : ''}${pl.status === 'done' ? ' [done]' : ''}`))}
 Chore rooms in use: ${ctx.rooms.join(', ') || 'none yet'}
 In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
 
@@ -508,6 +543,7 @@ In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
 
 This arrives as phone dictation, so words come through mangled. Map near-misses onto the right room rather than taking the transcription literally — "larger", "lauder" and "ladder" all mean **Larder**; "day dream" means the Daydream; "treasure" means the Treasury.
 
+- **Commonplace** — things saved from elsewhere that she means to *do*: a technique from a video, a how-to, a list of tips. The verb is the point, and it keeps a record of whether she ever did it.
 - **Larder** — recipes and the pantry. A recipe ALWAYS belongs here, never the Library.
 - **Library** — books, films, TV, albums, games. Things consumed, not cooked.
 - **Provisions** — the grocery list.
@@ -528,6 +564,8 @@ This arrives as phone dictation, so words come through mangled. Map near-misses 
 - **A place she wants to go is a spot, not a todo and not an itinerary.** "I want to try that ramen place", "we should check out the new wine bar", "someone told me about a garden in Berkeley" — all save_spot. The address, neighbourhood, map link and hours are looked up for you, so pass the name as she said it plus any city, and keep her reason verbatim in the why field.
 - Use add_to_itinerary only when she is planning an actual day: a date, "for Saturday", or an itinerary that already exists. If she is planning a day around places she has already saved, add them to the itinerary by name.
 - Travel to another city or country is a trip, not a spot and not an itinerary.
+- **A shared post is usually two things at once.** A TikTok of a pasta dish is a recipe in the Larder *and* a plan in the Commonplace; a video about a bakery is a spot *and* a plan. File both when both are true — the room holds the structured data, the Commonplace holds the doing. Do not create a plan when the post is only a fact with nothing to act on.
+- When a post could not be read, save what you can from the link itself and say plainly that the text was unavailable. Never invent steps or ingredients that were not in the source.
 - Do not invent dates, prices or times she did not say.
 - If a thought is genuinely just a note with no home, add it as a todo.
 - Keep her words. Tidy grammar, do not rewrite meaning or add flourish.
@@ -881,6 +919,39 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             }
             return `"${title}" to the Larder with ${ingredientCount} ingredients`;
         }
+        case 'save_plan': {
+            if (input.source_url && ctx.index.planUrls.has(input.source_url)) {
+                dupes.push({ item: input.title, where: 'in the Commonplace' });
+                return null;
+            }
+            const title = once('plans', shorten(input.title, 120), 'in the Commonplace');
+            if (!title) return null;
+            if (input.source_url) ctx.index.planUrls.add(input.source_url);
+
+            const steps = (input.steps || [])
+                .map((t) => String(t).trim())
+                .filter(Boolean)
+                .map((text) => ({ text, done: false }));
+
+            const [r] = await ins('plans', [{
+                title,
+                category: input.category || null,
+                intent: input.intent || null,
+                source_url: input.source_url || null,
+                platform: input.source_url ? platformOf(input.source_url) : 'capture',
+                author: ctx.sharedPost?.author || null,
+                thumbnail_url: ctx.sharedPost?.thumbnail || null,
+                excerpt: input.excerpt || null,
+                steps,
+                status: 'saved',
+                user_id: userId,
+            }]);
+            push('plans', r.id, title);
+            ctx.plans.push({ title, status: 'saved', intent: input.intent });
+
+            if (steps.length) return `"${title}" to the Commonplace as ${steps.length} steps`;
+            return `"${title}" to the Commonplace`;
+        }
         case 'add_chore': {
             // Chores repeat by nature — the same room needs sweeping weekly —
             // so this one is deliberately not deduplicated.
@@ -1097,19 +1168,46 @@ export default async function handler(req, res) {
         const messages = [{ role: 'user', content: text }];
         const system = systemPrompt(ctx, new Date());
 
-        // A shared link needs no interpretation: import it and skip the model
-        // entirely. Faster, cheaper, and it cannot pick the wrong room.
+        // A page carrying real schema.org Recipe data needs no interpretation:
+        // import it deterministically and skip the model entirely.
+        let settled = false;
         if (shared) {
             try {
-                const outcome = await runTool(sb, userId, 'import_recipe', { url: shared }, actions, ctx, dupes);
-                if (outcome) done.push(outcome);
-            } catch (err) {
-                toolErrors.push(`import_recipe: ${errText(err)}`);
+                const probe = await extractRecipe(shared);
+                if (probe.complete) {
+                    const outcome = await runTool(sb, userId, 'import_recipe', { url: shared }, actions, ctx, dupes);
+                    if (outcome) done.push(outcome);
+                    settled = true;
+                }
+            } catch {
+                // Not a recipe page, or unreachable. The reader below decides.
             }
         }
 
+        // Anything else shared — a TikTok, a YouTube video, an article — is
+        // read for whatever text it will give up, and that text is what the
+        // model files. A post nobody can read still arrives with its link.
+        if (shared && !settled) {
+            const post = await readPost(shared);
+            const described = [
+                `She shared this link: ${shared}`,
+                post.platform ? `Platform: ${post.platform}` : null,
+                post.author ? `Posted by: ${post.author}` : null,
+                post.title ? `Title: ${post.title}` : null,
+                post.excerpt ? `Caption or description:\n${post.excerpt}` : null,
+                post.problem ? `The post itself could not be read — ${post.problem}. Save it by its link and say so.` : null,
+                text && text !== shared ? `She also said: ${text}` : null,
+            ].filter(Boolean).join('\n');
+
+            messages[0] = { role: 'user', content: described };
+            // Carried on ctx rather than through the model: the reader already
+            // knows who posted it and what the still frame is, and a model
+            // asked to relay them will sometimes not.
+            ctx.sharedPost = post;
+        }
+
         // Three passes: a search may consume one before anything is filed.
-        for (let turn = 0; !shared && turn < 3; turn += 1) {
+        for (let turn = 0; !settled && turn < 3; turn += 1) {
             const r = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
