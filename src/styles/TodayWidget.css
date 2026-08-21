@@ -1,0 +1,112 @@
+/* ============================================================
+   Today — the one card that answers "what do I need to do or
+   buy". Built for a thumb first: every row is a full-width tap
+   target at the minimum touch size.
+   ============================================================ */
+
+.today {
+    display: grid;
+    gap: var(--space-5);
+}
+
+/* Three columns once there is room; a phone reads them as one
+   continuous list, which is the order you would actually work in. */
+@media (min-width: 900px) {
+    .today {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-5);
+    }
+}
+
+.today__group-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-display);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--text-gold);
+}
+
+.today__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5em;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--fill-strong);
+    color: var(--text-main);
+    font-size: var(--text-2xs);
+}
+
+.today__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.today__row + .today__row {
+    border-top: var(--rule-hair);
+}
+
+.today__check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--tap-min);
+    padding: var(--space-2) 0;
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font: inherit;
+    font-size: var(--text-base);
+    text-align: left;
+    cursor: pointer;
+}
+
+.today__check:focus-visible {
+    outline: 2px solid var(--text-gold);
+    outline-offset: 2px;
+}
+
+.today__box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.35rem;
+    height: 1.35rem;
+    border: var(--rule-accent);
+    border-radius: var(--radius-sm);
+    color: var(--text-gold);
+    font-size: var(--text-sm);
+    transition: background var(--dur-fast) var(--ease);
+}
+
+.today__check:hover .today__box {
+    background: var(--bg-hover);
+}
+
+.today__label {
+    line-height: var(--leading-snug);
+}
+
+.today__row--done .today__label {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.today__empty,
+.today__all-clear {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.today__all-clear {
+    padding: var(--space-4) 0;
+}

@@ -6,7 +6,7 @@
 export const DEFAULT_SETTINGS = {
     vibe: 'dark-academia',
     enabledWidgets: [
-        'greeting', 'status', 'habits', 'todos', 'provisions',
+        'today', 'greeting', 'status', 'habits', 'todos', 'provisions',
         'chores', 'social', 'goals', 'hobbies', 'travel',
         'calendar', 'library', 'workouts', 'captures', 'links', 'games',
     ],

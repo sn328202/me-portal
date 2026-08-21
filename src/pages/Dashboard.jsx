@@ -15,6 +15,7 @@ import StatusConsole from '../widgets/StatusConsole';
 import QuickLinksWidget from '../widgets/QuickLinksWidget';
 import GameLauncher from '../widgets/GameLauncher';
 import WorkoutWidget from '../widgets/WorkoutWidget';
+import TodayWidget from '../widgets/TodayWidget';
 import CapturesWidget from '../widgets/CapturesWidget';
 import { useRecipes } from '../hooks/useRecipes';
 import { useHabits } from '../hooks/useHabits';
@@ -82,6 +83,7 @@ const Dashboard = () => {
                 carrying today's signal are not the same size as a bookmark
                 list. Order is unchanged. */}
             <div className="widget-masonry">
+                {isEnabled('today') && <TodayWidget />}
                 {isEnabled('captures') && <CapturesWidget />}
                 {isEnabled('habits') && <HabitTracker />}
                 {isEnabled('todos') && <TodoWidget />}

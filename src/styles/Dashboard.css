@@ -187,6 +187,13 @@
         align-items: flex-start;
     }
 
+    /* Full width, side by side, so the pair reads as one strip rather than
+       two boxes competing with the content underneath. */
+    .trophy-case {
+        width: 100%;
+        gap: var(--space-2);
+    }
+
     .widget-masonry {
         grid-template-columns: 1fr;
     }

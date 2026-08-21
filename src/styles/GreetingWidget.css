@@ -64,8 +64,18 @@
     border-bottom-color: var(--text-gold);
 }
 
+/* On a phone the greeting was consuming most of the first screen before any
+   information appeared. Still the emotional centre, just not the whole view. */
 @media (max-width: 768px) {
+    .greeting-widget {
+        padding: var(--space-4) 0 var(--space-3);
+    }
+
+    .greeting-date {
+        margin-bottom: var(--space-2);
+    }
+
     .greeting-text {
-        font-size: var(--text-4xl);
+        font-size: var(--text-3xl);
     }
 }

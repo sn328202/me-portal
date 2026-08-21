@@ -62,3 +62,43 @@
     opacity: 0.6;
     border-radius: var(--radius-sm);
 }
+
+/* ---------------------------------------------------------------
+   Phone: the mantelpiece lies down.
+   Two stacked badges cost roughly 140px of the first screen to show
+   two numbers that are usually zero. Same information, one line,
+   so the Today card clears the fold.
+   --------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .streak-badge {
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: flex-start;
+        gap: var(--space-2);
+        min-width: 0;
+        flex: 1;
+        padding: var(--space-2) var(--space-3);
+    }
+
+    .streak-icon {
+        margin-bottom: 0;
+        font-size: var(--text-base);
+        align-self: center;
+    }
+
+    .streak-count {
+        font-size: var(--text-xl);
+    }
+
+    .streak-label {
+        margin-top: 0;
+        font-size: var(--text-2xs);
+        text-align: left;
+        line-height: var(--leading-tight);
+    }
+
+    /* The flourish is a mantelpiece detail; there is no mantelpiece here. */
+    .streak-flourish {
+        display: none;
+    }
+}
