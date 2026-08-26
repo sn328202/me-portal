@@ -199,7 +199,11 @@ const TableBook = () => {
                                     const soon = daysAway(r.starts_at) <= 3;
                                     return (
                                         <li key={r.id}>
-                                            <Card variant="flat" className={`slip${soon ? ' slip--soon' : ''}`}>
+                                            <Card
+                                                variant="flat"
+                                                bodyClassName="slip__grid"
+                                                className={`slip${soon ? ' slip--soon' : ''}`}
+                                            >
                                                 <div className="slip__when">
                                                     <span className="slip__day">{fmtDay(r.starts_at)}</span>
                                                     <span className="slip__time">{fmtTime(r.starts_at)}</span>

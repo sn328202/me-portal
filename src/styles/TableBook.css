@@ -38,9 +38,11 @@
     gap: var(--space-4);
 }
 
-.slip {
+/* Card renders its children inside .card__body, so the three-column layout
+   has to live on that wrapper — not on .slip, which is the outer surface. */
+.slip__grid {
     display: grid;
-    grid-template-columns: minmax(150px, 190px) 1fr auto;
+    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) auto;
     gap: var(--space-4);
     align-items: start;
 }
@@ -303,7 +305,7 @@
 }
 
 @media (max-width: 900px) {
-    .slip {
+    .slip__grid {
         grid-template-columns: 1fr;
     }
 
