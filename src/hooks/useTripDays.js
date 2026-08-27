@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { tripCost, lodgingByNight, stayOn } from '../utils/tripCosts';
 import { datesBetween } from '../utils/tripDates';
-import { daysOfLeg, legOn } from '../utils/tripLegs';
+import { daysOfLeg, legOn, legsOn } from '../utils/tripLegs';
 
 /**
  * A trip's days, the things planned in them, and what it all costs.
@@ -313,6 +313,7 @@ export const useTripDays = (trip) => {
         days, items, stays, legs, strays, tripDates, loading, costs, lodgingPerNight,
         stayOnDate: (date) => stayOn(stays, date),
         legOnDate: (date) => legOn(legs, date),
+        legsOnDate: (date) => legsOn(legs, date),
         addStay, updateStay, deleteStay,
         addLeg, updateLeg, deleteLeg,
         weatherBusy: weatherState.busy,

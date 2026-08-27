@@ -10,7 +10,7 @@ import {
     nightsOf, lodgingByNight, stayOn,
 } from '../src/utils/tripCosts.js';
 import { datesBetween } from '../src/utils/tripDates.js';
-import { daysOfLeg, legOn, routeGaps, summariseLegs } from '../src/utils/tripLegs.js';
+import { daysOfLeg, legOn, legsOn, legBands, isHandover, routeGaps, summariseLegs } from '../src/utils/tripLegs.js';
 import { describeCode, dressFor, isForecastable, sourceLabel } from '../src/utils/weather.js';
 
 let failed = 0;
@@ -275,6 +275,46 @@ console.log('\nsummariseLegs():');
     check('a leg with nothing in it is still a leg',
         [summary[1].days, summary[1].cost, summary[1].planned], [2, 0, 0]);
     check('no weather averages to null', summary[1].high, null);
+}
+
+/* A travel day is how people actually enter a trip, not a mistake ---------- */
+console.log('\nhandover days — you arrive on the day you leave:');
+{
+    // Exactly her India trip: Mumbai to the 27th, Kerala from the 27th.
+    const legs = [
+        { id: 'm', city: 'Mumbai', start_date: '2026-12-25', end_date: '2026-12-27' },
+        { id: 'k', city: 'Kerala', start_date: '2026-12-27', end_date: '2027-01-02' },
+    ];
+    const dates = datesBetween('2026-12-25', '2027-01-02');
+
+    check('a handover is recognised', isHandover(legs, '2026-12-27'), true);
+    check('an ordinary day is not a handover', isHandover(legs, '2026-12-26'), false);
+    check('a handover is not called a clash', routeGaps(dates, legs, []).overlaps, []);
+    check('but it is named as a travel day',
+        routeGaps(dates, legs, []).handovers, ['2026-12-27']);
+    check('both cities are true that day',
+        legsOn(legs, '2026-12-27').map((l) => l.city), ['Mumbai', 'Kerala']);
+    check('the day belongs to where you are arriving',
+        legOn(legs, '2026-12-27').city, 'Kerala');
+
+    // The bars must not stack: the departing leg gives up the shared column.
+    const bands = legBands(legs);
+    check('the earlier bar stops short of the handover',
+        bands[0].dates.at(-1), '2026-12-26');
+    check('the later bar keeps it', bands[1].dates[0], '2026-12-27');
+    check('no column is claimed twice',
+        bands.flatMap((b) => b.dates).length,
+        new Set(bands.flatMap((b) => b.dates)).size);
+
+    // A one-day leg sitting inside another is a real clash, not a handover.
+    const nested = [
+        { id: 'a', city: 'Goa', start_date: '2026-12-23', end_date: '2026-12-24' },
+        { id: 'b', city: 'Kerala', start_date: '2026-12-24', end_date: '2026-12-24' },
+    ];
+    check('a one-day leg inside another is still flagged',
+        routeGaps(['2026-12-23', '2026-12-24'], nested, []).overlaps, ['2026-12-24']);
+    check('a single leg keeps all its days',
+        legBands([legs[1]])[0].dates.length, daysOfLeg(legs[1]).length);
 }
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');

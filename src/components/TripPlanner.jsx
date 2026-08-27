@@ -110,7 +110,7 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
     const {
         days, items, stays, legs, strays, tripDates, costs, weatherBusy, weatherMessage,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
-        legOnDate, addLeg, updateLeg, deleteLeg,
+        legOnDate, legsOnDate, addLeg, updateLeg, deleteLeg,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather,
     } = useTripDays(trip);
 
@@ -255,7 +255,10 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                                 {legOnDate(day.date) ? (
                                     <div className="trip-day__stay">
                                         <span className="field__label">City</span>
-                                        <p>{legOnDate(day.date).city}</p>
+                                        {/* On a travel day both cities are true,
+                                            and which one you are in depends on
+                                            the hour. */}
+                                        <p>{legsOnDate(day.date).map((l) => l.city).join(' → ')}</p>
                                     </div>
                                 ) : (
                                     <Field

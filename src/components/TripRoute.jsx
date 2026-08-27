@@ -49,6 +49,8 @@ const TripRoute = ({
         setAdding(false);
     };
 
+    // Handovers are deliberately not counted: they are a fact about the trip,
+    // not something to go and fix.
     const problems = gaps.unassigned.length + gaps.overlaps.length + gaps.unhoused.length;
 
     return (
@@ -171,6 +173,15 @@ const TripRoute = ({
                     <p className="route__warn">
                         Two cities claim {gaps.overlaps.map(pretty).join(', ')}. You can only be
                         in one.
+                    </p>
+                )}
+
+                {/* Said plainly rather than warned about: a day that ends in one
+                    city and finishes in another is a normal way to travel. */}
+                {gaps.handovers.length > 0 && (
+                    <p className="route__note">
+                        {gaps.handovers.length} travel {gaps.handovers.length === 1 ? 'day' : 'days'}
+                        {' '}— {gaps.handovers.map(pretty).join(', ')} — where you change cities.
                     </p>
                 )}
             </Card>

@@ -45,12 +45,65 @@ export const daysOfLeg = (leg) => {
     return out;
 };
 
-/** Which leg covers a date. The earliest-starting one wins a tie. */
+/** Every leg claiming a date, in order. Usually one; on a travel day, two. */
+export const legsOn = (legs = [], date) => {
+    const key = String(date).slice(0, 10);
+    return legs
+        .filter((leg) => daysOfLeg(leg).includes(key))
+        .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)));
+};
+
+/**
+ * A day where one leg ends and the next begins.
+ *
+ * This is how a person actually enters a trip — Mumbai the 25th to the 27th,
+ * Kerala the 27th to the 2nd — because you arrive somewhere on the day you
+ * leave somewhere else. It is a handover, not a mistake, and calling it a
+ * clash means the warning panel cries wolf on a correctly entered trip.
+ */
+export const isHandover = (legs = [], date) => {
+    const key = String(date).slice(0, 10);
+    const hits = legsOn(legs, key);
+    if (hits.length !== 2) return false;
+    const ending = hits.filter((l) => String(l.end_date).slice(0, 10) === key).length;
+    const starting = hits.filter((l) => String(l.start_date).slice(0, 10) === key).length;
+    return ending === 1 && starting === 1;
+};
+
+/**
+ * Which leg a date belongs to.
+ *
+ * On a handover the city you are arriving into wins: that is where the evening
+ * happens, where the bed is, and whose forecast decides what the day is like.
+ */
 export const legOn = (legs = [], date) => {
     const key = String(date).slice(0, 10);
-    const hits = legs.filter((leg) => daysOfLeg(leg).includes(key));
+    const hits = legsOn(legs, key);
     if (!hits.length) return null;
-    return [...hits].sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)))[0];
+    const arriving = hits.find((l) => String(l.start_date).slice(0, 10) === key);
+    return arriving || hits[0];
+};
+
+/**
+ * Legs as bars that do not sit on top of each other.
+ *
+ * The facts about a leg want its days counted inclusively; a bar drawn across
+ * a grid wants each column owned by exactly one leg, or the handover day makes
+ * the row two deep for no reason. So a leg gives up its last day to whichever
+ * leg starts on it.
+ */
+export const legBands = (legs = []) => {
+    const ordered = [...legs].sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)));
+    const starts = new Set(ordered.map((l) => String(l.start_date).slice(0, 10)));
+
+    return ordered.map((leg) => {
+        const dates = daysOfLeg(leg);
+        const last = dates[dates.length - 1];
+        const trimmed = dates.length > 1 && starts.has(last) && String(leg.start_date).slice(0, 10) !== last
+            ? dates.slice(0, -1)
+            : dates;
+        return { leg, dates: trimmed };
+    });
 };
 
 /**
@@ -80,13 +133,16 @@ export const routeGaps = (tripDates = [], legs = [], stays = []) => {
     for (const stay of stays) for (const night of nightsOf(stay)) housed.add(night);
 
     const unassigned = dates.filter((d) => !covered.has(d));
-    const overlaps = dates.filter((d) => (covered.get(d) || []).length > 1);
+    const handovers = dates.filter((d) => isHandover(legs, d));
+    const overlaps = dates.filter(
+        (d) => (covered.get(d) || []).length > 1 && !handovers.includes(d)
+    );
 
     // The last date of a trip is a travel day, not a night you need a bed for.
     const nights = dates.slice(0, -1);
     const unhoused = nights.filter((d) => covered.has(d) && !housed.has(d));
 
-    return { unassigned, overlaps, unhoused };
+    return { unassigned, overlaps, unhoused, handovers };
 };
 
 /**

@@ -2,7 +2,7 @@ import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
-import { daysOfLeg } from '../utils/tripLegs';
+import { legBands } from '../utils/tripLegs';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -46,8 +46,8 @@ const TripTimeline = ({ days, items, stays, legs = [], costs, currency = 'USD' }
         return { start: dates.indexOf(inside[0]), span: inside.length };
     };
 
-    const cityBars = (legs || []).map((leg) => {
-        const box = spanning(daysOfLeg(leg));
+    const cityBars = legBands(legs).map(({ leg, dates: band }) => {
+        const box = spanning(band);
         return box && { leg, ...box };
     }).filter(Boolean);
 

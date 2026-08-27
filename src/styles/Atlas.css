@@ -1066,3 +1066,8 @@
     .route__cost { grid-column: 1 / -1; text-align: left; }
     .route__drop { grid-column: 2; justify-self: end; }
 }
+
+.route__note {
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
