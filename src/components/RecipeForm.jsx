@@ -8,7 +8,7 @@ import { Button, Card, Field, Modal, Tag } from './ui';
 
 const CATEGORIES = ['Pantry', 'Produce', 'Dairy', 'Protein', 'Spices'];
 
-const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredientToPantry, onImport, allTags = [] }) => {
+const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAddIngredientToPantry, onImport, allTags = [] }) => {
     const [title, setTitle] = useState('');
     const [instructions, setInstructions] = useState('');
     const [ingredients, setIngredients] = useState([]); // Array of { item, amount, unit, notes }
@@ -30,11 +30,18 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, onAddIngredie
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState('');
 
-    // Check if ingredient exists in pantry
+    /**
+     * Does the pantry already hold this, under any name?
+     *
+     * The exact-string version of this offered to add "2 tbsp olive oil" as a
+     * brand new ingredient even with `olive oil` sitting in the pantry, which
+     * is how a pantry ends up with `cilantro` twice.
+     */
     const isIngredientUnknown = (name) => {
-        if (!name || !ingredientsByName) return false;
-        const key = name.toLowerCase().trim();
-        return !ingredientsByName[key];
+        if (!name) return false;
+        if (matcher) return !matcher.matchOne(name).item;
+        if (!ingredientsByName) return false;
+        return !ingredientsByName[name.toLowerCase().trim()];
     };
 
     const handleImport = async () => {

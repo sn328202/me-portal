@@ -11,7 +11,7 @@ import '../styles/ProvisionsWidget.css';
 
 const ProvisionsWidget = ({ plan, recipes }) => {
     const { items, addItem, toggleItem, deleteItem, clearChecked, loading } = useProvisions();
-    const { ingredientsByName, pantryStock } = useIngredients();
+    const { matcher, pantryStock } = useIngredients();
     const { getLabel, getIcon } = useTheme();
     const [input, setInput] = useState('');
     const [isCopied, setIsCopied] = useState(false);
@@ -30,9 +30,12 @@ const ProvisionsWidget = ({ plan, recipes }) => {
             const recipe = recipes.find(r => r.id === recipeId);
             if (recipe) {
                 recipe.ingredients.forEach(ing => {
-                    // Normalize
-                    const lowerName = (ing.item || '').toLowerCase().trim();
-                    const match = ingredientsByName ? ingredientsByName[lowerName] : null;
+                    // The shopping list is the place a bad match hurts most:
+                    // an unmatched line becomes a second entry for something
+                    // already in the cupboard, and she buys it twice.
+                    const resolved = matcher.matchOne(ing.item || '');
+                    const match = resolved.item;
+                    const lowerName = resolved.normalised || (ing.item || '').toLowerCase().trim();
 
                     const key = match ? match.id : lowerName;
                     const label = match ? match.label : ing.item;

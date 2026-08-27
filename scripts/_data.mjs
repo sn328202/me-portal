@@ -67,11 +67,35 @@ export const DATA = {
         { id: 'r1', user_id: USER, title: 'Three-Cup Chicken', source: 'Imported', instructions: 'Braise.', created_at: new Date().toISOString(), ingredients: [{ id: 'i1', item: 'sesame oil', amount: '3', unit: 'tablespoons' }, { id: 'i2', item: 'ginger', amount: '12', unit: 'pcs' }, { id: 'i3', item: 'garlic', amount: '12', unit: 'cloves' }] },
         { id: 'r2', user_id: USER, title: 'Charred Cabbage With Miso Browned Butter', source: 'Imported', instructions: 'Char.', created_at: new Date().toISOString(), ingredients: [{ id: 'i4', item: 'cabbage', amount: '1', unit: 'pcs' }, { id: 'i5', item: 'olive oil', amount: '1/4', unit: 'cup' }] },
         { id: 'r3', user_id: USER, title: 'Skillet Gnocchi With Miso Butter and Asparagus', source: 'Imported', instructions: 'Fry.', created_at: new Date().toISOString(), ingredients: [{ id: 'i6', item: 'gnocchi', amount: '1', unit: 'packet' }] },
+        {
+            id: 'r4', user_id: USER, title: 'Everyday Dal', source: 'Imported',
+            instructions: 'Temper the spices, add the dal, simmer.',
+            created_at: new Date().toISOString(),
+            // Deliberately messy: an imperative line, a regional spice name, a
+            // prep suffix and two things the pantry has never heard of. None of
+            // these matched before the matcher existed.
+            ingredients: [
+                { id: 'i7', item: 'include a bay leaf', amount: '1', unit: 'pcs' },
+                { id: 'i8', item: 'deggi mirch indian chilli powder', amount: '1', unit: 'tsp' },
+                { id: 'i9', item: 'freshly ground black pepper', amount: '1', unit: 'tsp' },
+                { id: 'i10', item: 'garlic', amount: '3', unit: 'cloves', notes: 'finely minced' },
+                { id: 'i11', item: 'orange masoor dal', amount: '1', unit: 'cup' },
+                { id: 'i12', item: 'gochujang', amount: '2', unit: 'tbsp' },
+                { id: 'i13', item: 'curry leaves', amount: '10', unit: 'pcs' },
+            ],
+        },
     ],
     pantry_ingredients: [
-        { id: 'pi1', user_id: USER, name: 'sesame oil', category: 'Pantry', in_stock: true, emoji: '🫗' },
-        { id: 'pi2', user_id: USER, name: 'garlic', category: 'Produce', in_stock: true, emoji: '🧄' },
-        { id: 'pi3', user_id: USER, name: 'cabbage', category: 'Produce', in_stock: false, emoji: '🥬' },
+        { id: 'pi1', user_id: USER, name: 'sesame oil', label: 'Sesame oil', category: 'Pantry', in_stock: true, icon: '🫗', aliases: [] },
+        { id: 'pi2', user_id: USER, name: 'garlic', label: 'Garlic', category: 'Produce', in_stock: true, icon: '🧄', aliases: [] },
+        { id: 'pi3', user_id: USER, name: 'cabbage', label: 'cabbage', category: 'Produce', in_stock: false, icon: '🥬', aliases: [] },
+        { id: 'pi4', user_id: USER, name: 'bay leaf', label: 'bay leaf', category: 'Spices', in_stock: true, icon: '🌿', aliases: [] },
+        { id: 'pi5', user_id: USER, name: 'red chilli powder', label: 'red chilli powder', category: 'Spices', in_stock: true, icon: '🌶️', aliases: [] },
+        { id: 'pi6', user_id: USER, name: 'black pepper', label: 'black pepper', category: 'Spices', in_stock: true, icon: '🧂', aliases: [] },
+        { id: 'pi7', user_id: USER, name: 'curry leaves', label: 'curry leaves', category: 'Produce', in_stock: true, icon: '🍃', aliases: [] },
+        // Carries a taught alias, so the pantry tab shows what that looks like.
+        { id: 'pi8', user_id: USER, name: 'orange masoor dal', label: 'orange masoor dal', category: 'Pantry', in_stock: false, icon: '🫘', aliases: ['red lentil', 'masoor dal'] },
+        { id: 'pi9', user_id: USER, name: 'ginger', label: 'ginger', category: 'Produce', in_stock: true, icon: '🫚', aliases: [] },
     ],
     meal_plans: [{ id: 'mp1', user_id: USER, day_of_week: 'Monday', recipe_id: 'r1' }],
     day_plans: [

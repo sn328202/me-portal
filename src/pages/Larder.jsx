@@ -84,8 +84,9 @@ const LarderFilters = ({
     </div>
 );
 
-const PantryItem = ({ item, pantryStock, togglePantryStock, deleteIngredient }) => {
+const PantryItem = ({ item, pantryStock, togglePantryStock, deleteIngredient, removeAlias }) => {
     const inStock = !!pantryStock[item.id];
+    const aliases = item.aliases || [];
 
     return (
         <div className={['pantry-item', inStock ? 'pantry-item--stocked' : ''].filter(Boolean).join(' ')}>
@@ -101,6 +102,26 @@ const PantryItem = ({ item, pantryStock, togglePantryStock, deleteIngredient }) 
                     <Tag tone={inStock ? 'gold' : 'default'}>{inStock ? 'IN STOCK' : 'OUT'}</Tag>
                 </span>
             </button>
+
+            {/* The names this ingredient has been taught to answer to. Shown
+                here because an alias that cannot be seen cannot be corrected. */}
+            {aliases.length > 0 && (
+                <ul className="pantry-item__aliases">
+                    {aliases.map((alias) => (
+                        <li key={alias}>
+                            <button
+                                type="button"
+                                className="pantry-item__alias"
+                                title={`Stop matching "${alias}" to ${item.label}`}
+                                onClick={() => removeAlias?.(item.id, alias)}
+                            >
+                                {alias} <span aria-hidden="true">×</span>
+                                <span className="visually-hidden">remove this alias</span>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
 
             <ConfirmButton
                 label={`Remove ${item.label} from the larder`}
@@ -126,7 +147,11 @@ const Larder = () => {
     const [sortBy, setSortBy] = useState('newest'); // 'newest', 'title', 'match'
 
     const { recipes, loading, error, addRecipe, deleteRecipe, updateRecipe, mealPlan, addToPlan, clearDay, importRecipe } = useRecipes();
-    const { ingredientsByCategory, pantryStock, togglePantryStock, addCustomIngredient, deleteIngredient, ingredientsByName } = useIngredients();
+    const {
+        ingredientsByCategory, pantryStock, togglePantryStock, addCustomIngredient,
+        deleteIngredient, ingredientsByName, matcher, addManyIngredients, addAlias,
+        removeAlias,
+    } = useIngredients();
     const { menus, addMenu, updateMenu, deleteMenu } = useMenus();
 
     // The Hearth: which day a picked formula lands on
@@ -155,36 +180,25 @@ const Larder = () => {
         return Array.from(tags).sort();
     }, [recipes]);
 
-    // Helper: Calculate Pantry Match
+    /**
+     * Pantry match for the recipe list.
+     *
+     * This was a third hand-rolled copy of the same exact-string lookup that
+     * RecipeDetail and ProvisionsWidget each had. All three now share one
+     * matcher, so a recipe cannot report 20% here and 60% when opened.
+     */
     const calculatePantryMatch = useCallback((recipe) => {
-        if (!recipe.ingredients || recipe.ingredients.length === 0) return { percentage: 0, missing: [], total: 0 };
-
-        let matchCount = 0;
-        const missing = [];
-
-        recipe.ingredients.forEach(ing => {
-            // Logic: Check by ID (if available) OR Name
-            // Ideally ingredients in recipes should be linked to pantry IDs for precision,
-            // but for now we often rely on strings.
-            const name = (ing.item || ing.name || '').toLowerCase().trim();
-            const ingObj = ingredientsByName[name];
-
-            let isStocked = false;
-            if (ingObj && pantryStock[ingObj.id]) {
-                isStocked = true;
-            }
-
-            if (isStocked) {
-                matchCount++;
-            } else {
-                missing.push(ing);
-            }
-        });
-
-        const total = recipe.ingredients.length;
-        const percentage = total === 0 ? 0 : Math.round((matchCount / total) * 100);
-        return { percentage, missing, total };
-    }, [ingredientsByName, pantryStock]);
+        const result = matcher.matchRecipe(recipe.ingredients || []);
+        return {
+            percentage: result.percent,
+            // "Missing" in the list has always meant "not in the cupboard right
+            // now", which includes things the pantry knows about but has run
+            // out of - not only things it has never heard of.
+            missing: result.lines.filter((l) => !l.inStock),
+            unknown: result.missing,
+            total: result.total,
+        };
+    }, [matcher]);
 
     const filteredRecipes = useMemo(() => {
         // First map all to include match data
@@ -467,6 +481,7 @@ const Larder = () => {
                             onSave={handleSave}
                             onCancel={handleCancel}
                             ingredientsByName={ingredientsByName}
+                            matcher={matcher}
                             onAddIngredientToPantry={addCustomIngredient}
                             onImport={importRecipe}
                             allTags={allTags}
@@ -477,8 +492,9 @@ const Larder = () => {
                             onClose={() => setView('list')}
                             onEdit={() => handleEdit(viewingRecipe)}
                             onCook={handleCook}
-                            pantryStock={pantryStock}
-                            ingredientsByName={ingredientsByName}
+                            matcher={matcher}
+                            onAddMissing={addManyIngredients}
+                            onTeachAlias={addAlias}
                         />
                     ) : view === 'cook' && viewingRecipe ? (
                         <CookMode
@@ -542,6 +558,7 @@ const Larder = () => {
                                             key={item.id}
                                             item={item}
                                             pantryStock={pantryStock}
+                                            removeAlias={removeAlias}
                                             togglePantryStock={togglePantryStock}
                                             deleteIngredient={deleteIngredient}
                                         />
@@ -570,6 +587,7 @@ const Larder = () => {
                                                     key={item.id}
                                                     item={item}
                                                     pantryStock={pantryStock}
+                                            removeAlias={removeAlias}
                                                     togglePantryStock={togglePantryStock}
                                                     deleteIngredient={deleteIngredient}
                                                 />

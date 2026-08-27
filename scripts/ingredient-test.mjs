@@ -1,0 +1,238 @@
+/**
+ * Ingredient matching tests.
+ *
+ * The pantry fixture below is a slice of the real one — including its warts,
+ * because the warts are what breaks matchers: `cilantro`, `tomato`, `potato`
+ * and `heavy cream` each exist twice under different categories, `shallot` and
+ * `shallots` are separate rows, and the spices are named in a mixture of
+ * English and Hindi.
+ *
+ * A matcher that only passes against a tidy pantry is not the matcher this app
+ * needs.
+ */
+import {
+    normalise, singular, buildMatcher, guessCategory, labelFor,
+} from '../src/utils/ingredientMatch.js';
+
+let failed = 0;
+const check = (label, actual, expected) => {
+    const ok = JSON.stringify(actual) === JSON.stringify(expected);
+    if (!ok) failed += 1;
+    console.log(`${ok ? '  ok  ' : ' FAIL '} ${label}${ok ? '' : `\n         got  ${JSON.stringify(actual)}\n         want ${JSON.stringify(expected)}`}`);
+};
+
+const PANTRY = [
+    // Spices — the Hindi-named half of the real pantry
+    { name: 'bay leaf', label: 'bay leaf', category: 'Spices', in_stock: true },
+    { name: 'red chilli powder', label: 'red chilli powder', category: 'Spices', in_stock: true },
+    { name: 'kashmiri red chilli powder', label: 'kashmiri red chilli powder', category: 'Spices', in_stock: false },
+    { name: 'cumin powder', label: 'cumin powder', category: 'Spices', in_stock: true },
+    { name: 'cumin seeds', label: 'cumin seeds', category: 'Spices', in_stock: true },
+    { name: 'coriander powder', label: 'coriander powder', category: 'Spices', in_stock: true },
+    { name: 'black pepper', label: 'black pepper', category: 'Spices', in_stock: true },
+    { name: 'black peppercorns', label: 'black peppercorns', category: 'Spices', in_stock: true },
+    { name: 'white pepper powder', label: 'White Pepper Powder', category: 'Spices', in_stock: true },
+    { name: 'garam masala', label: 'garam masala', category: 'Spices', in_stock: true },
+    { name: 'kasuri methi', label: 'kasuri methi', category: 'Spices', in_stock: true },
+    { name: 'amchur', label: 'amchur', category: 'Spices', in_stock: true },
+    { name: 'hing', label: 'hing', category: 'Spices', in_stock: true },
+    { name: 'turmeric', label: 'turmeric', category: 'Spices', in_stock: true },
+    { name: 'dried red chillies', label: 'dried red chillies', category: 'Spices', in_stock: true },
+    { name: 'salt', label: 'salt', category: 'Spices', in_stock: true },
+    { name: 'flaky sea salt', label: 'flaky sea salt', category: 'Spices', in_stock: true },
+    // Produce — note the duplicate cilantro and the singular/plural split
+    { name: 'cilantro', label: 'cilantro', category: 'Produce', in_stock: false },
+    { name: 'green chilli', label: 'green chilli', category: 'Produce', in_stock: true },
+    { name: 'curry leaves', label: 'curry leaves', category: 'Produce', in_stock: true },
+    { name: 'garlic', label: 'Garlic', category: 'Produce', in_stock: true },
+    { name: 'ginger', label: 'ginger', category: 'Produce', in_stock: true },
+    { name: 'spring onion', label: 'spring onion', category: 'Produce', in_stock: false },
+    { name: 'shallot', label: 'shallot', category: 'Produce', in_stock: false },
+    { name: 'mushrooms', label: 'mushrooms', category: 'Produce', in_stock: false },
+    { name: 'tomato', label: 'Tomato', category: 'Produce', in_stock: false },
+    { name: 'lemon', label: 'lemon', category: 'Produce', in_stock: true },
+    // Pantry — the second cilantro, in stock, filed elsewhere
+    { name: 'cilantro', label: 'cilantro', category: 'Pantry', in_stock: true },
+    { name: 'olive oil', label: 'olive oil', category: 'Pantry', in_stock: true },
+    { name: 'sesame oil', label: 'Sesame oil', category: 'Pantry', in_stock: true },
+    { name: 'soy sauce', label: 'Soy Sauce', category: 'Pantry', in_stock: true },
+    { name: 'shaoxing wine', label: 'Shaoxing wine', category: 'Pantry', in_stock: true },
+    { name: 'dried shiitake mushrooms', label: 'dried shiitake mushrooms', category: 'Pantry', in_stock: true },
+    { name: 'flour', label: 'Flour', category: 'Pantry', in_stock: true },
+    { name: "confectioner's sugar", label: "confectioner's sugar", category: 'Pantry', in_stock: true },
+    { name: 'sugar', label: 'Sugar', category: 'Pantry', in_stock: true },
+    { name: 'coconut milk', label: 'coconut milk', category: 'Pantry', in_stock: true },
+    { name: 'heavy cream', label: 'heavy cream', category: 'Pantry', in_stock: true },
+    { name: 'onions', label: 'onions', category: 'Pantry', in_stock: true },
+    { name: 'chicken broth', label: 'chicken broth', category: 'Pantry', in_stock: false },
+    // Protein
+    { name: 'chicken', label: 'Chicken', category: 'Protein', in_stock: false },
+    { name: 'egg', label: 'Eggs', category: 'Protein', in_stock: true },
+    { name: 'ground pork', label: 'ground pork', category: 'Protein', in_stock: false },
+    { name: 'tofu', label: 'tofu', category: 'Protein', in_stock: true },
+];
+
+const m = buildMatcher(PANTRY);
+const to = (line) => {
+    const r = m.matchOne(line);
+    return r.item ? `${r.item.name}:${r.confidence}` : `none:${r.confidence}`;
+};
+
+console.log('\nsingular():');
+check('leaves -> leaf', singular('leaves'), 'leaf');
+check('chillies -> chilli', singular('chillies'), 'chilli');
+check('tomatoes -> tomato', singular('tomatoes'), 'tomato');
+check('onions -> onion', singular('onions'), 'onion');
+check('hummus is not a plural', singular('hummus'), 'hummus');
+check('molasses is a mass noun, not a plural', singular('molasses'), 'molasses');
+check('  but glasses really is one', singular('glasses'), 'glass');
+check('peas -> pea', singular('peas'), 'pea');
+
+console.log('\nnormalise() — the two lines Neha named:');
+check('"1 bay leaf"', normalise('1 bay leaf').text, 'bay leaf');
+check('"include a bay leaf"', normalise('include a bay leaf').text, 'bay leaf');
+check('"get deggi mirch indian chilli powder"',
+    normalise('get deggi mirch indian chilli powder').text, 'red chilli powder');
+
+console.log('\nnormalise() — the shapes recipes actually use:');
+check('quantity and unit go', normalise('2 tbsp olive oil').text, 'olive oil');
+check('fraction quantity goes', normalise('1 1/2 cups flour').text, 'flour');
+check('parenthetical note goes', normalise('1 onion (finely chopped)').text, 'onion');
+check('post-comma note goes', normalise('2 tomatoes, diced').text, 'tomato');
+check('prep words go', normalise('3 cloves garlic, finely minced').text, 'garlic');
+check('"to taste" goes', normalise('salt to taste').text, 'salt');
+check('"for serving" goes', normalise('cilantro, for serving').text, 'cilantro');
+check('plural becomes singular', normalise('curry leaves').text, 'curry leaf');
+check('colour is kept — it is the ingredient',
+    normalise('1 tsp red chilli powder').text, 'red chilli powder');
+check('"ground" is kept — ground pork is not pork',
+    normalise('200g ground pork').text, 'ground pork');
+check('"dried" is kept — dried chillies are not chillies',
+    normalise('4 dried red chillies').text, 'dried red chilli');
+check('"freshly" goes but "ground" stays',
+    normalise('freshly ground black pepper').text, 'ground black pepper');
+check('hyphens flatten', normalise('half-and-half').text, 'half and half');
+// The pantry row reduces to the same thing, which is all that matters.
+check('apostrophes go', normalise("confectioner's sugar").text, 'confectioner sugar');
+check('  and icing sugar lands on it', normalise('icing sugar').text, 'confectioner sugar');
+check('spelling variants collapse', normalise('2 red chiles').text, 'red chilli');
+check('an empty line stays empty', normalise('   ').text, '');
+
+console.log('\nnormalise() — synonyms:');
+check('haldi -> turmeric', normalise('1 tsp haldi').text, 'turmeric');
+check('ground cumin -> cumin powder', normalise('ground cumin').text, 'cumin powder');
+check('asafoetida -> hing', normalise('a pinch of asafoetida').text, 'hing');
+check('scallions -> spring onion', normalise('3 scallions').text, 'spring onion');
+check('all purpose flour -> flour', normalise('2 cups all-purpose flour').text, 'flour');
+check('chinese cooking wine -> shaoxing', normalise('1 tbsp chinese cooking wine').text, 'shaoxing wine');
+check('dried fenugreek leaves -> kasuri methi',
+    normalise('1 tsp dried fenugreek leaves').text, 'kasuri methi');
+
+console.log('\nmatchOne() — exact:');
+check('"1 bay leaf"', to('1 bay leaf'), 'bay leaf:exact');
+check('"include a bay leaf"', to('include a bay leaf'), 'bay leaf:exact');
+check('"2 dried bay leaves"', to('2 dried bay leaves'), 'bay leaf:strong');
+check('"3 cloves garlic, minced"', to('3 cloves garlic, minced'), 'garlic:exact');
+check('plural pantry row still matches', to('1 large onion'), 'onions:exact');
+check('curry leaves', to('10 curry leaves'), 'curry leaves:exact');
+
+console.log('\nmatchOne() — the chilli powder case:');
+check('"get deggi mirch indian chilli powder"',
+    to('get deggi mirch indian chilli powder'), 'red chilli powder:exact');
+// 'likely' rather than 'strong': the line is *less* specific than the pantry
+// row, so the app is genuinely guessing which chilli powder she means. It
+// still counts, and the UI shows what it picked.
+check('"1 tsp chilli powder" finds the stocked one',
+    to('1 tsp chilli powder'), 'red chilli powder:likely');
+check('kashmiri is specific enough to win',
+    to('2 tsp kashmiri red chilli powder'), 'kashmiri red chilli powder:exact');
+check('a shared "powder" alone is NOT a match',
+    to('4 tbsp custard powder'), 'none:none');
+check('a shared "sauce" alone is NOT a match',
+    to('2 tbsp worcestershire sauce'), 'none:none');
+
+console.log('\nmatchOne() — head-noun matching:');
+check('"freshly ground black pepper"', to('freshly ground black pepper'), 'black pepper:strong');
+check('"toasted sesame oil"', to('1 tsp toasted sesame oil'), 'sesame oil:exact');
+check('"shiitake mushrooms"', to('50g dried shiitake mushrooms'), 'dried shiitake mushrooms:exact');
+check('"good quality olive oil"', to('3 tbsp good quality olive oil'), 'olive oil:exact');
+check('"full-fat coconut milk"', to('1 can full-fat coconut milk'), 'coconut milk:strong');
+
+console.log('\nmatchOne() — the duplicate-row problem:');
+{
+    const r = m.matchOne('a handful of cilantro');
+    check('cilantro is filed twice; the stocked copy wins',
+        `${r.item?.name}:${r.item?.in_stock}`, 'cilantro:true');
+}
+
+console.log('\nmatchOne() — things genuinely not in the pantry:');
+check('gochujang', to('2 tbsp gochujang'), 'none:none');
+check('miso paste', to('1 tbsp white miso paste'), 'none:none');
+check('nothing at all', to(''), 'none:none');
+
+console.log('\nmatchRecipe():');
+{
+    const result = m.matchRecipe([
+        { item: '1 bay leaf' },
+        { item: 'get deggi mirch indian chilli powder' },
+        { item: '2 tbsp gochujang' },
+        { item: '1 lb chicken thighs' },
+        { item: 'salt to taste' },
+    ]);
+    check('five lines in, five out', result.total, 5);
+    check('three are stocked', result.lines.filter((l) => l.inStock).length, 3);
+    check('  bay leaf, chilli powder, salt', result.percent, 60);
+    check('one is unknown to the pantry', result.missing.map((l) => l.raw), ['2 tbsp gochujang']);
+    check('one is known but out of stock', result.outOfStock.map((l) => l.match.name), ['chicken']);
+    check('a line that says what it matched needs no note',
+        result.lines[0].resolvedAs, null);
+    check('  even when the line was messy around it',
+        result.lines[4].resolvedAs, null);
+    check('a line that does not gets one',
+        result.lines[1].resolvedAs, 'red chilli powder');
+    // "chicken thighs" says "chicken" out loud, so nothing needs explaining.
+    check('  but a line containing the name does not', result.lines[3].resolvedAs, null);
+}
+
+console.log('\nguessCategory() / labelFor() — for bulk add:');
+check('gochujang lands in Pantry', guessCategory('2 tbsp gochujang'), 'Pantry');
+check('star anise lands in Spices', guessCategory('3 star anise pods'), 'Pantry');
+check('cardamom lands in Spices', guessCategory('4 green cardamom pods'), 'Spices');
+check('paneer lands in Dairy', guessCategory('200g paneer'), 'Dairy');
+check('lamb lands in Protein', guessCategory('500g lamb shoulder'), 'Protein');
+check('spinach lands in Produce', guessCategory('a bag of spinach'), 'Produce');
+check('label is the normalised name, capitalised',
+    labelFor('2 tbsp gochujang'), 'Gochujang');
+check('  and it drops the noise', labelFor('1 lb chicken thighs, trimmed'), 'Chicken Thigh');
+
+console.log('\nbuildMatcher() edge cases:');
+check('an empty pantry matches nothing', buildMatcher([]).matchOne('salt').confidence, 'none');
+check('null rows are skipped', buildMatcher([null, { name: 'salt' }]).size, 1);
+check('rows without a name are skipped', buildMatcher([{ in_stock: true }]).size, 0);
+
+console.log('\naliases carried by the pantry itself:');
+{
+    const taught = buildMatcher([
+        ...PANTRY,
+        { name: 'arugula', label: 'arugula', in_stock: true, aliases: ['rocket', 'roquette'] },
+        { name: 'gochujang', label: 'gochujang', in_stock: true, aliases: ['korean chilli paste'] },
+    ]);
+    const say = (line) => {
+        const r = taught.matchOne(line);
+        return r.item ? `${r.item.name}:${r.confidence}` : 'none';
+    };
+    check('a taught alias finds the ingredient', say('2 cups roquette'), 'arugula:exact');
+    check('a multi-word alias works too', say('1 tbsp korean chilli paste'), 'gochujang:exact');
+    check('the real name still works', say('gochujang'), 'gochujang:exact');
+    check('an alias hit is flagged as such',
+        taught.matchOne('roquette').byAlias, true);
+    check('a plain name hit is not', Boolean(taught.matchOne('gochujang').byAlias), false);
+    check('an alias cannot steal another ingredient\'s name',
+        buildMatcher([
+            { name: 'salt', in_stock: true },
+            { name: 'msg', in_stock: false, aliases: ['salt'] },
+        ]).matchOne('salt').item.name, 'salt');
+}
+
+console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
+process.exit(failed ? 1 : 0);

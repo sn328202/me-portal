@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { buildMatcher, normalise, guessCategory, iconFor, labelFor } from '../utils/ingredientMatch';
 
 export const useIngredients = () => {
     const { user } = useAuth();
@@ -87,6 +88,17 @@ export const useIngredients = () => {
         return map;
     }, [ingredients]);
 
+    /**
+     * The matcher, rebuilt only when the pantry actually changes.
+     *
+     * This replaces the `ingredientsByName[name.toLowerCase()]` lookup that
+     * four different components each did for themselves. That lookup found a
+     * pantry row only when a recipe named it character for character, so
+     * "1 bay leaf" missed `bay leaf` and nothing ever matched an ingredient
+     * written the way a person writes one.
+     */
+    const matcher = useMemo(() => buildMatcher(ingredients), [ingredients]);
+
     // Legacy AllIngredients (ID keyed)
     const allIngredients = useMemo(() => {
         const map = {};
@@ -149,6 +161,103 @@ export const useIngredients = () => {
         }
     };
 
+    /**
+     * Add several ingredients at once — the recipe's misses, in one go.
+     *
+     * Written as a single insert rather than a loop of addCustomIngredient
+     * calls: thirty round trips is thirty chances for one to fail halfway and
+     * leave the pantry half-filled.
+     *
+     * Rows land out of stock, matching the single-add flow: having a recipe
+     * tell the pantry what she owns would be worse than useless.
+     */
+    const addManyIngredients = async (lines = []) => {
+        if (!user || !lines.length) return { added: 0 };
+
+        // Two lines of the same recipe often name the same thing ("cilantro,
+        // chopped" and "cilantro, to garnish"), so collapse before inserting.
+        const seen = new Set(Object.keys(ingredientsByName));
+        const rows = [];
+        for (const line of lines) {
+            const name = normalise(line).text;
+            if (!name || seen.has(name)) continue;
+            seen.add(name);
+            const category = guessCategory(line);
+            rows.push({
+                user_id: user.id,
+                name,
+                label: labelFor(line),
+                category,
+                icon: iconFor(category),
+                default_unit: 'pcs',
+                in_stock: false,
+            });
+        }
+
+        if (!rows.length) return { added: 0 };
+
+        const optimistic = rows.map((r, i) => ({ ...r, id: `temp-${Date.now()}-${i}`, is_deleted: false }));
+        setIngredients((prev) => [...prev, ...optimistic]);
+
+        const { data, error } = await supabase.from('pantry_ingredients').insert(rows).select();
+        if (error) {
+            setIngredients((prev) => prev.filter((i) => !String(i.id).startsWith('temp-')));
+            console.error('Error bulk-adding ingredients:', error);
+            return { added: 0, error: error.message };
+        }
+
+        setIngredients((prev) => [
+            ...prev.filter((i) => !String(i.id).startsWith('temp-')),
+            ...(data || []),
+        ]);
+        return { added: (data || []).length };
+    };
+
+    /**
+     * Teach an ingredient another name for itself.
+     *
+     * The alias is stored normalised, because that is the form the matcher
+     * compares against — normalising on every read would be per-render work
+     * for a value that never changes.
+     */
+    const addAlias = async (id, phrase) => {
+        if (!user) return;
+        const alias = normalise(phrase).text;
+        if (!alias) return;
+
+        const ing = ingredients.find((i) => i.id === id);
+        if (!ing || (ing.aliases || []).includes(alias)) return;
+
+        const next = [...(ing.aliases || []), alias];
+        setIngredients((prev) => prev.map((i) => (i.id === id ? { ...i, aliases: next } : i)));
+
+        const { error } = await supabase
+            .from('pantry_ingredients')
+            .update({ aliases: next })
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        if (error) {
+            setIngredients((prev) => prev.map((i) => (i.id === id ? { ...i, aliases: ing.aliases || [] } : i)));
+            console.error('Error adding alias:', error);
+        }
+    };
+
+    const removeAlias = async (id, alias) => {
+        if (!user) return;
+        const ing = ingredients.find((i) => i.id === id);
+        if (!ing) return;
+        const next = (ing.aliases || []).filter((a) => a !== alias);
+
+        setIngredients((prev) => prev.map((i) => (i.id === id ? { ...i, aliases: next } : i)));
+        const { error } = await supabase
+            .from('pantry_ingredients')
+            .update({ aliases: next })
+            .eq('id', id)
+            .eq('user_id', user.id);
+        if (error) fetchIngredients();
+    };
+
     const deleteIngredient = async (id) => {
         if (!user) return;
         // Optimistic Delete
@@ -199,11 +308,16 @@ export const useIngredients = () => {
     };
 
     return {
+        ingredients,
         allIngredients, // Keyed by ID
         ingredientsByName, // New: Keyed by Name (for existence checks)
         ingredientsByCategory,
         pantryStock,
+        matcher,
         addCustomIngredient,
+        addManyIngredients,
+        addAlias,
+        removeAlias,
         deleteIngredient,
         togglePantryStock,
         loading,

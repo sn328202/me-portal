@@ -1,29 +1,37 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     GiKnifeFork, GiClockwork, GiFire, GiCheckMark,
-    GiCancel, GiCookingPot, GiQuill, GiWorld
+    GiCancel, GiCookingPot, GiQuill, GiWorld, GiBasket, GiLinkedRings
 } from 'react-icons/gi';
 import { Button, Card, Stat, Tag } from './ui';
 
-const RecipeDetail = ({ recipe, onClose, onEdit, onCook, ingredientsByName }) => {
+const RecipeDetail = ({
+    recipe, onClose, onEdit, onCook, matcher, onAddMissing, onTeachAlias,
+}) => {
+    const [adding, setAdding] = useState(false);
+    const [added, setAdded] = useState(0);
 
-    // Calculate Pantry Match
-    const matchData = useMemo(() => {
-        if (!recipe.ingredients || recipe.ingredients.length === 0) return { percent: 0, matches: [] };
+    /**
+     * Every ingredient line, resolved against the pantry.
+     *
+     * This used to be an exact lowercase lookup, which meant a line had to name
+     * a pantry row character for character to count. `matcher` normalises both
+     * sides and falls back to head-noun matching, so "freshly ground black
+     * pepper" reaches `black pepper` and "deggi mirch indian chilli powder"
+     * reaches `red chilli powder`.
+     */
+    const matchData = useMemo(
+        () => matcher.matchRecipe(recipe.ingredients || []),
+        [recipe, matcher]
+    );
 
-        const matches = recipe.ingredients.map(ing => {
-            const cleanName = (ing.item || '').toLowerCase().trim();
-            // Check by name
-            const pantryItem = ingredientsByName[cleanName];
-            const inStock = pantryItem && pantryItem.in_stock;
-            return { ...ing, inStock };
-        });
-
-        const stockCount = matches.filter(m => m.inStock).length;
-        const percent = Math.round((stockCount / matches.length) * 100);
-
-        return { percent, matches };
-    }, [recipe, ingredientsByName]);
+    const handleAddMissing = async () => {
+        if (!onAddMissing || !matchData.missing.length) return;
+        setAdding(true);
+        const result = await onAddMissing(matchData.missing.map((l) => l.raw));
+        setAdded(result?.added || 0);
+        setAdding(false);
+    };
 
     const sourceHost = (() => {
         if (!recipe.source_url) return null;
@@ -42,6 +50,9 @@ const RecipeDetail = ({ recipe, onClose, onEdit, onCook, ingredientsByName }) =>
                     <h1 className="recipe-detail__title">{recipe.title}</h1>
                     <div className="recipe-detail__meta">
                         <Tag tone="gold">Pantry Match: {matchData.percent}%</Tag>
+                        {matchData.outOfStock.length > 0 && (
+                            <Tag>{matchData.outOfStock.length} out of stock</Tag>
+                        )}
                         {recipe.source_url && (
                             <a
                                 className="recipe-detail__source"
@@ -73,14 +84,32 @@ const RecipeDetail = ({ recipe, onClose, onEdit, onCook, ingredientsByName }) =>
                 <div>
                     <h3 className="section-title">Provisions</h3>
                     <ul className="recipe-detail__provisions">
-                        {matchData.matches.map((ing, i) => (
-                            <li key={i} className="recipe-detail__provision">
+                        {matchData.lines.map((ing, i) => (
+                            <li
+                                key={i}
+                                className={`recipe-detail__provision${ing.match ? '' : ' is-unknown'}`}
+                            >
                                 <span className="recipe-detail__provision-name">
                                     <span className="recipe-detail__check" aria-hidden={!ing.inStock}>
                                         {ing.inStock && <GiCheckMark />}
                                     </span>
                                     <span>
                                         <strong>{ing.amount} {ing.unit}</strong> {ing.item}
+                                        {/* Shown only when the app made a judgement call, so an
+                                            exact match stays quiet and a guess stays auditable. */}
+                                        {ing.resolvedAs && (
+                                            <button
+                                                type="button"
+                                                className="recipe-detail__resolved"
+                                                title={`Matched to "${ing.resolvedAs}" in your pantry. Click to make it permanent.`}
+                                                onClick={() => onTeachAlias?.(ing.match.id, ing.normalised)}
+                                            >
+                                                <GiLinkedRings /> {ing.resolvedAs}
+                                            </button>
+                                        )}
+                                        {!ing.match && (
+                                            <span className="recipe-detail__unknown">not in pantry</span>
+                                        )}
                                     </span>
                                     {ing.inStock && <span className="visually-hidden">(in stock)</span>}
                                 </span>
@@ -88,6 +117,25 @@ const RecipeDetail = ({ recipe, onClose, onEdit, onCook, ingredientsByName }) =>
                             </li>
                         ))}
                     </ul>
+
+                    {matchData.missing.length > 0 && (
+                        <Button
+                            block
+                            className="recipe-detail__add-missing"
+                            disabled={adding}
+                            onClick={handleAddMissing}
+                        >
+                            <GiBasket />{' '}
+                            {adding
+                                ? 'Adding…'
+                                : `Add ${matchData.missing.length} missing to the pantry`}
+                        </Button>
+                    )}
+                    {added > 0 && matchData.missing.length === 0 && (
+                        <p className="recipe-detail__added">
+                            {added} added to your pantry, out of stock.
+                        </p>
+                    )}
                 </div>
 
                 {/* Instructions Column & Image */}

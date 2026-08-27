@@ -673,6 +673,9 @@
 .pantry-item {
     display: flex;
     align-items: center;
+    /* The alias list is a third child and belongs on its own line; without
+       wrapping it competes with the toggle for width and wins. */
+    flex-wrap: wrap;
     gap: var(--space-1);
     padding: var(--space-1) var(--space-2);
     background: var(--bg-panel);
@@ -1542,4 +1545,87 @@
         box-shadow: none;
         animation: none;
     }
+}
+
+
+/* --- Pantry matching -------------------------------------------
+   Added with the ingredient matcher: a recipe line can now resolve
+   to a pantry row it does not name exactly, and that judgement has
+   to be visible or it cannot be corrected. */
+
+/* The resolution chip: "→ red chilli powder". Clicking it teaches
+   the pantry that this wording means that ingredient, permanently. */
+.recipe-detail__resolved {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: var(--space-2);
+    padding: 0 var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-pill);
+    background: var(--accent-gold-dim);
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease);
+}
+
+.recipe-detail__resolved:hover {
+    background: var(--bg-hover);
+}
+
+/* A line the pantry has never heard of, in any wording. */
+.recipe-detail__unknown {
+    margin-left: var(--space-2);
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+    font-style: italic;
+}
+
+.recipe-detail__provision.is-unknown .recipe-detail__provision-name {
+    color: var(--text-muted);
+}
+
+.recipe-detail__add-missing {
+    margin-top: var(--space-4);
+}
+
+.recipe-detail__added {
+    margin-top: var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+
+/* Learned aliases on the pantry row itself. */
+.pantry-item__aliases {
+    /* Full width so it drops below the toggle rather than beside it, and
+       indented to line up under the label rather than under the icon.
+       order:3 keeps the delete button up on the first line with the label
+       instead of being pushed down by the wrap. */
+    order: 3;
+    flex: 0 0 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-2);
+    padding: 0 var(--space-1) 0 calc(var(--space-4) + 1.6em);
+    list-style: none;
+}
+
+.pantry-item__alias {
+    padding: 0 var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    cursor: pointer;
+}
+
+.pantry-item__alias:hover {
+    border-color: var(--accent-crimson);
+    color: var(--accent-crimson);
 }
