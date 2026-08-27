@@ -3,6 +3,7 @@ import { GiWorld, GiCompass, GiPin } from 'react-icons/gi';
 import InteractiveMap from '../components/InteractiveMap';
 import { Button, Card, ConfirmButton, Field, PageHeader, Tag } from '../components/ui';
 import { useAtlas } from '../hooks/useAtlas';
+import TripPlanner from '../components/TripPlanner';
 import '../styles/Atlas.css';
 
 const STATUS_TONE = {
@@ -208,6 +209,15 @@ const Atlas = () => {
                                 value={selectedTrip.start_date || ''}
                                 onChange={(e) => handleUpdateTrip(selectedTrip.id, { start_date: e.target.value })}
                             />
+                            {/* end_date has been in the schema all along and was
+                                never on screen. The day planner needs it: it is
+                                what says how many days a trip has. */}
+                            <Field
+                                label="RETURN"
+                                type="date"
+                                value={selectedTrip.end_date || ''}
+                                onChange={(e) => handleUpdateTrip(selectedTrip.id, { end_date: e.target.value })}
+                            />
                         </div>
 
                         <Field
@@ -218,6 +228,12 @@ const Atlas = () => {
                             onChange={(e) => handleUpdateTrip(selectedTrip.id, { notes: e.target.value })}
                             placeholder="Rough plan..."
                         />
+
+                        {/* The day-by-day plan: the spreadsheet's spine. */}
+                        <section className="expedition__planner">
+                            <h3 className="section-title">The Days</h3>
+                            <TripPlanner trip={selectedTrip} onUpdateTrip={handleUpdateTrip} />
+                        </section>
 
                         <div className="field">
                             <span className="field__label">WAYPOINTS (CLICK MAP TO ADD)</span>

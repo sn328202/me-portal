@@ -374,3 +374,280 @@
         grid-column: 1 / -1;
     }
 }
+
+/* --- The day planner ------------------------------------------
+   The spreadsheet's spine: a card per day, five cost lines, a
+   running per-person total, and weather that fills itself in. */
+
+.expedition__planner {
+    margin-top: var(--space-6);
+}
+
+.trip-planner__summary {
+    margin-bottom: var(--space-5);
+}
+
+.trip-planner__totals {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-5);
+}
+
+.trip-planner__figure {
+    display: block;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1.1;
+    color: var(--text-gold);
+}
+
+.trip-planner__caption {
+    display: block;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+}
+
+.trip-planner__party {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+}
+
+.trip-planner__party input {
+    width: 5em;
+    padding: var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-size: 16px;
+}
+
+.trip-planner__note {
+    margin: var(--space-3) 0 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+
+.trip-planner__buckets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin: var(--space-4) 0 0;
+    padding: var(--space-3) 0 0;
+    border-top: var(--rule-hair);
+    list-style: none;
+}
+
+.trip-planner__buckets li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.trip-planner__buckets strong {
+    color: var(--text-main);
+    font-size: var(--text-base);
+}
+
+.trip-planner__days {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-4);
+}
+
+.trip-day__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.trip-day__head h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+}
+
+.trip-day__weather {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.trip-day__weather.is-empty,
+.trip-day__conditions {
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
+
+.trip-day__low {
+    color: var(--text-muted);
+    font-weight: var(--weight-normal);
+}
+
+/* An average is not a forecast, and the difference decides what gets packed. */
+.trip-day__typical {
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--accent-gold-dim);
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-style: normal;
+}
+
+.trip-day__dress {
+    flex: 0 0 100%;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.trip-day__where {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+}
+
+.trip-day__items {
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.trip-item {
+    display: grid;
+    grid-template-columns: 4.6em 1fr 6em 4.5em auto auto;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) 0;
+}
+
+.trip-item input,
+.trip-item select {
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 16px;
+}
+
+.trip-item__split {
+    padding: 0 var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    cursor: pointer;
+}
+
+.trip-item__split.is-shared {
+    border-color: var(--border-gold);
+    color: var(--text-gold);
+}
+
+.trip-item__drop {
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.trip-item__drop:hover {
+    color: var(--accent-crimson);
+}
+
+.trip-day__add input {
+    width: 100%;
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-size: 16px;
+}
+
+.trip-day__costs {
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: var(--rule-hair);
+}
+
+.trip-day__shared {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.trip-day__cost {
+    display: grid;
+    grid-template-columns: 1fr 6em 5.5em;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 2px 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.trip-day__cost input {
+    padding: var(--space-1) var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-size: 16px;
+}
+
+/* What that figure becomes once it is split — the arithmetic the
+   spreadsheet made you do in your head before typing. */
+.trip-day__cost em {
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-style: normal;
+    text-align: right;
+}
+
+.trip-day__total,
+.trip-day__running {
+    display: flex;
+    justify-content: space-between;
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-sm);
+}
+
+.trip-day__running {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+@media (max-width: 600px) {
+    .trip-item {
+        grid-template-columns: 4.6em 1fr auto;
+        grid-auto-rows: min-content;
+    }
+
+    .trip-day__where {
+        grid-template-columns: 1fr;
+    }
+}
