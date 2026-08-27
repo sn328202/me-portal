@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { GiSunrise, GiTrashCan, GiPlainCircle } from 'react-icons/gi';
 import { Button, Card, Field } from './ui';
-import { useTripDays } from '../hooks/useTripDays';
 import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
@@ -106,13 +105,15 @@ const DayItem = ({ item, currency, onChange, onDelete }) => (
     </li>
 );
 
-const TripPlanner = ({ trip, onUpdateTrip }) => {
+const TripPlanner = ({ trip, onUpdateTrip, planner }) => {
     const {
         days, items, stays, legs, strays, tripDates, costs, weatherBusy, weatherMessage,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
         legOnDate, legsOnDate, addLeg, updateLeg, deleteLeg,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather,
-    } = useTripDays(trip);
+    // Lifted to the page so the spreadsheet export and the Wardrobe handoff
+    // read the same trip this is showing, rather than fetching a second copy.
+    } = planner;
 
     const [draft, setDraft] = useState({});
     // Three views, because they answer three different questions. Route is the

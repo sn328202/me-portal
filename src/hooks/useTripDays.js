@@ -265,6 +265,86 @@ export const useTripDays = (trip) => {
         await supabase.from('atlas_day_items').delete().eq('id', id).eq('user_id', user.id);
     }, [user]);
 
+    /* ---------- an old sheet, brought in ---------------------------------- */
+
+    /**
+     * Write an imported grid into the trip.
+     *
+     * Items are *replaced* for the days the import touches rather than added
+     * to. Importing the same sheet twice is a thing people do — to pick up an
+     * edit, or because they were not sure it worked the first time — and
+     * appending would quietly double every dinner. Days the sheet says nothing
+     * about are left completely alone.
+     */
+    const applyImport = useCallback(async ({ days: rows = [], items: rowItems = [] } = {}) => {
+        if (!user || !tripId) return { ok: false, reason: 'No trip open.' };
+        if (!rows.length) return { ok: false, reason: 'Nothing to import.' };
+
+        const dates = rows.map((r) => String(r.date).slice(0, 10));
+        const have = new Set(days.map((d) => String(d.date).slice(0, 10)));
+        const missing = dates.filter((d) => !have.has(d));
+
+        if (missing.length) {
+            const { error } = await supabase.from('atlas_days').insert(
+                missing.map((date) => ({ trip_id: tripId, user_id: user.id, date }))
+            );
+            if (error) return { ok: false, reason: error.message };
+        }
+
+        // Re-read rather than trusting local state: the inserts above are the
+        // only source of the ids the items have to hang off.
+        const { data: fresh, error: readError } = await supabase
+            .from('atlas_days').select('id, date')
+            .eq('trip_id', tripId).eq('user_id', user.id);
+        if (readError) return { ok: false, reason: readError.message };
+
+        const idFor = new Map((fresh || []).map((d) => [String(d.date).slice(0, 10), d.id]));
+
+        for (const row of rows) {
+            const id = idFor.get(String(row.date).slice(0, 10));
+            if (!id) continue;
+            const { date, ...patch } = row;
+            // A blank cell in the sheet is "not filled in", not "set to empty".
+            const meaningful = Object.fromEntries(
+                Object.entries(patch).filter(([, v]) => v !== '' && v !== null && v !== 0)
+            );
+            if (Object.keys(meaningful).length) {
+                await supabase.from('atlas_days').update(meaningful)
+                    .eq('id', id).eq('user_id', user.id);
+            }
+        }
+
+        const touched = [...new Set(rowItems.map((i) => idFor.get(String(i.date).slice(0, 10))))]
+            .filter(Boolean);
+        if (touched.length) {
+            await supabase.from('atlas_day_items').delete()
+                .in('day_id', touched).eq('user_id', user.id);
+        }
+
+        const rowsToInsert = [];
+        const counts = {};
+        for (const item of rowItems) {
+            const dayId = idFor.get(String(item.date).slice(0, 10));
+            if (!dayId || !item.title) continue;
+            counts[dayId] = (counts[dayId] || 0) + 1;
+            rowsToInsert.push({
+                day_id: dayId,
+                user_id: user.id,
+                title: item.title,
+                kind: item.kind || 'todo',
+                start_time: item.start_time || null,
+                sort_order: counts[dayId] - 1,
+            });
+        }
+        if (rowsToInsert.length) {
+            const { error } = await supabase.from('atlas_day_items').insert(rowsToInsert);
+            if (error) return { ok: false, reason: error.message };
+        }
+
+        await load();
+        return { ok: true, days: rows.length, items: rowsToInsert.length };
+    }, [user, tripId, days, load]);
+
     /**
      * Ask the server to fill in the weather.
      *
@@ -326,7 +406,7 @@ export const useTripDays = (trip) => {
         legOnDate: (date) => legOn(legs, date),
         legsOnDate: (date) => legsOn(legs, date),
         addStay, updateStay, deleteStay,
-        addLeg, updateLeg, deleteLeg,
+        addLeg, updateLeg, deleteLeg, applyImport,
         weatherBusy: weatherState.busy,
         weatherMessage: weatherState.message,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather, reload: load,

@@ -4,6 +4,8 @@ import InteractiveMap from '../components/InteractiveMap';
 import { Button, Card, ConfirmButton, Field, PageHeader, Tag } from '../components/ui';
 import { useAtlas } from '../hooks/useAtlas';
 import TripPlanner from '../components/TripPlanner';
+import TripSheet from '../components/TripSheet';
+import { useTripDays } from '../hooks/useTripDays';
 import '../styles/Atlas.css';
 
 const STATUS_TONE = {
@@ -21,6 +23,12 @@ const Atlas = () => {
 
     const selectedTrip = trips.find(t => t.id === selectedTripId);
     const currentWaypoints = selectedTripId ? (waypoints[selectedTripId] || []) : [];
+
+    // The trip's days live here rather than inside the planner, because three
+    // separate things need them now: the day planner, the spreadsheet export,
+    // and the handoff to the Wardrobe. Fetching them three times would be
+    // three answers to one question.
+    const planner = useTripDays(selectedTrip);
 
     // Derive main "center" coordinates from first waypoint or trip field if exists (backwards compat)
     const tripCenter = (currentWaypoints.length > 0) ? [currentWaypoints[0].lat, currentWaypoints[0].lng] : (selectedTrip?.coordinates || null);
@@ -232,7 +240,7 @@ const Atlas = () => {
                         {/* The day-by-day plan: the spreadsheet's spine. */}
                         <section className="expedition__planner">
                             <h3 className="section-title">The Days</h3>
-                            <TripPlanner trip={selectedTrip} onUpdateTrip={handleUpdateTrip} />
+                            <TripPlanner trip={selectedTrip} onUpdateTrip={handleUpdateTrip} planner={planner} />
                         </section>
 
                         <div className="field">
@@ -318,11 +326,15 @@ const Atlas = () => {
                                             onChange={(e) => handleUpdateTrip(selectedTrip.id, { google_sheets_url: e.target.value })}
                                             placeholder="https://docs.google.com/spreadsheets/..."
                                         />
-                                        {selectedTrip.google_sheets_url && (
-                                            <a href={selectedTrip.google_sheets_url} target="_blank" rel="noopener noreferrer" className="atlas-link">
-                                                Open Ledger
-                                            </a>
-                                        )}
+                                        {/* The link is only half of it: the sheet
+                                            can be written from the trip, and an
+                                            older one read back into it. */}
+                                        <TripSheet
+                                            trip={selectedTrip}
+                                            data={planner}
+                                            onUpdateTrip={handleUpdateTrip}
+                                            onImport={planner.applyImport}
+                                        />
                                     </div>
 
                                     <div className="panel__section">

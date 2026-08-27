@@ -98,15 +98,20 @@ const Settings = () => {
     const { themeId, setTheme, allThemes } = useTheme();
     const { settings, updateSetting } = useSettings();
     const [calendarId, setCalendarId] = React.useState('');
+    const [sheets, setSheets] = React.useState({ endpoint: '', secret: '' });
     const [msg, setMsg] = React.useState('');
     const [status, setStatus] = React.useState('idle');
     const { toggleWidget, isEnabled } = useDashboardSettings();
 
     React.useEffect(() => {
+        setSheets({
+            endpoint: settings.sheetsEndpoint || '',
+            secret: settings.sheetsSecret || '',
+        });
         if (settings.calendarId) {
             setCalendarId(settings.calendarId);
         }
-    }, [settings.calendarId]);
+    }, [settings.calendarId, settings.sheetsEndpoint, settings.sheetsSecret]);
 
     const handleLogout = async () => {
         await signOut();
@@ -255,6 +260,64 @@ const Settings = () => {
                             {msg}
                         </p>
                     )}
+                </div>
+            </Card>
+
+            <Card variant="flat" as="section" className="integration-card">
+                <h2 className="section-title">Google Sheets</h2>
+                <div className="integration-body">
+                    <p className="integration-note">
+                        The Atlas can write a trip out as a spreadsheet in your template&rsquo;s
+                        shape, and read an older sheet back in. It does that through a small
+                        script you deploy under your <em>own</em> Google account, so nothing of
+                        Google&rsquo;s is stored here &mdash; no API key, no sign-in.
+                    </p>
+                    <p className="integration-note">
+                        Setup instructions are at the top of{' '}
+                        <code>scripts/me-portal-sheets.gs</code> in the repo: paste it into{' '}
+                        <a href="https://script.google.com" target="_blank" rel="noopener noreferrer">
+                            script.google.com
+                        </a>
+                        , deploy it as a Web app, and paste the <code>/exec</code> URL here.
+                    </p>
+
+                    <div className="integration-input-group">
+                        <Field
+                            label="Apps Script URL"
+                            className="integration-field"
+                            type="text"
+                            value={sheets.endpoint}
+                            onChange={(e) => setSheets((s) => ({ ...s, endpoint: e.target.value }))}
+                            placeholder="https://script.google.com/macros/s/.../exec"
+                        />
+                    </div>
+                    <div className="integration-input-group">
+                        <Field
+                            label="Shared phrase"
+                            className="integration-field"
+                            type="text"
+                            value={sheets.secret}
+                            onChange={(e) => setSheets((s) => ({ ...s, secret: e.target.value }))}
+                            placeholder="the same phrase you put in the script"
+                        />
+                        <Button
+                            variant="primary"
+                            onClick={() => {
+                                updateSetting('sheetsEndpoint', sheets.endpoint.trim());
+                                updateSetting('sheetsSecret', sheets.secret.trim());
+                            }}
+                        >
+                            Save
+                        </Button>
+                    </div>
+                    {/* Worth saying plainly: this phrase is not a password of
+                        Google's, it is the one thing stopping a stranger who
+                        guesses the URL from writing to the Drive. */}
+                    <p className="integration-warning">
+                        The phrase must match the <code>SHARED_SECRET</code> line in the script
+                        exactly. It is what stops anyone who finds the URL from writing to your
+                        Drive.
+                    </p>
                 </div>
             </Card>
 

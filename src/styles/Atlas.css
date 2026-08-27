@@ -1071,3 +1071,84 @@
     color: var(--text-dim);
     font-size: var(--text-xs);
 }
+
+/* --- The spreadsheet, out and back ---------------------------- */
+
+.tripsheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.tripsheet__when {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+}
+
+.tripsheet__import {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.tripsheet__import input {
+    flex: 1;
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 16px;
+}
+
+/* Shown before anything is written. The whole point is that it is readable
+   at a glance, so it is a table in all but name. */
+.tripsheet__preview {
+    padding: var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-hover);
+}
+
+.tripsheet__preview h5 {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+}
+
+.tripsheet__preview ul {
+    margin: 0 0 var(--space-2);
+    padding: 0;
+    list-style: none;
+}
+
+.tripsheet__preview li {
+    display: grid;
+    grid-template-columns: 7em minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    padding: 2px 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.tripsheet__preview li strong { color: var(--text-main); }
+.tripsheet__more { display: block !important; color: var(--text-dim); }
+
+.tripsheet__skipped,
+.tripsheet__warn {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-2xs);
+}
+
+.tripsheet__skipped { color: var(--text-dim); }
+.tripsheet__warn { color: var(--accent-crimson); }
+
+.tripsheet__note {
+    margin: 0;
+    color: var(--text-gold);
+    font-size: var(--text-xs);
+}
