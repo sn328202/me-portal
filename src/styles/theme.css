@@ -10,43 +10,45 @@
    ============================================================ */
 
 :root {
-    /* --- Surfaces: The Old Box palette, Victorian mystery --- */
-    --bg-main: #201620;
-    --bg-panel: #2b1f2a;
-    --bg-hover: #3a2b38;
+    /* --- Surfaces: Studio — clean warm-neutral, the default skin.
+       These are also the fallback for any variable a theme forgets to
+       set. configs/themes.jsx overrides them on :root at runtime. --- */
+    --bg-main: #f6f5f3;
+    --bg-panel: #ffffff;
+    --bg-hover: #f0e7e0;
 
     /* --- Text --- */
-    --text-main: #f2e6de;
-    --text-muted: #bda6a4;
-    --text-dim: #d3c1bd;
-    --text-gold: #d9a37c;
-    --text-highlight: #f4cfae;
+    --text-main: #23201c;
+    --text-muted: #8a847b;
+    --text-dim: #a49c92;
+    --text-gold: #9b6a4f;
+    --text-highlight: #7d5238;
 
     /* --- Accents --- */
-    --accent-gold: #d9a37c;
-    --accent-gold-dim: rgba(217, 163, 124, 0.15);
-    --accent-crimson: #dc8b95;
-    --accent-green: #9db99d;
-    --accent-red: #e89493;
+    --accent-gold: #9b6a4f;
+    --accent-gold-dim: rgba(155, 106, 79, 0.14);
+    --accent-crimson: #b4543f;
+    --accent-green: #5b7c5a;
+    --accent-red: #b4543f;
 
     /* --- Borders --- */
-    --border-gold: #b07c69;
-    --border-bright: #d9a37c;
-    --border-dim: #8d7276;
-    --active-border: #d9a37c;
+    --border-gold: #d8cfc4;
+    --border-bright: #9b6a4f;
+    --border-dim: #e7e3dc;
+    --active-border: #9b6a4f;
 
     /* --- Faces --- */
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'Inter', sans-serif;
-    --font-mono: 'Courier Prime', monospace;
-    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
     /* --- Effects --- */
-    --glass-panel: rgba(43, 31, 42, 0.95);
-    --bg-main-rgb: 32, 22, 32;
-    --glow-gold: 0 0 14px rgba(217, 163, 124, 0.2);
+    --glass-panel: rgba(255, 255, 255, 0.9);
+    --bg-main-rgb: 246, 245, 243;
+    --glow-gold: 0 1px 3px rgba(0, 0, 0, 0.06);
 
-    --bg-texture: radial-gradient(1200px 800px at 12% -8%, rgba(217, 163, 124, 0.055), transparent 60%), radial-gradient(1000px 700px at 100% 108%, rgba(113, 38, 60, 0.07), transparent 62%);
+    --bg-texture: none;
 }
 
 

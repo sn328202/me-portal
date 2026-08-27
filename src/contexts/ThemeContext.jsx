@@ -5,7 +5,7 @@ import { useSettings } from '../hooks/useSettings';
 const ThemeContext = createContext();
 
 const CACHE_KEY = 'me_portal_vibe';
-const FALLBACK = 'dark-academia';
+const FALLBACK = 'studio';
 
 const applyTheme = (id) => {
     const theme = THEMES[id] || THEMES[FALLBACK];

@@ -79,9 +79,9 @@
 
     /* THEMEABLE. Victorian skins want wide tracking on caps;
        Press Start 2P and handwriting faces are destroyed by it. */
-    --tracking-heading: 0.12em;
-    --tracking-label: 0.08em;
-    --case-heading: uppercase;
+    --tracking-heading: 0.01em;
+    --tracking-label: 0.04em;
+    --case-heading: none;
     --game-tracking: var(--tracking-heading);
     /* legacy alias */
 
@@ -99,7 +99,7 @@
        It was hardcoded to a 3px Victorian double rule and no
        theme overrode it, which is why all seven skins read as
        one skin with the hue rotated. THEMEABLE. */
-    --rule: 3px double var(--border-gold);
+    --rule: 1px solid var(--border-dim);
     --rule-hair: 1px solid var(--border-dim);
     --rule-accent: 1px solid var(--border-gold);
     --border-width: 1px;
@@ -112,16 +112,16 @@
        remove them entirely for the digital skins. */
     --ornament-size: 10px;
     --ornament-width: 2px;
-    --ornament-opacity: 0.5;
-    --ornament-opacity-hover: 1;
+    --ornament-opacity: 0;
+    --ornament-opacity-hover: 0;
 
 
     /* --- Depth ---------------------------------------------
        THEMEABLE. Heavy black drops look wrong on Cottagecore's
        cream paper and 8-Bit shouldn't have soft shadows at all. */
-    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.28);
-    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.38);
-    --shadow-lift: 0 12px 28px rgba(0, 0, 0, 0.45);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 18px rgba(0, 0, 0, 0.05);
+    --shadow-lift: 0 10px 28px rgba(0, 0, 0, 0.08);
 
 
     /* --- Motion --------------------------------------------
@@ -155,8 +155,8 @@
     /* Structural fills: deep enough to sit under parchment text,
        for things that want to be a material rather than an
        outline (mission tags, category rules). THEMEABLE. */
-    --fill-strong: #7b2d3a;
-    --fill-quiet: #3f5b45;
+    --fill-strong: #9b6a4f;
+    --fill-quiet: #5b7c5a;
 
 
     /* --- Layout --------------------------------------------
@@ -166,7 +166,7 @@
     --rail-width-open: 260px;
     --tap-min: 44px;
     /* minimum touch target */
-    --field-bg: rgba(0, 0, 0, 0.2);
+    --field-bg: rgba(35, 32, 28, 0.03);
     /* THEMEABLE - light themes need the inverse */
 }
 

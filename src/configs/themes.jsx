@@ -15,6 +15,73 @@ import {
 } from 'react-icons/gi';
 
 export const THEMES = {
+    'studio': {
+        name: 'Studio',
+        id: 'studio',
+        fontImports: [],
+        cssVars: {
+            /* The clean, warm-neutral look from the outfit planner: an off-white
+               room, white cards, a single soft brown accent, hairline warm rules
+               and a system sans. This is the default skin. */
+            '--bg-main': '#f6f5f3',
+            '--bg-panel': '#ffffff',
+            '--bg-hover': '#f0e7e0',
+            '--bg-main-rgb': '246, 245, 243',
+            '--text-main': '#23201c',
+            '--text-muted': '#8a847b',
+            '--text-dim': '#a49c92',
+            '--text-gold': '#9b6a4f',
+            '--text-highlight': '#7d5238',
+            '--accent-crimson': '#b4543f',
+            '--accent-red': '#b4543f',
+            '--accent-green': '#5b7c5a',
+            '--accent-gold': '#9b6a4f',
+            '--accent-gold-dim': 'rgba(155, 106, 79, 0.14)',
+            '--border-gold': '#d8cfc4',
+            '--border-bright': '#9b6a4f',
+            '--border-dim': '#e7e3dc',
+            '--active-border': '#9b6a4f',
+            '--fill-strong': '#9b6a4f',
+            '--fill-quiet': '#5b7c5a',
+            '--font-display': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            '--font-body': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            '--font-mono': "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            '--font-serif': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            '--radius-lg': '14px',
+            '--glass-panel': 'rgba(255, 255, 255, 0.9)',
+            '--glow-gold': '0 1px 3px rgba(0, 0, 0, 0.06)',
+            '--bg-texture': 'none'
+        },
+        labels: {
+            provisions: 'Groceries',
+            larderEmpty: 'The larder is empty.',
+            fromTheHearth: 'From the Kitchen',
+            greetingDefault: 'Neha',
+            goals: 'Goals',
+            habits: 'Habits',
+            hobbies: 'Hobbies',
+            library: 'Library',
+            todos: 'To-dos',
+            chores: 'Chores',
+            social: 'People',
+            status: 'Status',
+            statusConfig: 'Configure',
+            statusEstablish: 'Connect',
+            nowConsuming: 'Now Reading'
+        },
+        icons: {
+            provisions: <GiBasket />,
+            goals: <GiScrollUnfurled />,
+            habits: <GiSprout />,
+            hobbies: <GiButterfly />,
+            games: <GiGamepad />,
+            library: <GiScrollUnfurled />,
+            todos: <GiQuill />,
+            chores: <GiHand />,
+            social: <GiCoffeeCup />,
+            status: <GiControlTower />
+        }
+    },
     'dark-academia': {
         name: 'Dark Academia',
         id: 'dark-academia',
@@ -525,6 +592,34 @@ const characterBase = {
 };
 
 export const THEME_CHARACTER = {
+    // Studio: the planner's clean look. Hairline warm rules (no Victorian
+    // double border), soft rounded cards, gentle drop shadows, no corner
+    // ornaments, sentence-case headings, quiet tracking, roomy padding.
+    studio: {
+        ...characterBase,
+        '--fill-strong': '#9b6a4f',
+        '--fill-quiet': '#5b7c5a',
+        '--rule': '1px solid var(--border-dim)',
+        '--rule-hair': '1px solid var(--border-dim)',
+        '--rule-accent': '1px solid var(--border-gold)',
+        '--radius-sm': '8px',
+        '--radius-md': '10px',
+        '--radius-lg': '14px',
+        '--tracking-heading': '0.01em',
+        '--tracking-label': '0.04em',
+        '--case-heading': 'none',
+        '--ornament-opacity': '0',
+        '--ornament-opacity-hover': '0',
+        '--shadow-sm': '0 1px 3px rgba(0, 0, 0, 0.06)',
+        '--shadow-md': '0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 18px rgba(0, 0, 0, 0.05)',
+        '--shadow-lift': '0 10px 28px rgba(0, 0, 0, 0.08)',
+        '--dur-base': '200ms',
+        '--dur-slow': '320ms',
+        '--ease': 'cubic-bezier(0.2, 0, 0.2, 1)',
+        '--density': '1.05',
+        '--field-bg': 'rgba(35, 32, 28, 0.03)'
+    },
+
     // Victorian: double rules, corner brackets, wide caps.
     'dark-academia': {
         ...characterBase,
