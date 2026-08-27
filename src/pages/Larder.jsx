@@ -535,6 +535,7 @@ const Larder = () => {
                             />
                             <RecipeList
                                 recipes={filteredRecipes}
+                                matcher={matcher}
                                 onEdit={handleEdit}
                                 onDelete={deleteRecipe}
                                 onAddToPlan={handleAddToPlan}

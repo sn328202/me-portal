@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GiCookingPot } from 'react-icons/gi';
 import { BsThreeDots } from 'react-icons/bs';
 import { Button, Card, ConfirmButton, Tag } from './ui';
+import RecipeCover from './RecipeCover';
 
 const matchTone = (percentage) => {
     if (percentage === 100) return 'green';
@@ -9,7 +10,7 @@ const matchTone = (percentage) => {
     return 'default';
 };
 
-const RecipeCard = ({ recipe, onEdit, onDelete, onAddToPlan, onView }) => {
+const RecipeCard = ({ recipe, matcher, onEdit, onDelete, onAddToPlan, onView }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     return (
@@ -76,18 +77,11 @@ const RecipeCard = ({ recipe, onEdit, onDelete, onAddToPlan, onView }) => {
                 </div>
             )}
 
-            <div className="recipe-card__ingredients">
-                <ul>
-                    {recipe.ingredients && recipe.ingredients.slice(0, 3).map((ing, i) => (
-                        <li key={i}>{ing.amount} {ing.unit} {ing.item}</li>
-                    ))}
-                    {recipe.ingredients && recipe.ingredients.length > 3 && (
-                        <li className="recipe-card__more">
-                            ...and {recipe.ingredients.length - 3} more
-                        </li>
-                    )}
-                </ul>
-            </div>
+            {/* Replaces the first-three-ingredients preview. Three lines of
+                "1 pcs olive oil" told you very little about a recipe and made
+                every card look the same; the picture is what you actually
+                recognise a dish by. The full list is one tap away. */}
+            <RecipeCover recipe={recipe} matcher={matcher} />
 
             <Button
                 variant="primary"

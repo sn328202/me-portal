@@ -3,7 +3,7 @@ import RecipeCard from './RecipeCard';
 import { GiCauldron } from 'react-icons/gi';
 import { EmptyState } from './ui';
 
-const RecipeList = ({ recipes, onEdit, onDelete, onAddToPlan, onView, onCreate }) => {
+const RecipeList = ({ recipes, matcher, onEdit, onDelete, onAddToPlan, onView, onCreate }) => {
     if (recipes.length === 0) {
         return (
             <EmptyState
@@ -20,6 +20,7 @@ const RecipeList = ({ recipes, onEdit, onDelete, onAddToPlan, onView, onCreate }
         <div className="larder-grid">
             {recipes.map(recipe => (
                 <RecipeCard
+                    matcher={matcher}
                     key={recipe.id}
                     recipe={recipe}
                     onEdit={onEdit}
