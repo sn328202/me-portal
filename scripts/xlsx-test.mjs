@@ -6,6 +6,7 @@
  * that is the one thing that silently loses four days of a trip if it doesn't.
  */
 
+import { zipSync, strToU8 } from 'fflate';
 import { buildXlsx, readXlsx, colName, safeName } from '../api/_xlsx.js';
 import { readSheet, sheetPayload } from '../src/utils/tripSheet.js';
 import { tripCost } from '../src/utils/tripCosts.js';
@@ -112,6 +113,61 @@ check('thirty columns come back in order', readXlsx(wide).tabs[0].rows[0].slice(
 // Tabs are matched through the rels, so a reordered workbook still reads right.
 const many = readXlsx(buildXlsx({ tabs: [{ name: 'One', rows: [['1']] }, { name: 'Two', rows: [['2']] }] }));
 check('sheets keep their names and order', many.tabs.map((t) => t.name), ['One', 'Two']);
+
+/* ---- what a real Google Sheets export looks like ------------------------ */
+console.log('\nreading a sheet somebody else wrote:');
+
+/**
+ * Ours writes inline strings and plain text dates. Google writes a shared
+ * string table and real date serials with a date number format — neither of
+ * which our own files ever exercise, so they need a fixture.
+ */
+const foreign = (() => {
+    const file = (body) => strToU8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + body);
+    return zipSync({
+        '[Content_Types].xml': file('<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>'),
+        'xl/workbook.xml': file(
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+            + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            + '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'),
+        'xl/_rels/workbook.xml.rels': file(
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            + '<Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/></Relationships>'),
+        // Style 1 is a date format; style 0 is not.
+        'xl/styles.xml': file(
+            '<styleSheet><numFmts><numFmt numFmtId="165" formatCode="d-mmm-yy"/></numFmts>'
+            + '<cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="165"/></cellXfs></styleSheet>'),
+        'xl/sharedStrings.xml': file(
+            '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            + '<si><t>Date</t></si>'
+            + '<si><t>Primary City</t></si>'
+            + '<si><r><t>Flower </t></r><r><t>Mound</t></r></si>'   // rich text, in runs
+            + '<si><t>Caf&amp;#233; &amp;amp; Bar</t></si>'
+            + '</sst>'),
+        'xl/worksheets/sheet1.xml': file(
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+            + '<row r="1"><c r="A1" t="s"><v>0</v></c>'
+            // 46383 is 27 Dec 2026 as an Excel serial.
+            + '<c r="B1" s="1"><v>46383</v></c><c r="C1" s="1"><v>46384</v></c></row>'
+            + '<row r="2"><c r="A2" t="s"><v>1</v></c><c r="B2" t="s"><v>2</v></c></row>'
+            + '<row r="3"><c r="A3" t="s"><v>3</v></c><c r="B3" s="0"><v>1250.5</v></c></row>'
+            + '</sheetData><mergeCells count="1"><mergeCell ref="B2:C2"/></mergeCells></worksheet>'),
+    }, { mtime: new Date('2020-01-01T00:00:00Z') });
+})();
+
+const alien = readXlsx(foreign).tabs[0].rows;
+check('shared strings resolve', alien[0][0], 'Date');
+// Excel's day zero is 1899-12-30, because Lotus thought 1900 was a leap year.
+check('a date serial becomes a date', alien[0].slice(1, 3), ['2026-12-27', '2026-12-28']);
+check('rich text in runs is joined back up', alien[1][1], 'Flower Mound');
+check('a plain number is not mistaken for a date', alien[2][1], '1250.5');
+check('a merge in someone else\'s file spreads too', alien[1][2], 'Flower Mound');
+check('escaped entities come back', alien[2][0], 'Caf&#233; &amp; Bar');
+
+// And the whole point: it parses as an itinerary.
+const foreignRead = readSheet(alien, { year: 2026 });
+check('an alien sheet reads as days', foreignRead.days.map((d) => d.date), ['2026-12-27', '2026-12-28']);
+check('with its city', foreignRead.days[0].city, 'Flower Mound');
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);
