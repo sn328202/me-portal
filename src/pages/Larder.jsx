@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
+import { format, parseISO, isToday, isTomorrow } from 'date-fns';
 import { useRecipes } from '../hooks/useRecipes';
 import { useIngredients } from '../hooks/useIngredients';
 import RecipeList from '../components/RecipeList';
@@ -35,6 +36,18 @@ const TAB_SUBTITLES = {
 };
 
 const PROVISION_CATEGORIES = ['Pantry', 'Produce', 'Dairy', 'Protein', 'Spices'];
+
+/**
+ * '2026-08-29' -> 'Saturday, Aug 29'. The planner speaks in dates now, but a
+ * modal title reading "Plan for 2026-08-29" is nobody's idea of a heading.
+ */
+const planDayLabel = (iso) => {
+    if (!iso) return '';
+    const date = parseISO(iso);
+    if (isToday(date)) return 'today';
+    if (isTomorrow(date)) return 'tomorrow';
+    return format(date, 'EEEE, MMM d');
+};
 
 const RECIPE_SORTS = [
     { value: 'newest', label: 'Newest First' },
@@ -691,7 +704,7 @@ const Larder = () => {
             <Modal
                 open={picker.open}
                 onClose={closePicker}
-                title={picker.day ? `Plan for ${picker.day}` : 'Plan a Meal'}
+                title={picker.day ? `Plan for ${planDayLabel(picker.day)}` : 'Plan a Meal'}
                 footer={<Button variant="ghost" onClick={closePicker}>Cancel</Button>}
             >
                 <Field

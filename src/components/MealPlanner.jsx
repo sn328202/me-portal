@@ -4,14 +4,20 @@ import { GiEmptyHourglass, GiCookingPot, GiKnifeFork } from 'react-icons/gi';
 import { Button, Card, EmptyState } from './ui';
 
 const MealPlanner = ({ plan, recipes, onAddToDay, onClearDay }) => {
-    // Generate Rolling 7 Days
+    // A rolling seven days from today, each identified by its actual date.
+    //
+    // The grid always looked like this; what changed is what it looks *up*.
+    // Keying on the weekday name meant Friday's dinner reappeared every Friday
+    // for ever, because nothing distinguished this Friday from the next one.
     const today = startOfDay(new Date());
-    const todayName = format(today, 'EEEE');
     const rollingDays = Array.from({ length: 7 }, (_, i) => {
         const date = addDays(today, i);
         return {
-            dayName: format(date, 'EEEE'), // "Monday"
-            label: format(date, 'EEEE, MMM d') // "Monday, Jan 29"
+            iso: format(date, 'yyyy-MM-dd'),
+            label: i === 0 ? `Today, ${format(date, 'MMM d')}`
+                : i === 1 ? `Tomorrow, ${format(date, 'MMM d')}`
+                    : format(date, 'EEEE, MMM d'),
+            isToday: i === 0,
         };
     });
 
@@ -20,17 +26,16 @@ const MealPlanner = ({ plan, recipes, onAddToDay, onClearDay }) => {
 
     return (
         <div className="plan-grid">
-            {rollingDays.map(({ dayName, label }) => {
-                const dayPlan = plan[dayName] || [];
-                const isToday = dayName === todayName;
+            {rollingDays.map(({ iso, label, isToday }) => {
+                const dayPlan = plan[iso] || [];
 
                 return (
                     <Card
-                        key={dayName}
+                        key={iso}
                         title={label}
                         className={['plan-day', isToday ? 'plan-day--today' : ''].filter(Boolean).join(' ')}
                         actions={dayPlan.length > 0 && (
-                            <Button variant="ghost" size="sm" onClick={() => onClearDay(dayName)}>
+                            <Button variant="ghost" size="sm" onClick={() => onClearDay(iso)}>
                                 Clear
                             </Button>
                         )}
@@ -40,7 +45,7 @@ const MealPlanner = ({ plan, recipes, onAddToDay, onClearDay }) => {
                                 icon={<GiEmptyHourglass />}
                                 message="No sustenance planned."
                                 actionLabel="Add a Formula"
-                                onAction={() => onAddToDay(dayName)}
+                                onAction={() => onAddToDay(iso)}
                             />
                         ) : (
                             <div className="plan-day__body">
@@ -49,7 +54,7 @@ const MealPlanner = ({ plan, recipes, onAddToDay, onClearDay }) => {
                                         const recipe = getRecipe(recipeId);
                                         if (!recipe) return null;
                                         return (
-                                            <div key={`${dayName}-${index}`} className="plan-day__item">
+                                            <div key={`${iso}-${index}`} className="plan-day__item">
                                                 <span className="plan-day__item-icon"><GiCookingPot /></span>
                                                 <span className="plan-day__item-title">{recipe.title}</span>
                                             </div>
@@ -60,7 +65,7 @@ const MealPlanner = ({ plan, recipes, onAddToDay, onClearDay }) => {
                                     variant="primary"
                                     size="sm"
                                     block
-                                    onClick={() => onAddToDay(dayName)}
+                                    onClick={() => onAddToDay(iso)}
                                 >
                                     <GiKnifeFork /> Add a Formula
                                 </Button>

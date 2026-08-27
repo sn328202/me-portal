@@ -1,36 +1,46 @@
 import React from 'react';
 import { GiCalendar } from 'react-icons/gi';
-import { format, addDays, startOfDay } from 'date-fns';
+import { format, addDays, startOfDay, isSameDay } from 'date-fns';
 import { Button, Modal } from './ui';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
+/**
+ * Which day to cook something on.
+ *
+ * Was a fixed Monday-to-Sunday list that handed back a weekday *name*, so a
+ * meal planned on a Thursday for "Monday" could mean the Monday just gone.
+ * It now offers the next seven days in the order they actually arrive, and
+ * hands back a date.
+ */
 const DaySelector = ({ isOpen, onClose, onSelect }) => {
-    // Calculate dates for the next 7 days to match MealPlanner logic
     const today = startOfDay(new Date());
-    const weekDates = {};
-    for (let i = 0; i < 7; i++) {
+
+    const days = Array.from({ length: 7 }, (_, i) => {
         const date = addDays(today, i);
-        weekDates[format(date, 'EEEE')] = format(date, 'MMM d');
-    }
+        return {
+            iso: format(date, 'yyyy-MM-dd'),
+            name: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : format(date, 'EEEE'),
+            when: format(date, 'MMM d'),
+            isToday: isSameDay(date, today),
+        };
+    });
 
     return (
         <Modal
             open={isOpen}
             onClose={onClose}
-            title={<><GiCalendar /> Select Day</>}
+            title={<><GiCalendar /> Which day?</>}
             footer={<Button variant="ghost" onClick={onClose}>Cancel</Button>}
         >
             <div className="day-selector">
-                {DAYS.map(day => (
+                {days.map(({ iso, name, when, isToday }) => (
                     <Button
-                        key={day}
+                        key={iso}
                         block
-                        className="day-selector__day"
-                        onClick={() => onSelect(day)}
+                        className={`day-selector__day${isToday ? ' is-today' : ''}`}
+                        onClick={() => onSelect(iso)}
                     >
-                        <span>{day}</span>
-                        <span className="day-selector__date">{weekDates[day]}</span>
+                        <span>{name}</span>
+                        <span className="day-selector__date">{when}</span>
                     </Button>
                 ))}
             </div>

@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+
+/**
+ * Local calendar date as 'YYYY-MM-DD'.
+ *
+ * Deliberately not toISOString().slice(0, 10): that is UTC, so any evening
+ * after 5pm Pacific it returns tomorrow's date and a meal planned for tonight
+ * would file itself under tomorrow - or vanish from a planner that starts at
+ * "today".
+ */
+const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export const useRecipes = () => {
     const { user } = useAuth();
@@ -39,24 +50,33 @@ export const useRecipes = () => {
     };
 
     const fetchMealPlan = async () => {
-        // Fetch meal plans and transform into { "Monday": [ids], "Tuesday": [ids] }
+        // Keyed by calendar date, not by weekday name.
+        //
+        // Keying on `day_name` meant a recipe planned for Friday sat on Friday
+        // for ever: the same row matched next Friday, and the one after that.
+        // The `date` column existed the whole time and was being filled with a
+        // placeholder, so nothing could tell the two Fridays apart.
         try {
             if (!user) {
                 setMealPlan({});
                 return;
             }
 
+            // Anything before today is history. It stays in the table - it is
+            // a record of what was actually cooked - but the planner starts
+            // clean each morning, which is the "it resets" half.
             const { data, error } = await supabase
                 .from('meal_plans')
                 .select('*')
-                .eq('user_id', user.id);
+                .eq('user_id', user.id)
+                .gte('date', isoDate(new Date()));
 
             if (error) throw error;
 
             const plan = {};
             data?.forEach(row => {
-                if (!plan[row.day_name]) plan[row.day_name] = [];
-                plan[row.day_name].push(row.recipe_id);
+                if (!plan[row.date]) plan[row.date] = [];
+                plan[row.date].push(row.recipe_id);
             });
             setMealPlan(plan);
         } catch (err) {
@@ -80,16 +100,20 @@ export const useRecipes = () => {
         }
     };
 
-    const addToPlan = async (day, recipeId) => {
+    /** `date` is a 'YYYY-MM-DD' string, not a weekday name. */
+    const addToPlan = async (date, recipeId) => {
         try {
-            if (!user) return;
+            if (!user || !date) return;
 
             const { error } = await supabase
                 .from('meal_plans')
                 .insert([{
-                    day_name: day,
+                    date,
+                    // Kept because the column is NOT NULL and it reads well in
+                    // the database, but derived from the date rather than being
+                    // the thing everything hangs off.
+                    day_name: format(parseISO(date), 'EEEE'),
                     recipe_id: recipeId,
-                    date: new Date().toISOString(), // Placeholder date
                     user_id: user.id
                 }]);
 
@@ -102,20 +126,20 @@ export const useRecipes = () => {
         }
     };
 
-    const clearDay = async (day) => {
+    const clearDay = async (date) => {
         try {
             if (!user) return;
             const { error } = await supabase
                 .from('meal_plans')
                 .delete()
-                .eq('day_name', day)
+                .eq('date', date)
                 .eq('user_id', user.id);
 
             if (error) throw error;
 
             setMealPlan(prev => {
                 const newPlan = { ...prev };
-                delete newPlan[day];
+                delete newPlan[date];
                 return newPlan;
             });
         } catch (err) {
