@@ -1093,16 +1093,35 @@
     align-items: center;
 }
 
-.tripsheet__import input {
-    flex: 1;
-    min-width: 0;
-    padding: var(--space-1) var(--space-2);
-    border: var(--rule-hair);
+/* The native file input is unstyleable and says "No file chosen" forever, so
+   it is hidden behind its own label. */
+.tripsheet__file {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tripsheet__pick {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    border: 1px dashed var(--rule-color, currentColor);
     border-radius: var(--radius-sm);
-    background: var(--field-bg);
-    color: var(--text-main);
-    font-family: var(--font-body);
-    font-size: 16px;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    cursor: pointer;
+}
+
+.tripsheet__pick:hover {
+    color: var(--text-gold);
+}
+
+.tripsheet__hint {
+    display: block;
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
 }
 
 /* Shown before anything is written. The whole point is that it is readable
@@ -1164,7 +1183,8 @@
     flex-wrap: wrap;
 }
 
-.tripsheet__import input {
+.tripsheet__pick,
+.tripsheet__hint {
     flex: 1 1 100%;
 }
 

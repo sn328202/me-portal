@@ -20,9 +20,4 @@ export const DEFAULT_SETTINGS = {
     calendarIcalUrl: '',
     calendarDarkMode: false,
     statusUrl: '',
-    // The Apps Script deployment that writes and reads her Google Sheets. It
-    // runs under her own Google account, so this is a URL and a phrase she
-    // chose — not a credential of Google's.
-    sheetsEndpoint: '',
-    sheetsSecret: '',
 };

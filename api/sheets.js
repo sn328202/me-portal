@@ -1,33 +1,136 @@
 import { createClient } from '@supabase/supabase-js';
+import ExcelJS from 'exceljs';
 
 /**
- * The relay between Me Portal and her own Apps Script.
+ * The trip, as an actual spreadsheet file — both directions.
  *
- * The script is deployed under her Google account and does the actual writing,
- * which is the whole point: no OAuth client, no API key, nothing of Google's
- * held by this app. But the browser cannot talk to it directly — an Apps Script
- * /exec answers a cross-origin POST with a redirect to googleusercontent, and
- * a redirected preflight is not something fetch will follow from a page.
+ * The first version of this talked to an Apps Script she deployed under her own
+ * Google account. Google refused to authorise it: not the usual "unverified
+ * app, continue anyway" interstitial but a flat block with no way past it,
+ * because the script wanted Drive and Sheets scopes. Getting round that means a
+ * Cloud Console project and an OAuth consent screen, which is a far bigger
+ * thing than the feature it was serving.
  *
- * So this forwards it. Doing so server-side also means the shared secret is
- * sent from a server rather than sitting in a request the browser's network
- * tab shows to anyone standing behind her, and it means one place to enforce
- * that the caller is signed in at all.
+ * A file needs nobody's permission. Google Sheets opens an .xlsx dropped into
+ * Drive as a normal sheet, merges and all, and exports one back out through
+ * File → Download. So the round trip is the same round trip; only the transport
+ * changed, and this end of it can no longer be blocked by an account policy.
  *
- * It deliberately understands nothing about itineraries. The grid is built and
- * read in src/utils/tripSheet.js, where there are tests.
+ * Done on the server so a spreadsheet writer does not land in the browser
+ * bundle for a feature used once a trip.
  */
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 
-/** Apps Script answers /exec with a 302 to googleusercontent.com. */
-const isAppsScript = (url) => {
-    try {
-        const { protocol, hostname } = new URL(url);
-        return protocol === 'https:' && hostname === 'script.google.com';
-    } catch {
-        return false;
+/** Rows in, .xlsx out, laid out exactly as the payload says. */
+const build = async (body) => {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Me Portal';
+    wb.created = new Date();
+
+    for (const tab of body.tabs || []) {
+        // Excel forbids : \ / ? * [ ] in a sheet name and silently corrupts the
+        // file rather than telling you.
+        const sheet = wb.addWorksheet(String(tab.name || 'Sheet').replace(/[:\\/?*[\]]/g, '-').slice(0, 31));
+
+        for (const row of tab.rows || []) sheet.addRow(row);
+
+        for (const m of tab.merges || []) {
+            try {
+                sheet.mergeCells(m.row + 1, m.col + 1, m.row + m.rows, m.col + m.cols);
+            } catch {
+                // An overlapping merge is not worth losing the export over.
+            }
+        }
+
+        (tab.widths || []).forEach((w, i) => {
+            // ExcelJS counts width in characters, not pixels.
+            if (w) sheet.getColumn(i + 1).width = Math.round(w / 7);
+        });
+
+        const width = (tab.rows || []).reduce((max, r) => Math.max(max, r.length), 0);
+
+        sheet.getRow(1).font = { bold: true };
+        sheet.getColumn(1).font = { bold: true };
+        sheet.getColumn(1).alignment = { vertical: 'top', wrapText: true };
+        for (let c = 2; c <= width; c += 1) {
+            sheet.getColumn(c).alignment = { vertical: 'top', wrapText: true };
+        }
+
+        if (tab.freeze) {
+            sheet.views = [{
+                state: 'frozen',
+                xSplit: tab.freeze.columns || 0,
+                ySplit: tab.freeze.rows || 0,
+            }];
+        }
+
+        if (tab.money && tab.money.to >= tab.money.from) {
+            for (let r = tab.money.from + 1; r <= tab.money.to + 1; r += 1) {
+                for (let c = 2; c <= width; c += 1) {
+                    sheet.getCell(r, c).numFmt = '$#,##0.00';
+                }
+            }
+        }
     }
+
+    const buffer = await wb.xlsx.writeBuffer();
+    return Buffer.from(buffer).toString('base64');
+};
+
+/**
+ * An .xlsx back into a grid of strings.
+ *
+ * Merged cells are the reason this is not three lines: a merged range carries
+ * its value only in the top-left cell, so a City row merged across five days
+ * would come back as one city and four blanks, and the import would lose four
+ * days of where she was. Every merge is filled back in before the grid leaves.
+ */
+const read = (base64) => {
+    const wb = new ExcelJS.Workbook();
+    return wb.xlsx.load(Buffer.from(base64, 'base64')).then(() => ({
+        tabs: wb.worksheets.map((sheet) => {
+            const rows = [];
+            const height = sheet.rowCount;
+            const width = sheet.columnCount;
+
+            for (let r = 1; r <= height; r += 1) {
+                const row = [];
+                for (let c = 1; c <= width; c += 1) {
+                    const cell = sheet.getCell(r, c);
+                    const value = cell.value;
+                    if (value === null || value === undefined) { row.push(''); continue; }
+                    if (typeof value === 'object') {
+                        // Formulas carry a cached result; rich text carries runs.
+                        if ('result' in value) row.push(String(value.result ?? ''));
+                        else if ('richText' in value) row.push(value.richText.map((t) => t.text).join(''));
+                        else if ('text' in value) row.push(String(value.text));
+                        else if (value instanceof Date) row.push(value.toISOString().slice(0, 10));
+                        else row.push('');
+                        continue;
+                    }
+                    row.push(String(value));
+                }
+                rows.push(row);
+            }
+
+            // Spread each merge back across the cells it covers.
+            for (const range of Object.values(sheet._merges || {})) {
+                const model = range.model || range;
+                const { top, left, bottom, right } = model;
+                if (!top) continue;
+                const value = rows[top - 1]?.[left - 1];
+                if (!value) continue;
+                for (let r = top; r <= bottom; r += 1) {
+                    for (let c = left; c <= right; c += 1) {
+                        if (rows[r - 1]) rows[r - 1][c - 1] = value;
+                    }
+                }
+            }
+
+            return { name: sheet.name, rows };
+        }),
+    }));
 };
 
 export default async function handler(req, res) {
@@ -48,53 +151,25 @@ export default async function handler(req, res) {
     if (authError || !auth?.user) return res.status(401).json({ error: 'That session has expired.' });
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
-    const { endpoint, secret, action, ...rest } = body;
-
-    if (!endpoint) {
-        return res.status(400).json({
-            error: 'No Apps Script URL saved yet — add one in Settings → Google Sheets.',
-        });
-    }
-    // Only her own script, and only over https. Without this the endpoint field
-    // is a request-forwarder pointed at anything the caller likes.
-    if (!isAppsScript(endpoint)) {
-        return res.status(400).json({ error: 'That URL is not a script.google.com deployment.' });
-    }
-    if (action !== 'export' && action !== 'import') {
-        return res.status(400).json({ error: `Unknown action: ${action}` });
-    }
 
     try {
-        const upstream = await fetch(endpoint, {
-            method: 'POST',
-            // Apps Script treats application/json as a preflighted request and
-            // text/plain as a simple one; the script parses postData either way.
-            headers: { 'content-type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action, secret, ...rest }),
-            redirect: 'follow',
-        });
-
-        const text = await upstream.text();
-
-        let result;
-        try {
-            result = JSON.parse(text);
-        } catch {
-            // Apps Script serves its own HTML error pages, and dumping one into
-            // a toast helps nobody. The two that actually happen get named.
-            if (/Authorization|Sign in/i.test(text)) {
-                return res.status(502).json({
-                    error: 'The script asked for a sign-in — redeploy it with "Who has access: Anyone".',
-                });
-            }
-            return res.status(502).json({
-                error: 'The script answered with something that was not JSON. Has it been deployed as a Web app?',
-            });
+        if (body.action === 'export') {
+            const file = await build(body);
+            return res.status(200).json({ file, filename: `${(body.title || 'Itinerary').replace(/[^\w\s-]/g, '').trim() || 'Itinerary'}.xlsx` });
         }
-
-        if (result.error) return res.status(400).json({ error: result.error });
-        return res.status(200).json(result);
+        if (body.action === 'import') {
+            if (!body.file) return res.status(400).json({ error: 'No file came through.' });
+            const result = await read(body.file);
+            if (!result.tabs.length) return res.status(400).json({ error: 'That file has no sheets in it.' });
+            return res.status(200).json(result);
+        }
+        return res.status(400).json({ error: `Unknown action: ${body.action}` });
     } catch (err) {
-        return res.status(502).json({ error: `Could not reach the script: ${err.message}` });
+        // A .numbers or an old .xls arrives here rather than as a crash.
+        return res.status(400).json({
+            error: /zip|signature|corrupt|end of central/i.test(String(err.message))
+                ? 'That does not look like an .xlsx. In Google Sheets: File → Download → Microsoft Excel.'
+                : err.message,
+        });
     }
 }

@@ -1,29 +1,30 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { GiTable, GiClothes } from 'react-icons/gi';
 import { Button } from './ui';
 import { supabase } from '../lib/supabase';
-import { useSettings } from '../hooks/useSettings';
 import { sheetPayload, readSheet, dayLabel } from '../utils/tripSheet';
 import { sendToWardrobe } from '../utils/wardrobeHandoff';
 
 /**
  * The trip, out to a spreadsheet and back again — and across to the Wardrobe.
  *
- * Three buttons that all do the same kind of thing: take what the Atlas knows
- * and put it where it is already needed, instead of asking her to type it a
- * second time into a sheet, a third time into the packing planner, and a
- * fourth time when the dates change.
+ * Three buttons doing the same kind of thing: take what the Atlas already knows
+ * and put it where it is needed, instead of typing it a second time into a
+ * sheet, a third time into the packing planner, and a fourth when the dates
+ * change.
+ *
+ * It moves as a *file*, not through an API. The version that talked to Google
+ * directly was blocked outright by her account — not the usual "unverified app,
+ * continue anyway" screen but a flat refusal — and the way round that is a
+ * Cloud Console project, which is more setup than the whole feature is worth.
+ * A file needs nobody's permission: Drive opens an .xlsx as a normal Sheet, and
+ * hands one back through File → Download.
  *
  * The import shows what it found before it writes anything. An importer that
- * silently rewrites a trip is one you check by hand afterwards, every time,
- * which costs more than it saved.
+ * silently rewrites a trip is one you check by hand afterwards, every time.
  */
 
-const call = async (action, payload, settings) => {
-    const endpoint = settings.sheetsEndpoint;
-    if (!endpoint) {
-        throw new Error('Add your Apps Script URL in Settings → Google Sheets first.');
-    }
+const call = async (payload) => {
     const { data: session } = await supabase.auth.getSession();
     const res = await fetch('/api/sheets', {
         method: 'POST',
@@ -31,20 +32,42 @@ const call = async (action, payload, settings) => {
             'content-type': 'application/json',
             authorization: `Bearer ${session?.session?.access_token}`,
         },
-        body: JSON.stringify({ endpoint, secret: settings.sheetsSecret || '', action, ...payload }),
+        body: JSON.stringify(payload),
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error || 'That did not work.');
     return result;
 };
 
+/** base64 -> a file the browser saves, without a round trip through a blob URL leak. */
+const save = (base64, filename) => {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoking immediately can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+};
+
+const asBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.readAsDataURL(file);
+});
+
 const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
-    const { settings } = useSettings();
     const [busy, setBusy] = useState(null);
     const [note, setNote] = useState(null);
     const [error, setError] = useState(null);
-    const [url, setUrl] = useState('');
     const [preview, setPreview] = useState(null);
+    const picker = useRef(null);
 
     const say = (message) => { setError(null); setNote(message); };
     const fail = (message) => { setNote(null); setError(message); };
@@ -52,12 +75,11 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
     const exportSheet = async () => {
         setBusy('export'); setNote(null); setError(null);
         try {
-            const result = await call('export', sheetPayload(trip, data), settings);
-            await onUpdateTrip?.(trip.id, {
-                google_sheets_url: result.url,
-                sheet_exported_at: new Date().toISOString(),
-            });
-            say(`Written to ${result.tabs.join(', ')}.`);
+            const payload = sheetPayload(trip, data);
+            const result = await call({ action: 'export', ...payload });
+            save(result.file, result.filename);
+            await onUpdateTrip?.(trip.id, { sheet_exported_at: new Date().toISOString() });
+            say('Downloaded. Drop it in Google Drive and it opens as a Sheet — then paste its link above.');
         } catch (err) {
             fail(err.message);
         } finally {
@@ -65,24 +87,22 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
         }
     };
 
-    const readIn = async () => {
-        const from = url.trim() || trip.google_sheets_url;
-        if (!from) { fail('Paste the link to the sheet you want to read.'); return; }
-
+    const readIn = async (file) => {
+        if (!file) return;
         setBusy('import'); setNote(null); setError(null);
         try {
-            const result = await call('import', { url: from }, settings);
+            const result = await call({ action: 'import', file: await asBase64(file) });
             // The year lives in the trip, not in a header that says "Sat Dec 16".
             const year = Number(String(trip.start_date || '').slice(0, 4)) || undefined;
 
-            // Try each tab and keep whichever yields the most days: her older
+            // Try every tab and keep whichever yields the most days: her older
             // sheets do not agree on what the itinerary tab is called.
             const best = (result.tabs || [])
                 .map((tab) => ({ tab: tab.name, ...readSheet(tab.rows, { year }) }))
                 .sort((a, b) => b.days.length - a.days.length)[0];
 
             if (!best || !best.days.length) {
-                fail(best?.skipped?.[0] || 'Nothing in that sheet looked like an itinerary.');
+                fail(best?.skipped?.[0] || 'Nothing in that file looked like an itinerary.');
                 return;
             }
             setPreview(best);
@@ -90,6 +110,7 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
             fail(err.message);
         } finally {
             setBusy(null);
+            if (picker.current) picker.current.value = '';
         }
     };
 
@@ -126,7 +147,7 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
                     </a>
                 )}
                 <Button size="sm" variant="ghost" onClick={exportSheet} disabled={busy === 'export'}>
-                    <GiTable /> {busy === 'export' ? 'Writing…' : 'Export to Google Sheets'}
+                    <GiTable /> {busy === 'export' ? 'Building…' : 'Download as a spreadsheet'}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={toWardrobe}>
                     <GiClothes /> Send to the Wardrobe
@@ -134,22 +155,25 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
             </div>
 
             {trip.sheet_exported_at && (
-                <p className="tripsheet__when">
-                    Last written {dayLabel(trip.sheet_exported_at)}.
-                </p>
+                <p className="tripsheet__when">Last downloaded {dayLabel(trip.sheet_exported_at)}.</p>
             )}
 
             <div className="tripsheet__import">
                 <input
-                    type="text"
-                    value={url}
-                    aria-label="A sheet to read in"
-                    placeholder="Paste an older sheet to read into this trip…"
-                    onChange={(e) => setUrl(e.target.value)}
+                    type="file"
+                    ref={picker}
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    className="tripsheet__file"
+                    id={`import-${trip.id}`}
+                    onChange={(e) => readIn(e.target.files?.[0])}
                 />
-                <Button size="sm" variant="ghost" onClick={readIn} disabled={busy === 'import'}>
-                    {busy === 'import' ? 'Reading…' : 'Read it in'}
-                </Button>
+                <label htmlFor={`import-${trip.id}`} className="tripsheet__pick">
+                    {busy === 'import' ? 'Reading…' : 'Read in an older sheet…'}
+                </label>
+                {/* The one instruction that decides whether this works at all. */}
+                <span className="tripsheet__hint">
+                    In Google Sheets: File → Download → Microsoft Excel (.xlsx)
+                </span>
             </div>
 
             {/* Shown before anything is written, because the alternative is
@@ -169,13 +193,13 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
                                 <span>{preview.items.filter((i) => i.date === d.date).length} things</span>
                             </li>
                         ))}
-                        {preview.days.length > 6 && <li className="tripsheet__more">…and {preview.days.length - 6} more</li>}
+                        {preview.days.length > 6 && (
+                            <li className="tripsheet__more">…and {preview.days.length - 6} more</li>
+                        )}
                     </ul>
 
                     {preview.skipped?.length > 0 && (
-                        <p className="tripsheet__skipped">
-                            Could not read: {preview.skipped.join(', ')}.
-                        </p>
+                        <p className="tripsheet__skipped">Could not read: {preview.skipped.join(', ')}.</p>
                     )}
 
                     <p className="tripsheet__warn">
