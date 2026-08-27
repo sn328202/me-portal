@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiRoughWound } from 'react-icons/gi';
+import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiRoughWound } from 'react-icons/gi';
 import { useJsApiLoader } from '@react-google-maps/api';
 import PlacesSearch from '../components/PlacesSearch';
 import SmartTimeInput from '../components/SmartTimeInput';
 import { Button, Card, ConfirmButton, EmptyState, Field, Tabs } from '../components/ui';
 import SpotsLibrary from '../components/SpotsLibrary';
+import DayBuilder from '../components/DayBuilder';
 import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
@@ -99,8 +100,9 @@ const DayPlanner = () => {
         libraries
     });
 
-    // 'itineraries' | 'spots'. A saved place outlives any particular day, so
-    // the two live side by side rather than one inside the other.
+    // 'itineraries' | 'spots' | 'build'. A saved place outlives any particular
+    // day, so the library sits beside the days rather than inside one; the
+    // builder is what turns a place name into a day made of both.
     const [view, setView] = useState('itineraries');
     const [plans, setPlans] = useState([]);
     const [selectedPlan, setSelectedPlan] = useState(null);
@@ -583,6 +585,14 @@ const DayPlanner = () => {
     const timelineItems = items.filter(i => !i.is_brainstorm);
     const brainstormItems = items.filter(i => i.is_brainstorm);
 
+    /** Jump straight to a day the builder just made. */
+    const handleOpenBuiltPlan = async (planId) => {
+        await fetchPlans();
+        setView('itineraries');
+        const plan = plans.find((p) => p.id === planId);
+        if (plan) setSelectedPlan(plan);
+    };
+
     const handleAddSpotToPlan = async (spot, planId) => {
         const { data: { user } } = await supabase.auth.getUser();
         const created = await addSpotToPlan(spot, planId, user?.id);
@@ -603,10 +613,13 @@ const DayPlanner = () => {
                 tabs={[
                     { id: 'itineraries', label: 'Itineraries', icon: <GiTreasureMap />, count: plans.length },
                     { id: 'spots', label: 'Spots', icon: <GiPositionMarker /> },
+                    { id: 'build', label: 'Plan a day', icon: <GiCompass /> },
                 ]}
             />
 
-            {view === 'spots' ? (
+            {view === 'build' ? (
+                <DayBuilder onOpenPlan={handleOpenBuiltPlan} />
+            ) : view === 'spots' ? (
                 <SpotsLibrary plans={plans} onAddToPlan={handleAddSpotToPlan} />
             ) : (
         <div className="daydream">

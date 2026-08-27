@@ -6,6 +6,8 @@ import {
 } from 'react-icons/gi';
 import { Button, Card, Field, Tag, EmptyState, ConfirmButton } from './ui';
 import { useSpots } from '../hooks/useSpots';
+import { supabase } from '../lib/supabase';
+import SpotsMap from './SpotsMap';
 import '../styles/Spots.css';
 
 const CATEGORY_ICON = {
@@ -37,13 +39,51 @@ const priceTag = (level) =>
  * particular day — itineraries pull from here rather than owning a copy.
  */
 const SpotsLibrary = ({ plans = [], onAddToPlan }) => {
-    const { spots, loading, error, addSpot, toggleVisited, deleteSpot } = useSpots();
+    const { spots, loading, error, addSpot, toggleVisited, deleteSpot, refresh } = useSpots();
 
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
     const [query, setQuery] = useState('');
     const [status, setStatus] = useState('want to go');
     const [category, setCategory] = useState('all');
+    const [showMap, setShowMap] = useState(true);
+    const [importing, setImporting] = useState(false);
+    const [imported, setImported] = useState(null);
+
+    /**
+     * Lift places out of old itineraries into the library. Runs in batches, so
+     * it keeps going until the server says there is nothing left rather than
+     * stopping halfway through and looking finished.
+     */
+    const importFromItineraries = async () => {
+        setImporting(true);
+        setImported(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            let created = 0;
+            let linked = 0;
+            for (let pass = 0; pass < 10; pass += 1) {
+                const response = await fetch('/api/spots-backfill', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        Authorization: `Bearer ${session?.access_token || ''}`,
+                    },
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'That did not work.');
+                created += data.created || 0;
+                linked += data.linked || 0;
+                if (data.done) break;
+            }
+            setImported({ created, linked });
+            await refresh();
+        } catch (err) {
+            setImported({ error: err.message });
+        } finally {
+            setImporting(false);
+        }
+    };
 
     const counts = useMemo(() => ({
         'want to go': spots.filter((s) => s.status !== 'been').length,
@@ -162,6 +202,24 @@ const SpotsLibrary = ({ plans = [], onAddToPlan }) => {
                     </div>
                 )}
             </div>
+
+            <div className="spots__tools">
+                <Button size="sm" onClick={() => setShowMap((v) => !v)} aria-pressed={showMap}>
+                    {showMap ? 'Hide map' : 'Show map'}
+                </Button>
+                <Button size="sm" onClick={importFromItineraries} disabled={importing}>
+                    {importing ? 'Importing…' : 'Import places from my itineraries'}
+                </Button>
+                {imported && (
+                    <span className="muted">
+                        {imported.error
+                            ? imported.error
+                            : `${imported.created} added, ${imported.linked} linked.`}
+                    </span>
+                )}
+            </div>
+
+            {showMap && visible.length > 0 && <SpotsMap spots={visible} height="24rem" />}
 
             {error && <p className="spots__error">{error}</p>}
 

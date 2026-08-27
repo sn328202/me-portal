@@ -1,0 +1,275 @@
+/* ============================================================
+   Planning a day somewhere — search an area, pick from what you
+   have saved plus what is nearby, get a route.
+   ============================================================ */
+
+.day-builder {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding: var(--pad-page);
+    max-width: var(--page-max);
+    margin: 0 auto;
+    width: 100%;
+}
+
+.day-builder__search {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto;
+    gap: var(--space-3);
+    align-items: end;
+    padding: var(--pad-card);
+    border: var(--rule-hair);
+    border-radius: var(--radius-lg);
+    background: var(--bg-panel);
+}
+
+.day-builder__area {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.day-builder__area strong {
+    color: var(--text-gold);
+}
+
+.day-builder__error {
+    margin: 0;
+    color: var(--accent-crimson);
+    font-size: var(--text-sm);
+}
+
+.day-builder__columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-5);
+    align-items: start;
+}
+
+.day-builder__heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--text-gold);
+}
+
+.day-builder__note {
+    margin: 0;
+    font-size: var(--text-sm);
+}
+
+.day-builder__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* --- One choosable place -------------------------------------- */
+
+.pick {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--tap-min);
+    padding: var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.day-builder__list li + li {
+    margin-top: var(--space-2);
+}
+
+.pick:hover {
+    border-color: var(--border-gold);
+}
+
+.pick--on {
+    border-color: var(--border-gold);
+    background: var(--fill-quiet);
+}
+
+.pick:focus-visible {
+    outline: 2px solid var(--text-gold);
+    outline-offset: 2px;
+}
+
+.pick__box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 2px;
+    border: var(--rule-accent);
+    border-radius: var(--radius-sm);
+    color: var(--text-gold);
+    font-size: var(--text-xs);
+}
+
+.pick__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.pick__name {
+    line-height: var(--leading-snug);
+}
+
+.pick__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.pick__why {
+    font-size: var(--text-xs);
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* --- Committing to the day ------------------------------------ */
+
+.day-builder__commit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-4);
+    position: sticky;
+    bottom: var(--space-4);
+    /* Sticky so the button is reachable however long the lists run. */
+    z-index: 5;
+    box-shadow: var(--shadow-md);
+}
+
+.day-builder__commit-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--space-3);
+    flex: 1;
+    min-width: 0;
+}
+
+/* --- The route ------------------------------------------------- */
+
+.day-builder__route {
+    list-style: none;
+    margin: var(--space-3) 0;
+    padding: 0;
+    counter-reset: stop;
+}
+
+.day-builder__route li {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.day-builder__stop {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    counter-increment: stop;
+}
+
+.day-builder__stop::before {
+    content: counter(stop);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: var(--rule-accent);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-2xs);
+    color: var(--text-gold);
+}
+
+/* The leg sits between stops, indented under the numbers so the
+   column of numbers stays a clean vertical line. */
+.day-builder__leg {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: 0.7rem;
+    padding-left: var(--space-4);
+    border-left: var(--rule-hair);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+/* --- Map -------------------------------------------------------- */
+
+.spots-map {
+    width: 100%;
+    border: var(--rule-hair);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.spots-map__note {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-xs);
+}
+
+/* Google renders the info window in its own light box, so this content
+   is deliberately styled for a white background rather than the theme. */
+.spots-map__card {
+    color: #201620;
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.spots-map__card button,
+.spots-map__card a {
+    margin-top: 4px;
+    background: none;
+    border: none;
+    padding: 0;
+    color: #71263c;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    text-align: left;
+}
+
+@media (max-width: 900px) {
+    .day-builder__search,
+    .day-builder__columns,
+    .day-builder__commit-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .day-builder__commit {
+        position: static;
+    }
+}
