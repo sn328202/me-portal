@@ -2,6 +2,7 @@ import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
+import { daysOfLeg } from '../utils/tripLegs';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -32,11 +33,23 @@ const label = (hour) => {
     return `${twelve}${suffix}`;
 };
 
-const TripTimeline = ({ days, items, stays, costs, currency = 'USD' }) => {
+const TripTimeline = ({ days, items, stays, legs = [], costs, currency = 'USD' }) => {
     if (!days.length) return null;
 
     const byId = Object.fromEntries((costs?.days || []).map((d) => [d.id, d]));
     const dates = days.map((d) => String(d.date).slice(0, 10));
+
+    /* A leg and a stay span the same way, so they draw the same way. */
+    const spanning = (covered) => {
+        const inside = covered.filter((d) => dates.includes(d));
+        if (!inside.length) return null;
+        return { start: dates.indexOf(inside[0]), span: inside.length };
+    };
+
+    const cityBars = (legs || []).map((leg) => {
+        const box = spanning(daysOfLeg(leg));
+        return box && { leg, ...box };
+    }).filter(Boolean);
 
     // Each stay becomes one bar: where it starts in this grid and how wide.
     const bars = (stays || []).map((stay) => {
@@ -72,6 +85,24 @@ const TripTimeline = ({ days, items, stays, costs, currency = 'USD' }) => {
                         </div>
                     );
                 })}
+
+                {/* City, spanning — the merged cell the sheet had at the top,
+                    and the row that tells you where you are before it tells you
+                    what you are doing. */}
+                <div className="timeline__rowlabel timeline__rowlabel--stays">City</div>
+                <div className="timeline__stays" style={{ '--days': days.length }}>
+                    {cityBars.map(({ leg, start, span }) => (
+                        <span
+                            key={leg.id}
+                            className="timeline__leg"
+                            style={{ gridColumn: `${start + 1} / span ${span}` }}
+                            title={`${leg.city} — ${span} ${span === 1 ? 'day' : 'days'}`}
+                        >
+                            {leg.city}
+                        </span>
+                    ))}
+                    {!cityBars.length && <span className="timeline__nostay">No cities set</span>}
+                </div>
 
                 {/* Lodging, spanning. The merged cell from the sheet. */}
                 <div className="timeline__rowlabel timeline__rowlabel--stays">Lodging</div>

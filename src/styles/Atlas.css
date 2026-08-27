@@ -919,3 +919,150 @@
         grid-template-columns: 1fr 1fr;
     }
 }
+
+/* The city bar reads as the trip's spine, so it is drawn solid where the
+   lodging bar below it is only tinted. */
+.timeline__leg {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--fill-strong);
+    color: var(--bg-panel);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Route: the trip before it is days ------------------------ */
+
+.route {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.route__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.route__head h4 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+}
+
+.route__empty {
+    margin: var(--space-2) 0 0;
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+}
+
+.route__list {
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.route__leg,
+.route__add {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) 9.5em 9.5em minmax(0, 1.4fr) 6em auto;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    border-bottom: var(--rule-hair);
+}
+
+.route__list .route__leg:last-child { border-bottom: none; }
+
+.route__add {
+    margin-top: var(--space-2);
+    padding-top: var(--space-3);
+    border-top: var(--rule-hair);
+    border-bottom: none;
+    grid-template-columns: minmax(0, 1.2fr) 9.5em 9.5em auto;
+}
+
+.route__leg input,
+.route__add input {
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 16px;
+}
+
+.route__city {
+    font-family: var(--font-display);
+}
+
+.route__facts {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+}
+
+.route__temp { font-family: var(--font-mono); }
+.route__ok { color: var(--text-muted); }
+.route__warn { color: var(--accent-crimson); }
+
+.route__cost {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-gold);
+    text-align: right;
+}
+
+.route__drop {
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.route__drop:hover { color: var(--accent-crimson); }
+
+.route__gaps h4 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+}
+
+.route__gaps p {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.route__gaps p:last-child { margin-bottom: 0; }
+
+.route__gaps.is-clear h4 { color: var(--text-gold); }
+
+@media (max-width: 780px) {
+    .route__leg,
+    .route__add {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .route__city { grid-column: 1 / -1; }
+    .route__facts,
+    .route__cost { grid-column: 1 / -1; text-align: left; }
+    .route__drop { grid-column: 2; justify-self: end; }
+}

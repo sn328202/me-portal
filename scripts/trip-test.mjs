@@ -10,6 +10,7 @@ import {
     nightsOf, lodgingByNight, stayOn,
 } from '../src/utils/tripCosts.js';
 import { datesBetween } from '../src/utils/tripDates.js';
+import { daysOfLeg, legOn, routeGaps, summariseLegs } from '../src/utils/tripLegs.js';
 import { describeCode, dressFor, isForecastable, sourceLabel } from '../src/utils/weather.js';
 
 let failed = 0;
@@ -195,6 +196,85 @@ console.log('\ndatesBetween() — the bug that made 36 days out of 15:');
         datesBetween('2027-01-06', '2026-12-23'), []);
     check('no end date means a single day',
         datesBetween('2026-12-23'), ['2026-12-23']);
+}
+
+console.log('\ndaysOfLeg() — a leg is inclusive, unlike a stay:');
+check('16th to 19th is four days',
+    daysOfLeg({ start_date: '2026-12-16', end_date: '2026-12-19' }),
+    ['2026-12-16', '2026-12-17', '2026-12-18', '2026-12-19']);
+// The distinction that matters: the same pair of dates means three nights in
+// a hotel and four days in a city. Getting these the same way round would
+// either lose the last day or charge a night too many.
+check('  where the same dates are three nights',
+    nightsOf({ check_in: '2026-12-16', check_out: '2026-12-19' }).length, 3);
+check('a single day is one day', daysOfLeg({ start_date: '2026-12-16', end_date: '2026-12-16' }).length, 1);
+check('backwards is nothing', daysOfLeg({ start_date: '2026-12-19', end_date: '2026-12-16' }), []);
+
+console.log('\nlegOn():');
+{
+    const legs = [
+        { id: 'g', city: 'Goa', start_date: '2026-12-23', end_date: '2026-12-27' },
+        { id: 'k', city: 'Kerala', start_date: '2026-12-28', end_date: '2027-01-02' },
+    ];
+    check('a date inside a leg finds it', legOn(legs, '2026-12-25')?.city, 'Goa');
+    check('the last day still counts', legOn(legs, '2026-12-27')?.city, 'Goa');
+    check('across the boundary', legOn(legs, '2026-12-28')?.city, 'Kerala');
+    check('a gap finds nothing', legOn(legs, '2027-01-05'), null);
+}
+
+console.log('\nrouteGaps() — what to fix before planning any single day:');
+{
+    const dates = ['2026-12-23', '2026-12-24', '2026-12-25', '2026-12-26'];
+    const legs = [{ city: 'Goa', start_date: '2026-12-23', end_date: '2026-12-24' }];
+    const stays = [{ check_in: '2026-12-23', check_out: '2026-12-24', cost: 100 }];
+    const gaps = routeGaps(dates, legs, stays);
+    check('days with no city are listed', gaps.unassigned, ['2026-12-25', '2026-12-26']);
+    check('a night with a city but no bed is listed', gaps.unhoused, ['2026-12-24']);
+    check('nothing overlaps', gaps.overlaps, []);
+}
+{
+    const dates = ['2026-12-23', '2026-12-24'];
+    const legs = [
+        { city: 'Goa', start_date: '2026-12-23', end_date: '2026-12-24' },
+        { city: 'Kerala', start_date: '2026-12-24', end_date: '2026-12-24' },
+    ];
+    check('two legs claiming a day is flagged',
+        routeGaps(dates, legs, []).overlaps, ['2026-12-24']);
+}
+{
+    // The final day of a trip is a travel day, not a night needing a bed.
+    const dates = ['2026-12-23', '2026-12-24'];
+    const legs = [{ city: 'Goa', start_date: '2026-12-23', end_date: '2026-12-24' }];
+    const stays = [{ check_in: '2026-12-23', check_out: '2026-12-24', cost: 100 }];
+    check('the last day is not counted as an unhoused night',
+        routeGaps(dates, legs, stays).unhoused, []);
+}
+
+console.log('\nsummariseLegs():');
+{
+    const legs = [
+        { id: 'k', city: 'Kerala', start_date: '2026-12-28', end_date: '2026-12-29' },
+        { id: 'g', city: 'Goa', start_date: '2026-12-23', end_date: '2026-12-25' },
+    ];
+    const summary = summariseLegs(legs, {
+        costsByDate: { '2026-12-23': 100, '2026-12-24': 50.5, '2026-12-25': 20 },
+        itemsByDate: { '2026-12-23': [1, 2], '2026-12-24': [3] },
+        weatherByDate: {
+            '2026-12-23': { high: 88, low: 74 },
+            '2026-12-24': { high: 90, low: 76 },
+            '2026-12-25': { high: 86, low: 72 },
+        },
+        stays: [{ id: 's', check_in: '2026-12-23', check_out: '2026-12-25', cost: 400 }],
+    });
+    check('legs come out in date order', summary.map((s) => s.leg.city), ['Goa', 'Kerala']);
+    check('three days is two nights', [summary[0].days, summary[0].nights], [3, 2]);
+    check('the cost rolls up', summary[0].cost, 170.5);
+    check('planned things are counted', summary[0].planned, 3);
+    check('the weather averages', [summary[0].high, summary[0].low], [88, 74]);
+    check('lodging touching the leg is attached', summary[0].lodging.length, 1);
+    check('a leg with nothing in it is still a leg',
+        [summary[1].days, summary[1].cost, summary[1].planned], [2, 0, 0]);
+    check('no weather averages to null', summary[1].high, null);
 }
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');

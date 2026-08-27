@@ -7,6 +7,7 @@ import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
 import TripStays from './TripStays';
+import TripRoute from './TripRoute';
 
 /**
  * The spreadsheet, made to think.
@@ -107,15 +108,17 @@ const DayItem = ({ item, currency, onChange, onDelete }) => (
 
 const TripPlanner = ({ trip, onUpdateTrip }) => {
     const {
-        days, items, stays, strays, costs, weatherBusy, weatherMessage,
+        days, items, stays, legs, strays, tripDates, costs, weatherBusy, weatherMessage,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
+        legOnDate, addLeg, updateLeg, deleteLeg,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather,
     } = useTripDays(trip);
 
     const [draft, setDraft] = useState({});
-    // Both views, because they answer different questions: a card is for
-    // filling one day in, the grid is for seeing the shape of the whole trip.
-    const [view, setView] = useState('cards');
+    // Three views, because they answer three different questions. Route is the
+    // default: you decide the shape of a trip before you decide what to do on
+    // its Tuesday, and until now there was nowhere to do that.
+    const [view, setView] = useState('route');
     const currency = trip?.currency || 'USD';
     const party = trip?.party_size || 1;
 
@@ -162,7 +165,7 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                     </Button>
 
                     <div className="trip-planner__views" role="group" aria-label="View">
-                        {['cards', 'timeline'].map((v) => (
+                        {['route', 'timeline', 'cards'].map((v) => (
                             <button
                                 key={v}
                                 type="button"
@@ -170,7 +173,7 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                                 aria-pressed={view === v}
                                 onClick={() => setView(v)}
                             >
-                                {v === 'cards' ? 'Cards' : 'Timeline'}
+                                {v === 'route' ? 'Route' : v === 'cards' ? 'Cards' : 'Timeline'}
                             </button>
                         ))}
                     </div>
@@ -210,11 +213,25 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                 </p>
             )}
 
-            {view === 'timeline' ? (
+            {view === 'route' ? (
+                <TripRoute
+                    legs={legs}
+                    stays={stays}
+                    days={days}
+                    items={items}
+                    costs={costs}
+                    currency={currency}
+                    tripDates={tripDates}
+                    onAdd={addLeg}
+                    onUpdate={updateLeg}
+                    onDelete={deleteLeg}
+                />
+            ) : view === 'timeline' ? (
                 <TripTimeline
                     days={days}
                     items={items}
                     stays={stays}
+                    legs={legs}
                     costs={costs}
                     currency={currency}
                 />
@@ -233,11 +250,20 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                             </header>
 
                             <div className="trip-day__where">
-                                <Field
-                                    label="City"
-                                    value={day.city || ''}
-                                    onChange={(e) => updateDay(day.id, { city: e.target.value })}
-                                />
+                                {/* Decided once in the Route view, for the whole
+                                    leg, rather than asked again every day. */}
+                                {legOnDate(day.date) ? (
+                                    <div className="trip-day__stay">
+                                        <span className="field__label">City</span>
+                                        <p>{legOnDate(day.date).city}</p>
+                                    </div>
+                                ) : (
+                                    <Field
+                                        label="City"
+                                        value={day.city || ''}
+                                        onChange={(e) => updateDay(day.id, { city: e.target.value })}
+                                    />
+                                )}
                                 {/* Where a booking covers this night, it says so
                                     rather than asking for the name again. */}
                                 {stayOnDate(day.date) ? (

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { tripCost, lodgingByNight, stayOn } from '../utils/tripCosts';
 import { datesBetween } from '../utils/tripDates';
+import { daysOfLeg, legOn } from '../utils/tripLegs';
 
 /**
  * A trip's days, the things planned in them, and what it all costs.
@@ -20,13 +21,14 @@ export const useTripDays = (trip) => {
     const [days, setDays] = useState([]);
     const [items, setItems] = useState({});
     const [stays, setStays] = useState([]);
+    const [legs, setLegs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [weatherState, setWeatherState] = useState({ busy: false, message: null });
 
     const tripId = trip?.id ?? null;
 
     const load = useCallback(async () => {
-        if (!user || !tripId) { setDays([]); setItems({}); setStays([]); return; }
+        if (!user || !tripId) { setDays([]); setItems({}); setStays([]); setLegs([]); return; }
         setLoading(true);
         try {
             const { data: dayRows, error } = await supabase
@@ -54,6 +56,11 @@ export const useTripDays = (trip) => {
                 .from('atlas_stays').select('*')
                 .eq('trip_id', tripId).eq('user_id', user.id).order('check_in');
             setStays(stayRows || []);
+
+            const { data: legRows } = await supabase
+                .from('atlas_legs').select('*')
+                .eq('trip_id', tripId).eq('user_id', user.id).order('start_date');
+            setLegs(legRows || []);
         } catch (err) {
             console.error('Error loading trip days:', err);
         } finally {
@@ -112,6 +119,67 @@ export const useTripDays = (trip) => {
         }
         await load();
     }, [user, trip, days, items, load]);
+
+    /* ---------- legs: a city, for a stretch of days ---------------------- */
+
+    /**
+     * Write a leg's city onto every day it covers.
+     *
+     * The alternative is for the day cards to read the leg live and never store
+     * anything, which is cleaner right up until the weather job runs: it reads
+     * `atlas_days.city` server-side and knows nothing about legs. Two places
+     * asking the same question and getting different answers is worse than one
+     * denormalised column, so the city lands on the days as soon as it is
+     * decided.
+     */
+    const stampLeg = useCallback(async (leg) => {
+        if (!user || !leg?.city) return;
+        const dates = daysOfLeg(leg);
+        if (!dates.length) return;
+        const ids = days
+            .filter((d) => dates.includes(String(d.date).slice(0, 10)))
+            .map((d) => d.id);
+        if (!ids.length) return;
+        setDays((prev) => prev.map((d) => (ids.includes(d.id) ? { ...d, city: leg.city } : d)));
+        await supabase.from('atlas_days').update({ city: leg.city })
+            .in('id', ids).eq('user_id', user.id);
+    }, [user, days]);
+
+    const addLeg = useCallback(async (leg) => {
+        if (!user || !tripId) return;
+        const { data, error } = await supabase.from('atlas_legs')
+            .insert([{ ...leg, trip_id: tripId, user_id: user.id, sort_order: legs.length }])
+            .select().single();
+        if (error) { console.error('Error adding leg:', error); return; }
+        setLegs((prev) => [...prev, data]
+            .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date))));
+        await stampLeg(data);
+    }, [user, tripId, legs.length, stampLeg]);
+
+    const updateLeg = useCallback(async (id, patch) => {
+        if (!user) return;
+        const before = legs.find((l) => l.id === id);
+        if (!before) return;
+        const after = { ...before, ...patch };
+        setLegs((prev) => prev.map((l) => (l.id === id ? after : l))
+            .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date))));
+        const { error } = await supabase
+            .from('atlas_legs').update(patch).eq('id', id).eq('user_id', user.id);
+        if (error) {
+            // end_date >= start_date is a check constraint, so a backwards edit
+            // is refused by the database rather than half-applied.
+            setLegs((prev) => prev.map((l) => (l.id === id ? before : l)));
+            console.error('Error updating leg:', error);
+            return;
+        }
+        await stampLeg(after);
+    }, [user, legs, stampLeg]);
+
+    const deleteLeg = useCallback(async (id) => {
+        if (!user) return;
+        setLegs((prev) => prev.filter((l) => l.id !== id));
+        await supabase.from('atlas_legs').delete().eq('id', id).eq('user_id', user.id);
+    }, [user]);
 
     /* ---------- lodging, which spans nights ----------------------------- */
 
@@ -230,15 +298,23 @@ export const useTripDays = (trip) => {
         return days.filter((d) => !want.has(String(d.date).slice(0, 10)));
     }, [days, trip?.start_date, trip?.end_date]);
 
+    /** The trip's dates, as the route view needs them to spot uncovered days. */
+    const tripDates = useMemo(
+        () => datesBetween(trip?.start_date, trip?.end_date),
+        [trip?.start_date, trip?.end_date]
+    );
+
     const lodgingPerNight = useMemo(
         () => lodgingByNight(stays, trip?.party_size || 1),
         [stays, trip?.party_size]
     );
 
     return {
-        days, items, stays, strays, loading, costs, lodgingPerNight,
+        days, items, stays, legs, strays, tripDates, loading, costs, lodgingPerNight,
         stayOnDate: (date) => stayOn(stays, date),
+        legOnDate: (date) => legOn(legs, date),
         addStay, updateStay, deleteStay,
+        addLeg, updateLeg, deleteLeg,
         weatherBusy: weatherState.busy,
         weatherMessage: weatherState.message,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather, reload: load,
