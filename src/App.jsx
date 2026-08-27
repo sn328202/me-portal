@@ -24,6 +24,7 @@ const Studio = lazy(() => import('./pages/Studio'));
 const Learning = lazy(() => import('./pages/Learning'));
 const Play = lazy(() => import('./pages/Play'));
 const Systems = lazy(() => import('./pages/Systems'));
+const Wardrobe = lazy(() => import('./pages/Wardrobe'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -70,6 +71,7 @@ function App() {
                             <Route path="/learning" element={<Learning />} />
                             <Route path="/play" element={<Play />} />
                             <Route path="/systems" element={<Systems />} />
+                            <Route path="/wardrobe" element={<Wardrobe />} />
                             <Route path="/settings" element={<Settings />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>

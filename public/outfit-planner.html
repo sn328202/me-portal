@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outfit Planner</title>
+<style>
+  :root{
+    --bg:#f6f5f3; --card:#ffffff; --ink:#23201c; --muted:#8a847b;
+    --line:#e7e3dc; --accent:#9b6a4f; --accent-soft:#f0e7e0;
+    --good:#5b7c5a; --warn:#c08a3e; --cold:#5d7fa3; --hot:#c2683f;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 6px 18px rgba(0,0,0,.05);
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
+  header{padding:22px 26px 14px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{font-size:22px;margin:0;letter-spacing:-.3px}
+  header .sub{color:var(--muted);font-size:13px}
+  .profilebar{display:flex;gap:6px;padding:10px 26px 0;flex-wrap:wrap;align-items:center}
+  .pchip{padding:5px 14px;border:1px solid var(--line);border-radius:20px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+  .pchip:hover{border-color:var(--accent)}
+  .pchip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .pchip.add{color:var(--accent);border-style:dashed}
+  .tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tab{padding:11px 16px;cursor:pointer;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;font-weight:500}
+  .tab.active{color:var(--ink);border-bottom-color:var(--accent)}
+  .wrap{max-width:1100px;margin:0 auto;padding:22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin-bottom:18px}
+  h2{font-size:16px;margin:0 0 14px}
+  h3{font-size:14px;margin:18px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 4px;font-weight:600}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:14px;
+    font-family:inherit;background:#fff;color:var(--ink)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:120px;line-height:1.6}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:680px){.g2,.g3{grid-template-columns:1fr 1fr}}
+  button{font-family:inherit;font-size:14px;cursor:pointer;border:none;border-radius:9px;padding:9px 15px;font-weight:600}
+  .btn{background:var(--accent);color:#fff}
+  .btn:hover{filter:brightness(1.05)}
+  .btn-ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  .btn-danger{background:transparent;color:#b4543f;border:1px solid var(--line)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .right{margin-left:auto}
+  .closet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .item{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
+  .item .thumb{height:110px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;
+    font-size:30px;color:var(--accent);background-size:cover;background-position:center}
+  .item .body{padding:9px 10px;font-size:13px}
+  .item .nm{font-weight:600;margin-bottom:3px}
+  .item .meta{color:var(--muted);font-size:11px}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+  .chip{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .chip.cat{background:#eef0ee;color:#5a6b59}
+  .item .acts{display:flex;gap:4px;padding:0 8px 8px}
+  .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+  .pill.cold{background:#e7eef5;color:var(--cold)} .pill.hot{background:#f7e8e0;color:var(--hot)}
+  .pill.mild{background:#eef2ec;color:var(--good)} .pill.rain{background:#e6eef2;color:#4a7390}
+  .pill.est{background:#f1ede6;color:#8a847b}
+  .muted{color:var(--muted)} .small{font-size:12px}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px}
+  .day-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .day-date{font-weight:700}
+  .event{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0}
+  .event-title{font-weight:600;font-size:14px}
+  .ocard{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff}
+  .ocard .grip{cursor:grab;color:var(--muted);font-size:15px;letter-spacing:-3px;user-select:none;padding-right:6px}
+  .ocard.dragging{opacity:.45}
+  .dropzone{border-radius:12px;padding:2px;min-height:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;align-content:start}
+  .dropzone.dayzone{min-height:52px}
+  .day-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start}
+  .day-grid .card{margin-bottom:0}
+  .dropzone.over{background:var(--accent-soft);outline:2px dashed var(--accent);outline-offset:-2px}
+  .dz-empty{grid-column:1/-1;display:block;text-align:center;color:var(--muted);font-size:12px;padding:14px;border:1px dashed var(--line);border-radius:10px}
+  .daycard{border-left:3px solid var(--accent-soft)}
+  .daycard.done{border-left-color:var(--good);background:#f4f8f3}
+  .daydone{background:transparent;border:1px solid var(--line);border-radius:20px;padding:3px 11px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .daydone:hover{border-color:var(--good);color:var(--good)}
+  .daycard.done .daydone{background:var(--good);color:#fff;border-color:var(--good)}
+  .iconbtn{background:transparent;border:1px solid var(--line);border-radius:8px;padding:3px 6px;font-size:13px;line-height:1;color:var(--muted);cursor:pointer}
+  .iconbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .iconbtn.del:hover{border-color:#b4543f;color:#b4543f}
+  .outfit{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .slot{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:12px;min-width:90px}
+  .slot .role{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .slot .val{font-weight:600}
+  .slot.miss{border-style:dashed;color:#b4543f}
+  .pack-cat{margin-bottom:14px}
+  .pack-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .pack-item:last-child{border-bottom:none}
+  .pack-item input{width:auto;margin:0}
+  label.pack-item{cursor:pointer}
+  .pack-item.done{color:var(--muted)}
+  .pack-item.done b{text-decoration:line-through}
+  .progress{height:12px;background:var(--accent-soft);border-radius:20px;overflow:hidden}
+  .progress-fill{height:100%;border-radius:20px;transition:width .35s ease}
+  .badge{margin-left:auto;font-size:11px;color:var(--muted)}
+  .ess-item{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:14px}
+  .ess-item input{width:auto}
+  .ess-item.done label{text-decoration:line-through;color:var(--muted)}
+  .stat{display:inline-flex;flex-direction:column;background:var(--accent-soft);border-radius:10px;padding:8px 14px;margin-right:10px;margin-bottom:6px}
+  .stat .n{font-size:20px;font-weight:700;color:var(--accent)}
+  .stat .l{font-size:11px;color:var(--muted)}
+  .trip-card{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px}
+  .trip-card:hover{border-color:var(--accent)}
+  .trip-card .ic{font-size:24px}
+  dialog{border:none;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:0;max-width:560px;width:92%}
+  dialog::backdrop{background:rgba(20,16,12,.35)}
+  .modal-in{padding:20px}
+  .modal-in h2{margin-bottom:16px}
+  .hide{display:none!important}
+  .scale-help{font-size:11px;color:var(--muted);margin-top:2px}
+  .ev-row{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
+  @media(max-width:680px){.ev-row{grid-template-columns:1fr 1fr}}
+  .weather-line{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:10px 18px;border-radius:30px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>👗 Outfit Planner</h1>
+  <span class="sub">Your closet, trip planner, outfit ideas & smart packing — all saved in your browser.</span>
+</header>
+<div class="profilebar" id="profileBar"></div>
+<div class="tabs">
+  <div class="tab active" data-tab="closet">Closet</div>
+  <div class="tab" data-tab="trips">Trips</div>
+  <div class="tab" data-tab="essentials">Essentials</div>
+</div>
+
+<div class="wrap">
+  <!-- ============ CLOSET TAB ============ -->
+  <div id="tab-closet">
+    <div class="card">
+      <div class="row">
+        <h2 style="margin:0" id="closetTitle">My Closet</h2>
+        <span class="muted small" id="closetCount"></span>
+        <span class="right" id="closetActions"></span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <select id="filterCat" onchange="renderCloset()" style="max-width:180px"></select>
+        <select id="filterDress" onchange="renderCloset()" style="max-width:200px"></select>
+        <input id="filterSearch" placeholder="Search…" oninput="renderCloset()" style="max-width:200px">
+      </div>
+    </div>
+    <div class="card">
+      <div id="closetGrid"></div>
+    </div>
+  </div>
+
+  <!-- ============ TRIPS TAB ============ -->
+  <div id="tab-trips" class="hide">
+    <div id="tripListView">
+      <div class="card">
+        <div class="row">
+          <h2 style="margin:0">My Trips</h2>
+          <button class="btn right" onclick="openTripModal()">+ New trip</button>
+        </div>
+      </div>
+      <div class="card"><div id="tripList"></div></div>
+    </div>
+
+    <div id="tripDetailView" class="hide">
+      <div class="card">
+        <div class="row">
+          <button class="btn-ghost btn-sm" onclick="backToTrips()">← All trips</button>
+          <button class="btn-danger btn-sm right" onclick="deleteCurrentTrip()">Delete trip</button>
+        </div>
+        <h2 id="tripTitle" style="margin-top:12px"></h2>
+        <div id="tripMeta" class="weather-line"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn-ghost btn-sm" onclick="refreshWeather()">↻ Refresh weather</button>
+          <button class="btn-ghost btn-sm" onclick="editCurrentTrip()">Edit trip & events</button>
+        </div>
+        <div class="scale-help" style="margin-top:12px;margin-bottom:4px">Planning for:</div>
+        <div class="profilebar" id="tripProfileBar" style="padding:0"></div>
+      </div>
+
+      <div class="tabs" style="border:none;padding:0;margin-bottom:14px">
+        <div class="tab active" data-subtab="plan" onclick="switchSub('plan')">Outfit Suggestions</div>
+        <div class="tab" data-subtab="pack" onclick="switchSub('pack')">Packing List</div>
+      </div>
+
+      <div id="sub-plan"><div id="planContent"></div></div>
+      <div id="sub-pack" class="hide"><div id="packContent"></div></div>
+    </div>
+  </div>
+
+  <!-- ============ ESSENTIALS TAB ============ -->
+  <div id="tab-essentials" class="hide">
+    <div class="card">
+      <div class="row"><h2 style="margin:0" id="essTitle">Always-pack essentials</h2><button class="btn right" onclick="openAddCat()">+ Add category</button></div>
+      <div class="scale-help" style="margin-top:6px">Organized into your bags & boxes. These show up as a checklist on <b>every</b> trip's packing list, no matter the destination. Edit any category to add items, or add your own categories.</div>
+    </div>
+    <div id="essMaster"></div>
+  </div>
+</div>
+
+<!-- ITEM MODAL -->
+<dialog id="itemModal"><div class="modal-in">
+  <h2 id="itemModalTitle">Add item</h2>
+  <input type="hidden" id="itemId">
+  <div class="grid g2">
+    <div style="grid-column:1/-1">
+      <label>Description / name</label>
+      <input id="itemName" placeholder="e.g. Navy linen blazer">
+    </div>
+    <div>
+      <label>Category</label>
+      <select id="itemCat" onchange="toggleItemFields()"></select>
+    </div>
+    <div>
+      <label>Color</label>
+      <input id="itemColor" placeholder="e.g. navy">
+    </div>
+    <div id="rowDress">
+      <label>Dressiness</label>
+      <select id="itemDress"></select>
+    </div>
+    <div id="rowWarmth">
+      <label>Warmth</label>
+      <select id="itemWarmth"></select>
+    </div>
+    <div id="rowRain">
+      <label>Waterproof / rain-ok?</label>
+      <select id="itemRain"><option value="no">No</option><option value="yes">Yes</option></select>
+    </div>
+    <div id="rowStyle">
+      <label>Style / best for</label>
+      <select id="itemStyle"></select>
+    </div>
+    <div id="rowAgnostic" class="hide" style="grid-column:1/-1">
+      <div class="scale-help">Accessories match any outfit and any weather, so dressiness, warmth and rain don't apply.</div>
+    </div>
+    <div>
+      <label>Photo (optional)</label>
+      <input type="file" id="itemImg" accept="image/*">
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Notes (optional)</label>
+      <input id="itemNotes" placeholder="e.g. only matches with neutrals">
+    </div>
+  </div>
+  <div class="row" style="margin-top:18px">
+    <button class="btn-ghost" onclick="itemModal.close()">Cancel</button>
+    <button class="btn right" onclick="saveItem()">Save item</button>
+  </div>
+</div></dialog>
+
+<!-- TRIP MODAL -->
+<dialog id="tripModal"><div class="modal-in">
+  <h2 id="tripModalTitle">New trip</h2>
+  <input type="hidden" id="tripId">
+  <div class="grid g2">
+    <div style="grid-column:1/-1">
+      <label>Trip name</label>
+      <input id="tripName" placeholder="e.g. Lisbon work week">
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Destination(s)</label>
+      <input id="tripDest" placeholder="e.g. Lisbon, Portugal">
+      <div class="scale-help">Weather is fetched automatically for this city. For multi-city trips, enter the main one (or make a trip each).</div>
+    </div>
+    <div>
+      <label>Start date</label>
+      <input type="date" id="tripStart" onchange="fillDayRows()">
+    </div>
+    <div>
+      <label>End date</label>
+      <input type="date" id="tripEnd" onchange="fillDayRows()">
+    </div>
+  </div>
+
+  <h3>Your days</h3>
+  <div class="scale-help" style="margin-bottom:8px">A row is added for every day of your trip — fill in what you're doing and the dressiness for each. Add extra rows for days with more than one event.</div>
+  <div id="eventRows"></div>
+  <div class="row" style="margin-top:4px">
+    <button class="btn-ghost btn-sm" onclick="addEventRow()">+ Add event</button>
+    <button class="btn-ghost btn-sm" onclick="fillDayRows()">↻ One row per day</button>
+  </div>
+
+  <div class="row" style="margin-top:18px">
+    <button class="btn-ghost" onclick="tripModal.close()">Cancel</button>
+    <button class="btn right" id="tripSaveBtn" onclick="saveTrip()">Save trip</button>
+  </div>
+</div></dialog>
+
+<!-- BULK ADD MODAL -->
+<dialog id="bulkModal"><div class="modal-in">
+  <h2>Bulk add items</h2>
+  <div class="grid g2">
+    <div>
+      <label>Category</label>
+      <select id="bulkCat"></select>
+    </div>
+    <div id="bulkDressWrap">
+      <label>Default dressiness</label>
+      <select id="bulkDress"></select>
+    </div>
+  </div>
+  <div style="margin-top:12px">
+    <label>Items — one per line (optionally add a color after a comma)</label>
+    <textarea id="bulkText" placeholder="White cotton tee, white&#10;Black jeans&#10;Navy blazer, navy&#10;Floral midi dress"></textarea>
+    <div class="scale-help">Just the names are fine — you can fill in warmth, photos and other details later by editing each item.</div>
+  </div>
+  <div class="row" style="margin-top:16px">
+    <button class="btn-ghost" onclick="bulkModal.close()">Cancel</button>
+    <button class="btn right" onclick="saveBulk()">Add items</button>
+  </div>
+</div></dialog>
+
+<!-- CUSTOM OUTFIT MODAL -->
+<dialog id="outfitModal"><div class="modal-in">
+  <h2 id="outfitModalTitle">Build an outfit</h2>
+  <input type="hidden" id="outfitId">
+  <div>
+    <label>Outfit name</label>
+    <input id="outfitName" placeholder="e.g. Day 2 museum look">
+  </div>
+  <div style="margin-top:10px">
+    <label>Assign to a day (optional)</label>
+    <select id="outfitEvent"></select>
+  </div>
+  <div class="scale-help" style="margin-top:14px;margin-bottom:-2px">Pick from your closet or just type — any new item is saved straight into your closet.</div>
+  <div id="outfitSlots" style="margin-top:10px"></div>
+  <div class="row" style="margin-top:16px">
+    <button class="btn-ghost" onclick="outfitModal.close()">Cancel</button>
+    <button class="btn right" onclick="saveOutfit()">Save outfit</button>
+  </div>
+</div></dialog>
+
+<!-- ESSENTIALS MODAL -->
+<dialog id="essModal"><div class="modal-in">
+  <h2 id="essModalTitle">Edit essentials</h2>
+  <input type="hidden" id="essCat">
+  <div class="scale-help" style="margin-bottom:8px">One item per line. These pack every trip.</div>
+  <textarea id="essText"></textarea>
+  <div class="row" style="margin-top:16px">
+    <button class="btn-danger btn-sm" onclick="deleteEssCat()">Delete category</button>
+    <button class="btn-ghost right" onclick="essModal.close()">Cancel</button>
+    <button class="btn" onclick="saveEss()">Save list</button>
+  </div>
+</div></dialog>
+
+<!-- ADD ESSENTIALS CATEGORY MODAL -->
+<dialog id="addCatModal"><div class="modal-in">
+  <h2>Add a category</h2>
+  <div class="scale-help" style="margin-bottom:8px">e.g. Gym bag, Camera bag, Baby bag, Documents…</div>
+  <input id="addCatName" placeholder="Category name">
+  <div class="row" style="margin-top:16px">
+    <button class="btn-ghost" onclick="addCatModal.close()">Cancel</button>
+    <button class="btn right" onclick="saveAddCat()">Add category</button>
+  </div>
+</div></dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- constants ---------- */
+const CATS = ["Tops","Bottoms","Dresses","Outerwear","Shoes","Accessories","Swimwear"];
+const ICONS={Tops:"👕",Bottoms:"👖",Dresses:"👗",Outerwear:"🧥",Shoes:"👟",Accessories:"👜",Swimwear:"🩱"};
+const DRESS = ["Casual","Smart casual","Business casual","Cocktail / dressy","Formal"]; // index+1 = level 1-5
+const WARMTH = ["Very light","Light","Medium","Warm","Very warm"];
+const EVENT_TYPES = ["Sightseeing / casual","Work / meetings","Dinner out","Party / cocktail","Wedding / formal","Outdoor / active","Beach / pool","Travel day","Athleisure / errands"];
+const TYPE_DRESS = {0:1,1:3,2:3,3:4,4:5,5:1,6:1,7:1,8:1};
+// item style tags; events of certain types prefer a matching style
+const STYLES=["Everyday","Athleisure","Travel"];
+const TYPE_STYLE={5:"Athleisure",7:"Travel",8:"Athleisure"};
+const AGNOSTIC_CAT="Accessories"; // accessories ignore dressiness & weather
+const ESS_CATS=["Toiletries","Makeup bag","Tech bag","Backpack","Jewelry box","Medicine","Miscellaneous"];
+const ESS_ICONS={"Toiletries":"🧴","Makeup bag":"💄","Tech bag":"🔌","Backpack":"🎒","Jewelry box":"💍","Medicine":"💊","Miscellaneous":"📦"};
+function defaultEssentials(){return {
+  "Toiletries":["Toothbrush & toothpaste","Deodorant","Shampoo & conditioner","Body wash","Face wash","Moisturizer","Sunscreen","Hairbrush","Razor"],
+  "Makeup bag":["Foundation","Concealer","Mascara","Blush","Lip color","Makeup remover"],
+  "Tech bag":["Phone charger","Laptop & charger","Headphones","Power bank","Travel adapter","Charging cables"],
+  "Backpack":["Reusable water bottle","Sunglasses","Umbrella","Snacks"],
+  "Jewelry box":["Everyday earrings","Watch","Necklace","Rings"],
+  "Medicine":["Pain reliever","Allergy medicine","Band-aids","Prescriptions","Vitamins"],
+  "Miscellaneous":["Passport / ID","Wallet & cards","Sleepwear","Reusable tote"]
+};}
+
+/* ---------- storage ---------- */
+const DB={load(k,def){try{const v=JSON.parse(localStorage.getItem("op_"+k));return v??def}catch(e){return def}},
+  save(k,v){localStorage.setItem("op_"+k,JSON.stringify(v))}};
+let trips =DB.load("trips",[]);
+function essIcon(cat){return ESS_ICONS[cat]||"🧳";}
+
+/* ---------- profiles (multi-person) ---------- */
+let profiles=DB.load("profiles",null);
+if(!Array.isArray(profiles)||!profiles.length)profiles=[{id:"me",name:"Neha",mode:"closet"},{id:"adeesh",name:"Adeesh",mode:"estimate"}];
+profiles.forEach((p,i)=>{if(!p.mode)p.mode=i===0?"closet":"estimate";}); // full-closet vs quantity-estimate
+let activeProfile=DB.load("activeProfile",profiles[0].id);
+if(!profiles.some(p=>p.id===activeProfile))activeProfile=profiles[0].id;
+let closetsAll=DB.load("closets",null);
+let essAll=DB.load("essAll",null);
+let essCatsAll=DB.load("essCatsAll",null);
+// one-time migration from single-user storage into per-profile maps
+(function(){
+  if(closetsAll&&essAll&&essCatsAll)return;
+  const legacyCloset=(DB.load("closet",[])||[]);legacyCloset.forEach(c=>{if(c.cat==="Pants")c.cat="Bottoms";});
+  let le=DB.load("essentials",null);
+  if(Array.isArray(le)){const obj=defaultEssentials(),all=new Set(Object.values(obj).flat());le.forEach(x=>{if(!all.has(x))obj["Miscellaneous"].push(x);});le=obj;}
+  else if(!le||typeof le!=="object"){le=defaultEssentials();}
+  ESS_CATS.forEach(c=>{if(!Array.isArray(le[c]))le[c]=[];});
+  let lec=DB.load("essCats",null);if(!Array.isArray(lec)||!lec.length)lec=[...ESS_CATS];
+  Object.keys(le).forEach(c=>{if(!lec.includes(c))lec.push(c);});
+  closetsAll=closetsAll||{};essAll=essAll||{};essCatsAll=essCatsAll||{};
+  profiles.forEach((p,i)=>{
+    if(!closetsAll[p.id])closetsAll[p.id]=i===0?legacyCloset:[];
+    if(!essAll[p.id])essAll[p.id]=i===0?le:defaultEssentials();
+    if(!essCatsAll[p.id])essCatsAll[p.id]=i===0?lec:[...ESS_CATS];
+  });
+})();
+// ensure each profile has valid structures
+profiles.forEach(p=>{
+  if(!closetsAll[p.id])closetsAll[p.id]=[];
+  if(!essAll[p.id]||typeof essAll[p.id]!=="object")essAll[p.id]=defaultEssentials();
+  ESS_CATS.forEach(c=>{if(!Array.isArray(essAll[p.id][c]))essAll[p.id][c]=[];});
+  if(!Array.isArray(essCatsAll[p.id])||!essCatsAll[p.id].length)essCatsAll[p.id]=[...ESS_CATS];
+  Object.keys(essAll[p.id]).forEach(c=>{if(!essCatsAll[p.id].includes(c))essCatsAll[p.id].push(c);});
+});
+// migrate legacy per-trip state into byProfile[firstProfile]
+(function(){
+  const first=profiles[0].id;
+  trips.forEach(t=>{
+    if(!t.byProfile){
+      t.byProfile={};
+      profiles.forEach(p=>t.byProfile[p.id]={customOutfits:[],essChecked:{},autoChecked:{},packChecked:{},packExcluded:{},dayDone:{}});
+      t.byProfile[first]={customOutfits:t.customOutfits||[],essChecked:t.essChecked||{},autoChecked:t.autoChecked||{},packChecked:t.packChecked||{},packExcluded:t.packExcluded||{},dayDone:t.dayDone||{}};
+      ["customOutfits","essChecked","autoChecked","packChecked","packExcluded","dayDone"].forEach(k=>delete t[k]);
+    }
+    profiles.forEach(p=>{if(!t.byProfile[p.id])t.byProfile[p.id]={customOutfits:[],essChecked:{},autoChecked:{},packChecked:{},packExcluded:{},dayDone:{}};});
+  });
+})();
+let closet,essentials,essCats;
+function loadProfileData(){closet=closetsAll[activeProfile];essentials=essAll[activeProfile];essCats=essCatsAll[activeProfile];}
+loadProfileData();
+function activeName(){const p=profiles.find(x=>x.id===activeProfile);return p?p.name:"";}
+// per-trip, per-profile state (customOutfits, checklists, planned days)
+function PS(t){if(!t.byProfile)t.byProfile={};if(!t.byProfile[activeProfile])t.byProfile[activeProfile]={customOutfits:[],essChecked:{},autoChecked:{},packChecked:{},packExcluded:{},dayDone:{}};return t.byProfile[activeProfile];}
+let currentTripId=null;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function persist(){DB.save("trips",trips);DB.save("profiles",profiles);DB.save("activeProfile",activeProfile);DB.save("closets",closetsAll);DB.save("essAll",essAll);DB.save("essCatsAll",essCatsAll);}
+function setActiveProfile(pid){if(!profiles.some(p=>p.id===pid))return;activeProfile=pid;loadProfileData();DB.save("activeProfile",pid);renderProfiles();renderCloset();renderEssMaster();if(currentTripId&&!document.getElementById("tripDetailView").classList.contains("hide"))renderTripDetail();}
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800);}
+function esc(s){return(s||"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));}
+
+/* ---------- populate selects ---------- */
+function fillSelect(el,arr,withIndexValue){el.innerHTML=arr.map((x,i)=>`<option value="${withIndexValue?i+1:x}">${x}</option>`).join("");}
+fillSelect(itemCat,CATS,false);
+fillSelect(itemDress,DRESS,true);
+fillSelect(itemWarmth,WARMTH,true);
+fillSelect(itemStyle,STYLES,false);
+fillSelect(bulkCat,CATS,false);
+fillSelect(bulkDress,DRESS,true);
+function toggleItemFields(){
+  const isAcc=itemCat.value===AGNOSTIC_CAT;
+  ["rowDress","rowWarmth","rowRain","rowStyle"].forEach(id=>document.getElementById(id).classList.toggle("hide",isAcc));
+  document.getElementById("rowAgnostic").classList.toggle("hide",!isAcc);
+}
+filterCat.innerHTML='<option value="">All categories</option>'+CATS.map(c=>`<option value="${c}">${c}</option>`).join("");
+filterDress.innerHTML='<option value="">Any dressiness</option>'+DRESS.map((d,i)=>`<option value="${i+1}">${d}</option>`).join("");
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tabs > .tab[data-tab]").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab[data-tab]").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    ["closet","trips","essentials"].forEach(n=>document.getElementById("tab-"+n).classList.toggle("hide",t.dataset.tab!==n));
+    if(t.dataset.tab==="essentials")renderEssMaster();
+  };
+});
+
+/* ================= CLOSET ================= */
+function openItemModal(id){
+  const m=document.getElementById("itemModal");
+  if(id){
+    const it=closet.find(c=>c.id===id);
+    itemModalTitle.textContent="Edit item";
+    itemId.value=it.id;itemName.value=it.name;itemCat.value=it.cat;itemColor.value=it.color||"";
+    itemDress.value=it.dress;itemWarmth.value=it.warmth;itemRain.value=it.rain?"yes":"no";
+    itemStyle.value=it.style||"Everyday";itemNotes.value=it.notes||"";m._img=it.img||"";
+  }else{
+    itemModalTitle.textContent="Add item";
+    itemId.value="";itemName.value="";itemColor.value="";itemCat.value=CATS[0];
+    itemDress.value=2;itemWarmth.value=3;itemRain.value="no";itemStyle.value="Everyday";itemNotes.value="";m._img="";
+  }
+  toggleItemFields();itemImg.value="";m.showModal();
+}
+function saveItem(){
+  const name=itemName.value.trim();
+  if(!name){toast("Add a description first");return;}
+  const m=document.getElementById("itemModal");
+  const isAcc=itemCat.value===AGNOSTIC_CAT;
+  const finish=img=>{
+    const obj={id:itemId.value||uid(),name,cat:itemCat.value,color:itemColor.value.trim(),
+      dress:isAcc?1:+itemDress.value,warmth:isAcc?3:+itemWarmth.value,rain:isAcc?false:itemRain.value==="yes",
+      style:itemStyle.value||"Everyday",notes:itemNotes.value.trim(),img};
+    if(itemId.value)closet=closet.map(c=>c.id===obj.id?obj:c);else closet.push(obj);
+    closetsAll[activeProfile]=closet; // keep profile map in sync after reassignment
+    persist();renderCloset();m.close();toast("Saved");
+  };
+  if(itemImg.files[0]){const r=new FileReader();r.onload=e=>finish(e.target.result);r.readAsDataURL(itemImg.files[0]);}
+  else finish(m._img||"");
+}
+function deleteItem(id){if(confirm("Remove this item?")){closet=closet.filter(c=>c.id!==id);closetsAll[activeProfile]=closet;persist();renderCloset();}}
+/* ---- bulk add ---- */
+function toggleBulkFields(){document.getElementById("bulkDressWrap").classList.toggle("hide",bulkCat.value===AGNOSTIC_CAT);}
+bulkCat.addEventListener("change",toggleBulkFields);
+function openBulkModal(){
+  bulkCat.value=filterCat.value&&CATS.includes(filterCat.value)?filterCat.value:CATS[0];
+  bulkDress.value=2;bulkText.value="";toggleBulkFields();document.getElementById("bulkModal").showModal();
+}
+function saveBulk(){
+  const cat=bulkCat.value,isAcc=cat===AGNOSTIC_CAT,dl=+bulkDress.value;
+  const lines=bulkText.value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!lines.length){toast("Type at least one item");return;}
+  let n=0;
+  for(const line of lines){
+    const [name,color]=line.split(",").map(s=>s.trim());
+    if(!name)continue;
+    closet.push({id:uid(),cat,name,color:color||"",dress:isAcc?1:dl,warmth:3,rain:false,style:"Everyday",notes:"",img:""});
+    n++;
+  }
+  persist();renderCloset();document.getElementById("bulkModal").close();
+  toast(`Added ${n} item${n!==1?"s":""} to ${cat}`);
+}
+function renderProfiles(){
+  const chip=p=>`<span class="pchip${p.id===activeProfile?" active":""}" onclick="setActiveProfile('${p.id}')">${esc(p.name)}</span>`;
+  const bar=document.getElementById("profileBar");
+  if(bar)bar.innerHTML=profiles.map(chip).join("")+`<span class="pchip add" onclick="addProfile()">+ Add person</span>`;
+  const tbar=document.getElementById("tripProfileBar");
+  if(tbar)tbar.innerHTML=profiles.map(chip).join("");
+}
+function addProfile(){
+  const name=(prompt("Name for the new person's profile?")||"").trim();
+  if(!name)return;
+  const id="p"+uid();
+  profiles.push({id,name});
+  closetsAll[id]=[];essAll[id]=defaultEssentials();essCatsAll[id]=[...ESS_CATS];
+  trips.forEach(t=>{if(!t.byProfile)t.byProfile={};t.byProfile[id]={customOutfits:[],essChecked:{},autoChecked:{},packChecked:{},packExcluded:{},dayDone:{}};});
+  persist();setActiveProfile(id);
+}
+function renderCloset(){
+  const ct=document.getElementById("closetTitle");if(ct)ct.textContent=activeName()+"’s closet";
+  const acts=document.getElementById("closetActions");
+  if(activeMode()==="estimate"){
+    if(ct)ct.textContent=activeName()+" · estimate mode";
+    if(acts)acts.innerHTML=`<button class="btn-ghost btn-sm" onclick="setProfileMode('closet')">Switch to full closet</button>`;
+    closetCount.textContent="";
+    closetGrid.innerHTML=`<div class="empty">${esc(activeName())} uses <b>estimate mode</b> — no closet to fill in.<br>On each trip's Packing List, ${esc(activeName())} gets garment-type counts (shirts, pants, shorts, layers…) worked out from the number of days, how dressy they are, and the weather.</div>`;
+    return;
+  }
+  if(acts)acts.innerHTML=`<button class="btn-ghost btn-sm" onclick="setProfileMode('estimate')">Use estimate mode</button> <button class="btn-ghost btn-sm" onclick="openBulkModal()">⊞ Bulk add</button> <button class="btn btn-sm" onclick="openItemModal()">+ Add item</button>`;
+  const fc=filterCat.value,fd=filterDress.value,fs=filterSearch.value.toLowerCase();
+  const list=closet.filter(c=>(!fc||c.cat===fc)&&(!fd||c.dress==+fd)&&
+    (!fs||(c.name+" "+(c.color||"")+" "+(c.notes||"")).toLowerCase().includes(fs)));
+  closetCount.textContent=closet.length?`${closet.length} item${closet.length>1?"s":""}`:"";
+  const grid=closetGrid;
+  if(!closet.length){grid.innerHTML='<div class="empty">Your closet is empty. Add your clothes with “+ Add item” — a description is enough, photos optional.</div>';return;}
+  if(!list.length){grid.innerHTML='<div class="empty">No items match those filters.</div>';return;}
+  // group by category in fixed order
+  let html="";
+  for(const cat of CATS){
+    const items=list.filter(c=>c.cat===cat);
+    if(!items.length)continue;
+    html+=`<h3>${ICONS[cat]} ${cat} <span class="muted" style="font-weight:400">· ${items.length}</span></h3><div class="closet-grid">`;
+    html+=items.map(c=>`
+      <div class="item">
+        <div class="thumb" ${c.img?`style="background-image:url('${c.img}')"`:""}>${c.img?"":ICONS[c.cat]||"👕"}</div>
+        <div class="body">
+          <div class="nm">${esc(c.name)}</div>
+          <div class="meta">${esc(c.color||"")}</div>
+          <div class="chips">
+            ${c.cat===AGNOSTIC_CAT?'<span class="chip">matches anything</span>':
+              `<span class="chip">${DRESS[c.dress-1]}</span><span class="chip">${WARMTH[c.warmth-1]}</span>${c.rain?'<span class="chip">rain-ok</span>':""}`}
+            ${c.style&&c.style!=="Everyday"?`<span class="chip cat">${c.style}</span>`:""}
+          </div>
+        </div>
+        <div class="acts">
+          <button class="btn-ghost btn-sm" onclick="openItemModal('${c.id}')">Edit</button>
+          <button class="btn-danger btn-sm" onclick="deleteItem('${c.id}')">Delete</button>
+        </div>
+      </div>`).join("");
+    html+=`</div>`;
+  }
+  grid.innerHTML=html;
+}
+
+/* ================= ESSENTIALS ================= */
+function renderEssMaster(){
+  const et=document.getElementById("essTitle");if(et)et.textContent=activeName()+"’s essentials";
+  const el=document.getElementById("essMaster");
+  el.innerHTML=essCats.map(cat=>{
+    const items=essentials[cat]||[];
+    return `<div class="card"><div class="row"><h3 style="margin:0">${essIcon(cat)} ${esc(cat)} <span class="muted" style="font-weight:400">· ${items.length}</span></h3>
+      <button class="btn-ghost btn-sm right" onclick="openEssModal('${attrJs(cat)}')">Edit</button></div>
+      ${items.length?`<div style="margin-top:8px">${items.map(i=>`<div class="ess-item"><span>•</span><label style="margin:0;color:var(--ink);font-size:14px;font-weight:500">${esc(i)}</label></div>`).join("")}</div>`
+                    :'<div class="muted small" style="margin-top:6px">No items yet — click Edit to add.</div>'}</div>`;
+  }).join("");
+}
+function goEssentials(){document.querySelector('.tab[data-tab="essentials"]').click();}
+function attrJs(s){return esc(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'");}
+function openEssModal(cat){
+  cat=cat||essCats[0];
+  essCat.value=cat;essModalTitle.textContent="Edit "+cat;
+  essText.value=(essentials[cat]||[]).join("\n");
+  document.getElementById("essModal").showModal();
+}
+function saveEss(){
+  const cat=essCat.value;
+  essentials[cat]=essText.value.split("\n").map(s=>s.trim()).filter(Boolean);
+  persist();renderEssMaster();document.getElementById("essModal").close();
+  if(currentTripId&&!document.getElementById("tab-trips").classList.contains("hide"))renderTripDetail();
+  toast(cat+" updated");
+}
+function openAddCat(){addCatName.value="";document.getElementById("addCatModal").showModal();}
+function saveAddCat(){
+  const name=addCatName.value.trim();
+  if(!name){toast("Type a category name");return;}
+  if(essCats.some(c=>c.toLowerCase()===name.toLowerCase())){toast("That category already exists");return;}
+  essCats.push(name);essentials[name]=[];persist();renderEssMaster();
+  document.getElementById("addCatModal").close();openEssModal(name);
+}
+function deleteEssCat(){
+  const cat=essCat.value;
+  if(!confirm(`Delete the "${cat}" category and its items?`))return;
+  essCats=essCats.filter(c=>c!==cat);essCatsAll[activeProfile]=essCats;delete essentials[cat];
+  persist();renderEssMaster();document.getElementById("essModal").close();
+  if(currentTripId&&!document.getElementById("tab-trips").classList.contains("hide"))renderTripDetail();
+  toast(cat+" removed");
+}
+
+/* ================= TRIPS ================= */
+function renderTripList(){
+  const el=tripList;
+  if(!trips.length){el.innerHTML='<div class="empty">No trips yet. Create one and I\'ll fetch the weather and suggest outfits for each event.</div>';return;}
+  el.innerHTML=trips.map(t=>`
+    <div class="trip-card" onclick="openTrip('${t.id}')">
+      <div class="ic">🧳</div>
+      <div>
+        <div style="font-weight:700">${esc(t.name)}</div>
+        <div class="muted small">${esc(t.dest)} · ${fmtRange(t.start,t.end)} · ${tripDays(t)} day${tripDays(t)!==1?"s":""} · ${t.events.length} event${t.events.length!==1?"s":""}</div>
+      </div>
+      <div class="right muted">→</div>
+    </div>`).join("");
+}
+function fmtRange(a,b){if(!a)return"";const o={month:"short",day:"numeric"};const A=new Date(a+"T00:00").toLocaleDateString(undefined,o);const B=b?new Date(b+"T00:00").toLocaleDateString(undefined,o):A;return(a===b||!b)?A:`${A} – ${B}`;}
+function tripDays(t){if(!t.start)return 1;const a=new Date(t.start+"T00:00"),b=new Date((t.end||t.start)+"T00:00");return Math.max(1,Math.round((b-a)/86400000)+1);}
+function dkey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function eachTripDate(t,fn){if(!t.start)return;let d=new Date(t.start+"T00:00"),end=new Date((t.end||t.start)+"T00:00");while(d<=end){fn(new Date(d));d.setDate(d.getDate()+1);}}
+// auto-calculated packing quantities driven by trip length, weekdays, and weather
+function computeAutoPack(t){
+  const days=tripDays(t);
+  let workoutDays=0,warmDays=0;
+  eachTripDate(t,d=>{
+    const wd=d.getDay(); if(wd===1||wd===3||wd===5)workoutDays++;         // Mon/Wed/Fri
+    const w=effWeather(t,dkey(d)); if(w&&w.tmax>=80)warmDays++;           // days over 80°F
+  });
+  const poolEvents=t.events.filter(e=>e.type===6||/\b(swim|pool|beach)\b/i.test(e.name||"")).length;
+  const swimQty=Math.max(poolEvents,Math.ceil(warmDays/3));               // 1 swimsuit per 3 days over 80°F
+  const rows=[
+    {label:"Underwear",qty:days*2,note:"2 × days"},
+    {label:"Bras",qty:Math.ceil(days/3),note:"1 per 3 days"},
+    {label:"PJ sets",qty:Math.ceil(days/5),note:"1 per 5 days"},
+  ];
+  if(workoutDays>0){
+    rows.push({label:"Athleisure / workout sets",qty:workoutDays,note:"1 per Mon/Wed/Fri"});
+    rows.push({label:"Pairs of workout socks",qty:workoutDays,note:"1 per workout"});
+  }
+  if(swimQty>0)rows.push({label:"Swimwear",qty:swimQty,note:warmDays>=3?"1 per 3 days over 80°F":(warmDays>0?"warm days over 80°F":"pool / beach planned")});
+  return rows;
+}
+
+/* ---- trip modal & events ---- */
+let evCounter=0;
+function eventRowHtml(ev={}){
+  const id="ev"+(evCounter++);
+  const typeOpts=EVENT_TYPES.map((x,i)=>`<option value="${i}" ${ev.type==i?"selected":""}>${x}</option>`).join("");
+  const dressOpts=DRESS.map((d,i)=>`<option value="${i+1}" ${ev.dress==i+1?"selected":""}>${d}</option>`).join("");
+  return `<div class="ev-row" id="${id}">
+    <div><label>${ev.date?esc(wdayLabel(ev.date))+" · ":""}What are you doing?</label><input class="evName" placeholder="e.g. Client dinner / free day" value="${esc(ev.name||"")}"></div>
+    <div><label>Date</label><input type="date" class="evDate" value="${ev.date||""}"></div>
+    <div><label>Type</label><select class="evType" onchange="syncDress(this)">${typeOpts}</select></div>
+    <div><label>Dress</label><select class="evDress">${dressOpts}</select></div>
+    <div style="grid-column:1/-1;text-align:right;margin-top:-4px"><button class="btn-danger btn-sm" onclick="this.closest('.ev-row').remove()">Remove</button></div>
+  </div>`;
+}
+function syncDress(sel){sel.closest(".ev-row").querySelector(".evDress").value=TYPE_DRESS[+sel.value]||2;}
+function addEventRow(ev){eventRows.insertAdjacentHTML("beforeend",eventRowHtml(ev));}
+function wdayLabel(d){return new Date(d+"T00:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});}
+function sortEventRows(){
+  const c=eventRows,rows=[...c.querySelectorAll(".ev-row")];
+  rows.sort((a,b)=>{const da=a.querySelector(".evDate").value||"9999",db=b.querySelector(".evDate").value||"9999";return da<db?-1:da>db?1:0;});
+  rows.forEach(r=>c.appendChild(r));
+}
+// ensure there's a row for every date in the trip range (preserves existing rows)
+function fillDayRows(){
+  const s=tripStart.value,e=tripEnd.value||tripStart.value;
+  if(!s)return;
+  const present=new Set([...eventRows.querySelectorAll(".ev-row .evDate")].map(i=>i.value).filter(Boolean));
+  let d=new Date(s+"T00:00"),end=new Date(e+"T00:00"),guard=0;
+  while(d<=end&&guard++<400){const k=dkey(d);if(!present.has(k)){addEventRow({date:k,type:0,dress:1});present.add(k);}d.setDate(d.getDate()+1);}
+  sortEventRows();
+}
+function openTripModal(){
+  tripModalTitle.textContent="New trip";
+  tripId.value="";tripName.value="";tripDest.value="";tripStart.value="";tripEnd.value="";
+  eventRows.innerHTML="";
+  document.getElementById("tripModal").showModal();
+}
+function editCurrentTrip(){
+  const t=trips.find(x=>x.id===currentTripId);
+  tripModalTitle.textContent="Edit trip";
+  tripId.value=t.id;tripName.value=t.name;tripDest.value=t.dest;tripStart.value=t.start;tripEnd.value=t.end;
+  eventRows.innerHTML="";t.events.forEach(e=>addEventRow(e));fillDayRows();
+  document.getElementById("tripModal").showModal();
+}
+function gatherEvents(){
+  return [...document.querySelectorAll("#eventRows .ev-row")].map(r=>({
+    name:r.querySelector(".evName").value.trim(),date:r.querySelector(".evDate").value,
+    type:+r.querySelector(".evType").value,dress:+r.querySelector(".evDress").value
+  })).filter(e=>e.name||e.date);
+}
+async function saveTrip(){
+  const name=tripName.value.trim(),dest=tripDest.value.trim();
+  if(!name||!dest){toast("Add a name and destination");return;}
+  if(!tripStart.value){toast("Add a start date");return;}
+  const btn=tripSaveBtn;btn.textContent="Fetching weather…";btn.disabled=true;
+  const end=tripEnd.value||tripStart.value;
+  const existing=trips.find(t=>t.id===tripId.value);
+  let trip={id:tripId.value||uid(),name,dest,start:tripStart.value,end,events:gatherEvents(),
+    weather:{},geo:null,byProfile:existing&&existing.byProfile?existing.byProfile:{}};
+  try{await fetchTripWeather(trip);}catch(e){console.warn(e);}
+  if(tripId.value)trips=trips.map(t=>t.id===trip.id?trip:t);else trips.push(trip);
+  persist();btn.textContent="Save trip";btn.disabled=false;
+  document.getElementById("tripModal").close();
+  renderTripList();
+  if(currentTripId===trip.id)openTrip(trip.id);
+  toast("Trip saved");
+}
+
+/* ---- weather (Open-Meteo, no key) ---- */
+async function fetchTripWeather(trip){
+  const g=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trip.dest)}&count=1`).then(r=>r.json());
+  if(!g.results||!g.results.length){trip.geo=null;return;}
+  const {latitude,longitude,name,country}=g.results[0];
+  trip.geo={lat:latitude,lon:longitude,label:`${name}, ${country}`};
+  const f=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=auto&start_date=${trip.start}&end_date=${trip.end}`).then(r=>r.json());
+  trip.weather={};
+  if(f.daily&&f.daily.time){f.daily.time.forEach((d,i)=>{
+    const mx=f.daily.temperature_2m_max[i],mn=f.daily.temperature_2m_min[i];
+    if(mx==null&&mn==null)return; // out of forecast range -> leave to season fallback
+    trip.weather[d]={tmax:mx,tmin:mn,pp:f.daily.precipitation_probability_max[i],code:f.daily.weathercode?f.daily.weathercode[i]:null};
+  });}
+  trip.weatherFetched=new Date().toISOString();
+}
+async function refreshWeather(){
+  const t=trips.find(x=>x.id===currentTripId);
+  toast("Refreshing weather…");
+  try{await fetchTripWeather(t);persist();openTrip(t.id);toast("Weather updated");}
+  catch(e){toast("Couldn't fetch weather");}
+}
+/* seasonal estimate when no live forecast (dates too far out / fetch failed) */
+function seasonEstimate(date,lat){
+  if(!date)return null;
+  const m=new Date(date+"T00:00").getMonth();
+  const south=(lat!=null&&lat<0);
+  const mm=south?(m+6)%12:m;
+  const hi=[40,44,53,63,72,80,85,83,76,64,52,43][mm];
+  const lo=[28,30,38,46,55,63,68,67,59,48,39,31][mm];
+  return {tmax:hi,tmin:lo,pp:0,estimated:true};
+}
+function effWeather(trip,date){
+  if(trip.weather&&trip.weather[date])return trip.weather[date];
+  return seasonEstimate(date,trip.geo?trip.geo.lat:null);
+}
+
+/* ---- trip detail ---- */
+function openTrip(id){
+  currentTripId=id;
+  document.querySelectorAll(".tab[data-tab]").forEach(x=>x.classList.toggle("active",x.dataset.tab==="trips"));
+  ["closet","essentials"].forEach(n=>document.getElementById("tab-"+n).classList.add("hide"));
+  document.getElementById("tab-trips").classList.remove("hide");
+  tripListView.classList.add("hide");tripDetailView.classList.remove("hide");
+  switchSub("plan");renderTripDetail();
+}
+function backToTrips(){tripDetailView.classList.add("hide");tripListView.classList.remove("hide");renderTripList();}
+function deleteCurrentTrip(){if(confirm("Delete this trip?")){trips=trips.filter(t=>t.id!==currentTripId);persist();backToTrips();}}
+function switchSub(s){
+  document.querySelectorAll("[data-subtab]").forEach(x=>x.classList.toggle("active",x.dataset.subtab===s));
+  document.getElementById("sub-plan").classList.toggle("hide",s!=="plan");
+  document.getElementById("sub-pack").classList.toggle("hide",s!=="pack");
+  const t=trips.find(x=>x.id===currentTripId); // always render fresh so edits/deletes are reflected
+  if(t){if(s==="plan")renderPlan(t);else renderPack(t);}
+}
+// WMO weather code -> {icon,label}
+function weatherCond(w){
+  if(!w)return null;
+  const c=w.code;
+  if(c==null)return w.pp>=50?{icon:"🌧️",label:"Rainy"}:null; // older fetch / seasonal estimate
+  if(c===0)return{icon:"☀️",label:"Sunny"};
+  if(c===1)return{icon:"🌤️",label:"Mostly sunny"};
+  if(c===2)return{icon:"⛅",label:"Partly cloudy"};
+  if(c===3)return{icon:"☁️",label:"Cloudy"};
+  if(c===45||c===48)return{icon:"🌫️",label:"Fog"};
+  if(c>=51&&c<=57)return{icon:"🌦️",label:"Drizzle"};
+  if((c>=61&&c<=67)||(c>=80&&c<=82))return{icon:"🌧️",label:"Rainy"};
+  if((c>=71&&c<=77)||c===85||c===86)return{icon:"❄️",label:"Snow"};
+  if(c>=95)return{icon:"⛈️",label:"Thunderstorm"};
+  return null;
+}
+function weatherPill(w){
+  if(!w)return'<span class="pill mild">no forecast</span>';
+  const t=(w.tmax+w.tmin)/2,cls=t>=75?"hot":t<=48?"cold":"mild";
+  const cond=weatherCond(w);
+  const ico=cond?`<span title="${cond.label}" style="margin-right:2px">${cond.icon}</span>`:"";
+  const rain=w.pp>=40?` <span class="pill rain">${w.pp}% rain</span>`:"";
+  const est=w.estimated?' <span class="pill est">seasonal est.</span>':"";
+  return `${ico}<span class="pill ${cls}">${Math.round(w.tmax)}° / ${Math.round(w.tmin)}°F</span>${rain}${est}`;
+}
+function renderTripDetail(){
+  const t=trips.find(x=>x.id===currentTripId);
+  tripTitle.textContent=t.name;
+  const hasLive=t.weatherFetched&&Object.keys(t.weather||{}).length;
+  tripMeta.innerHTML=`🧳 ${esc(t.geo?t.geo.label:t.dest)} · ${fmtRange(t.start,t.end)} · ${tripDays(t)} days`+
+    (hasLive?` · <span class="muted small">weather updated ${new Date(t.weatherFetched).toLocaleDateString()}</span>`
+            :` · <span class="muted small">using seasonal estimate</span>`);
+  renderPlan(t);renderPack(t);
+}
+
+/* ================= OUTFIT ENGINE ================= */
+function warmthTarget(w){if(!w)return 3;const t=(w.tmax+w.tmin)/2;if(t>=78)return 1;if(t>=66)return 2;if(t>=54)return 3;if(t>=42)return 4;return 5;}
+function pick(cat,dl,wt,opts={}){
+  const cands=closet.filter(c=>c.cat===cat);if(!cands.length)return null;
+  const agn=cat===AGNOSTIC_CAT; // accessories: ignore dressiness & weather
+  let best=null,bs=-1e9;
+  for(const c of cands){
+    let s=0;
+    if(!agn){const dd=c.dress-dl;s-=dd<0?Math.abs(dd)*3:dd*1.2;s-=Math.abs(c.warmth-wt)*1.5;if(opts.rain&&c.rain)s+=2;}
+    if(opts.style&&c.style===opts.style)s+=4; // prefer athleisure/travel-tagged pieces for those events
+    s+=Math.random()*0.3;
+    if(s>bs){bs=s;best=c;}
+  }
+  return best;
+}
+function buildOutfit(ev,w){
+  const dl=ev.dress,wt=warmthTarget(w),rain=w&&w.pp>=45,cold=wt>=4;
+  const style=TYPE_STYLE[ev.type]; // Athleisure / Travel events prefer matching pieces
+  const slots=[];
+  const dresses=closet.filter(c=>c.cat==="Dresses");
+  let useDress=false;
+  if(!style){ // no dresses for athleisure / travel looks
+    if(dl>=4&&dresses.length)useDress=Math.random()<0.7;
+    else if(dl>=3&&dresses.length)useDress=Math.random()<0.4;
+  }
+  if(useDress)slots.push(["Dress",pick("Dresses",dl,wt,{style})]);
+  else{slots.push(["Top",pick("Tops",dl,wt,{style})]);slots.push(["Bottom",pick("Bottoms",dl,wt,{style})]);}
+  slots.push(["Shoes",pick("Shoes",dl,wt,{style})]);
+  if(cold||rain)slots.push(["Outerwear",pick("Outerwear",dl,wt,{rain,style})]);
+  const a=pick("Accessories",dl,wt,{style});if(a&&dl>=3)slots.push(["Accessory",a]);
+  return slots;
+}
+function outfitCardHtml(o){
+  const slotsArr=[];
+  for(const c of CATS){
+    const v=o.items[c];if(!v)continue;
+    const ids=Array.isArray(v)?v:[v]; // accessories can be an array
+    for(const id of ids){const it=closet.find(x=>x.id===id);
+      slotsArr.push(it?`<div class="slot"><div class="role">${c}</div><div class="val">${esc(it.name)}</div><div class="muted" style="font-size:11px">${esc(it.color||"")}</div></div>`
+                      :`<div class="slot miss"><div class="role">${c}</div><div class="val">removed</div></div>`);}
+  }
+  const slots=slotsArr.join("");
+  return `<div class="ocard" draggable="true" data-id="${o.id}">
+    <div class="row"><span class="grip" title="Drag to move">⠿</span><span class="event-title">${esc(o.name)}</span>${o.suggested?'<span class="chip">suggested</span>':""}
+      <span class="right"><button class="iconbtn" title="Edit outfit" onclick="openOutfitModal('${o.id}')">✎</button> <button class="iconbtn del" title="Delete outfit" onclick="deleteOutfit('${o.id}')">🗑</button></span></div>
+    <div class="outfit">${slots||'<span class="muted small">empty — click Edit to add items</span>'}</div></div>`;
+}
+function renderPlan(t){
+  const el=planContent;
+  if(activeMode()==="estimate"){el.innerHTML=`<div class="card"><div class="empty">${esc(activeName())} is in <b>estimate mode</b> — no outfit board needed.<br>See the <b>Packing List</b> tab for a garment-count estimate based on the trip's days, dressiness and weather.</div></div>`;return;}
+  if(!closet.length){el.innerHTML='<div class="card"><div class="empty">Add some clothes to your Closet first, then you can build and arrange outfits here.</div></div>';return;}
+  migrateOutfitDates(t);
+  const ps=PS(t);
+  const outfits=ps.customOutfits||[];
+  let html="";
+  // unassigned / ideas dropzone
+  const un=outfits.filter(o=>!o.date);
+  html+=`<div class="card"><div class="row"><h2 style="margin:0">🎨 Your outfits</h2><button class="btn right" onclick="openOutfitModal()">+ Build outfit</button></div>
+    <div class="scale-help" style="margin:6px 0 10px">Build looks and drag them onto a day. Drop more than one on a day for multiple looks, and drag between days to rearrange.</div>
+    <div class="dropzone" data-date="">${un.map(outfitCardHtml).join("")||'<div class="dz-empty">Ideas / unplaced looks live here — drag any outfit up here to unassign it</div>'}</div></div>`;
+  // per-day board
+  const dates=tripDateList(t);
+  if(!dates.length){el.innerHTML=html+'<div class="card"><div class="empty">Add trip dates (Edit trip & events) to lay out your days.</div></div>';attachDrag(t);return;}
+  let daysHtml="";
+  for(const d of dates){
+    const w=effWeather(t,d);
+    const dlabel=new Date(d+"T00:00").toLocaleDateString(undefined,{weekday:"long",month:"short",day:"numeric"});
+    const dayEvents=t.events.filter(e=>(e.date||"")===d);
+    const dayOutfits=outfits.filter(o=>o.date===d);
+    const dayDone=ps.dayDone&&ps.dayDone[d];
+    daysHtml+=`<div class="card daycard${dayDone?" done":""}"><div class="day-head"><span class="day-date">${dlabel}</span>${weatherPill(w)}<button class="daydone right" onclick="toggleDayDone('${d}')" title="Mark this day done planning (visual only)">${dayDone?"✓ Planned":"Mark planned"}</button></div>`;
+    if(dayEvents.length)daysHtml+=`<div class="muted small" style="margin-bottom:8px">${dayEvents.map(e=>esc(e.name||EVENT_TYPES[e.type])+" · "+DRESS[e.dress-1]).join("  •  ")}</div>`;
+    daysHtml+=`<div class="dropzone dayzone" data-date="${d}">${dayOutfits.map(outfitCardHtml).join("")||'<div class="dz-empty">No looks yet — add or suggest one, or drag a look here</div>'}</div>`;
+    daysHtml+=`<div class="row" style="margin-top:8px"><button class="btn-ghost btn-sm" onclick="addLookForDay('${d}')">+ Add a look</button><button class="btn-ghost btn-sm" onclick="suggestLookForDay('${d}')">✨ Suggest a look</button>${dayOutfits.length>1?`<span class="muted small right">${dayOutfits.length} looks</span>`:""}</div></div>`;
+  }
+  html+=`<div class="day-grid">${daysHtml}</div>`;
+  el.innerHTML=html;
+  attachDrag(t);
+}
+
+/* ================= PACKING OPTIMIZER ================= */
+function itemCovers(item,ev,w){
+  if(item.cat===AGNOSTIC_CAT)return true; // accessories go with anything
+  const wt=warmthTarget(w);
+  const dressOk=item.dress>=ev.dress&&item.dress-ev.dress<=2;
+  const warmthMatters=(item.cat==="Bottoms"||item.cat==="Outerwear");
+  const warmOk=!warmthMatters||Math.abs(item.warmth-wt)<=2;
+  return dressOk&&warmOk;
+}
+function greedyCover(cat,needs){
+  const items=closet.filter(c=>c.cat===cat);
+  let pool=needs.map((n,i)=>i);const chosen=[];let g=0;
+  while(pool.length&&g++<50){
+    let best=null,bc=[];
+    for(const it of items){const cov=pool.filter(i=>itemCovers(it,needs[i].ev,needs[i].w));if(cov.length>bc.length){bc=cov;best=it;}}
+    if(!best||!bc.length)break;
+    chosen.push(best);pool=pool.filter(i=>!bc.includes(i));
+  }
+  return {chosen,uncovered:pool.map(i=>needs[i])};
+}
+// scale up rotational items (tops/pants) for longer trips, picking most versatile extras
+function topUp(res,cat,needs,target){
+  const items=closet.filter(c=>c.cat===cat);
+  const have=new Set(res.chosen);
+  const extras=items.filter(it=>!have.has(it))
+    .map(it=>({it,score:needs.filter(n=>itemCovers(it,n.ev,n.w)).length||1}))
+    .sort((a,b)=>b.score-a.score);
+  let i=0;
+  while(res.chosen.length<target&&i<extras.length){res.chosen.push(extras[i].it);i++;}
+}
+function activeMode(){const p=profiles.find(x=>x.id===activeProfile);return (p&&p.mode)||"closet";}
+function setProfileMode(m){const p=profiles.find(x=>x.id===activeProfile);if(!p)return;p.mode=m;persist();renderCloset();if(currentTripId&&!document.getElementById("tripDetailView").classList.contains("hide"))renderTripDetail();}
+// Estimate-mode packing: garment-type counts from days, dressiness & weather (no closet)
+function computeEstimate(t){
+  const dates=tripDateList(t);const days=Math.max(dates.length,tripDays(t));
+  let tee=0,longSleeve=0,dressShirt=0,chinos=0,jeans=0,shorts=0,coldDays=0,warmTrip=false,heavyCold=false,rain=false,maxDress=1;
+  dates.forEach(d=>{
+    const w=effWeather(t,d),tmax=w?w.tmax:65;
+    const evs=t.events.filter(e=>(e.date||"")===d);
+    const dress=evs.length?Math.max(...evs.map(e=>e.dress)):1;
+    maxDress=Math.max(maxDress,dress);
+    const warm=tmax>=78,cold=tmax<=55;
+    if(warm)warmTrip=true;
+    if(cold)coldDays++;
+    if(tmax<=40)heavyCold=true;
+    if(w&&w.pp>=50)rain=true;
+    if(dress>=3){ // business day -> shirt + pants
+      dressShirt++; chinos++;
+    }else{ // casual day -> tee / short-sleeve, cold swaps to long sleeve
+      if(cold)longSleeve++; else tee++;
+      if(cold||!warm)jeans++; else shorts++; // shorts only when warm
+    }
+  });
+  const rows=[],add=(label,qty,note)=>{if(qty>0)rows.push({label,qty,note});};
+  // tops
+  add("T-shirts / short-sleeve",tee,"casual days");
+  add("Long-sleeve shirts",longSleeve,"cool casual days");
+  add("Dress shirts",dressShirt,"business days");
+  // bottoms (re-worn every ~2 days)
+  add("Pants / chinos",chinos?Math.max(1,Math.ceil(chinos/2)):0,"business days");
+  add("Jeans / casual pants",jeans?Math.max(1,Math.ceil(jeans/2)):0,"cooler casual days");
+  add("Shorts",shorts?Math.max(1,Math.ceil(shorts/2)):0,"warm days (80°F+)");
+  // warm layers for cold
+  add("Sweater / fleece",coldDays?Math.max(1,Math.ceil(coldDays/2)):0,"cold days");
+  add(heavyCold?"Warm coat":"Light jacket",coldDays?1:0,rain?"cold / rainy days":"cold days");
+  add("Thermal base layer",heavyCold?1:0,"below ~40°F");
+  add("Blazer / sport coat",maxDress>=4?1:0,"dressy events");
+  // basics (his rules)
+  add("Underwear",days+1,"1 per day + 1 spare");
+  add("Socks",days+1,"1 per day + 1 spare");
+  add("Athletic outfit",Math.ceil(days/7),"1 per week");
+  if(warmTrip)add("Swimwear",Math.ceil(days/7),"warm-weather trip");
+  return rows;
+}
+function renderPack(t){
+  const el=packContent;
+  const days=tripDays(t);
+  const ps=PS(t);
+  const mode=activeMode();
+  // ----- ESSENTIALS (always shown, even with no clothes/events) -----
+  let essHtml=`<div class="card"><div class="row"><h2 style="margin:0">✅ Always-pack essentials</h2><button class="btn-ghost btn-sm right" onclick="goEssentials()">Edit lists</button></div>`;
+  const essTotal=essCats.reduce((n,c)=>n+(essentials[c]||[]).length,0);
+  if(!essTotal){essHtml+='<div class="muted small" style="margin-top:8px">No essentials set. Open the Essentials tab to add them.</div>';}
+  else{
+    essCats.forEach((cat,ci)=>{
+      const items=essentials[cat]||[];if(!items.length)return;
+      essHtml+=`<h3 style="margin:12px 0 4px">${essIcon(cat)} ${esc(cat)}</h3>`;
+      essHtml+=items.map((it,i)=>{
+        const key=cat+"::"+it,checked=ps.essChecked[key]?"checked":"",idd=`e_${ci}_${i}`;
+        return `<div class="ess-item ${checked?"done":""}"><input type="checkbox" id="${idd}" ${checked} onchange="toggleEss('${attrJs(key)}',this.checked)"><label for="${idd}">${esc(it)}</label></div>`;
+      }).join("");
+    });
+  }
+  essHtml+=`</div>`;
+  let essDone=0;essCats.forEach(cat=>{(essentials[cat]||[]).forEach(it=>{if(ps.essChecked[cat+"::"+it])essDone++;});});
+
+  // ===== ESTIMATE MODE (no closet — garment counts from days/dressiness/weather) =====
+  if(mode==="estimate"){
+    const estRows=computeEstimate(t);
+    const estVisible=estRows.filter(r=>!ps.packExcluded["est:"+r.label]);
+    let estHtml=`<div class="card"><h2 style="margin:0 0 4px">👖 Packing estimate for ${esc(activeName())} · ${days} day${days!==1?"s":""}</h2>
+      <div class="scale-help" style="margin-bottom:8px">Garment counts estimated from each day's dressiness and weather — no closet needed. Tick items as you pack, or ✕ to drop one.</div>`;
+    estHtml+=estVisible.map(r=>{
+      const key="est:"+r.label,checked=ps.packChecked[key]?"checked":"";
+      return `<label class="pack-item${checked?" done":""}"><input type="checkbox" ${checked} onchange="togglePack('${attrJs(key)}',this.checked)"> <b>${r.qty}×</b> ${esc(r.label)}<span class="badge">${esc(r.note)}</span><button class="iconbtn del" title="Remove" style="margin-left:8px" onclick="event.preventDefault();event.stopPropagation();excludePackItem('${attrJs(key)}')">✕</button></label>`;
+    }).join("");
+    const estExcluded=estRows.filter(r=>ps.packExcluded["est:"+r.label]);
+    if(estExcluded.length)estHtml+=`<div class="muted small" style="margin-top:8px">Excluded: `+estExcluded.map(r=>`${esc(r.label)} <a href="#" onclick="event.preventDefault();restorePackItem('${attrJs("est:"+r.label)}')">(add back)</a>`).join(", ")+`</div>`;
+    estHtml+=`</div>`;
+    let estDone=0;estVisible.forEach(r=>{if(ps.packChecked["est:"+r.label])estDone++;});
+    const total=essTotal+estVisible.length,done=essDone+estDone;
+    el.innerHTML=packProgressCard(done,total)+essHtml+estHtml;
+    return;
+  }
+
+  // ----- AUTO-CALCULATED quantities (full-closet mode) -----
+  const autoRows=computeAutoPack(t);
+  let autoHtml=`<div class="card"><h2 style="margin:0 0 4px">🧮 Auto-calculated for ${days} day${days!==1?"s":""}</h2>
+    <div class="scale-help" style="margin-bottom:8px">Quantities worked out from your trip length, the weekdays you're away, and the weather.</div>`;
+  autoHtml+=autoRows.map((r,i)=>{
+    const key="auto:"+r.label,checked=ps.autoChecked[key]?"checked":"";
+    return `<div class="ess-item ${checked?"done":""}"><input type="checkbox" id="au${i}" ${checked} onchange="toggleAuto('${key.replace(/'/g,"\\'")}',this.checked)">
+      <label for="au${i}"><b>${r.qty}×</b> ${esc(r.label)}</label><span class="badge">${esc(r.note)}</span></div>`;
+  }).join("");
+  autoHtml+=`</div>`;
+  essHtml+=autoHtml;
+
+  const autoTotal=autoRows.length;let autoDone=0;autoRows.forEach(r=>{if(ps.autoChecked["auto:"+r.label])autoDone++;});
+
+  if(!closet.length){el.innerHTML=packProgressCard(essDone+autoDone,essTotal+autoTotal)+essHtml+'<div class="card"><div class="empty">Add clothes to your Closet to generate the wardrobe packing list.</div></div>';return;}
+  if(!t.events.length){el.innerHTML=packProgressCard(essDone+autoDone,essTotal+autoTotal)+essHtml+'<div class="card"><div class="empty">Add events to the trip to generate the wardrobe packing list.</div></div>';return;}
+
+  // ALWAYS include everything from your saved outfits (any day, planned or not)
+  const usedByCat={};
+  (ps.customOutfits||[]).forEach(o=>{
+    Object.entries(o.items||{}).forEach(([cat,v])=>{
+      (Array.isArray(v)?v:[v]).forEach(id=>{(usedByCat[cat]=usedByCat[cat]||new Set()).add(id);});
+    });
+  });
+  // the optimizer only fills days you HAVEN'T dressed with an outfit yet
+  const dressedDates=new Set((ps.customOutfits||[]).filter(o=>o.date).map(o=>o.date));
+  const undressed=t.events.filter(e=>!dressedDates.has(e.date||""));
+  const undays=tripDateList(t).filter(d=>!dressedDates.has(d)).length;
+  const needs=undressed.map(e=>({ev:e,w:effWeather(t,e.date)}));
+  const anyDressy=needs.length?Math.max(...needs.map(n=>n.ev.dress)):0;
+  const anyCold=needs.some(n=>warmthTarget(n.w)>=4);
+  const anyRain=needs.some(n=>n.w&&n.w.pp>=45);
+
+  const tops=greedyCover("Tops",needs);
+  const pants=greedyCover("Bottoms",needs);
+  const dresses=greedyCover("Dresses",needs.filter(n=>n.ev.dress>=3));
+  const shoes=greedyCover("Shoes",needs);
+  const outer=(anyCold||anyRain)?greedyCover("Outerwear",needs.filter(n=>warmthTarget(n.w)>=4||(n.w&&n.w.pp>=45))):{chosen:[],uncovered:[]};
+  const acc=anyDressy>=3?greedyCover("Accessories",needs.filter(n=>n.ev.dress>=3)):{chosen:[],uncovered:[]};
+
+  // trip-length scaling only for the undressed days the optimizer is covering
+  if(undays>0){topUp(tops,"Tops",needs,Math.ceil(undays*0.7));topUp(pants,"Bottoms",needs,Math.ceil(undays/2)+1);}
+
+  // fold every outfit item into its category (guaranteed present)
+  const mergeUsed=(cat,res)=>{const u=usedByCat[cat];if(!u)return;const have=new Set(res.chosen.map(i=>i.id));u.forEach(id=>{if(!have.has(id)){const it=closet.find(c=>c.id===id);if(it)res.chosen.push(it);}});};
+  mergeUsed("Tops",tops);mergeUsed("Bottoms",pants);mergeUsed("Dresses",dresses);mergeUsed("Shoes",shoes);mergeUsed("Outerwear",outer);mergeUsed("Accessories",acc);
+
+  const allChosen=[...tops.chosen,...pants.chosen,...dresses.chosen,...shoes.chosen,...outer.chosen,...acc.chosen];
+  const includedChosen=allChosen.filter(it=>!ps.packExcluded[it.id]);
+  const outfitCount=Object.values(usedByCat).reduce((n,s)=>n+s.size,0);
+
+  let html=essHtml+`<div class="card">
+    <h2>👗 Wardrobe packing list</h2>
+    <div class="row" style="margin-bottom:6px">
+      <span class="stat"><span class="n">${days}</span><span class="l">days</span></span>
+      <span class="stat"><span class="n">${includedChosen.length}</span><span class="l">clothing items</span></span>
+      <span class="stat"><span class="n">${outfitCount}</span><span class="l">from your outfits</span></span>
+      <span class="stat"><span class="n">${undays}</span><span class="l">days to still dress</span></span>
+    </div>
+    <div class="muted small">Every piece from the outfits you built is included. The optimizer only <b>suggests</b> extra pieces for the ${undays} day${undays!==1?"s":""} you haven't dressed yet — tick or ✕ those as you like.</div>
+  </div>`;
+
+  const renderSec=(title,res)=>{
+    const vis=res.chosen.filter(it=>!ps.packExcluded[it.id]); // hide items excluded from this trip
+    if(!vis.length&&!res.uncovered.length)return"";
+    let s=`<div class="card pack-cat"><h3 style="margin-top:0">${title}</h3>`;
+    if(vis.length){
+      vis.forEach(it=>{
+        const inOutfit=usedByCat[it.cat]&&usedByCat[it.cat].has(it.id);
+        const uses=needs.filter(n=>itemCovers(it,n.ev,n.w)).length;
+        const badge=inOutfit?"in your outfits":(uses?`suggested · covers ${uses} day${uses!==1?"s":""}`:"suggested");
+        const checked=ps.packChecked[it.id]?"checked":"";
+        s+=`<label class="pack-item${checked?" done":""}"><input type="checkbox" ${checked} onchange="togglePack('${it.id}',this.checked)"> ${ICONS[it.cat]||"•"} <b>${esc(it.name)}</b> <span class="muted">${esc(it.color||"")}</span><span class="badge">${badge}</span><button class="iconbtn del" title="Exclude from this trip" style="margin-left:8px" onclick="event.preventDefault();event.stopPropagation();excludePackItem('${it.id}')">✕</button></label>`;
+      });
+    }else s+='<div class="muted small">— none needed —</div>';
+    if(res.uncovered.length)s+=`<div class="pack-item" style="color:#b4543f">⚠ Gap: no ${title.toLowerCase()} for ${res.uncovered.map(n=>esc(n.ev.name||"an event")).join(", ")}. Consider adding one.</div>`;
+    s+=`</div>`;return s;
+  };
+  html+=renderSec("Tops",tops);
+  html+=renderSec("Bottoms",pants);
+  if(dresses.chosen.length||dresses.uncovered.length)html+=renderSec("Dresses",dresses);
+  html+=renderSec("Shoes",shoes);
+  if(outer.chosen.length||outer.uncovered.length)html+=renderSec("Outerwear",outer);
+  if(acc.chosen.length||acc.uncovered.length)html+=renderSec("Accessories",acc);
+  // any other categories you used in outfits (e.g. Swimwear) that aren't in the standard list
+  const shownCats=new Set(["Tops","Bottoms","Dresses","Shoes","Outerwear","Accessories"]);
+  const extraItems=[];
+  Object.keys(usedByCat).forEach(cat=>{
+    if(shownCats.has(cat))return;
+    const items=[...usedByCat[cat]].map(id=>closet.find(c=>c.id===id)).filter(Boolean);
+    if(items.length){extraItems.push(...items);html+=renderSec(cat,{chosen:items,uncovered:[]});}
+  });
+  // excluded items — listed at the bottom so you can add them back
+  const allItems=[...new Set([...allChosen,...extraItems])];
+  const excludedList=allItems.filter(it=>ps.packExcluded[it.id]);
+  if(excludedList.length){
+    html+=`<div class="card"><div class="row"><h3 style="margin:0">🚫 Excluded from this trip</h3><span class="muted small right">${excludedList.length}</span></div>`+
+      excludedList.map(it=>`<div class="pack-item">${ICONS[it.cat]||"•"} <span class="muted"><s>${esc(it.name)}</s> ${esc(it.color||"")}</span><button class="iconbtn right" title="Add back to list" onclick="restorePackItem('${it.id}')">↩ add back</button></div>`).join("")+`</div>`;
+  }
+  // full progress: essentials + auto-calc + included wardrobe items
+  const packIds=[...new Set([...allChosen,...extraItems].map(i=>i.id))].filter(id=>!ps.packExcluded[id]);
+  let packDone=0;packIds.forEach(id=>{if(ps.packChecked[id])packDone++;});
+  const total=essTotal+autoTotal+packIds.length,done=essDone+autoDone+packDone;
+  el.innerHTML=packProgressCard(done,total)+html;
+}
+function excludePackItem(id){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;const ps=PS(t);
+  ps.packExcluded[id]=true;delete ps.packChecked[id]; // drop from list & clear its check
+  persist();renderPack(t);
+}
+function restorePackItem(id){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;const ps=PS(t);
+  delete ps.packExcluded[id];
+  persist();renderPack(t);
+}
+function packProgressCard(done,total){
+  const pct=total?Math.round(done/total*100):0,complete=total&&done===total;
+  return `<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">🧳 Packing progress</h2><span class="right" style="font-weight:700;color:${complete?"var(--good)":"var(--accent)"}">${done} / ${total} · ${pct}%</span></div>
+    <div class="progress"><div class="progress-fill" style="width:${pct}%;background:${complete?"var(--good)":"var(--accent)"}"></div></div>
+    ${complete?'<div class="small" style="color:var(--good);margin-top:8px;font-weight:600">All packed — you’re ready! ✈️</div>':''}</div>`;
+}
+function toggleEss(name,checked){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;const ps=PS(t);
+  if(checked)ps.essChecked[name]=true;else delete ps.essChecked[name];
+  persist();renderPack(t);
+}
+function toggleAuto(key,checked){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;const ps=PS(t);
+  if(checked)ps.autoChecked[key]=true;else delete ps.autoChecked[key];
+  persist();renderPack(t);
+}
+function togglePack(id,checked){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;const ps=PS(t);
+  if(checked)ps.packChecked[id]=true;else delete ps.packChecked[id];
+  persist();renderPack(t);
+}
+function toggleDayDone(date){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;const ps=PS(t);
+  if(ps.dayDone[date])delete ps.dayDone[date];else ps.dayDone[date]=true;
+  persist();renderPlan(t);renderPack(t); // board turns green + packing list updates
+}
+
+/* ================= CUSTOM OUTFIT BUILDER ================= */
+// convert legacy event-index assignment (o.ev) to date-based (o.date)
+function migrateOutfitDates(t){
+  let ch=false;const ps=PS(t);
+  (ps.customOutfits||[]).forEach(o=>{
+    if(o.date===undefined){o.date=(o.ev!=null&&t.events[o.ev])?(t.events[o.ev].date||""):"";ch=true;}
+    if("ev" in o){delete o.ev;ch=true;}
+  });
+  if(ch)persist();
+}
+function tripDateList(t){
+  const set=new Set();
+  if(t.start){let d=new Date(t.start+"T00:00"),end=new Date((t.end||t.start)+"T00:00"),g=0;while(d<=end&&g++<400){set.add(dkey(d));d.setDate(d.getDate()+1);}}
+  t.events.forEach(e=>{if(e.date)set.add(e.date);});
+  (PS(t).customOutfits||[]).forEach(o=>{if(o.date)set.add(o.date);});
+  return [...set].sort();
+}
+/* ---- drag & drop ---- */
+let dragId=null;
+function attachDrag(t){
+  planContent.querySelectorAll(".ocard").forEach(card=>{
+    card.addEventListener("dragstart",()=>{dragId=card.dataset.id;card.classList.add("dragging");});
+    card.addEventListener("dragend",()=>{card.classList.remove("dragging");planContent.querySelectorAll(".dropzone.over").forEach(z=>z.classList.remove("over"));dragId=null;});
+  });
+  planContent.querySelectorAll(".dropzone").forEach(zone=>{
+    zone.addEventListener("dragover",e=>{
+      e.preventDefault();
+      const dragging=planContent.querySelector(".dragging");if(!dragging)return;
+      zone.classList.add("over");
+      const ph=zone.querySelector(".dz-empty");if(ph)ph.remove();
+      const after=dragAfter(zone,e.clientX,e.clientY);
+      if(after==null)zone.appendChild(dragging);else zone.insertBefore(dragging,after);
+    });
+    zone.addEventListener("dragleave",e=>{if(!zone.contains(e.relatedTarget))zone.classList.remove("over");});
+    zone.addEventListener("drop",e=>{e.preventDefault();if(dragId)commitDrag(t);});
+  });
+}
+// 2D nearest-slot for a grid: returns the card to insert BEFORE (or null to append)
+function dragAfter(zone,x,y){
+  const els=[...zone.querySelectorAll(".ocard:not(.dragging)")];
+  let closest=null,cd=Infinity;
+  for(const el of els){
+    const b=el.getBoundingClientRect(),cx=b.left+b.width/2,cy=b.top+b.height/2;
+    const before=(y<cy-b.height/2)||(Math.abs(y-cy)<=b.height/2&&x<cx); // pointer sits before this card in reading order
+    if(!before)continue;
+    const dist=Math.hypot(x-cx,y-cy);
+    if(dist<cd){cd=dist;closest=el;}
+  }
+  return closest;
+}
+function commitDrag(t){
+  const ps=PS(t),order=[];
+  planContent.querySelectorAll(".dropzone").forEach(zone=>{
+    const date=zone.dataset.date;
+    zone.querySelectorAll(".ocard").forEach(card=>{const o=(ps.customOutfits||[]).find(x=>x.id===card.dataset.id);if(o){o.date=date;order.push(o);}});
+  });
+  ps.customOutfits=order;persist();renderPlan(t);
+}
+function addLookForDay(date){openOutfitModal(null,date);}
+function suggestLookForDay(date){
+  const t=trips.find(x=>x.id===currentTripId);const ps=PS(t);
+  const w=effWeather(t,date);
+  const ev=t.events.filter(e=>(e.date||"")===date).sort((a,b)=>b.dress-a.dress)[0]||{dress:2,type:0};
+  const items={};buildOutfit(ev,w).forEach(([role,it])=>{if(it)items[it.cat]=it.id;});
+  if(!Object.keys(items).length){toast("Add clothes to your closet first");return;}
+  ps.customOutfits.push({id:uid(),name:(ev.name?ev.name+" look":"Suggested look"),date,items,suggested:true});
+  persist();renderPlan(t);toast("Suggested look added — drag, edit or delete it");
+}
+function openOutfitModal(id,presetDate){
+  const t=trips.find(x=>x.id===currentTripId);const ps=PS(t);
+  outfitModalTitle.textContent=id?"Edit outfit":"Build an outfit";
+  outfitEvent.innerHTML='<option value="">Unassigned</option>'+tripDateList(t).map(d=>`<option value="${d}">${esc(wdayLabel(d))}</option>`).join("");
+  const ex=id?(ps.customOutfits||[]).find(o=>o.id===id):null;
+  outfitId.value=id||"";
+  outfitName.value=ex?ex.name:"";
+  outfitEvent.value=ex?(ex.date||""):(presetDate||"");
+  outfitSlots.innerHTML=CATS.map(cat=>{
+    const items=closet.filter(c=>c.cat===cat);
+    const dlId="dl_"+cat.replace(/\W/g,"");
+    const opts=items.map(it=>`<option value="${esc(it.name)}">`).join("");
+    if(cat===AGNOSTIC_CAT){ // accessories: allow multiple
+      const v=ex&&ex.items?ex.items[cat]:null;
+      const arr=Array.isArray(v)?v:(v?[v]:[]);
+      const names=arr.map(id=>{const it=closet.find(c=>c.id===id);return it?it.name:"";}).filter(Boolean);
+      const inputs=(names.length?names:[""]).map(nm=>accInput(nm)).join("");
+      return `<div style="margin-bottom:8px"><label>${ICONS[cat]} ${cat} <span class="muted" style="font-weight:400">· add as many as you like</span></label>
+        <datalist id="${dlId}">${opts}</datalist>
+        <div id="accList">${inputs}</div>
+        <button type="button" class="btn-ghost btn-sm" style="margin-top:2px" onclick="addAccInput()">+ Add accessory</button></div>`;
+    }
+    const selId=ex&&ex.items?ex.items[cat]:"";
+    const selItem=selId?closet.find(c=>c.id===selId):null;
+    return `<div style="margin-bottom:8px"><label>${ICONS[cat]} ${cat}</label>
+      <input class="ofIn" data-cat="${cat}" list="${dlId}" placeholder="Type a new item or pick one…" value="${selItem?esc(selItem.name):""}">
+      <datalist id="${dlId}">${opts}</datalist></div>`;
+  }).join("");
+  document.getElementById("outfitModal").showModal();
+}
+function accInput(nm){return `<input class="ofIn" data-cat="${AGNOSTIC_CAT}" list="dl_${AGNOSTIC_CAT}" placeholder="Type or pick an accessory…" value="${esc(nm)}" style="margin-bottom:6px">`;}
+function addAccInput(){document.getElementById("accList").insertAdjacentHTML("beforeend",accInput(""));}
+function saveOutfit(){
+  const t=trips.find(x=>x.id===currentTripId);const ps=PS(t);
+  const date=outfitEvent.value||"";
+  const evs=t.events.filter(e=>(e.date||"")===date);
+  const evDress=evs.length?Math.max(...evs.map(e=>e.dress)):2;
+  const items={};let created=0;const accIds=[];
+  outfitSlots.querySelectorAll(".ofIn").forEach(inp=>{
+    const cat=inp.dataset.cat,val=inp.value.trim();if(!val)return;
+    let it=closet.find(c=>c.cat===cat&&c.name.toLowerCase()===val.toLowerCase());
+    if(!it){ // typed a new item -> save it back to the closet DB
+      const isAcc=cat===AGNOSTIC_CAT;
+      it={id:uid(),cat,name:val,color:"",dress:isAcc?1:evDress,warmth:3,rain:false,style:"Everyday",notes:"",img:""};
+      closet.push(it);created++;
+    }
+    if(cat===AGNOSTIC_CAT){if(!accIds.includes(it.id))accIds.push(it.id);} // accessories -> array
+    else items[cat]=it.id;
+  });
+  if(accIds.length)items[AGNOSTIC_CAT]=accIds;
+  if(!Object.keys(items).length){toast("Type or pick at least one item");return;}
+  const obj={id:outfitId.value||uid(),name:outfitName.value.trim()||"My outfit",date,items};
+  if(outfitId.value)ps.customOutfits=ps.customOutfits.map(o=>o.id===obj.id?obj:o);else ps.customOutfits.push(obj);
+  persist();renderCloset();document.getElementById("outfitModal").close();renderPlan(t);renderPack(t);
+  toast(created?`Outfit saved · ${created} new item${created!==1?"s":""} added to closet`:"Outfit saved");
+}
+function deleteOutfit(id){
+  const t=trips.find(x=>x.id===currentTripId);const ps=PS(t);
+  ps.customOutfits=(ps.customOutfits||[]).filter(o=>o.id!==id);persist();renderPlan(t);renderPack(t);
+}
+
+/* ---------- init ---------- */
+renderProfiles();renderCloset();renderTripList();renderEssMaster();
+</script>
+</body>
+</html>
