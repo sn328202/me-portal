@@ -5,7 +5,7 @@
             "destination": "/api/news?endpoint=$1"
         },
         {
-            "source": "/((?!assets/|api/).*)",
+            "source": "/((?!assets/|api/|outfit-planner.html).*)",
             "destination": "/index.html"
         }
     ],
