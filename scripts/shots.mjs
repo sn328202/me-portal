@@ -116,6 +116,16 @@ const DATA = {
         { id: 'pi3', user_id: USER, name: 'cabbage', category: 'Produce', in_stock: false, emoji: '🥬' },
     ],
     meal_plans: [{ id: 'mp1', user_id: USER, day_of_week: 'Monday', recipe_id: 'r1' }],
+    // Real San Francisco coordinates: a map with plausible geography exposes
+    // styling problems that three pins in a row would hide.
+    spots: [
+        { id: 'sp1', user_id: USER, name: 'Che Fico', category: 'restaurant', city: 'San Francisco', neighborhood: 'NoPa', lat: 37.7765, lng: -122.4390, rating: 4.4, price_level: 3, status: 'want to go', why: 'Ali said the radiatori', tags: [], maps_url: 'https://maps.google.com/', created_at: new Date().toISOString() },
+        { id: 'sp2', user_id: USER, name: 'Onsen', category: 'wellness', city: 'San Francisco', neighborhood: 'Tenderloin', lat: 37.7840, lng: -122.4150, rating: 4.4, status: 'been', tags: [], maps_url: 'https://maps.google.com/', created_at: new Date().toISOString() },
+        { id: 'sp3', user_id: USER, name: 'Dandelion Chocolate', category: 'cafe', city: 'San Francisco', neighborhood: 'Mission', lat: 37.7660, lng: -122.4130, rating: 4.7, status: 'want to go', tags: [], maps_url: 'https://maps.google.com/', created_at: new Date().toISOString() },
+        { id: 'sp4', user_id: USER, name: 'Heath Newsstand', category: 'shop', city: 'San Francisco', neighborhood: 'Mission', lat: 37.7620, lng: -122.4120, rating: 4.8, status: 'want to go', tags: [], maps_url: 'https://maps.google.com/', created_at: new Date().toISOString() },
+        { id: 'sp5', user_id: USER, name: 'Audio Nightclub', category: 'bar', city: 'San Francisco', neighborhood: 'SoMa', lat: 37.7710, lng: -122.4140, rating: 3.7, price_level: 2, status: 'want to go', tags: [], maps_url: 'https://maps.google.com/', created_at: new Date().toISOString() },
+    ],
+    plans: [],
     day_plans: [
         { id: 'dp1', user_id: USER, title: 'Zeyi + Qing Day Trip!', location: 'Napa Valley, CA', plan_date: day(5) },
         { id: 'dp2', user_id: USER, title: 'Stained Glass Workshop', location: 'San Francisco, CA', plan_date: null },

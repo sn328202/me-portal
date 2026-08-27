@@ -1,5 +1,7 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from '@react-google-maps/api';
+import { useTheme } from '../contexts/ThemeContext';
+import { buildMapStyle, currentPalette, pinColours } from '../utils/mapStyle';
 
 /**
  * Saved places on a map.
@@ -12,36 +14,11 @@ import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from '@react-google-m
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const libraries = ['places'];
 
-/* Google's default map is a bright road atlas that fights every theme in this
-   app. These styles mute it to something the portal's palette can sit on. */
-const MUTED = [
-    { elementType: 'geometry', stylers: [{ color: '#241c24' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#241c24' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#b6a08f' }] },
-    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#33262f' }] },
-    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#8d7276' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1a1220' }] },
-    { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#2a2130' }] },
-];
-
-const COLOURS = {
-    restaurant: '#dc8b95',
-    bar: '#b07c69',
-    cafe: '#d9a37c',
-    museum: '#9d8ec4',
-    park: '#7ba37b',
-    hike: '#7ba37b',
-    shop: '#d4a5c4',
-    venue: '#c4a05a',
-};
-
-const pin = (colour, done) => ({
+const pin = (colour, done, outline) => ({
     path: 'M 0,0 C -2,-8 -8,-10 -8,-16 a 8,8 0 1,1 16,0 c 0,6 -6,8 -8,16 z',
     fillColor: colour,
     fillOpacity: done ? 0.45 : 0.95,
-    strokeColor: '#201620',
+    strokeColor: outline,
     strokeWeight: 1.5,
     scale: 1.4,
     anchor: { x: 0, y: 0 },
@@ -53,8 +30,21 @@ const SpotsMap = ({ spots = [], height = '28rem', onSelect, focus = null }) => {
         googleMapsApiKey,
         libraries,
     });
+    const { themeId } = useTheme();
     const [open, setOpen] = useState(null);
     const [map, setMap] = useState(null);
+
+    // Recomputed when the theme changes: the variables are read off the live
+    // document, so this has to run after the new palette is applied.
+    const [style, setStyle] = useState(() => ({ styles: [], colours: {}, ground: '#201620' }));
+    useEffect(() => {
+        const palette = currentPalette();
+        setStyle({
+            styles: buildMapStyle(palette),
+            colours: pinColours(),
+            ground: palette.ground,
+        });
+    }, [themeId]);
 
     const located = useMemo(
         () => spots.filter((s) => s.lat != null && s.lng != null),
@@ -108,11 +98,11 @@ const SpotsMap = ({ spots = [], height = '28rem', onSelect, focus = null }) => {
                 mapContainerStyle={{ width: '100%', height: '100%' }}
                 onLoad={onLoad}
                 options={{
-                    styles: MUTED,
+                    styles: style.styles,
                     disableDefaultUI: true,
                     zoomControl: true,
                     gestureHandling: 'greedy',
-                    backgroundColor: '#201620',
+                    backgroundColor: style.ground,
                 }}
             >
                 {located.map((spot) => (
@@ -120,7 +110,11 @@ const SpotsMap = ({ spots = [], height = '28rem', onSelect, focus = null }) => {
                         key={spot.id}
                         position={{ lat: spot.lat, lng: spot.lng }}
                         title={spot.name}
-                        icon={pin(COLOURS[spot.category] || '#d9a37c', spot.status === 'been')}
+                        icon={pin(
+                            style.colours[spot.category] || style.colours.cafe,
+                            spot.status === 'been',
+                            style.ground
+                        )}
                         onClick={() => setOpen(spot)}
                     />
                 ))}
