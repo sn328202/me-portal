@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { geocodeArea } from './_place.js';
 
 /**
  * POST /api/weather   { tripId }
@@ -180,40 +181,92 @@ export default async function handler(req, res) {
 
     if (!days?.length) return res.status(200).json({ filled: 0, reason: 'no days yet' });
 
-    // A day can name its own city; otherwise the trip's coordinates stand in.
-    const home = trip.coordinates && Number.isFinite(Number(trip.coordinates.lat))
+    /* ---------- where to look ------------------------------------------
+       A day can name its own city, and on a trip that moves it usually does -
+       the sheet had a "Primary City" row for exactly this reason, and Goa in
+       December is not Kerala in December. So each distinct city is located
+       once and its own weather fetched.
+
+       The trip's own coordinates are the fallback. If it has none - which was
+       true of every trip here - the destination is geocoded and written back,
+       so this only ever happens once. Returning "no coordinates" and stopping
+       would have been correct and useless.                                  */
+
+    const cities = [...new Set(days.map((d) => (d.city || '').trim()).filter(Boolean))];
+    const located = {};
+
+    for (const city of cities) {
+        const area = await geocodeArea(city).catch(() => null);
+        if (area) located[city] = { lat: area.lat, lng: area.lng };
+    }
+
+    let home = trip.coordinates && Number.isFinite(Number(trip.coordinates.lat))
         ? { lat: Number(trip.coordinates.lat), lng: Number(trip.coordinates.lng) }
         : null;
-    if (!home) {
+
+    if (!home && trip.destination) {
+        const area = await geocodeArea(trip.destination).catch(() => null);
+        if (area) {
+            home = { lat: area.lat, lng: area.lng };
+            // Remembered, so the next run does not pay for this again.
+            await sb.from('atlas_trips')
+                .update({ coordinates: home }).eq('id', tripId).eq('user_id', userId);
+        }
+    }
+
+    if (!home && !Object.keys(located).length) {
         return res.status(200).json({
             filled: 0,
-            reason: 'this trip has no coordinates yet, so there is nowhere to look up',
+            reason: `could not find "${trip.destination || 'this trip'}" on a map - `
+                + 'name a city on a day, or check the destination spelling',
         });
     }
+
+    /** Where a given day is, as precisely as we know. */
+    const placeOf = (day) => located[(day.city || '').trim()] || home;
 
     const today = iso(new Date());
     const near = days.filter((d) => d.date >= today
         && (new Date(`${d.date}T12:00:00Z`) - new Date(`${today}T12:00:00Z`)) / 86400000 <= 15);
     const far = days.filter((d) => !near.includes(d));
 
-    let forecast = {};
-    let normals = {};
     const problems = [];
+    // Keyed by "lat,lng" so two days in the same city cost one request.
+    const byPlace = new Map();
 
-    try {
-        if (near.length) forecast = await forecastFor(home);
-    } catch (err) {
-        problems.push(`forecast: ${err.message}`);
+    const key = (p) => `${p.lat.toFixed(3)},${p.lng.toFixed(3)}`;
+
+    for (const group of [near, far]) {
+        for (const day of group) {
+            const place = placeOf(day);
+            if (!place) continue;
+            const k = key(place);
+            if (!byPlace.has(k)) byPlace.set(k, { place, near: [], far: [] });
+            byPlace.get(k)[group === near ? 'near' : 'far'].push(day.date);
+        }
     }
-    try {
-        if (far.length) normals = await normalsFor(home, far.map((d) => d.date));
-    } catch (err) {
-        problems.push(`averages: ${err.message}`);
+
+    const weatherFor = {};
+    for (const { place, near: nearDates, far: farDates } of byPlace.values()) {
+        if (nearDates.length) {
+            try {
+                Object.assign(weatherFor, await forecastFor(place));
+            } catch (err) {
+                problems.push(`forecast: ${err.message}`);
+            }
+        }
+        if (farDates.length) {
+            try {
+                Object.assign(weatherFor, await normalsFor(place, farDates));
+            } catch (err) {
+                problems.push(`averages: ${err.message}`);
+            }
+        }
     }
 
     let filled = 0;
     for (const day of days) {
-        const weather = forecast[day.date] || normals[day.date];
+        const weather = weatherFor[day.date];
         if (!weather) continue;
         const { error } = await sb.from('atlas_days')
             .update({ weather, weather_at: new Date().toISOString() })
