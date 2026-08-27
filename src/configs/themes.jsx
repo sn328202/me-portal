@@ -82,6 +82,74 @@ export const THEMES = {
             status: <GiControlTower />
         }
     },
+    'studio-dark': {
+        name: 'Studio Dark',
+        id: 'studio-dark',
+        fontImports: [],
+        cssVars: {
+            /* Studio after dark: the same clean, warm-neutral system inverted
+               onto a warm espresso ground. Not pure black — a lifted charcoal
+               with the same soft brown accent, so it reads as the night version
+               of the same room. */
+            '--bg-main': '#1a1816',
+            '--bg-panel': '#242120',
+            '--bg-hover': '#302b28',
+            '--bg-main-rgb': '26, 24, 22',
+            '--text-main': '#ece7e1',
+            '--text-muted': '#a89f95',
+            '--text-dim': '#8d857b',
+            '--text-gold': '#c79878',
+            '--text-highlight': '#dcb08c',
+            '--accent-crimson': '#cf7f6b',
+            '--accent-red': '#cf7f6b',
+            '--accent-green': '#8faa87',
+            '--accent-gold': '#c79878',
+            '--accent-gold-dim': 'rgba(199, 152, 120, 0.16)',
+            '--border-gold': '#4a423b',
+            '--border-bright': '#c79878',
+            '--border-dim': '#383431',
+            '--active-border': '#c79878',
+            '--fill-strong': '#9b6a4f',
+            '--fill-quiet': '#4a5a48',
+            '--font-display': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            '--font-body': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            '--font-mono': "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            '--font-serif': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            '--radius-lg': '14px',
+            '--glass-panel': 'rgba(36, 33, 32, 0.9)',
+            '--glow-gold': '0 1px 3px rgba(0, 0, 0, 0.4)',
+            '--bg-texture': 'none'
+        },
+        labels: {
+            provisions: 'Groceries',
+            larderEmpty: 'The larder is empty.',
+            fromTheHearth: 'From the Kitchen',
+            greetingDefault: 'Neha',
+            goals: 'Goals',
+            habits: 'Habits',
+            hobbies: 'Hobbies',
+            library: 'Library',
+            todos: 'To-dos',
+            chores: 'Chores',
+            social: 'People',
+            status: 'Status',
+            statusConfig: 'Configure',
+            statusEstablish: 'Connect',
+            nowConsuming: 'Now Reading'
+        },
+        icons: {
+            provisions: <GiBasket />,
+            goals: <GiScrollUnfurled />,
+            habits: <GiSprout />,
+            hobbies: <GiButterfly />,
+            games: <GiGamepad />,
+            library: <GiScrollUnfurled />,
+            todos: <GiQuill />,
+            chores: <GiHand />,
+            social: <GiCoffeeCup />,
+            status: <GiControlTower />
+        }
+    },
     'dark-academia': {
         name: 'Dark Academia',
         id: 'dark-academia',
@@ -618,6 +686,33 @@ export const THEME_CHARACTER = {
         '--ease': 'cubic-bezier(0.2, 0, 0.2, 1)',
         '--density': '1.05',
         '--field-bg': 'rgba(35, 32, 28, 0.03)'
+    },
+
+    // Studio Dark: same clean bones as Studio, but shadows go deeper for a
+    // dark ground and the input fill inverts to a faint light wash.
+    'studio-dark': {
+        ...characterBase,
+        '--fill-strong': '#9b6a4f',
+        '--fill-quiet': '#4a5a48',
+        '--rule': '1px solid var(--border-dim)',
+        '--rule-hair': '1px solid var(--border-dim)',
+        '--rule-accent': '1px solid var(--border-gold)',
+        '--radius-sm': '8px',
+        '--radius-md': '10px',
+        '--radius-lg': '14px',
+        '--tracking-heading': '0.01em',
+        '--tracking-label': '0.04em',
+        '--case-heading': 'none',
+        '--ornament-opacity': '0',
+        '--ornament-opacity-hover': '0',
+        '--shadow-sm': '0 1px 3px rgba(0, 0, 0, 0.4)',
+        '--shadow-md': '0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.35)',
+        '--shadow-lift': '0 12px 28px rgba(0, 0, 0, 0.45)',
+        '--dur-base': '200ms',
+        '--dur-slow': '320ms',
+        '--ease': 'cubic-bezier(0.2, 0, 0.2, 1)',
+        '--density': '1.05',
+        '--field-bg': 'rgba(255, 255, 255, 0.04)'
     },
 
     // Victorian: double rules, corner brackets, wide caps.
