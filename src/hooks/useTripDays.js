@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { tripCost } from '../utils/tripCosts';
+import { tripCost, lodgingByNight, stayOn } from '../utils/tripCosts';
+import { datesBetween } from '../utils/tripDates';
 
 /**
  * A trip's days, the things planned in them, and what it all costs.
@@ -12,37 +13,20 @@ import { tripCost } from '../utils/tripCosts';
  * sixteen columns.
  */
 
-const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-/** Every date from start to end inclusive, as 'YYYY-MM-DD'. */
-export const datesBetween = (start, end) => {
-    if (!start) return [];
-    const from = new Date(`${String(start).slice(0, 10)}T12:00:00`);
-    const to = new Date(`${String(end || start).slice(0, 10)}T12:00:00`);
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return [];
-
-    const out = [];
-    const cursor = new Date(from);
-    // A guard rather than a while(true): a mistyped end date of 2099 should
-    // not try to render thirty thousand day cards.
-    while (cursor <= to && out.length < 120) {
-        out.push(isoDate(cursor));
-        cursor.setDate(cursor.getDate() + 1);
-    }
-    return out;
-};
+export { datesBetween } from '../utils/tripDates';
 
 export const useTripDays = (trip) => {
     const { user } = useAuth();
     const [days, setDays] = useState([]);
     const [items, setItems] = useState({});
+    const [stays, setStays] = useState([]);
     const [loading, setLoading] = useState(false);
     const [weatherState, setWeatherState] = useState({ busy: false, message: null });
 
     const tripId = trip?.id ?? null;
 
     const load = useCallback(async () => {
-        if (!user || !tripId) { setDays([]); setItems({}); return; }
+        if (!user || !tripId) { setDays([]); setItems({}); setStays([]); return; }
         setLoading(true);
         try {
             const { data: dayRows, error } = await supabase
@@ -65,6 +49,11 @@ export const useTripDays = (trip) => {
                 (grouped[row.day_id] ||= []).push(row);
             }
             setItems(grouped);
+
+            const { data: stayRows } = await supabase
+                .from('atlas_stays').select('*')
+                .eq('trip_id', tripId).eq('user_id', user.id).order('check_in');
+            setStays(stayRows || []);
         } catch (err) {
             console.error('Error loading trip days:', err);
         } finally {
@@ -75,25 +64,84 @@ export const useTripDays = (trip) => {
     useEffect(() => { load(); }, [load]);
 
     /**
-     * Make sure a row exists for every date the trip covers.
+     * Make sure the trip's days match its dates.
      *
-     * Idempotent, and only ever inserts: a day that has fallen outside the
-     * trip's dates (because the dates were edited) keeps its contents rather
-     * than being deleted out from under whatever was planned in it.
+     * The first version only ever inserted, on the reasoning that editing the
+     * dates should not delete a day with things planned in it. True, but the
+     * consequence was worse: every earlier or half-typed end date left its days
+     * behind for ever, with no way to remove them. A trip ending 6 January had
+     * thirty-six days running to the 27th.
+     *
+     * So: insert what is missing, and remove what has fallen outside the range
+     * *and is empty*. A day with anything in it is kept and flagged instead —
+     * it is evidence of a plan, and deleting it silently is the thing the first
+     * version was right to avoid.
      */
     const ensureDays = useCallback(async () => {
         if (!user || !trip?.start_date) return;
-        const wanted = datesBetween(trip.start_date, trip.end_date);
-        const have = new Set(days.map((d) => String(d.date).slice(0, 10)));
-        const missing = wanted.filter((d) => !have.has(d));
-        if (!missing.length) return;
 
-        const { error } = await supabase.from('atlas_days').insert(
-            missing.map((date) => ({ trip_id: trip.id, user_id: user.id, date }))
-        );
-        if (error) console.error('Error creating days:', error);
+        const wanted = datesBetween(trip.start_date, trip.end_date);
+        // A half-typed date yields no range; do nothing rather than build days
+        // for a date nobody meant.
+        if (!wanted.length) return;
+
+        const want = new Set(wanted);
+        const have = new Set(days.map((d) => String(d.date).slice(0, 10)));
+
+        const missing = wanted.filter((d) => !have.has(d));
+        const orphans = days.filter((d) => !want.has(String(d.date).slice(0, 10)));
+
+        const isEmpty = (d) => !d.city && !d.lodging && !d.notes
+            && !(items[d.id] || []).length
+            && ['lodging', 'food', 'excursions', 'transport', 'points']
+                .every((b) => !Number(d[`cost_${b}`]));
+
+        const disposable = orphans.filter(isEmpty).map((d) => d.id);
+
+        if (!missing.length && !disposable.length) return;
+
+        if (missing.length) {
+            const { error } = await supabase.from('atlas_days').insert(
+                missing.map((date) => ({ trip_id: trip.id, user_id: user.id, date }))
+            );
+            if (error) console.error('Error creating days:', error);
+        }
+        if (disposable.length) {
+            await supabase.from('atlas_days').delete()
+                .in('id', disposable).eq('user_id', user.id);
+        }
         await load();
-    }, [user, trip, days, load]);
+    }, [user, trip, days, items, load]);
+
+    /* ---------- lodging, which spans nights ----------------------------- */
+
+    const addStay = useCallback(async (stay) => {
+        if (!user || !tripId) return;
+        const { data, error } = await supabase.from('atlas_stays')
+            .insert([{ ...stay, trip_id: tripId, user_id: user.id }]).select().single();
+        if (error) { console.error('Error adding stay:', error); return; }
+        setStays((prev) => [...prev, data].sort((a, b) => a.check_in.localeCompare(b.check_in)));
+    }, [user, tripId]);
+
+    const updateStay = useCallback(async (id, patch) => {
+        if (!user) return;
+        const before = stays.find((s) => s.id === id);
+        setStays((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+        const { error } = await supabase
+            .from('atlas_stays').update(patch).eq('id', id).eq('user_id', user.id);
+        if (error) {
+            // The dates carry a check constraint (check_out must be after
+            // check_in), so a bad edit is refused rather than stored.
+            setStays((prev) => prev.map((s) => (s.id === id ? before : s)));
+            console.error('Error updating stay:', error);
+        }
+    }, [user, stays]);
+
+    const deleteStay = useCallback(async (id) => {
+        if (!user) return;
+        setStays((prev) => prev.filter((s) => s.id !== id));
+        await supabase.from('atlas_stays').delete().eq('id', id).eq('user_id', user.id);
+    }, [user]);
 
     const updateDay = useCallback(async (id, patch) => {
         if (!user) return;
@@ -171,12 +219,26 @@ export const useTripDays = (trip) => {
     }, [tripId, load]);
 
     const costs = useMemo(
-        () => tripCost(days, items, trip?.party_size || 1),
-        [days, items, trip?.party_size]
+        () => tripCost(days, items, trip?.party_size || 1, stays),
+        [days, items, trip?.party_size, stays]
+    );
+
+    /** Days that no longer fall inside the trip but still hold something. */
+    const strays = useMemo(() => {
+        const want = new Set(datesBetween(trip?.start_date, trip?.end_date));
+        if (!want.size) return [];
+        return days.filter((d) => !want.has(String(d.date).slice(0, 10)));
+    }, [days, trip?.start_date, trip?.end_date]);
+
+    const lodgingPerNight = useMemo(
+        () => lodgingByNight(stays, trip?.party_size || 1),
+        [stays, trip?.party_size]
     );
 
     return {
-        days, items, loading, costs,
+        days, items, stays, strays, loading, costs, lodgingPerNight,
+        stayOnDate: (date) => stayOn(stays, date),
+        addStay, updateStay, deleteStay,
         weatherBusy: weatherState.busy,
         weatherMessage: weatherState.message,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather, reload: load,

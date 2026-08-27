@@ -51,13 +51,60 @@ export const perPerson = (amount, shared, partySize) => {
 };
 
 /**
+ * The nights a stay covers, as 'YYYY-MM-DD' strings.
+ *
+ * Half-open, the way hotels count: 16th to 19th is three nights — the 16th,
+ * 17th and 18th. The 19th is a checkout morning, not a night, and charging it
+ * would silently inflate every trip by one night's lodging.
+ */
+export const nightsOf = (stay) => {
+    if (!stay?.check_in || !stay?.check_out) return [];
+    const from = new Date(`${String(stay.check_in).slice(0, 10)}T12:00:00`);
+    const to = new Date(`${String(stay.check_out).slice(0, 10)}T12:00:00`);
+    if (Number.isNaN(from) || Number.isNaN(to) || to <= from) return [];
+
+    const out = [];
+    const cursor = new Date(from);
+    while (cursor < to && out.length < 400) {
+        out.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`);
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+};
+
+/**
+ * What each stay costs per person per night, keyed by date.
+ *
+ * The booking is entered as the whole thing — that is what the confirmation
+ * email says — and spread evenly across its nights here.
+ */
+export const lodgingByNight = (stays = [], partySize = 1) => {
+    const byDate = {};
+    for (const stay of stays) {
+        const nights = nightsOf(stay);
+        if (!nights.length) continue;
+        const each = perPerson(stay.cost, stay.cost_shared !== false, partySize) / nights.length;
+        for (const night of nights) {
+            byDate[night] = (byDate[night] || 0) + each;
+        }
+    }
+    return byDate;
+};
+
+/** Which stay covers a given date, if any. */
+export const stayOn = (stays = [], date) => {
+    const key = String(date).slice(0, 10);
+    return stays.find((s) => nightsOf(s).includes(key)) || null;
+};
+
+/**
  * One day's costs, in cents, per person.
  *
  * Returns each bucket separately as well as the total, because "where did the
  * money go" is the question a total cannot answer — and it is the question you
  * ask when a day comes out higher than expected.
  */
-export const dayCost = (day, items = [], partySize = 1) => {
+export const dayCost = (day, items = [], partySize = 1, lodgingTonight = 0) => {
     const shared = Boolean(day?.costs_are_shared);
     const buckets = {};
 
@@ -74,6 +121,10 @@ export const dayCost = (day, items = [], partySize = 1) => {
         buckets[bucket] += perPerson(item.cost, item.cost_shared !== false, partySize);
     }
 
+    // A booking that spans nights lands on each of them, on top of anything
+    // entered directly against the day.
+    buckets.lodging += lodgingTonight;
+
     const total = BUCKETS.reduce((sum, b) => sum + buckets[b], 0);
     return { buckets, total };
 };
@@ -85,12 +136,14 @@ export const dayCost = (day, items = [], partySize = 1) => {
  * has them; they are sorted by date here so the running total actually runs
  * forwards.
  */
-export const tripCost = (days = [], itemsByDay = {}, partySize = 1) => {
+export const tripCost = (days = [], itemsByDay = {}, partySize = 1, stays = []) => {
     const ordered = [...days].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const lodging = lodgingByNight(stays, partySize);
 
     let running = 0;
     const perDay = ordered.map((day) => {
-        const { buckets, total } = dayCost(day, itemsByDay[day.id] || [], partySize);
+        const night = lodging[String(day.date).slice(0, 10)] || 0;
+        const { buckets, total } = dayCost(day, itemsByDay[day.id] || [], partySize, night);
         running += total;
         return {
             id: day.id,

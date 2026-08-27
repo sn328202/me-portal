@@ -5,6 +5,8 @@ import { Button, Card, Field } from './ui';
 import { useTripDays } from '../hooks/useTripDays';
 import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
+import TripTimeline from './TripTimeline';
+import TripStays from './TripStays';
 
 /**
  * The spreadsheet, made to think.
@@ -105,11 +107,15 @@ const DayItem = ({ item, currency, onChange, onDelete }) => (
 
 const TripPlanner = ({ trip, onUpdateTrip }) => {
     const {
-        days, items, costs, weatherBusy, weatherMessage,
+        days, items, stays, strays, costs, weatherBusy, weatherMessage,
+        lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather,
     } = useTripDays(trip);
 
     const [draft, setDraft] = useState({});
+    // Both views, because they answer different questions: a card is for
+    // filling one day in, the grid is for seeing the shape of the whole trip.
+    const [view, setView] = useState('cards');
     const currency = trip?.currency || 'USD';
     const party = trip?.party_size || 1;
 
@@ -154,6 +160,20 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                     <Button onClick={refreshWeather} disabled={weatherBusy}>
                         <GiSunrise /> {weatherBusy ? 'Checking…' : 'Fill in weather'}
                     </Button>
+
+                    <div className="trip-planner__views" role="group" aria-label="View">
+                        {['cards', 'timeline'].map((v) => (
+                            <button
+                                key={v}
+                                type="button"
+                                className={`trip-planner__view${view === v ? ' is-on' : ''}`}
+                                aria-pressed={view === v}
+                                onClick={() => setView(v)}
+                            >
+                                {v === 'cards' ? 'Cards' : 'Timeline'}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {weatherMessage && <p className="trip-planner__note">{weatherMessage}</p>}
@@ -168,6 +188,37 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                 </ul>
             </Card>
 
+            <TripStays
+                stays={stays}
+                currency={currency}
+                partySize={party}
+                tripStart={trip.start_date}
+                tripEnd={trip.end_date}
+                onAdd={addStay}
+                onUpdate={updateStay}
+                onDelete={deleteStay}
+            />
+
+            {/* A day left over from an earlier set of dates, still holding
+                something. Empty ones are cleared automatically; these are not,
+                because they are evidence of a plan. */}
+            {strays.length > 0 && (
+                <p className="trip-planner__strays">
+                    {strays.length} {strays.length === 1 ? 'day sits' : 'days sit'} outside
+                    the trip’s dates but still {strays.length === 1 ? 'has' : 'have'} things in
+                    {strays.length === 1 ? ' it' : ' them'}: {strays.map((d) => String(d.date).slice(0, 10)).join(', ')}.
+                </p>
+            )}
+
+            {view === 'timeline' ? (
+                <TripTimeline
+                    days={days}
+                    items={items}
+                    stays={stays}
+                    costs={costs}
+                    currency={currency}
+                />
+            ) : (
             <div className="trip-planner__days">
                 {days.map((day) => {
                     const money = byId[day.id] || { buckets: {}, total: 0, runningTotal: 0 };
@@ -187,11 +238,28 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                                     value={day.city || ''}
                                     onChange={(e) => updateDay(day.id, { city: e.target.value })}
                                 />
-                                <Field
-                                    label="Lodging"
-                                    value={day.lodging || ''}
-                                    onChange={(e) => updateDay(day.id, { lodging: e.target.value })}
-                                />
+                                {/* Where a booking covers this night, it says so
+                                    rather than asking for the name again. */}
+                                {stayOnDate(day.date) ? (
+                                    <div className="trip-day__stay">
+                                        <span className="field__label">Lodging</span>
+                                        <p>
+                                            {stayOnDate(day.date).name}
+                                            <em>
+                                                {formatMoney(
+                                                    (lodgingPerNight[String(day.date).slice(0, 10)] || 0) / 100,
+                                                    currency
+                                                )} / night
+                                            </em>
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <Field
+                                        label="Lodging"
+                                        value={day.lodging || ''}
+                                        onChange={(e) => updateDay(day.id, { lodging: e.target.value })}
+                                    />
+                                )}
                             </div>
 
                             <ul className="trip-day__items">
@@ -264,6 +332,7 @@ const TripPlanner = ({ trip, onUpdateTrip }) => {
                     );
                 })}
             </div>
+            )}
         </div>
     );
 };

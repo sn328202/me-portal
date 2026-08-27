@@ -5,7 +5,11 @@
  * that is off by a few percent gets trusted anyway, because nothing about it
  * looks broken — you find out at the end of the trip.
  */
-import { perPerson, dayCost, tripCost, formatMoney, COST_BUCKETS } from '../src/utils/tripCosts.js';
+import {
+    perPerson, dayCost, tripCost, formatMoney, COST_BUCKETS,
+    nightsOf, lodgingByNight, stayOn,
+} from '../src/utils/tripCosts.js';
+import { datesBetween } from '../src/utils/tripDates.js';
 import { describeCode, dressFor, isForecastable, sourceLabel } from '../src/utils/weather.js';
 
 let failed = 0;
@@ -128,6 +132,70 @@ check('a forecast says so', sourceLabel({ source: 'forecast' }), 'forecast');
 check('an average says how many years',
     sourceLabel({ source: 'normal', years: 10 }), 'typical for these dates (10-year average)');
 check('no weather, no caption', sourceLabel(null), null);
+
+console.log('\nnightsOf() — lodging spans, and checkout is not a night:');
+check('16th to 19th is three nights',
+    nightsOf({ check_in: '2026-12-16', check_out: '2026-12-19' }),
+    ['2026-12-16', '2026-12-17', '2026-12-18']);
+check('one night', nightsOf({ check_in: '2026-12-16', check_out: '2026-12-17' }), ['2026-12-16']);
+check('same day is no nights at all',
+    nightsOf({ check_in: '2026-12-16', check_out: '2026-12-16' }), []);
+check('backwards is no nights',
+    nightsOf({ check_in: '2026-12-19', check_out: '2026-12-16' }), []);
+check('a stay across new year still counts right',
+    nightsOf({ check_in: '2026-12-31', check_out: '2027-01-02' }), ['2026-12-31', '2027-01-01']);
+check('missing dates are no nights', nightsOf({}), []);
+
+console.log('\nlodgingByNight() — a booking spread over its nights:');
+{
+    const stays = [{ id: 's1', name: 'Andaz', check_in: '2026-12-16', check_out: '2026-12-19', cost: 1260, cost_shared: true }];
+    const nightly = lodgingByNight(stays, 3);
+    check('three nights, three people, $1,260',
+        [nightly['2026-12-16'], nightly['2026-12-17'], nightly['2026-12-18']],
+        [14000, 14000, 14000]);
+    check('and nothing on the checkout morning', nightly['2026-12-19'], undefined);
+    check('a per-head rate is not divided again',
+        lodgingByNight([{ ...stays[0], cost_shared: false }], 3)['2026-12-16'], 42000);
+    check('two overlapping stays both count',
+        lodgingByNight([
+            { check_in: '2026-12-16', check_out: '2026-12-17', cost: 100, cost_shared: false },
+            { check_in: '2026-12-16', check_out: '2026-12-17', cost: 50, cost_shared: false },
+        ], 1)['2026-12-16'], 15000);
+}
+
+console.log('\nstayOn():');
+{
+    const stays = [{ id: 's1', name: 'Andaz', check_in: '2026-12-16', check_out: '2026-12-19' }];
+    check('a covered night finds its stay', stayOn(stays, '2026-12-17')?.name, 'Andaz');
+    check('the checkout morning does not', stayOn(stays, '2026-12-19'), null);
+}
+
+console.log('\ntripCost() with lodging that spans:');
+{
+    const days = ['2026-12-16', '2026-12-17', '2026-12-18'].map((date, i) =>
+        day({ id: `d${i}`, date }));
+    const stays = [{ check_in: '2026-12-16', check_out: '2026-12-19', cost: 900, cost_shared: true }];
+    const result = tripCost(days, {}, 3, stays);
+    check('each night carries its share', result.days.map((d) => d.buckets.lodging), [100, 100, 100]);
+    check('and the trip totals per person', result.perPerson, 300);
+    check('with nothing double-counted', result.totals.lodging, 300);
+}
+
+console.log('\ndatesBetween() — the bug that made 36 days out of 15:');
+{
+    check('23 Dec to 6 Jan is fifteen days',
+        datesBetween('2026-12-23', '2027-01-06').length, 15);
+    check('  ending on the right day',
+        datesBetween('2026-12-23', '2027-01-06').at(-1), '2027-01-06');
+    // A date input reports every keystroke. Building a range from a half-typed
+    // value created days that then had nowhere to go.
+    check('a half-typed end date yields nothing', datesBetween('2026-12-23', '2027-01-0'), []);
+    check('a half-typed start yields nothing', datesBetween('202', '2027-01-06'), []);
+    check('an end before the start yields nothing',
+        datesBetween('2027-01-06', '2026-12-23'), []);
+    check('no end date means a single day',
+        datesBetween('2026-12-23'), ['2026-12-23']);
+}
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);
