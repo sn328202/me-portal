@@ -1832,3 +1832,107 @@
     font-family: var(--font-mono);
     font-size: var(--text-2xs);
 }
+
+/* --- Reviewing what a recipe wants to add ---------------------
+   A guessed category is still a guess, so every row is shown
+   before anything is written. */
+
+.missing__intro {
+    margin: 0 0 var(--space-4);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+
+.missing__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.missing__row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    border-bottom: var(--rule-hair);
+}
+
+.missing__icon {
+    flex: none;
+    width: var(--tap-min);
+    height: var(--tap-min);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-size: var(--text-xl);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.missing__picker {
+    position: absolute;
+    z-index: 60;
+    top: 100%;
+    left: 0;
+}
+
+.missing__name {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    /* 16px so iOS does not zoom the page when it takes focus. */
+    font-size: 16px;
+}
+
+.missing__category {
+    flex: none;
+    padding: var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 16px;
+}
+
+.missing__drop {
+    flex: none;
+    width: var(--tap-min);
+    height: var(--tap-min);
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: var(--text-xl);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.missing__drop:hover {
+    color: var(--accent-crimson);
+}
+
+.missing__empty {
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+}
+
+/* The row stacks on a phone rather than squeezing the name field to nothing. */
+@media (max-width: 600px) {
+    .missing__row {
+        flex-wrap: wrap;
+    }
+
+    .missing__name {
+        flex: 1 1 60%;
+    }
+
+    .missing__category {
+        flex: 1 1 100%;
+    }
+}

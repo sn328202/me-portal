@@ -171,24 +171,27 @@ export const useIngredients = () => {
      * Rows land out of stock, matching the single-add flow: having a recipe
      * tell the pantry what she owns would be worse than useless.
      */
-    const addManyIngredients = async (lines = []) => {
-        if (!user || !lines.length) return { added: 0 };
+    const addManyIngredients = async (entries = []) => {
+        if (!user || !entries.length) return { added: 0 };
 
         // Two lines of the same recipe often name the same thing ("cilantro,
         // chopped" and "cilantro, to garnish"), so collapse before inserting.
         const seen = new Set(Object.keys(ingredientsByName));
         const rows = [];
-        for (const line of lines) {
-            const name = normalise(line).text;
+        for (const entry of entries) {
+            // Accepts a reviewed row, or a bare string for the callers that
+            // have nothing to review (linking offers a one-line create).
+            const line = typeof entry === 'string' ? { raw: entry } : entry;
+            const name = normalise(line.raw).text;
             if (!name || seen.has(name)) continue;
             seen.add(name);
-            const category = guessCategory(line);
+            const category = line.category || guessCategory(line.raw);
             rows.push({
                 user_id: user.id,
                 name,
-                label: labelFor(line),
+                label: line.label || labelFor(line.raw),
                 category,
-                icon: iconFor(category),
+                icon: line.icon || iconFor(category),
                 default_unit: 'pcs',
                 in_stock: false,
             });

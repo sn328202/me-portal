@@ -5,12 +5,13 @@ import {
 } from 'react-icons/gi';
 import { Button, Card, Stat, Tag } from './ui';
 import IngredientLink from './IngredientLink';
+import MissingIngredients from './MissingIngredients';
 
 const RecipeDetail = ({
-    recipe, onClose, onEdit, onCook, matcher, ingredients,
+    recipe, onClose, onEdit, onCook, matcher, ingredients, categories = [],
     onAddMissing, onTeachAlias,
 }) => {
-    const [adding, setAdding] = useState(false);
+    const [reviewing, setReviewing] = useState(false);
     const [added, setAdded] = useState(0);
 
     /**
@@ -27,12 +28,12 @@ const RecipeDetail = ({
         [recipe, matcher]
     );
 
-    const handleAddMissing = async () => {
-        if (!onAddMissing || !matchData.missing.length) return;
-        setAdding(true);
-        const result = await onAddMissing(matchData.missing.map((l) => l.raw));
+    // Nothing is written here - the review sheet decides what actually goes in,
+    // and where. Guessed categories were putting everything in `Pantry`.
+    const handleConfirm = async (rows) => {
+        const result = await onAddMissing?.(rows);
         setAdded(result?.added || 0);
-        setAdding(false);
+        setReviewing(false);
     };
 
     const sourceHost = (() => {
@@ -144,13 +145,10 @@ const RecipeDetail = ({
                         <Button
                             block
                             className="recipe-detail__add-missing"
-                            disabled={adding}
-                            onClick={handleAddMissing}
+                            onClick={() => setReviewing(true)}
                         >
                             <GiBasket />{' '}
-                            {adding
-                                ? 'Adding…'
-                                : `Add ${matchData.missing.length} missing to the pantry`}
+                            Add {matchData.missing.length} missing to the pantry…
                         </Button>
                     )}
                     {added > 0 && matchData.missing.length === 0 && (
@@ -178,6 +176,13 @@ const RecipeDetail = ({
                     </Button>
                 </div>
             </div>
+            <MissingIngredients
+                open={reviewing}
+                lines={matchData.missing.map((l) => l.raw)}
+                categories={categories}
+                onCancel={() => setReviewing(false)}
+                onConfirm={handleConfirm}
+            />
         </Card>
     );
 };

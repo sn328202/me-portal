@@ -561,6 +561,7 @@ const Larder = () => {
                             onCook={handleCook}
                             matcher={matcher}
                             ingredients={ingredients}
+                            categories={PROVISION_CATEGORIES}
                             onAddMissing={addManyIngredients}
                             onTeachAlias={addAlias}
                         />

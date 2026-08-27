@@ -196,7 +196,14 @@ console.log('\nmatchRecipe():');
 
 console.log('\nguessCategory() / labelFor() — for bulk add:');
 check('gochujang lands in Pantry', guessCategory('2 tbsp gochujang'), 'Pantry');
-check('star anise lands in Spices', guessCategory('3 star anise pods'), 'Pantry');
+check('star anise lands in Spices', guessCategory('3 star anise pods'), 'Spices');
+check('feta lands in Dairy', guessCategory('100g feta'), 'Dairy');
+check('duck lands in Protein', guessCategory('2 duck legs'), 'Protein');
+check('dill lands in Produce', guessCategory('fresh dill'), 'Produce');
+// The form of a spice outranks its substance, which is what keeps fresh
+// chillies out of the spice rack.
+check('chilli powder is a spice', guessCategory('1 tsp red chilli powder'), 'Spices');
+check('  a fresh chilli is not', guessCategory('2 green chillies'), 'Produce');
 check('cardamom lands in Spices', guessCategory('4 green cardamom pods'), 'Spices');
 check('paneer lands in Dairy', guessCategory('200g paneer'), 'Dairy');
 check('lamb lands in Protein', guessCategory('500g lamb shoulder'), 'Protein');

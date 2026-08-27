@@ -51,6 +51,7 @@ const PREP_WORDS = new Set([
     'julienned', 'trimmed', 'halved', 'quartered', 'peeled', 'seeded',
     'deseeded', 'destemmed', 'stemmed', 'pitted', 'zested', 'juiced', 'beaten',
     'whisked', 'sifted', 'softened', 'melted', 'toasted', 'roasted', 'cooked',
+    'crumbled', 'shaved', 'flaked', 'cracked', 'mashed', 'deveined', 'scored',
     'uncooked', 'boiled', 'blanched', 'drained', 'rinsed', 'washed', 'cleaned',
     'divided', 'packed', 'heaped', 'heaping', 'level', 'generous', 'scant',
     'lightly', 'well', 'very', 'good', 'quality', 'best', 'nice', 'ripe',
@@ -85,6 +86,7 @@ const UNITS = new Set([
     'sticks', 'piece', 'pieces', 'pcs', 'pc', 'handful', 'handfuls', 'head',
     'heads', 'bunch', 'bunches', 'drop', 'drops', 'jar', 'jars', 'tin', 'tins',
     'box', 'boxes', 'bag', 'bags', 'knob', 'knobs', 'stalk', 'stalks',
+    'pod', 'pods', 'sheet', 'sheets', 'fillet', 'fillets',
 ]);
 
 /**
@@ -624,24 +626,47 @@ export const buildMatcher = (pantry = []) => {
 
 /* ---------- guessing a home for something new ---------------------------- */
 
-const CATEGORY_HINTS = [
-    [/\b(powder|masala|seed|peppercorn|chilli|cardamom|cinnamon|clove|cumin|coriander|turmeric|paprika|nutmeg|salt|pepper|extract|hing|amchur|methi|saffron|bay leaf|oregano|cayenne)\b/, 'Spices'],
-    [/\b(milk|cream|butter|cheese|yogurt|paneer|ricotta|parmesan|mozzarella|ghee|curd)\b/, 'Dairy'],
-    [/\b(chicken|beef|pork|lamb|fish|shrimp|prawn|crab|tofu|egg|mutton|bacon|sausage|salmon|tuna)\b/, 'Protein'],
-    [/\b(onion|garlic|ginger|tomato|potato|carrot|pepper|lettuce|spinach|herb|basil|mint|cilantro|parsley|lemon|lime|apple|leaf|leaves|mushroom|cucumber|cabbage|greens|chive|scallion)\b/, 'Produce'],
+/**
+ * Where a new ingredient most likely belongs.
+ *
+ * The first version was four short regexes and everything else fell through to
+ * `Pantry`, which is how a bulk add put feta, buttermilk, duck legs, aubergine
+ * and dill all in the same drawer. Two passes now:
+ *
+ *   1. **Form** decides first. Anything ending in powder, seeds, flakes or
+ *      masala is a spice however it is spelled - which is what separates
+ *      `red chilli powder` (Spices) from `green chilli` (Produce), a
+ *      distinction this pantry actually makes.
+ *   2. **Substance** decides the rest, by word.
+ *
+ * It is still a guess, and a wrong guess is cheap now that bulk add shows
+ * every row for review before writing anything.
+ */
+const SPICE_FORM = /\b(powder|masala|seeds?|flakes?|ground|whole)$|\bextract\b/;
+
+const CATEGORY_WORDS = [
+    ['Spices', /\b(salt|pepper|peppercorns?|paprika|cumin|coriander|turmeric|cinnamon|cardamom|clove|cloves|nutmeg|saffron|oregano|thyme|bay leaf|cayenne|masala|amchur|hing|asafoetida|methi|fenugreek|fennel|mustard|anise|star anise|allspice|juniper|sumac|zaatar|vanilla|yeast|baking soda|baking powder|cream of tartar|garam)\b/],
+    ['Dairy', /\b(milk|cream|butter|ghee|cheese|yogurt|yoghurt|curd|paneer|ricotta|parmesan|mozzarella|feta|halloumi|mascarpone|creme fraiche|buttermilk|chevre|gruyere|pecorino|brie|cheddar|custard)\b/],
+    ['Protein', /\b(chicken|beef|pork|lamb|mutton|duck|turkey|goose|veal|venison|fish|salmon|tuna|cod|tilapia|basa|halibut|trout|anchov(y|ies)|sardines?|shrimp|prawns?|crab|lobster|scallops?|mussels?|clams?|squid|octopus|tofu|tempeh|seitan|egg|eggs|bacon|sausage|chorizo|ham|mince|thighs?|breast|fillet|shoulder|ribs?|bones?|steak)\b/],
+    // Bare `chilli` is deliberately Produce, not Spices: the form rule above
+    // already sends chilli powder and chilli flakes to the spice rack, and what
+    // is left is the fresh thing.
+    ['Produce', /\b(chilli|chili|jalapeno|serrano|habanero|poblano|onion|shallot|garlic|ginger|galangal|tomato|potato|carrot|celery|pepper|capsicum|lettuce|spinach|kale|arugula|rocket|cabbage|broccoli|cauliflower|courgette|zucchini|aubergine|eggplant|cucumber|mushroom|leek|scallion|chive|herb|basil|mint|parsley|cilantro|dill|rosemary|sage|tarragon|lemongrass|lime|lemon|orange|apple|pear|banana|mango|berry|berries|avocado|corn|pea|peas|bean|beans|asparagus|okra|radish|beet|turnip|squash|pumpkin|greens|sprouts?|lettuce|fruit|leaves|leaf)\b/],
 ];
 
 const CATEGORY_ICON = {
     Spices: '🌶️', Dairy: '🥛', Protein: '🍗', Produce: '🥬', Pantry: '🫙',
 };
 
-/**
- * A sensible category and icon for an ingredient the pantry has never seen, so
- * bulk-adding a recipe's misses does not dump thirty rows into "Uncategorized".
- */
 export const guessCategory = (raw) => {
     const { text } = normalise(raw);
-    for (const [pattern, category] of CATEGORY_HINTS) {
+    if (!text) return 'Pantry';
+
+    // A form word at the end outranks the substance: dried, ground or
+    // powdered, it lives with the spices.
+    if (SPICE_FORM.test(text)) return 'Spices';
+
+    for (const [category, pattern] of CATEGORY_WORDS) {
         if (pattern.test(text)) return category;
     }
     return 'Pantry';
