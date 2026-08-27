@@ -73,6 +73,32 @@ export const eventTypeFor = (item = {}) => {
 
 const iso = (d) => String(d || '').slice(0, 10);
 
+/* Things people write in a City field that are not cities. */
+const NOT_A_PLACE = /^(air ?travel|travel|travel ?day|flight|flying|airplane|plane|in transit|transit|home)$/i;
+
+/**
+ * The city that best stands for the trip.
+ *
+ * The planner geocodes one string, and her first leg is "Air Travel" — which
+ * is honest about the day and useless as a location. The leg with the most
+ * days in it is the better answer, and a leg named after a mode of transport
+ * is not a candidate at all.
+ */
+export const anchorCity = (legs = []) => {
+    const real = legs.filter((l) => l.city && !NOT_A_PLACE.test(String(l.city).trim()));
+    if (!real.length) return '';
+    return [...real]
+        .sort((a, b) => daysBetween(b) - daysBetween(a)
+            || iso(a.start_date).localeCompare(iso(b.start_date)))[0].city;
+};
+
+const daysBetween = (leg) => {
+    const from = new Date(`${iso(leg.start_date)}T12:00:00`);
+    const to = new Date(`${iso(leg.end_date)}T12:00:00`);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
+    return Math.round((to - from) / 86400000) + 1;
+};
+
 /**
  * The events the planner should show for a day.
  *
@@ -125,14 +151,14 @@ export const wardrobeTrip = (trip, { days = [], items = {}, legs = [], existing 
 
     const events = ordered.flatMap((day) => eventsForDay(day, items[day.id] || [], legs));
 
-    const first = [...legs].sort((a, b) => iso(a.start_date).localeCompare(iso(b.start_date)))[0];
+    const home = anchorCity(legs) || ordered.find((d) => d.city)?.city || trip.destination || '';
 
     return {
         id: `atlas-${trip.id}`,
         name: trip.destination || 'Trip',
         // The planner geocodes this one string, so the leg you spend the most
         // days in is a better answer than "India (Goa / Kerala)".
-        dest: first?.city || ordered.find((d) => d.city)?.city || trip.destination || '',
+        dest: home,
         start: iso(trip.start_date),
         end: iso(trip.end_date) || iso(trip.start_date),
         events,

@@ -12,7 +12,7 @@ import {
     thingsToDoTab, sheetPayload, parseHour, parseDayHeader, readSheet,
 } from '../src/utils/tripSheet.js';
 import {
-    eventTypeFor, eventsForDay, wardrobeTrip, sendToWardrobe, TYPE_DRESS,
+    eventTypeFor, eventsForDay, wardrobeTrip, sendToWardrobe, anchorCity, TYPE_DRESS,
 } from '../src/utils/wardrobeHandoff.js';
 import { tripCost } from '../src/utils/tripCosts.js';
 
@@ -211,7 +211,18 @@ const wt = wardrobeTrip(
     { days, items, legs }
 );
 check('the same trip is the same trip', wt.id, 'atlas-7');
-check('it geocodes the first leg, not the trip title', wt.dest, 'Mumbai');
+check('it geocodes a city, not the trip title', wt.dest, 'Mumbai');
+
+// Her first leg really is called "Air Travel", and Open-Meteo has never heard
+// of it. The leg you spend the most days in is the one worth looking up.
+check('a mode of transport is not a destination',
+    anchorCity([
+        { city: 'Air Travel', start_date: '2026-12-23', end_date: '2026-12-25' },
+        { city: 'Kerala', start_date: '2026-12-27', end_date: '2027-01-02' },
+        { city: 'Mumbai', start_date: '2026-12-25', end_date: '2026-12-27' },
+    ]), 'Kerala');
+check('a trip that is all travel gives up rather than guessing',
+    anchorCity([{ city: 'Flight', start_date: '2026-12-23', end_date: '2026-12-24' }]), '');
 check('only days with weather get weather', Object.keys(wt.weather),
     ['2026-12-25', '2026-12-26', '2026-12-28']);
 check('an average is flagged as one', wt.weather['2026-12-25'].estimated, true);
