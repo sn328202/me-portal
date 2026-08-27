@@ -258,6 +258,30 @@ export const useIngredients = () => {
         if (error) fetchIngredients();
     };
 
+    /**
+     * Change a field on an ingredient - its symbol, its label, where it is
+     * filed. Optimistic, and rolls the row back to exactly what it was rather
+     * than refetching, so an edit that fails does not also blank the pantry.
+     */
+    const updateIngredient = async (id, patch) => {
+        if (!user || !patch) return;
+        const before = ingredients.find((i) => i.id === id);
+        if (!before) return;
+
+        setIngredients((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+
+        const { error } = await supabase
+            .from('pantry_ingredients')
+            .update(patch)
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        if (error) {
+            setIngredients((prev) => prev.map((i) => (i.id === id ? before : i)));
+            console.error('Error updating ingredient:', error);
+        }
+    };
+
     const deleteIngredient = async (id) => {
         if (!user) return;
         // Optimistic Delete
@@ -318,6 +342,7 @@ export const useIngredients = () => {
         addManyIngredients,
         addAlias,
         removeAlias,
+        updateIngredient,
         deleteIngredient,
         togglePantryStock,
         loading,

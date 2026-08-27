@@ -1629,3 +1629,194 @@
     border-color: var(--accent-crimson);
     color: var(--accent-crimson);
 }
+
+/* --- Making connections by hand -------------------------------
+   The built-in synonym table is a guess at one person's
+   vocabulary. These are the controls that let it be corrected. */
+
+.ing-link {
+    position: relative;
+    display: inline-block;
+    margin-left: var(--space-2);
+}
+
+.ing-link__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    cursor: pointer;
+    /* Quiet until wanted: this sits on every line, and every line shouting
+       for attention is the same as none of them doing so. */
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.recipe-detail__provision:hover .ing-link__trigger,
+.ing-link__trigger:focus-visible,
+.ing-link__trigger[aria-expanded='true'],
+.recipe-detail__provision.is-unknown .ing-link__trigger {
+    opacity: 1;
+}
+
+.ing-link__trigger:hover {
+    color: var(--text-gold);
+    border-color: var(--border-bright);
+}
+
+.ing-link__pop {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + var(--space-1));
+    left: 0;
+    width: 260px;
+    padding: var(--space-3);
+    background: var(--bg-panel);
+    border: var(--rule);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+
+.ing-link__intro {
+    margin: 0 0 var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.ing-link__search {
+    width: 100%;
+    padding: var(--space-2);
+    margin-bottom: var(--space-2);
+    background: var(--field-bg);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+    /* 16px: anything smaller and iOS zooms the page on focus. */
+    font-size: 16px;
+}
+
+.ing-link__options {
+    max-height: 220px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.ing-link__option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: var(--text-sm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ing-link__option:hover {
+    background: var(--bg-hover);
+}
+
+.ing-link__option-name {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.ing-link__out {
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+}
+
+.ing-link__empty {
+    padding: var(--space-2);
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+}
+
+.ing-link__create {
+    width: 100%;
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    border: none;
+    border-top: var(--rule-hair);
+    background: transparent;
+    color: var(--text-gold);
+    font: inherit;
+    font-size: var(--text-xs);
+    text-align: left;
+    cursor: pointer;
+}
+
+/* The symbol, as its own control. */
+.pantry-item__icon-btn {
+    padding: var(--space-1);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.pantry-item__icon-btn:hover {
+    background: var(--bg-hover);
+}
+
+/* Anchored explicitly. Left to its static position it floated up and out of
+   the card, over the filter bar above it. */
+.pantry-item__picker {
+    position: absolute;
+    z-index: 50;
+    top: 100%;
+    left: var(--space-2);
+}
+
+.pantry-item {
+    position: relative;
+}
+
+.pantry-item__alias--add {
+    border-style: dashed;
+    color: var(--text-dim);
+}
+
+.pantry-item__alias--add:hover {
+    border-color: var(--border-bright);
+    color: var(--text-gold);
+}
+
+.pantry-item__alias-form {
+    display: inline-block;
+}
+
+.pantry-item__alias-input {
+    width: 10em;
+    padding: 0 var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-pill);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    /* 16px so iOS does not zoom the whole page when it takes focus. */
+    font-size: 16px;
+}
+
+/* Opened near the bottom of a long ingredient list, a popover that only
+   ever drops downwards is cut off by the viewport. */
+.ing-link__pop--above {
+    top: auto;
+    bottom: calc(100% + var(--space-1));
+}

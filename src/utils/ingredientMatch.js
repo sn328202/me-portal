@@ -330,6 +330,32 @@ const saysSo = (raw, item) => {
     return said === name || said.includes(name);
 };
 
+/**
+ * Dice coefficient over character bigrams: 1.0 identical, 0 nothing in common.
+ *
+ * Only used for *suggestions*, never for matching. When a line shares no words
+ * at all with the pantry - "gochujang" against a cupboard that has never held
+ * any - word-level scoring has nothing to say, and an empty suggestion list is
+ * useless to someone trying to make a connection by hand. Character similarity
+ * at least puts the plausible-looking names near the top.
+ */
+const dice = (a, b) => {
+    if (a === b) return 1;
+    if (a.length < 2 || b.length < 2) return 0;
+    const grams = new Map();
+    for (let i = 0; i < a.length - 1; i += 1) {
+        const g = a.slice(i, i + 2);
+        grams.set(g, (grams.get(g) || 0) + 1);
+    }
+    let shared = 0;
+    for (let i = 0; i < b.length - 1; i += 1) {
+        const g = b.slice(i, i + 2);
+        const n = grams.get(g) || 0;
+        if (n > 0) { grams.set(g, n - 1); shared += 1; }
+    }
+    return (2 * shared) / (a.length - 1 + b.length - 1);
+};
+
 /** Are all of `needle`'s tokens present in `hay`, in order? */
 const isSubsequence = (needle, hay) => {
     let i = 0;
@@ -403,41 +429,7 @@ export const buildMatcher = (pantry = []) => {
             };
         }
 
-        let best = null;
-
-        for (const entry of rows) {
-            const suffix = commonSuffix(tokens, entry.tokens);
-            const contained = entry.tokens.length > 0 && isSubsequence(entry.tokens, tokens);
-
-            // A shared tail of only form-words ("...powder", "...sauce") is not
-            // evidence of anything. Require one real noun in the overlap.
-            const overlap = entry.tokens.slice(entry.tokens.length - suffix);
-            const meaningful = overlap.some((w) => !GENERIC_HEADS.has(w));
-            if (!contained && (suffix === 0 || !meaningful)) continue;
-            if (contained && !entry.tokens.some((w) => !GENERIC_HEADS.has(w))) continue;
-
-            // How much of the pantry row the line actually accounts for.
-            const coverage = contained ? 1 : suffix / entry.tokens.length;
-            // Penalise a line that says far more than the pantry row does, so
-            // "chicken stock powder" prefers a stock over plain "chicken".
-            const slack = Math.max(0, tokens.length - entry.tokens.length);
-            const score = coverage - slack * 0.06;
-
-            const candidate = {
-                entry,
-                score,
-                exactLength: Math.abs(tokens.length - entry.tokens.length),
-                stocked: Boolean(entry.row.in_stock),
-            };
-
-            if (!best
-                || candidate.score > best.score + 1e-9
-                || (Math.abs(candidate.score - best.score) < 1e-9 && !best.stocked && candidate.stocked)
-                || (Math.abs(candidate.score - best.score) < 1e-9 && best.stocked === candidate.stocked
-                    && candidate.exactLength < best.exactLength)) {
-                best = candidate;
-            }
-        }
+        const best = rank(tokens)[0];
 
         if (!best || best.score < 0.45) {
             return { item: null, confidence: 'none', normalised: text, via: null };
@@ -449,6 +441,84 @@ export const buildMatcher = (pantry = []) => {
             normalised: text,
             via: best.entry.text,
         };
+    };
+
+    /**
+     * Every pantry row this line has any claim on, best first.
+     *
+     * Shared with matchOne - the top of this list *is* the match - so the
+     * shortlist offered when linking by hand is ranked by the same judgement
+     * that failed to reach a conclusion on its own.
+     */
+    function rank(tokens) {
+        const scored = [];
+
+        for (const entry of rows) {
+            const suffix = commonSuffix(tokens, entry.tokens);
+            const contained = entry.tokens.length > 0 && isSubsequence(entry.tokens, tokens);
+
+            // A shared tail of only form-words ("...powder", "...sauce") is not
+            // evidence of anything. Require one real noun in the overlap.
+            const overlap = entry.tokens.slice(entry.tokens.length - suffix);
+            const meaningful = overlap.some((w) => !GENERIC_HEADS.has(w));
+            const usable = (contained && entry.tokens.some((w) => !GENERIC_HEADS.has(w)))
+                || (!contained && suffix > 0 && meaningful);
+
+            let score;
+            if (usable) {
+                // How much of the pantry row the line accounts for - counted
+                // over the *informative* words only.
+                //
+                // Counting all tokens made a short generic row beat a long
+                // specific one: "shiitake mushrooms" covered all of `mushrooms`
+                // but only two thirds of `dried shiitake mushrooms`, so the
+                // generic row won despite sharing less that actually
+                // identifies the ingredient. Ignoring form-words on both sides
+                // makes `dried shiitake mushrooms` a complete cover instead.
+                const informative = entry.tokens.filter((w) => !GENERIC_HEADS.has(w)).length;
+                const matchedInformative = overlap.filter((w) => !GENERIC_HEADS.has(w)).length;
+                const coverage = contained ? 1
+                    : (informative ? matchedInformative / informative : suffix / entry.tokens.length);
+                // Penalise a line that says far more than the pantry row does,
+                // so "chicken stock powder" prefers a stock over plain
+                // "chicken".
+                const slack = Math.max(0, tokens.length - entry.tokens.length);
+                score = coverage - slack * 0.06;
+            } else {
+                // Below anything matchOne would accept - kept only so the
+                // hand-linking shortlist is never empty. Capped well under the
+                // 0.45 threshold so it can never be mistaken for a match.
+                score = Math.min(0.44, dice(tokens.join(' '), entry.text) * 0.4);
+            }
+
+            scored.push({
+                entry,
+                score,
+                exactLength: Math.abs(tokens.length - entry.tokens.length),
+                stocked: Boolean(entry.row.in_stock),
+            });
+        }
+
+        return scored.sort((a, b) => (
+            Math.abs(a.score - b.score) > 1e-9 ? b.score - a.score
+                : a.stocked !== b.stocked ? (a.stocked ? -1 : 1)
+                    : a.exactLength - b.exactLength
+        ));
+    }
+
+    /**
+     * The pantry rows most worth offering as a manual link for this line.
+     *
+     * The built-in synonym table can only ever be a guess at one person's
+     * vocabulary. This is what makes it correctable: 176 rows is too many to
+     * scroll, so the closest handful come first and typing filters the rest.
+     */
+    const suggest = (raw, limit = 6) => {
+        const { text, tokens } = normalise(raw);
+        if (!text) return [];
+        return rank(tokens)
+            .slice(0, limit)
+            .map(({ entry, score }) => ({ item: entry.row, score }));
     };
 
     /**
@@ -490,7 +560,7 @@ export const buildMatcher = (pantry = []) => {
         };
     };
 
-    return { matchOne, matchRecipe, size: rows.length };
+    return { matchOne, matchRecipe, suggest, size: rows.length };
 };
 
 /* ---------- guessing a home for something new ---------------------------- */

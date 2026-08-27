@@ -4,9 +4,11 @@ import {
     GiCancel, GiCookingPot, GiQuill, GiWorld, GiBasket, GiLinkedRings
 } from 'react-icons/gi';
 import { Button, Card, Stat, Tag } from './ui';
+import IngredientLink from './IngredientLink';
 
 const RecipeDetail = ({
-    recipe, onClose, onEdit, onCook, matcher, onAddMissing, onTeachAlias,
+    recipe, onClose, onEdit, onCook, matcher, ingredients,
+    onAddMissing, onTeachAlias,
 }) => {
     const [adding, setAdding] = useState(false);
     const [added, setAdded] = useState(0);
@@ -110,6 +112,17 @@ const RecipeDetail = ({
                                         {!ing.match && (
                                             <span className="recipe-detail__unknown">not in pantry</span>
                                         )}
+                                        {/* Every line can be pointed at the right
+                                            ingredient by hand - an unmatched one
+                                            linked, a wrongly-matched one corrected.
+                                            The wording sticks for future recipes. */}
+                                        <IngredientLink
+                                            line={ing}
+                                            matcher={matcher}
+                                            ingredients={ingredients}
+                                            onLink={onTeachAlias}
+                                            onCreate={(raw) => onAddMissing?.([raw])}
+                                        />
                                     </span>
                                     {ing.inStock && <span className="visually-hidden">(in stock)</span>}
                                 </span>

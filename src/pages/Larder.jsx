@@ -15,6 +15,7 @@ import {
     GiHerbsBundle, GiBasket, GiScrollQuill, GiScrollUnfurled, GiCauldron, GiTrashCan
 } from 'react-icons/gi';
 import EmojiPicker from 'emoji-picker-react';
+import { readToken, isLight } from '../utils/mapStyle';
 import {
     Button, Card, ConfirmButton, EmptyState, Field, Modal, PageHeader, Tabs, TabPanel, Tag
 } from '../components/ui';
@@ -84,44 +85,110 @@ const LarderFilters = ({
     </div>
 );
 
-const PantryItem = ({ item, pantryStock, togglePantryStock, deleteIngredient, removeAlias }) => {
+const PantryItem = ({
+    item, pantryStock, togglePantryStock, deleteIngredient,
+    removeAlias, addAlias, updateIngredient,
+}) => {
     const inStock = !!pantryStock[item.id];
     const aliases = item.aliases || [];
 
+    const [picking, setPicking] = useState(false);
+    const [naming, setNaming] = useState(false);
+    const [draft, setDraft] = useState('');
+
+    const submitAlias = (e) => {
+        e.preventDefault();
+        const value = draft.trim();
+        if (value) addAlias?.(item.id, value);
+        setDraft('');
+        setNaming(false);
+    };
+
     return (
         <div className={['pantry-item', inStock ? 'pantry-item--stocked' : ''].filter(Boolean).join(' ')}>
+            {/* The symbol is its own button, not part of the stock toggle -
+                otherwise changing an emoji would also empty the cupboard. */}
+            <button
+                type="button"
+                className="pantry-item__icon-btn"
+                aria-expanded={picking}
+                aria-label={`Change the symbol for ${item.label}`}
+                onClick={() => setPicking((v) => !v)}
+            >
+                <span className="pantry-item__icon" aria-hidden="true">{item.icon}</span>
+            </button>
+
+            {picking && (
+                <div className="pantry-item__picker">
+                    <EmojiPicker
+                        width={280}
+                        height={340}
+                        /* Read off the current skin rather than hardcoded. The
+                           New Provision modal pins this to "dark", which is
+                           wrong on Studio, Cottagecore and Retro. */
+                        theme={isLight(readToken('--bg-panel', '#ffffff')) ? 'light' : 'dark'}
+                        onEmojiClick={(emojiData) => {
+                            updateIngredient?.(item.id, { icon: emojiData.emoji });
+                            setPicking(false);
+                        }}
+                    />
+                </div>
+            )}
+
             <button
                 type="button"
                 className="pantry-item__toggle"
                 aria-pressed={inStock}
                 onClick={() => togglePantryStock(item.id)}
             >
-                <span className="pantry-item__icon" aria-hidden="true">{item.icon}</span>
                 <span className="pantry-item__text">
                     <span className="pantry-item__label">{item.label}</span>
                     <Tag tone={inStock ? 'gold' : 'default'}>{inStock ? 'IN STOCK' : 'OUT'}</Tag>
                 </span>
             </button>
 
-            {/* The names this ingredient has been taught to answer to. Shown
-                here because an alias that cannot be seen cannot be corrected. */}
-            {aliases.length > 0 && (
-                <ul className="pantry-item__aliases">
-                    {aliases.map((alias) => (
-                        <li key={alias}>
-                            <button
-                                type="button"
-                                className="pantry-item__alias"
-                                title={`Stop matching "${alias}" to ${item.label}`}
-                                onClick={() => removeAlias?.(item.id, alias)}
-                            >
-                                {alias} <span aria-hidden="true">×</span>
-                                <span className="visually-hidden">remove this alias</span>
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            )}
+            {/* The names this ingredient has been taught to answer to, and a way
+                to add another. Shown here because an alias that cannot be seen
+                cannot be corrected - and because a connection is often obvious
+                long before a recipe happens to surface it. */}
+            <ul className="pantry-item__aliases">
+                {aliases.map((alias) => (
+                    <li key={alias}>
+                        <button
+                            type="button"
+                            className="pantry-item__alias"
+                            title={`Stop matching "${alias}" to ${item.label}`}
+                            onClick={() => removeAlias?.(item.id, alias)}
+                        >
+                            {alias} <span aria-hidden="true">×</span>
+                            <span className="visually-hidden">remove this alias</span>
+                        </button>
+                    </li>
+                ))}
+                <li>
+                    {naming ? (
+                        <form onSubmit={submitAlias} className="pantry-item__alias-form">
+                            <input
+                                type="text"
+                                autoFocus
+                                className="pantry-item__alias-input"
+                                placeholder="another name…"
+                                value={draft}
+                                onChange={(e) => setDraft(e.target.value)}
+                                onBlur={submitAlias}
+                            />
+                        </form>
+                    ) : (
+                        <button
+                            type="button"
+                            className="pantry-item__alias pantry-item__alias--add"
+                            onClick={() => setNaming(true)}
+                        >
+                            + name
+                        </button>
+                    )}
+                </li>
+            </ul>
 
             <ConfirmButton
                 label={`Remove ${item.label} from the larder`}
@@ -150,7 +217,7 @@ const Larder = () => {
     const {
         ingredientsByCategory, pantryStock, togglePantryStock, addCustomIngredient,
         deleteIngredient, ingredientsByName, matcher, addManyIngredients, addAlias,
-        removeAlias,
+        removeAlias, ingredients, updateIngredient,
     } = useIngredients();
     const { menus, addMenu, updateMenu, deleteMenu } = useMenus();
 
@@ -493,6 +560,7 @@ const Larder = () => {
                             onEdit={() => handleEdit(viewingRecipe)}
                             onCook={handleCook}
                             matcher={matcher}
+                            ingredients={ingredients}
                             onAddMissing={addManyIngredients}
                             onTeachAlias={addAlias}
                         />
@@ -559,6 +627,8 @@ const Larder = () => {
                                             item={item}
                                             pantryStock={pantryStock}
                                             removeAlias={removeAlias}
+                                            addAlias={addAlias}
+                                            updateIngredient={updateIngredient}
                                             togglePantryStock={togglePantryStock}
                                             deleteIngredient={deleteIngredient}
                                         />
@@ -587,7 +657,9 @@ const Larder = () => {
                                                     key={item.id}
                                                     item={item}
                                                     pantryStock={pantryStock}
-                                            removeAlias={removeAlias}
+                                                    removeAlias={removeAlias}
+                                                    addAlias={addAlias}
+                                                    updateIngredient={updateIngredient}
                                                     togglePantryStock={togglePantryStock}
                                                     deleteIngredient={deleteIngredient}
                                                 />

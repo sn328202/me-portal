@@ -234,5 +234,34 @@ console.log('\naliases carried by the pantry itself:');
         ]).matchOne('salt').item.name, 'salt');
 }
 
+console.log('\nsuggest() — the shortlist offered when linking by hand:');
+{
+    const names = (line, n) => m.suggest(line, n).map((s) => s.item.name);
+
+    // A line the matcher DID resolve still offers alternatives, because the
+    // whole point is being able to say "no, not that one".
+    check('a resolved line still offers alternatives',
+        names('1 tsp chilli powder', 3).includes('kashmiri red chilli powder'), true);
+
+    // The hard case: nothing shares a single word with it. Word-level scoring
+    // has nothing to say, so character similarity has to carry the list.
+    const g = names('2 tbsp gochujang', 5);
+    check('an unmatched line still gets a shortlist', g.length, 5);
+    check('  and it is never a match', m.matchOne('2 tbsp gochujang').item, null);
+
+    check('the best suggestion for a near-miss is the right one',
+        names('shiitake mushrooms', 1), ['dried shiitake mushrooms']);
+    check('stocked rows come first on a tie',
+        m.suggest('cilantro', 1)[0].item.in_stock, true);
+    check('an empty line suggests nothing', m.suggest('', 5), []);
+    check('the limit is respected', m.suggest('salt', 2).length, 2);
+
+    // A suggestion must never be scored high enough to look like a match, or
+    // the threshold in matchOne stops meaning anything.
+    const weak = m.suggest('2 tbsp gochujang', 8);
+    check('suggestion scores stay below the match threshold',
+        weak.every((s) => s.score < 0.45), true);
+}
+
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);
