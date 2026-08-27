@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { tripCost, lodgingByNight, stayOn } from '../utils/tripCosts';
 import { datesBetween } from '../utils/tripDates';
-import { daysOfLeg, legOn, legsOn } from '../utils/tripLegs';
+import { legOn, legsOn } from '../utils/tripLegs';
 
 /**
  * A trip's days, the things planned in them, and what it all costs.
@@ -123,27 +123,42 @@ export const useTripDays = (trip) => {
     /* ---------- legs: a city, for a stretch of days ---------------------- */
 
     /**
-     * Write a leg's city onto every day it covers.
+     * Keep every day's city agreeing with the leg that covers it.
      *
-     * The alternative is for the day cards to read the leg live and never store
-     * anything, which is cleaner right up until the weather job runs: it reads
-     * `atlas_days.city` server-side and knows nothing about legs. Two places
-     * asking the same question and getting different answers is worse than one
-     * denormalised column, so the city lands on the days as soon as it is
-     * decided.
+     * The city could be read from the legs at render time and never stored,
+     * which is cleaner right up until the weather job runs: it reads
+     * `atlas_days.city` server-side and knows nothing about legs. So the
+     * column stays, as a cache — and a cache that is only written when a leg
+     * is edited drifts, which is exactly what happened: three legs added in
+     * quick succession left 25 December still saying "Air Travel" because each
+     * write was made against a stale copy of the days.
+     *
+     * Reconciling here instead means the legs are the only thing anyone edits,
+     * and the column catches up whenever it disagrees.
      */
-    const stampLeg = useCallback(async (leg) => {
-        if (!user || !leg?.city) return;
-        const dates = daysOfLeg(leg);
-        if (!dates.length) return;
-        const ids = days
-            .filter((d) => dates.includes(String(d.date).slice(0, 10)))
-            .map((d) => d.id);
-        if (!ids.length) return;
-        setDays((prev) => prev.map((d) => (ids.includes(d.id) ? { ...d, city: leg.city } : d)));
-        await supabase.from('atlas_days').update({ city: leg.city })
-            .in('id', ids).eq('user_id', user.id);
-    }, [user, days]);
+    useEffect(() => {
+        if (!user || !legs.length || !days.length) return;
+
+        const wanted = new Map();
+        for (const day of days) {
+            const leg = legOn(legs, day.date);
+            if (leg?.city && leg.city !== day.city) wanted.set(day.id, leg.city);
+        }
+        if (!wanted.size) return;
+
+        setDays((prev) => prev.map((d) => (wanted.has(d.id) ? { ...d, city: wanted.get(d.id) } : d)));
+
+        // Grouped by city, so a fifteen-day trip is three writes and not fifteen.
+        const byCity = {};
+        for (const [id, city] of wanted) (byCity[city] ||= []).push(id);
+        (async () => {
+            for (const [city, ids] of Object.entries(byCity)) {
+                const { error } = await supabase.from('atlas_days')
+                    .update({ city }).in('id', ids).eq('user_id', user.id);
+                if (error) console.error('Error stamping city:', error);
+            }
+        })();
+    }, [user, legs, days]);
 
     const addLeg = useCallback(async (leg) => {
         if (!user || !tripId) return;
@@ -153,15 +168,13 @@ export const useTripDays = (trip) => {
         if (error) { console.error('Error adding leg:', error); return; }
         setLegs((prev) => [...prev, data]
             .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date))));
-        await stampLeg(data);
-    }, [user, tripId, legs.length, stampLeg]);
+    }, [user, tripId, legs.length]);
 
     const updateLeg = useCallback(async (id, patch) => {
         if (!user) return;
         const before = legs.find((l) => l.id === id);
         if (!before) return;
-        const after = { ...before, ...patch };
-        setLegs((prev) => prev.map((l) => (l.id === id ? after : l))
+        setLegs((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l))
             .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date))));
         const { error } = await supabase
             .from('atlas_legs').update(patch).eq('id', id).eq('user_id', user.id);
@@ -170,10 +183,8 @@ export const useTripDays = (trip) => {
             // is refused by the database rather than half-applied.
             setLegs((prev) => prev.map((l) => (l.id === id ? before : l)));
             console.error('Error updating leg:', error);
-            return;
         }
-        await stampLeg(after);
-    }, [user, legs, stampLeg]);
+    }, [user, legs]);
 
     const deleteLeg = useCallback(async (id) => {
         if (!user) return;

@@ -2,7 +2,7 @@ import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
-import { legBands } from '../utils/tripLegs';
+import { legBands, legsOn } from '../utils/tripLegs';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -75,7 +75,11 @@ const TripTimeline = ({ days, items, stays, legs = [], costs, currency = 'USD' }
                     return (
                         <div key={`h-${day.id}`} className="timeline__dayhead">
                             <strong>{format(parseISO(String(day.date).slice(0, 10)), 'EEE d')}</strong>
-                            <span className="timeline__city">{day.city || '—'}</span>
+                            {/* From the legs, not the day's own copy of them:
+                                one place decides where you are. */}
+                            <span className="timeline__city">
+                                {legsOn(legs, day.date).map((l) => l.city).join(' → ') || day.city || '—'}
+                            </span>
                             {weather && (
                                 <span className="timeline__temp">
                                     {icon} {weather.high != null ? `${Math.round(weather.high)}°` : ''}
