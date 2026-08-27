@@ -1173,3 +1173,10 @@
         grid-template-columns: 7em minmax(0, 1fr);
     }
 }
+
+/* A travel leg is a leg, not a warning — said quietly, in its own words. */
+.route__travel {
+    margin-left: var(--space-2);
+    color: var(--text-dim);
+    font-style: normal;
+}

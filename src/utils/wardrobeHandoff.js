@@ -21,7 +21,7 @@
  * exactly that difference.
  */
 
-import { legsOn, isHandover } from './tripLegs.js';
+import { legsOn, isHandover, isTravelLeg, cityLabelOn } from './tripLegs.js';
 
 const STORE = 'op_trips';
 
@@ -73,19 +73,16 @@ export const eventTypeFor = (item = {}) => {
 
 const iso = (d) => String(d || '').slice(0, 10);
 
-/* Things people write in a City field that are not cities. */
-const NOT_A_PLACE = /^(air ?travel|travel|travel ?day|flight|flying|airplane|plane|in transit|transit|home)$/i;
-
 /**
  * The city that best stands for the trip.
  *
- * The planner geocodes one string, and her first leg is "Air Travel" — which
- * is honest about the day and useless as a location. The leg with the most
- * days in it is the better answer, and a leg named after a mode of transport
- * is not a candidate at all.
+ * The planner geocodes one string, and a leg called "Air Travel" is a real
+ * leg — three days of packing — but not somewhere Open-Meteo can find. The leg
+ * with the most days in it is the better answer for the trip as a whole; the
+ * travel days still get their own entries, they just get them as travel days.
  */
 export const anchorCity = (legs = []) => {
-    const real = legs.filter((l) => l.city && !NOT_A_PLACE.test(String(l.city).trim()));
+    const real = legs.filter((l) => l.city && !isTravelLeg(l));
     if (!real.length) return '';
     return [...real]
         .sort((a, b) => daysBetween(b) - daysBetween(a)
@@ -108,21 +105,26 @@ const daysBetween = (leg) => {
  */
 export const eventsForDay = (day, dayItems = [], legs = []) => {
     const date = iso(day.date);
-    const cities = legsOn(legs, date).map((l) => l.city).filter(Boolean);
-    const city = cities.join(' → ') || day.city || '';
+    const here = legsOn(legs, date);
+    const label = cityLabelOn(legs, date) || day.city || '';
+
+    // A day spent getting somewhere is a travel day for its whole length, not
+    // only on the hour you land. Three days of flying is three days of packing
+    // for flying, and calling them "sightseeing" dresses them wrongly.
+    const travelling = here.length > 0 && here.every(isTravelLeg);
 
     const events = dayItems
         .filter((i) => i.title && i.kind !== 'lodging')
         .map((item) => {
-            const type = eventTypeFor(item);
+            const type = travelling ? TRAVEL : eventTypeFor(item);
             return { name: item.title, date, type, dress: TYPE_DRESS[type] || 2 };
         });
 
     if (events.length) return events;
 
-    const moving = isHandover(legs, date);
+    const moving = travelling || isHandover(legs, date);
     const type = moving ? TRAVEL : SIGHTSEEING;
-    return [{ name: city || 'Free day', date, type, dress: TYPE_DRESS[type] || 2 }];
+    return [{ name: label || 'Free day', date, type, dress: TYPE_DRESS[type] || 2 }];
 };
 
 /**

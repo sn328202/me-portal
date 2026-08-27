@@ -53,6 +53,67 @@ export const legsOn = (legs = [], date) => {
         .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)));
 };
 
+
+/* Things people write in a City field that are not places. Her first leg is
+   genuinely called "Air Travel", and it is a real leg — three days of packing
+   and outfits — it just cannot be geocoded and should not pretend to be a
+   city you are sightseeing in. */
+const TRAVEL_WORDS = /^(air ?travel|travel|travel ?day|flight|flying|airplane|plane|in ?transit|transit|driving|road ?trip|train)$/i;
+
+export const isTravelLeg = (leg) => TRAVEL_WORDS.test(String(leg?.city || '').trim());
+
+/**
+ * Where a leg actually puts you.
+ *
+ * A normal leg puts you in its own city. A travel leg puts you in whatever
+ * comes next — which is the answer the weather job needs, because looking up
+ * the forecast for "Air Travel" returns a real place somewhere in the world
+ * and it is not the one you are flying to. Her Air Travel leg was showing
+ * 46°/28° for late December in India.
+ */
+export const legDestination = (leg, legs = []) => {
+    if (!isTravelLeg(leg)) return leg?.city || '';
+
+    const real = legs.filter((l) => !isTravelLeg(l) && l.city);
+    const end = String(leg?.end_date || '').slice(0, 10);
+
+    const next = real
+        .filter((l) => String(l.start_date).slice(0, 10) >= end)
+        .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)))[0];
+    if (next) return next.city;
+
+    // Nothing after it: this is the flight home, so the last real place is
+    // the honest answer for what the weather was like around it.
+    const previous = [...real]
+        .sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)))[0];
+    return previous?.city || '';
+};
+
+/** "Air Travel → Mumbai" — her own words, plus where they lead. */
+export const legLabel = (leg, legs = []) => {
+    const city = leg?.city || '';
+    if (!isTravelLeg(leg)) return city;
+    const to = legDestination(leg, legs);
+    return to ? `${city} → ${to}` : city;
+};
+
+/**
+ * What to show as the city on a given date.
+ *
+ * Two legs claim a handover day and each may already carry an arrow, so
+ * naively joining them gives "Air Travel → Mumbai → Mumbai". Consecutive
+ * repeats collapse.
+ */
+export const cityLabelOn = (legs = [], date) => {
+    const parts = [];
+    for (const leg of legsOn(legs, date)) {
+        for (const piece of legLabel(leg, legs).split(' → ')) {
+            if (piece && piece !== parts[parts.length - 1]) parts.push(piece);
+        }
+    }
+    return parts.join(' → ');
+};
+
 /**
  * A day where one leg ends and the next begins.
  *

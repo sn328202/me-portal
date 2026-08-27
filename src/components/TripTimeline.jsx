@@ -2,7 +2,7 @@ import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
-import { legBands, legsOn } from '../utils/tripLegs';
+import { legBands, legLabel, cityLabelOn } from '../utils/tripLegs';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -78,7 +78,7 @@ const TripTimeline = ({ days, items, stays, legs = [], costs, currency = 'USD' }
                             {/* From the legs, not the day's own copy of them:
                                 one place decides where you are. */}
                             <span className="timeline__city">
-                                {legsOn(legs, day.date).map((l) => l.city).join(' → ') || day.city || '—'}
+                                {cityLabelOn(legs, day.date) || day.city || '—'}
                             </span>
                             {weather && (
                                 <span className="timeline__temp">
@@ -100,9 +100,9 @@ const TripTimeline = ({ days, items, stays, legs = [], costs, currency = 'USD' }
                             key={leg.id}
                             className="timeline__leg"
                             style={{ gridColumn: `${start + 1} / span ${span}` }}
-                            title={`${leg.city} — ${span} ${span === 1 ? 'day' : 'days'}`}
+                            title={`${legLabel(leg, legs)} — ${span} ${span === 1 ? 'day' : 'days'}`}
                         >
-                            {leg.city}
+                            {legLabel(leg, legs)}
                         </span>
                     ))}
                     {!cityBars.length && <span className="timeline__nostay">No cities set</span>}

@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { GiTrashCan, GiPathDistance, GiKnot } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import { formatMoney } from '../utils/tripCosts';
-import { summariseLegs, routeGaps } from '../utils/tripLegs';
+import { summariseLegs, routeGaps, isTravelLeg, legDestination } from '../utils/tripLegs';
 
 /**
  * The trip before it is days: five in Goa, then four in Kerala.
@@ -93,7 +93,16 @@ const TripRoute = ({
                             />
 
                             <span className="route__facts">
-                                <span>{dayCount} {dayCount === 1 ? 'day' : 'days'} · {nights} {nights === 1 ? 'night' : 'nights'}</span>
+                                <span>
+                                    {dayCount} {dayCount === 1 ? 'day' : 'days'} · {nights} {nights === 1 ? 'night' : 'nights'}
+                                    {/* Named, not hidden: it is three days of
+                                        packing like any other leg. */}
+                                    {isTravelLeg(leg) && (
+                                        <em className="route__travel">
+                                            travelling{legDestination(leg, legs) ? ` to ${legDestination(leg, legs)}` : ''}
+                                        </em>
+                                    )}
+                                </span>
                                 {high != null && <span className="route__temp">avg {high}° / {low}°</span>}
                                 <span className={lodging.length ? 'route__ok' : 'route__warn'}>
                                     {lodging.length

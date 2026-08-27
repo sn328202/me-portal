@@ -109,7 +109,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner }) => {
     const {
         days, items, stays, legs, strays, tripDates, costs, weatherBusy, weatherMessage,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
-        legOnDate, legsOnDate, addLeg, updateLeg, deleteLeg,
+        legOnDate, cityLabelFor, addLeg, updateLeg, deleteLeg,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather,
     // Lifted to the page so the spreadsheet export and the Wardrobe handoff
     // read the same trip this is showing, rather than fetching a second copy.
@@ -259,7 +259,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner }) => {
                                         {/* On a travel day both cities are true,
                                             and which one you are in depends on
                                             the hour. */}
-                                        <p>{legsOnDate(day.date).map((l) => l.city).join(' → ')}</p>
+                                        <p>{cityLabelFor(day.date)}</p>
                                     </div>
                                 ) : (
                                     <Field

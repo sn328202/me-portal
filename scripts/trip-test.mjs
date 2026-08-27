@@ -10,7 +10,7 @@ import {
     nightsOf, lodgingByNight, stayOn,
 } from '../src/utils/tripCosts.js';
 import { datesBetween } from '../src/utils/tripDates.js';
-import { daysOfLeg, legOn, legsOn, legBands, isHandover, routeGaps, summariseLegs } from '../src/utils/tripLegs.js';
+import { daysOfLeg, legOn, legsOn, legBands, isHandover, isTravelLeg, legDestination, legLabel, cityLabelOn, routeGaps, summariseLegs } from '../src/utils/tripLegs.js';
 import { describeCode, dressFor, isForecastable, sourceLabel } from '../src/utils/weather.js';
 
 let failed = 0;
@@ -315,6 +315,47 @@ console.log('\nhandover days — you arrive on the day you leave:');
         routeGaps(['2026-12-23', '2026-12-24'], nested, []).overlaps, ['2026-12-24']);
     check('a single leg keeps all its days',
         legBands([legs[1]])[0].dates.length, daysOfLeg(legs[1]).length);
+}
+
+/* A leg spent getting somewhere is still a leg ---------------------------- */
+console.log('\ntravel legs — real days, just not a place:');
+{
+    const legs = [
+        { id: 'a', city: 'Air Travel', start_date: '2026-12-23', end_date: '2026-12-25' },
+        { id: 'b', city: 'Mumbai', start_date: '2026-12-25', end_date: '2026-12-27' },
+        { id: 'c', city: 'Kerala', start_date: '2026-12-27', end_date: '2027-01-02' },
+        { id: 'd', city: 'Flight', start_date: '2027-01-02', end_date: '2027-01-03' },
+    ];
+
+    check('a leg named after a mode of transport is one', isTravelLeg(legs[0]), true);
+    check('a city is not', isTravelLeg(legs[1]), false);
+    check('a place with travel in the name is still a place',
+        isTravelLeg({ city: 'Travelers Rest' }), false);
+
+    // Looking up "Air Travel" returns a real place somewhere on earth, and it
+    // is not the one she is flying to — 46°/28° for India in late December.
+    check('a travel leg takes the weather of where it lands',
+        legDestination(legs[0], legs), 'Mumbai');
+    check('an ordinary leg is its own destination', legDestination(legs[1], legs), 'Mumbai');
+    check('the flight home looks backwards, not forwards',
+        legDestination(legs[3], legs), 'Kerala');
+
+    check('the label keeps her word and adds where it goes',
+        legLabel(legs[0], legs), 'Air Travel → Mumbai');
+    check('an ordinary leg is labelled with its own name', legLabel(legs[1], legs), 'Mumbai');
+
+    check('every day of the flight out says so',
+        [cityLabelOn(legs, '2026-12-23'), cityLabelOn(legs, '2026-12-24')],
+        ['Air Travel → Mumbai', 'Air Travel → Mumbai']);
+    // Both legs claim the 25th and both already carry an arrow, so a naive
+    // join would read "Air Travel → Mumbai → Mumbai".
+    check('the handover does not say Mumbai twice',
+        cityLabelOn(legs, '2026-12-25'), 'Air Travel → Mumbai');
+    check('a handover between two cities still shows both',
+        cityLabelOn(legs, '2026-12-27'), 'Mumbai → Kerala');
+    check('a leg with nowhere to go keeps just her word',
+        legLabel({ city: 'Air Travel', start_date: '2026-12-23', end_date: '2026-12-25' }, []),
+        'Air Travel');
 }
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');

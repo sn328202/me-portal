@@ -14,7 +14,7 @@
  * script.google.com are layout decisions nobody can test or change safely.
  */
 
-import { daysOfLeg, legsOn } from './tripLegs.js';
+import { cityLabelOn } from './tripLegs.js';
 import { nightsOf } from './tripCosts.js';
 
 /* 6am to midnight, as the sheet has it. 12am is the end of the day, not the
@@ -131,7 +131,7 @@ export const itineraryTab = (
 
     put(['Date/Time', ...dates.map(dayLabel), 'Things to Do', 'Food', 'Other']);
 
-    const cityFor = (date) => legsOn(legs, date).map((l) => l.city).join(' → ')
+    const cityFor = (date) => cityLabelOn(legs, date)
         || days.find((d) => String(d.date).slice(0, 10) === date)?.city
         || '';
     const cityRow = put(['City', ...dates.map(cityFor)]);

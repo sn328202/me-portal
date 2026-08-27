@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { tripCost, lodgingByNight, stayOn } from '../utils/tripCosts';
 import { datesBetween } from '../utils/tripDates';
-import { legOn, legsOn } from '../utils/tripLegs';
+import { legOn, legsOn, legDestination, cityLabelOn } from '../utils/tripLegs';
 
 /**
  * A trip's days, the things planned in them, and what it all costs.
@@ -142,7 +142,11 @@ export const useTripDays = (trip) => {
         const wanted = new Map();
         for (const day of days) {
             const leg = legOn(legs, day.date);
-            if (leg?.city && leg.city !== day.city) wanted.set(day.id, leg.city);
+            // The *destination*, not the leg's name: this column is what the
+            // weather job geocodes, and "Air Travel" resolves to a real place
+            // that is not the one she is flying to.
+            const city = leg ? legDestination(leg, legs) : '';
+            if (city && city !== day.city) wanted.set(day.id, city);
         }
         if (!wanted.size) return;
 
@@ -405,6 +409,7 @@ export const useTripDays = (trip) => {
         stayOnDate: (date) => stayOn(stays, date),
         legOnDate: (date) => legOn(legs, date),
         legsOnDate: (date) => legsOn(legs, date),
+        cityLabelFor: (date) => cityLabelOn(legs, date),
         addStay, updateStay, deleteStay,
         addLeg, updateLeg, deleteLeg, applyImport,
         weatherBusy: weatherState.busy,

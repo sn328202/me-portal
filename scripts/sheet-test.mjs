@@ -82,6 +82,14 @@ check('the header names the days', tab.rows[0].slice(1, 6),
 check('the side columns survive', tab.rows[0].slice(6),
     ['Things to Do', 'Food', 'Other']);
 check('a travel day names both cities', row('City')[3], 'Mumbai → Kerala');
+// The flight out lands on the first day of the trip, which is the shape she
+// actually enters: Air Travel up to the 25th, Mumbai from the 25th.
+check('the sheet says where a flight is going too',
+    itineraryTab({
+        ...data,
+        legs: [{ id: 'a', city: 'Air Travel', start_date: '2026-12-23', end_date: '2026-12-25' }, ...legs],
+    }).rows.find((r) => r[0] === 'City')[1],
+    'Air Travel → Mumbai');
 check('lodging comes from the stay, not the day', row('Lodging').slice(1, 4),
     ['Taj Mahal Palace', 'Taj Mahal Palace', '']);
 check('a ten-year average says so', row('Weather')[1], '88° / 71° (typical)');
@@ -223,6 +231,27 @@ check('a mode of transport is not a destination',
     ]), 'Kerala');
 check('a trip that is all travel gives up rather than guessing',
     anchorCity([{ city: 'Flight', start_date: '2026-12-23', end_date: '2026-12-24' }]), '');
+
+// The point she made: those three days are packing and outfits like any
+// others. They must not be dropped, and they must not be called sightseeing.
+{
+    const withFlight = [
+        { id: 'a', city: 'Air Travel', start_date: '2026-12-23', end_date: '2026-12-25' },
+        ...legs,
+    ];
+    const outbound = ['2026-12-23', '2026-12-24'].map(
+        (date) => eventsForDay({ id: date, date }, [], withFlight)[0]
+    );
+    check('the flight out still gets a day each',
+        outbound.map((e) => e.name), ['Air Travel → Mumbai', 'Air Travel → Mumbai']);
+    check('and every one of them is a travel day',
+        outbound.map((e) => e.type), [7, 7]);
+    // Not only the hour you land: the whole leg dresses for travelling.
+    check('even a dinner mid-flight is a travel day',
+        eventsForDay({ id: 'x', date: '2026-12-24' },
+            [{ title: 'Airport dinner', kind: 'food', start_time: '19:00' }], withFlight)[0].type,
+        7);
+}
 check('only days with weather get weather', Object.keys(wt.weather),
     ['2026-12-25', '2026-12-26', '2026-12-28']);
 check('an average is flagged as one', wt.weather['2026-12-25'].estimated, true);
