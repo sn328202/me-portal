@@ -12,6 +12,9 @@ const RecipeDetail = ({
     onAddMissing, onTeachAlias,
 }) => {
     const [reviewing, setReviewing] = useState(false);
+    // A single line being turned into a new ingredient goes through the same
+    // review sheet as a bulk add, so it also gets a category and a symbol.
+    const [creating, setCreating] = useState(null);
     const [added, setAdded] = useState(0);
 
     /**
@@ -131,7 +134,7 @@ const RecipeDetail = ({
                                             matcher={matcher}
                                             ingredients={ingredients}
                                             onLink={onTeachAlias}
-                                            onCreate={(raw) => onAddMissing?.([raw])}
+                                            onCreate={(raw) => setCreating(raw)}
                                         />
                                     </span>
                                     {ing.inStock && <span className="visually-hidden">(in stock)</span>}
@@ -182,6 +185,17 @@ const RecipeDetail = ({
                 categories={categories}
                 onCancel={() => setReviewing(false)}
                 onConfirm={handleConfirm}
+            />
+
+            <MissingIngredients
+                open={Boolean(creating)}
+                lines={creating ? [creating] : []}
+                categories={categories}
+                onCancel={() => setCreating(null)}
+                onConfirm={async (rows) => {
+                    await onAddMissing?.(rows);
+                    setCreating(null);
+                }}
             />
         </Card>
     );

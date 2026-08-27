@@ -73,6 +73,9 @@ const IngredientLink = ({ line, matcher, ingredients, onLink, onCreate }) => {
     }, [open, query, ingredients, matcher, line]);
 
     const choose = (item) => {
+        // Nothing to attach: linking would write an empty alias, which the hook
+        // discards, so the click would appear to do nothing at all.
+        if (!line.normalised) { setOpen(false); return; }
         onLink(item.id, line.normalised);
         setOpen(false);
         setQuery('');
@@ -140,9 +143,14 @@ const IngredientLink = ({ line, matcher, ingredients, onLink, onCreate }) => {
                         )}
                     </ul>
 
-                    {/* The honest third option: sometimes the pantry really has
-                        never held this, and the answer is a new row, not a link. */}
-                    {!line.match && onCreate && (
+                    {/* Always offered, matched or not.
+                        Gating this on `!line.match` meant that once the matcher
+                        had decided anything - even wrongly, even from an alias
+                        taught earlier - the only way out was to pick another
+                        ingredient that already existed. A line that resolved to
+                        the wrong thing and needed a genuinely new ingredient had
+                        nowhere to go. */}
+                    {onCreate && line.normalised && (
                         <button
                             type="button"
                             className="ing-link__create"
@@ -150,6 +158,15 @@ const IngredientLink = ({ line, matcher, ingredients, onLink, onCreate }) => {
                         >
                             + Add “{line.normalised}” as a new ingredient
                         </button>
+                    )}
+
+                    {/* If normalisation stripped the line to nothing there is no
+                        wording to attach, and both actions would no-op in
+                        silence. Say so instead. */}
+                    {!line.normalised && (
+                        <p className="ing-link__empty">
+                            There’s no ingredient name in this line to link.
+                        </p>
                     )}
                 </div>
             )}

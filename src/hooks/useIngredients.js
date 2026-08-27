@@ -213,7 +213,13 @@ export const useIngredients = () => {
             ...prev.filter((i) => !String(i.id).startsWith('temp-')),
             ...(data || []),
         ]);
-        return { added: (data || []).length };
+
+        // A brand new `goat cheese` row takes that wording back from whatever
+        // had been standing in for it - otherwise the old ingredient keeps
+        // claiming a name it was only ever borrowing.
+        await Promise.all((data || []).map((row) => claimAlias(row.name, row.id)));
+
+        return { added: (data || []).length, created: data || [] };
     };
 
     /**
@@ -223,10 +229,40 @@ export const useIngredients = () => {
      * compares against — normalising on every read would be per-render work
      * for a value that never changes.
      */
+    /**
+     * Strip a wording from every ingredient except one.
+     *
+     * A phrase means exactly one thing. Without this, re-linking a line only
+     * *added* the wording to the new ingredient and left it on the old one, so
+     * "goat cheese" could mean both cottage cheese and goat cheese at once, and
+     * which one won came down to index order rather than to what she said.
+     */
+    const claimAlias = async (alias, keeperId) => {
+        const stale = ingredients.filter(
+            (i) => i.id !== keeperId && (i.aliases || []).includes(alias)
+        );
+        if (!stale.length) return;
+
+        setIngredients((prev) => prev.map((i) => (
+            stale.some((x) => x.id === i.id)
+                ? { ...i, aliases: (i.aliases || []).filter((a) => a !== alias) }
+                : i
+        )));
+
+        await Promise.all(stale.map((i) => supabase
+            .from('pantry_ingredients')
+            .update({ aliases: (i.aliases || []).filter((a) => a !== alias) })
+            .eq('id', i.id)
+            .eq('user_id', user.id)));
+    };
+
     const addAlias = async (id, phrase) => {
         if (!user) return;
         const alias = normalise(phrase).text;
         if (!alias) return;
+
+        // Whoever held this wording before does not hold it any more.
+        await claimAlias(alias, id);
 
         const ing = ingredients.find((i) => i.id === id);
         if (!ing || (ing.aliases || []).includes(alias)) return;

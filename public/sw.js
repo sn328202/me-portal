@@ -13,11 +13,17 @@
  *   everything else (API, Supabase, Google) -> straight to the network,
  *                   never cached
  *
- * It does not call skipWaiting. A new version takes over on the next launch
- * rather than swapping code under a page that is mid-render.
+ * It DOES call skipWaiting, and the page reloads itself once when the new
+ * worker takes over.
+ *
+ * The conservative alternative - waiting for every tab to close - sounds safer
+ * and is not: on a single-user app that lives in a pinned tab, "the next cold
+ * start" can be days away. A fix would ship, the assets would be fresh on the
+ * server, and the app would keep running the old bundle with no way for anyone
+ * to tell. That is exactly what happened with the `cloves` fix.
  */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL = `me-portal-shell-${VERSION}`;
 const ASSETS = `me-portal-assets-${VERSION}`;
 const MEDIA = `me-portal-media-${VERSION}`;
@@ -26,6 +32,8 @@ const KEEP = [SHELL, ASSETS, MEDIA];
 const SHELL_URLS = ['/', '/manifest.webmanifest', '/favicon.svg', '/icon-192.png'];
 
 self.addEventListener('install', (event) => {
+    // Do not sit in `waiting` while the user stares at a stale build.
+    self.skipWaiting();
     event.waitUntil(
         caches.open(SHELL).then((cache) => cache.addAll(SHELL_URLS)).catch(() => {
             // A failed precache must not block installation — the app still

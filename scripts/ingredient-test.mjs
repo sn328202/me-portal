@@ -330,5 +330,22 @@ console.log('\na buried synonym must not change what a line is about:');
         normalise('deggi mirch indian chilli powder').text, 'red chilli powder');
 }
 
+console.log('\nlines made only of measure words still name something:');
+{
+    // "3 cloves" on its own reduced to the empty string before the fallback
+    // existed, which made the link popover offer to add "" as an ingredient and
+    // made addAlias discard the write - so linking it appeared to do nothing,
+    // however many times it was tried.
+    for (const line of ['3 cloves', '2 cups', '1 head', '4 sprigs', '2 sticks']) {
+        check(`"${line}" is not stripped to nothing`, normalise(line).text !== '', true);
+    }
+    check('  and "3 cloves" names the spice', normalise('3 cloves').text, 'clove');
+    check('  while "3 cloves garlic" still names the garlic',
+        normalise('3 cloves garlic').text, 'garlic');
+    // A line with genuinely no ingredient in it should still come back empty,
+    // so the UI can say so rather than pretending.
+    check('a line of pure quantity names nothing', normalise('2').text, '');
+}
+
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);
