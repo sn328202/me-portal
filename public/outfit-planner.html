@@ -385,6 +385,46 @@ function defaultEssentials(){return {
   "Medicine":["Pain reliever","Allergy medicine","Band-aids","Prescriptions","Vitamins"],
   "Miscellaneous":["Passport / ID","Wallet & cards","Sleepwear","Reusable tote"]
 };}
+// ---- prepopulated seed for the first profile (Neha), used on a fresh install ----
+const _DL={"Casual":1,"Smart casual":2,"Business casual":3,"Cocktail / dressy":4,"Formal":5};
+function seedCloset(){
+  let n=0;const sid=()=>"seed"+(n++)+Math.random().toString(36).slice(2,5);
+  const mk=(name,cat,dw,color)=>({id:sid(),cat,name,color:color||"",dress:cat===AGNOSTIC_CAT?1:_DL[dw],warmth:3,rain:false,style:"Everyday",notes:"",img:""});
+  return [
+    mk("brown tank top","Tops","Casual"),mk("cream dissh boat neck sleeveless boucle","Tops","Smart casual"),
+    mk("orange tank top","Tops","Casual"),mk("white baby tee","Tops","Casual"),
+    mk("red nishorama halter top","Tops","Smart casual"),mk("blue deep v mesh fabric top","Tops","Smart casual"),
+    mk("blue linen nishorama shirt","Tops","Smart casual"),mk("black tank top","Tops","Casual"),
+    mk("cream / black striped long sleeve","Tops","Casual"),mk("feners strapless top","Tops","Cocktail / dressy"),
+    mk("striped wide india shirt","Tops","Casual"),
+    mk("OV blue pants","Bottoms","Casual"),mk("maxi black floor length skirt","Bottoms","Smart casual"),
+    mk("brown flare yoga pants","Bottoms","Casual"),mk("red floor length polka dot skirt","Bottoms","Casual"),
+    mk("low rise madewell jeans","Bottoms","Smart casual"),mk("white linen abercrombie skort","Bottoms","Smart casual"),
+    mk("Burberry skirt","Bottoms","Casual"),mk("khaki abercrombie skort","Bottoms","Casual"),
+    mk("feners matching skirt","Bottoms","Cocktail / dressy"),
+    mk("green italian vintage dress","Dresses","Smart casual"),mk("black and white striped dress","Dresses","Smart casual"),
+    mk("white 3/4 sleeve linen button down deep v dress","Dresses","Smart casual"),mk("skims black dress","Dresses","Business casual"),
+    mk("coachella green pullover","Outerwear","Casual"),mk("black leather jacket","Outerwear","Smart casual"),
+    mk("pashmina","Outerwear","Smart casual"),
+    mk("hokas","Shoes","Casual"),mk("black leather loafers","Shoes","Casual"),mk("white sneakers","Shoes","Casual"),
+    mk("black sandal heel","Shoes","Smart casual"),mk("sezanne brown sandals","Shoes","Cocktail / dressy"),mk("tivas","Shoes","Business casual"),
+    mk("Silver Necklace","Accessories",null,"Silver"),mk("Silver Kaju Studios Earrings","Accessories",null,"Silver"),
+    mk("bella black belt w/ silver buckle","Accessories"),mk("pearl drop necklace","Accessories"),
+    mk("black tights","Accessories"),mk("silver collar necklace","Accessories"),
+    mk("gold wishbone necklace","Accessories"),mk("gold kaju studios earrings","Accessories")
+  ];
+}
+function seedEssentials(){return {
+  "Toiletries":["Toothbrush & toothpaste","Deodorant","Dr. Groot Shampoo + Scalp Scrub","Laroche Posay Cleanser","Laroche Posay Sunscreen","Hairbrush","Razor + Bikini Razor","Contacts","Keratase Night Serum","Eyebrow Razor + Scissors","Leave in Hair Conditioner","Guasha","Clyndamyacin Topical Acne Medication","Face Pick Tools","345 Cream","Biodance Face Masks","Hair Bonnet + Scrunchie","Bobby pin + Safety Pin + Hair Tie Box","Perfume Oils"],
+  "Makeup bag":["Armani Foundation","Armani Concealer","Black + Brown Kohl Pencils","Ilia Mascara","Gel Eyeliner","Black Honey + Hourglass + Liv Tinted Lip Colors","Armani Primer","Setting Spray","Makeup remover Wipes","Blue Medicube Wipes","Make up brushes + brush pot","Bronzer + eyeshadow palette"],
+  "Tech bag":["Phone charger","Laptop & charger","Airpods","Power bank","Travel adapter","Charging cables","Oura ring + charger","Shockz Headphones"],
+  "Backpack":["Book","Gallon Bag + Plastic Bag","Packable Tote","Sunglasses Collection (Prada, LV, Gucci)","Passport + International Driving License"],
+  "Jewelry box":["Gold + Silver Kaju Hoops","Gold + Silver Second piercing earrings","Gold + Silver Herringbone necklaces","Engagement Ring"],
+  "Medicine":["Enema x Nights","Mesalamine Pills","Seed Probiotic Pills","First Aid Kit (Band aids, tylenol, bug spray, anti nausea, immodium, neosporin)"],
+  "Purse":["ID","Credit Cards / Debit Cards","Cash","Boom Boom Stick","Toilet Wipes","Hand Sanitizer","House Keys + Car Keys"],
+  "Miscellaneous":[]
+};}
+function seedEssCats(){return ["Toiletries","Makeup bag","Tech bag","Backpack","Jewelry box","Medicine","Purse","Miscellaneous"];}
 
 /* ---------- storage ---------- */
 const DB={load(k,def){try{const v=JSON.parse(localStorage.getItem("op_"+k));return v??def}catch(e){return def}},
@@ -412,10 +452,12 @@ let essCatsAll=DB.load("essCatsAll",null);
   let lec=DB.load("essCats",null);if(!Array.isArray(lec)||!lec.length)lec=[...ESS_CATS];
   Object.keys(le).forEach(c=>{if(!lec.includes(c))lec.push(c);});
   closetsAll=closetsAll||{};essAll=essAll||{};essCatsAll=essCatsAll||{};
+  // fresh install (no prior data) -> prepopulate the first profile with Neha's saved closet & essentials
+  const fresh=!legacyCloset.length && DB.load("essentials",null)==null;
   profiles.forEach((p,i)=>{
-    if(!closetsAll[p.id])closetsAll[p.id]=i===0?legacyCloset:[];
-    if(!essAll[p.id])essAll[p.id]=i===0?le:defaultEssentials();
-    if(!essCatsAll[p.id])essCatsAll[p.id]=i===0?lec:[...ESS_CATS];
+    if(!closetsAll[p.id])closetsAll[p.id]=i!==0?[]:(fresh?seedCloset():legacyCloset);
+    if(!essAll[p.id])essAll[p.id]=i!==0?defaultEssentials():(fresh?seedEssentials():le);
+    if(!essCatsAll[p.id])essCatsAll[p.id]=i!==0?[...ESS_CATS]:(fresh?seedEssCats():lec);
   });
 })();
 // ensure each profile has valid structures
