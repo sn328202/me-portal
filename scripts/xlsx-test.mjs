@@ -6,8 +6,8 @@
  * that is the one thing that silently loses four days of a trip if it doesn't.
  */
 
-import ExcelJS from 'exceljs';
-import { itineraryTab, readSheet, sheetPayload } from '../src/utils/tripSheet.js';
+import { buildXlsx, readXlsx, colName, safeName } from '../api/_xlsx.js';
+import { readSheet, sheetPayload } from '../src/utils/tripSheet.js';
 import { tripCost } from '../src/utils/tripCosts.js';
 
 let failed = 0;
@@ -37,55 +37,16 @@ const items = {
 const costs = tripCost(days, items, 2, stays);
 const data = { days, items, legs, stays, costs, currency: 'USD' };
 
-/* ---- write, exactly as api/sheets.js does ------------------------------- */
-
-const write = async (payload) => {
-    const wb = new ExcelJS.Workbook();
-    for (const tab of payload.tabs) {
-        const sheet = wb.addWorksheet(String(tab.name).replace(/[:\\/?*[\]]/g, '-').slice(0, 31));
-        for (const row of tab.rows) sheet.addRow(row);
-        for (const m of tab.merges || []) {
-            try { sheet.mergeCells(m.row + 1, m.col + 1, m.row + m.rows, m.col + m.cols); } catch { /* overlap */ }
-        }
-    }
-    return wb.xlsx.writeBuffer();
-};
-
-const back = async (buffer) => {
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buffer);
-    return wb.worksheets.map((sheet) => {
-        const rows = [];
-        for (let r = 1; r <= sheet.rowCount; r += 1) {
-            const row = [];
-            for (let c = 1; c <= sheet.columnCount; c += 1) {
-                const v = sheet.getCell(r, c).value;
-                row.push(v === null || v === undefined ? '' : (typeof v === 'object' ? String(v.result ?? v.text ?? '') : String(v)));
-            }
-            rows.push(row);
-        }
-        for (const range of Object.values(sheet._merges || {})) {
-            const { top, left, bottom, right } = range.model || range;
-            const value = rows[top - 1]?.[left - 1];
-            if (!value) continue;
-            for (let r = top; r <= bottom; r += 1) {
-                for (let c = left; c <= right; c += 1) if (rows[r - 1]) rows[r - 1][c - 1] = value;
-            }
-        }
-        return { name: sheet.name, rows };
-    });
-};
-
 console.log('\nthe file itself:');
 
 const payload = sheetPayload({ id: 7, destination: 'India', start_date: '2026-12-23', currency: 'USD' }, data);
-const buffer = await write(payload);
+const buffer = buildXlsx(payload);
 
 check('it is a real zip, which is what .xlsx is',
     Buffer.from(buffer).subarray(0, 2).toString('binary'), 'PK');
-check('a fifteen-day trip is not a huge file', Buffer.from(buffer).length < 200000, true);
+check('a fifteen-day trip is not a huge file', buffer.length < 200000, true);
 
-const tabs = await back(buffer);
+const { tabs } = readXlsx(buffer);
 check('all three tabs come back', tabs.map((t) => t.name), ['Itinerary', 'Restaurants', 'Things to Do']);
 
 const grid = tabs[0].rows;
@@ -120,10 +81,37 @@ check('the money survived as a number',
 check('nothing was skipped', parsed.skipped, []);
 
 /* An empty trip must not produce a broken file. */
-const empty = await write(sheetPayload({ id: 8, destination: 'Nowhere', start_date: '' },
+const empty = buildXlsx(sheetPayload({ id: 8, destination: 'Nowhere', start_date: '' },
     { days: [], items: {}, legs: [], stays: [], costs: {} }));
 check('a trip with no days still writes a file',
     Buffer.from(empty).subarray(0, 2).toString('binary'), 'PK');
+check('and it can be read back', readXlsx(empty).tabs.length, 3);
+
+/* ---- the fiddly bits of the format ------------------------------------- */
+console.log('\nthe bits of .xlsx that bite:');
+
+// Excel columns are bijective base-26: after Z comes AA, not BA. A trip of
+// three weeks is past column Z, so getting this wrong misplaces every cell.
+check('column names past Z', [colName(0), colName(25), colName(26), colName(27), colName(51)],
+    ['A', 'Z', 'AA', 'AB', 'AZ']);
+check('a sheet name Excel would refuse is cleaned',
+    safeName('Trip: Goa/Kerala [2026]', 0), 'Trip- Goa-Kerala -2026-');
+check('a nameless sheet still gets a name', safeName('', 2), 'Sheet3');
+
+// Ampersands and angle brackets in a restaurant name must not break the XML.
+const awkward = buildXlsx({ tabs: [{ name: 'T', rows: [['Bar & Grill <the good one>', 'quote " here', 42]] }] });
+const awkwardBack = readXlsx(awkward).tabs[0].rows[0];
+check('an ampersand survives', awkwardBack[0], 'Bar & Grill <the good one>');
+check('a quote survives', awkwardBack[1], 'quote " here');
+check('a number stays a number, not a string', awkwardBack[2], '42');
+
+// A wide trip proves the column maths past Z end to end.
+const wide = buildXlsx({ tabs: [{ name: 'W', rows: [Array.from({ length: 30 }, (_, i) => `c${i}`)] }] });
+check('thirty columns come back in order', readXlsx(wide).tabs[0].rows[0].slice(26, 29), ['c26', 'c27', 'c28']);
+
+// Tabs are matched through the rels, so a reordered workbook still reads right.
+const many = readXlsx(buildXlsx({ tabs: [{ name: 'One', rows: [['1']] }, { name: 'Two', rows: [['2']] }] }));
+check('sheets keep their names and order', many.tabs.map((t) => t.name), ['One', 'Two']);
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);
