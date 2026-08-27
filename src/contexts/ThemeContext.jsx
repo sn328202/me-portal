@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect } from 'react';
-import { THEMES, THEME_CHARACTER } from '../configs/themes.jsx';
+import { THEMES, THEME_CHARACTER, paletteVars } from '../configs/themes.jsx';
 import { useSettings } from '../hooks/useSettings';
 
 const ThemeContext = createContext();
@@ -12,10 +12,13 @@ const applyTheme = (id) => {
     const character = THEME_CHARACTER[id] || THEME_CHARACTER[FALLBACK];
     const root = document.documentElement;
 
-    // Character first so a palette can still override a shared value.
-    Object.entries({ ...character, ...theme.cssVars }).forEach(([key, value]) => {
-        root.style.setProperty(key, value);
-    });
+    // Character first so a palette can still override a shared value. The
+    // numbered palette goes on last and is never overridden: --c-1 … --c-8 are
+    // the theme's own hues, and nothing else is allowed to claim those names.
+    Object.entries({ ...character, ...theme.cssVars, ...paletteVars(theme.id) })
+        .forEach(([key, value]) => {
+            root.style.setProperty(key, value);
+        });
 
     document.body.setAttribute('data-theme', theme.id);
 };

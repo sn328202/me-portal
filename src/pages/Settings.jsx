@@ -74,7 +74,18 @@ const ThemeSwatch = ({ theme, selected, onSelect, onKeyDown }) => {
                 >
                     Button
                 </span>
-                <span className="theme-preview-accent" style={{ backgroundColor: vars['--text-gold'] }} />
+                {/* The palette, shown rather than described. A theme's eight
+                    hues are the part you cannot infer from one accent chip. */}
+                <span className="theme-preview-palette">
+                    {(theme.palette || []).map((c) => (
+                        <span
+                            key={c.hex}
+                            className="theme-preview-hue"
+                            style={{ backgroundColor: c.hex }}
+                            title={c.name}
+                        />
+                    ))}
+                </span>
             </span>
             <span className="theme-name">{theme.name}</span>
         </button>

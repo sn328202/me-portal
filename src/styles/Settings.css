@@ -216,12 +216,21 @@
     white-space: nowrap;
 }
 
-.theme-preview-accent {
+/* The eight-hue palette, as a strip along the bottom of the tile. It
+   replaces the single accent bar, which showed one colour and so said
+   nothing about how wide or narrow a theme's range actually is. */
+.theme-preview-palette {
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 4px;
+    height: 6px;
+    display: flex;
+}
+
+.theme-preview-hue {
+    flex: 1 1 0;
+    height: 100%;
 }
 
 .theme-name {

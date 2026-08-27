@@ -18,6 +18,16 @@ export const THEMES = {
     'studio': {
         name: 'Studio',
         id: 'studio',
+        palette: [
+            { name: 'Clay', hex: '#b4543f' },
+            { name: 'Sage', hex: '#5b7c5a' },
+            { name: 'Brass', hex: '#7d5a3c' },
+            { name: 'Slate', hex: '#4a6284' },
+            { name: 'Plum', hex: '#8a5c74' },
+            { name: 'Ochre', hex: '#c9944e' },
+            { name: 'Teal', hex: '#3c8f7e' },
+            { name: 'Ink', hex: '#23201c' },
+        ],
         fontImports: [],
         cssVars: {
             /* The clean, warm-neutral look from the outfit planner: an off-white
@@ -85,6 +95,16 @@ export const THEMES = {
     'studio-dark': {
         name: 'Studio Dark',
         id: 'studio-dark',
+        palette: [
+            { name: 'Clay', hex: '#d97158' },
+            { name: 'Sage', hex: '#8faa87' },
+            { name: 'Brass', hex: '#c79878' },
+            { name: 'Slate', hex: '#8ba3b4' },
+            { name: 'Plum', hex: '#b78ba4' },
+            { name: 'Butter', hex: '#e8d08a' },
+            { name: 'Teal', hex: '#5fb0b8' },
+            { name: 'Bone', hex: '#ece7e1' },
+        ],
         fontImports: [],
         cssVars: {
             /* Studio after dark: the same clean, warm-neutral system inverted
@@ -153,6 +173,16 @@ export const THEMES = {
     'dark-academia': {
         name: 'Dark Academia',
         id: 'dark-academia',
+        palette: [
+            { name: 'Rose', hex: '#dc8b95' },
+            { name: 'Brass', hex: '#cfa15e' },
+            { name: 'Sage', hex: '#9db99d' },
+            { name: 'Aubergine', hex: '#7b5a78' },
+            { name: 'Oxblood', hex: '#a4485a' },
+            { name: 'Parchment', hex: '#f2e6de' },
+            { name: 'Ink Blue', hex: '#6c7fa3' },
+            { name: 'Moss', hex: '#7d8f5e' },
+        ],
         fontImports: ['Playfair Display', 'Inter', 'Courier Prime'],
         cssVars: {
             /* Wine and candlelight. Brass and khaki are gone entirely — every
@@ -222,6 +252,16 @@ export const THEMES = {
     'eight-bit': {
         name: '8-Bit Arcade',
         id: 'eight-bit',
+        palette: [
+            { name: 'Red', hex: '#ff5555' },
+            { name: 'Orange', hex: '#ff9955' },
+            { name: 'Yellow', hex: '#ffff00' },
+            { name: 'Green', hex: '#00ff00' },
+            { name: 'Cyan', hex: '#00ffff' },
+            { name: 'Blue', hex: '#5599ff' },
+            { name: 'Magenta', hex: '#ff55ff' },
+            { name: 'White', hex: '#ffffff' },
+        ],
         fontImports: ['Press Start 2P'],
         cssVars: {
             '--bg-main': '#000000',
@@ -284,6 +324,16 @@ export const THEMES = {
     'cottagecore': {
         name: 'Cottagecore',
         id: 'cottagecore',
+        palette: [
+            { name: 'Rose', hex: '#a84a4a' },
+            { name: 'Terracotta', hex: '#c47a52' },
+            { name: 'Honey', hex: '#c9a227' },
+            { name: 'Fern', hex: '#41663a' },
+            { name: 'Sage', hex: '#7a8b5c' },
+            { name: 'Cornflower', hex: '#6d84a8' },
+            { name: 'Lilac', hex: '#9b7ba8' },
+            { name: 'Bark', hex: '#7a6247' },
+        ],
         fontImports: ['Loved by the King', 'Crimson Text', 'Courier Prime'],
         cssVars: {
             '--bg-main': '#fdf6e3',
@@ -346,6 +396,16 @@ export const THEMES = {
     'matrix': {
         name: 'The Matrix',
         id: 'matrix',
+        palette: [
+            { name: 'Phosphor', hex: '#00ff00' },
+            { name: 'Bright', hex: '#7dff7d' },
+            { name: 'Deep', hex: '#009a2e' },
+            { name: 'Dim', hex: '#005c18' },
+            { name: 'Amber', hex: '#ffb000' },
+            { name: 'White', hex: '#ffffff' },
+            { name: 'Cyan', hex: '#00ffc8' },
+            { name: 'Lime', hex: '#b6ff00' },
+        ],
         fontImports: ['VT323'],
         cssVars: {
             '--bg-main': '#000000',
@@ -408,6 +468,16 @@ export const THEMES = {
     'lofi': {
         name: 'Lofi Study',
         id: 'lofi',
+        palette: [
+            { name: 'Lavender', hex: '#bb9af7' },
+            { name: 'Blue', hex: '#7aa2f7' },
+            { name: 'Rose', hex: '#f7768e' },
+            { name: 'Lime', hex: '#9ece6a' },
+            { name: 'Cyan', hex: '#7dcfff' },
+            { name: 'Amber', hex: '#e0af68' },
+            { name: 'Teal', hex: '#73daca' },
+            { name: 'Mist', hex: '#a9b1d6' },
+        ],
         fontImports: ['Comfortaa', 'Quicksand', 'Courier Prime'],
         cssVars: {
             '--bg-main': '#1a1b26',
@@ -470,6 +540,16 @@ export const THEMES = {
     'renaissance': {
         name: 'Renaissance',
         id: 'renaissance',
+        palette: [
+            { name: 'Gold', hex: '#d4af37' },
+            { name: 'Vermilion', hex: '#cf6a6a' },
+            { name: 'Verdigris', hex: '#6f9c7a' },
+            { name: 'Ultramarine', hex: '#4a6fa5' },
+            { name: 'Ivory', hex: '#f0e6d2' },
+            { name: 'Umber', hex: '#8a6b3f' },
+            { name: 'Oxblood', hex: '#7a2230' },
+            { name: 'Violet', hex: '#6b4c8a' },
+        ],
         fontImports: ['Cinzel', 'Cormorant Garamond', 'Courier Prime'],
         cssVars: {
             '--bg-main': '#0e1111',
@@ -532,6 +612,16 @@ export const THEMES = {
     'cybercity': {
         name: 'Cybercity',
         id: 'cybercity',
+        palette: [
+            { name: 'Magenta', hex: '#ff00ae' },
+            { name: 'Cyan', hex: '#00f3ff' },
+            { name: 'Red', hex: '#ff003c' },
+            { name: 'Mint', hex: '#00ff9f' },
+            { name: 'Violet', hex: '#9d4edd' },
+            { name: 'Amber', hex: '#ffb703' },
+            { name: 'Blue', hex: '#0077ff' },
+            { name: 'White', hex: '#ffffff' },
+        ],
         fontImports: ['Orbitron', 'Michroma', 'Courier Prime'],
         cssVars: {
             '--bg-main': '#050505',
@@ -590,6 +680,93 @@ export const THEMES = {
             social: <GiWalkieTalkie />,
             status: <GiSatelliteCommunication />
         }
+    },
+    /*
+       Retro — taken from therange.fyi, sampled from the rendered page rather
+       than guessed: a soft blue-grey ground, cream sticker cards outlined in
+       espresso with a hard offset shadow, and cobalt doing the work that gold
+       does elsewhere. The wide palette is the point — the site carries eight
+       hues at once (cobalt, coral, olive, pink, chartreuse) and stays calm,
+       which is the trick the other skins were missing.
+    */
+    'retro': {
+        name: 'Retro Press',
+        id: 'retro',
+        palette: [
+            { name: 'Cobalt', hex: '#1e50d2' },
+            { name: 'Espresso', hex: '#372420' },
+            { name: 'Cream', hex: '#ece0d4' },
+            { name: 'Sky', hex: '#b1c3d0' },
+            { name: 'Coral', hex: '#e0866a' },
+            { name: 'Olive', hex: '#6f7629' },
+            { name: 'Pink', hex: '#e58fbd' },
+            { name: 'Chartreuse', hex: '#c4cc59' },
+        ],
+        fontImports: ['Archivo Black', 'Space Mono'],
+        cssVars: {
+            '--bg-main': '#b1c3d0',
+            '--bg-panel': '#ece0d4',
+            '--bg-hover': '#dccec0',
+            '--bg-main-rgb': '177, 195, 208',
+            '--text-main': '#372420',
+            '--text-muted': '#6d574e',
+            '--text-dim': '#8a7369',
+            /* The site prints every label, date and byline in cobalt. It is
+               the value colour here, whatever the token happens to be named. */
+            '--text-gold': '#1e50d2',
+            '--text-highlight': '#1e50d2',
+            '--accent-crimson': '#c9583c',
+            '--accent-red': '#c9583c',
+            '--accent-green': '#6f7629',
+            '--accent-gold': '#1e50d2',
+            '--accent-gold-dim': 'rgba(30, 80, 210, 0.14)',
+            /* Borders are ink, not a tint: the whole look is heavy espresso
+               outlines on cream, the way a printed sticker is die-cut. */
+            '--border-gold': '#372420',
+            '--border-bright': '#1e50d2',
+            '--border-dim': '#a3b5c3',
+            '--active-border': '#1e50d2',
+            '--fill-strong': '#372420',
+            '--fill-quiet': '#6f7629',
+            '--font-display': "'Archivo Black', 'Helvetica Neue', Impact, sans-serif",
+            '--font-body': "'Space Mono', ui-monospace, Menlo, monospace",
+            '--font-mono': "'Space Mono', ui-monospace, Menlo, monospace",
+            '--font-serif': "'Space Mono', ui-monospace, Menlo, monospace",
+            '--radius-lg': '16px',
+            '--glass-panel': 'rgba(236, 224, 212, 0.95)',
+            /* No soft blur anywhere: the shadow is a solid offset block. */
+            '--glow-gold': '3px 3px 0 #372420',
+            '--bg-texture': 'none'
+        },
+        labels: {
+            provisions: 'Supplies',
+            larderEmpty: 'Nothing in stock.',
+            fromTheHearth: 'The Kitchen',
+            greetingDefault: 'Neha',
+            goals: 'The Plan',
+            habits: 'The Streak',
+            hobbies: 'Pastimes',
+            library: 'The Stack',
+            todos: 'The List',
+            chores: 'Upkeep',
+            social: 'The Crowd',
+            status: 'The Wire',
+            statusConfig: 'Tune',
+            statusEstablish: 'Hook Up',
+            nowConsuming: 'Currently'
+        },
+        icons: {
+            provisions: <GiBasket />,
+            goals: <GiScrollUnfurled />,
+            habits: <GiSprout />,
+            hobbies: <GiButterfly />,
+            games: <GiGamepad />,
+            library: <GiScrollUnfurled />,
+            todos: <GiQuill />,
+            chores: <GiHand />,
+            social: <GiCoffeeCup />,
+            status: <GiControlTower />
+        }
     }
 };
 
@@ -643,6 +820,7 @@ const characterBase = {
     '--ornament-opacity-hover': '1',
     '--ornament-width': '2px',
     '--ornament-size': '10px',
+    '--border-width': '1px',
     '--shadow-sm': '0 2px 6px rgba(0, 0, 0, 0.28)',
     '--shadow-md': '0 8px 20px rgba(0, 0, 0, 0.38)',
     '--shadow-lift': '0 12px 28px rgba(0, 0, 0, 0.45)',
@@ -876,5 +1054,60 @@ export const THEME_CHARACTER = {
         '--dur-slow': '220ms',
         '--density': '0.95',
         '--field-bg': 'rgba(0, 0, 0, 0.6)'
+    },
+
+    // Retro Press: die-cut stickers. Thick espresso outlines, pill corners,
+    // a hard offset shadow instead of a blur, mono labels in wide caps, and
+    // motion that pops rather than eases.
+    retro: {
+        ...characterBase,
+        '--fill-strong': '#372420',
+        '--fill-quiet': '#6f7629',
+        '--rule': '2px solid var(--border-gold)',
+        '--rule-hair': '1px solid var(--border-dim)',
+        '--rule-accent': '2px dashed var(--border-gold)',
+        '--radius-sm': '6px',
+        '--radius-md': '12px',
+        '--radius-lg': '16px',
+        '--tracking-heading': '0.01em',
+        '--tracking-label': '0.1em',
+        '--case-heading': 'uppercase',
+        '--ornament-opacity': '0',
+        '--ornament-opacity-hover': '0',
+        '--border-width': '2px',
+        // Solid, un-blurred, offset down-right — the whole reason the source
+        // site reads as printed rather than as a web page.
+        '--shadow-sm': '2px 2px 0 #372420',
+        '--shadow-md': '3px 3px 0 #372420',
+        '--shadow-lift': '5px 5px 0 #372420',
+        '--dur-fast': '90ms',
+        '--dur-base': '140ms',
+        '--dur-slow': '220ms',
+        '--ease': 'cubic-bezier(0.2, 0.8, 0.3, 1.2)',
+        '--lift': 'translate(-2px, -2px)',
+        '--density': '1.05',
+        '--field-bg': 'rgba(55, 36, 32, 0.06)'
     }
 };
+
+/* ============================================================
+   Palettes
+   ------------------------------------------------------------
+   Every theme used to carry four working hues — crimson, green,
+   gold and whatever `--text-highlight` happened to be — and three
+   of those were usually the same colour at different lightness.
+   Anything that needed a *set* of colours (map pins, category
+   chips, charts) therefore drew eight near-identical browns.
+
+   Each theme now declares eight named hues that belong together.
+   ThemeContext writes them to :root as --c-1 … --c-8, so a
+   component that needs the nth distinct colour asks for it by
+   number and gets something that suits the current skin.
+   ============================================================ */
+
+/** Ordered hues for the given theme, always eight long. */
+export const paletteOf = (id) => (THEMES[id] || THEMES.studio).palette || [];
+
+/** The `--c-1` … `--c-8` custom properties for a theme. */
+export const paletteVars = (id) =>
+    Object.fromEntries(paletteOf(id).map((c, i) => [`--c-${i + 1}`, c.hex]));

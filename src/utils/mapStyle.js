@@ -76,13 +76,37 @@ export const currentPalette = () => ({
 });
 
 /** Pin colours, also from the theme, so they stay legible on whatever ground. */
-export const pinColours = () => ({
-    restaurant: readToken('--accent-crimson', '#dc8b95'),
-    bar: readToken('--border-gold', '#b07c69'),
-    cafe: readToken('--text-gold', '#d9a37c'),
-    museum: readToken('--text-highlight', '#9d8ec4'),
-    park: readToken('--accent-green', '#7ba37b'),
-    hike: readToken('--accent-green', '#7ba37b'),
-    shop: readToken('--fill-strong', '#d4a5c4'),
-    venue: readToken('--accent-gold', '#c4a05a'),
-});
+/**
+ * Pin colours come from the theme's own eight-hue palette (--c-1 … --c-8),
+ * not from the role tokens. Those were the wrong source: --accent-crimson,
+ * --text-gold, --accent-gold and --fill-strong are the *same brown* in the
+ * Studio skins, so eight categories of place drew as one colour on the map.
+ *
+ * Park and hike share a hue deliberately — they are the same kind of outing.
+ */
+const PIN_SLOT = {
+    restaurant: 1,
+    bar: 5,
+    cafe: 3,
+    museum: 4,
+    park: 2,
+    hike: 2,
+    shop: 7,
+    venue: 6,
+};
+
+const PIN_FALLBACK = {
+    restaurant: '#dc8b95',
+    bar: '#b07c69',
+    cafe: '#d9a37c',
+    museum: '#9d8ec4',
+    park: '#7ba37b',
+    hike: '#7ba37b',
+    shop: '#d4a5c4',
+    venue: '#c4a05a',
+};
+
+export const pinColours = () => Object.fromEntries(
+    Object.entries(PIN_SLOT).map(([category, slot]) =>
+        [category, readToken(`--c-${slot}`, PIN_FALLBACK[category])])
+);
