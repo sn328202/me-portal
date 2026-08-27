@@ -22,6 +22,7 @@ const POPOVER_HEIGHT = 320;
 const IngredientLink = ({ line, matcher, ingredients, onLink, onCreate }) => {
     const [open, setOpen] = useState(false);
     const [above, setAbove] = useState(false);
+    const [saved, setSaved] = useState(null);
     const [query, setQuery] = useState('');
     const boxRef = useRef(null);
     const inputRef = useRef(null);
@@ -75,18 +76,35 @@ const IngredientLink = ({ line, matcher, ingredients, onLink, onCreate }) => {
         onLink(item.id, line.normalised);
         setOpen(false);
         setQuery('');
+        // Say so. Linking to an ingredient that happens to be out of stock
+        // changes nothing else on the row, so without this the whole action
+        // reads as having silently failed.
+        setSaved(item.label || item.name);
     };
+
+    // Clear the confirmation after a beat, so it does not sit there forever.
+    useEffect(() => {
+        if (!saved) return undefined;
+        const t = setTimeout(() => setSaved(null), 4000);
+        return () => clearTimeout(t);
+    }, [saved]);
 
     return (
         <span className="ing-link" ref={boxRef}>
-            <button
-                type="button"
-                className="ing-link__trigger"
-                aria-expanded={open}
-                onClick={() => setOpen((v) => !v)}
-            >
-                <GiLinkedRings /> {line.match ? 'not this?' : 'link'}
-            </button>
+            {saved ? (
+                <span className="ing-link__saved" role="status">
+                    ✓ saved — “{line.normalised}” now means {saved}
+                </span>
+            ) : (
+                <button
+                    type="button"
+                    className="ing-link__trigger"
+                    aria-expanded={open}
+                    onClick={() => setOpen((v) => !v)}
+                >
+                    <GiLinkedRings /> {line.match ? 'not this?' : 'link'}
+                </button>
+            )}
 
             {open && (
                 <div className={`ing-link__pop${above ? ' ing-link__pop--above' : ''}`}>

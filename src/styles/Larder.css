@@ -1820,3 +1820,15 @@
     top: auto;
     bottom: calc(100% + var(--space-1));
 }
+
+/* Linking to an out-of-stock ingredient changes nothing else visible on the
+   row, so the confirmation is the only signal that it worked. */
+.ing-link__saved {
+    margin-left: var(--space-2);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--accent-gold-dim);
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+}

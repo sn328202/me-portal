@@ -261,19 +261,43 @@ export const normalise = (raw) => {
     if (text.includes(',')) text = text.split(',')[0];
 
     let words = text.split(' ').filter(Boolean);
+    const original = [...words];
 
-    // Leading filler, quantities and units, from the front only.
-    while (words.length && (LEADING_FILLER.has(words[0]) || isMeasure(words[0]))) {
+    // Leading filler, quantities and units, from the front only - but never
+    // down to nothing. A whole line can be made of measure words: `cloves` is
+    // both a unit ("3 cloves garlic") and an ingredient in its own right, and
+    // stripping it left the empty string, so the pantry row called `cloves`
+    // was silently dropped from the index and could never be matched or
+    // linked to.
+    while (words.length > 1 && (LEADING_FILLER.has(words[0]) || isMeasure(words[0]))) {
         words.shift();
+    }
+    if (words.length === 1 && (LEADING_FILLER.has(words[0]) || isQuantity(words[0]))) {
+        // A lone number or filler word names nothing; a lone unit might.
+        words = [];
     }
 
     // Trailing filler ("...to taste", "...for serving", "...as needed").
-    while (words.length && (PREP_WORDS.has(words[words.length - 1]) || LEADING_FILLER.has(words[words.length - 1]))) {
+    while (words.length > 1 && (PREP_WORDS.has(words[words.length - 1]) || LEADING_FILLER.has(words[words.length - 1]))) {
         words.pop();
     }
 
+    /**
+     * A unit only counts as a measure where a measure can stand: directly
+     * after a quantity. "3 cloves garlic" is three cloves of garlic; "1 tsp
+     * cloves" is a teaspoon of cloves, and the word means different things in
+     * the two lines purely by position.
+     */
+    const isMeasureHere = (word, i) => {
+        if (isQuantity(word) || isQuantityWithUnit(word)) return true;
+        if (!UNITS.has(word)) return false;
+        const at = original.indexOf(word);
+        const before = at > 0 ? original[at - 1] : null;
+        return Boolean(before && isQuantity(before));
+    };
+
     words = words
-        .filter((w) => !isMeasure(w) && !PREP_WORDS.has(w))
+        .filter((w, i) => !isMeasureHere(w, i) && !PREP_WORDS.has(w))
         .map((w) => SPELLINGS[w] || w)
         .flatMap((w) => w.split(' '))          // a spelling fix may expand to two words
         .map(singular);
@@ -283,10 +307,35 @@ export const normalise = (raw) => {
     let joined = words.join(' ');
     for (const [from, to] of Object.entries(SYNONYMS)) {
         const key = normaliseShallow(from);
-        if (joined === key) { joined = normaliseShallow(to); break; }
-        // A synonym buried in a longer phrase still counts: "kashmiri deggi
-        // mirch powder" should reach the chilli.
-        if (key.includes(' ') && joined.includes(key)) { joined = normaliseShallow(to); break; }
+        const target = normaliseShallow(to);
+        if (joined === key) { joined = target; break; }
+
+        // A synonym buried in a longer phrase counts only when the phrase is
+        // still *about* the same thing - which the head noun decides.
+        //
+        // "deggi mirch indian chilli powder" ends in `powder` and so does `red
+        // chilli powder`, so it is that spice described at length. "thai chilli
+        // paste" ends in `paste` while `bird's eye chilli` ends in `chilli`,
+        // so it is a different ingredient that merely contains the words - and
+        // without this check a jar of chilli paste resolved to a fresh chilli.
+        if (key.includes(' ') && joined.includes(key)
+            && joined.split(' ').pop() === target.split(' ').pop()) {
+            joined = target;
+            break;
+        }
+    }
+
+    // Nothing survived - every word looked like packaging. Fall back to what
+    // was actually written, because a name we cannot tidy still beats no name
+    // at all: an empty result drops the row out of the index entirely.
+    //
+    // Numbers and filler are the exception: "2" on its own really does name
+    // nothing, and resurrecting it would put a row called "2" in the index.
+    if (!joined) {
+        joined = original
+            .filter((w) => !isQuantity(w) && !isQuantityWithUnit(w) && !LEADING_FILLER.has(w))
+            .map(singular)
+            .join(' ');
     }
 
     return { text: joined, tokens: joined ? joined.split(' ') : [] };
@@ -401,7 +450,17 @@ export const buildMatcher = (pantry = []) => {
     for (const entry of rows) {
         for (const alias of entry.row.aliases || []) {
             const key = normalise(alias).text;
-            if (key && !exact.has(key)) exact.set(key, entry);
+            if (!key || exact.has(key)) continue;
+            // Resolve through the row's own name first.
+            //
+            // This pantry holds `cilantro` twice - Pantry (stocked) and Produce
+            // (empty). Teaching "coriander" writes the alias onto whichever of
+            // the two happened to be picked, and pointing the alias straight at
+            // that row made "coriander" resolve to a cilantro she does not have
+            // while a stocked one sat right there. An alias names an
+            // *ingredient*, so it should land wherever that ingredient's own
+            // name lands - which is already the stocked copy.
+            exact.set(key, exact.get(entry.text) || entry);
         }
     }
 

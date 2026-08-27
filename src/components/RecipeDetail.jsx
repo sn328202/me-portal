@@ -109,8 +109,17 @@ const RecipeDetail = ({
                                                 <GiLinkedRings /> {ing.resolvedAs}
                                             </button>
                                         )}
+                                        {/* Three states, each said out loud. Only
+                                            "in stock" used to be visible, so an
+                                            ingredient the pantry knew but had run
+                                            out of looked identical to one it had
+                                            never heard of - and a freshly linked
+                                            line looked like nothing had happened. */}
                                         {!ing.match && (
                                             <span className="recipe-detail__unknown">not in pantry</span>
+                                        )}
+                                        {ing.match && !ing.inStock && (
+                                            <span className="recipe-detail__unknown">out of stock</span>
                                         )}
                                         {/* Every line can be pointed at the right
                                             ingredient by hand - an unmatched one

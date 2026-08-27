@@ -263,5 +263,65 @@ console.log('\nsuggest() — the shortlist offered when linking by hand:');
         weak.every((s) => s.score < 0.45), true);
 }
 
+console.log('\nan alias on a duplicated row — the bug Neha hit:');
+{
+    // Production holds `cilantro` twice: Pantry (stocked) and Produce (empty).
+    // Teaching "coriander" wrote the alias onto the empty copy, so the line
+    // resolved to a cilantro she did not have while a stocked one sat right
+    // there - and the row stayed unticked, which read as "linking did nothing".
+    const dup = buildMatcher([
+        { id: 'A', name: 'cilantro', in_stock: true, aliases: [] },
+        { id: 'B', name: 'cilantro', in_stock: false, aliases: ['coriander'] },
+    ]);
+    const hit = dup.matchOne('a handful of coriander');
+    check('an alias resolves to the stocked copy of its ingredient',
+        `${hit.item?.id}:${hit.item?.in_stock}`, 'A:true');
+    check('  so the recipe row actually ticks',
+        dup.matchRecipe([{ item: 'a handful of coriander' }]).lines[0].inStock, true);
+
+    // But an alias must still not drag a *different* ingredient along.
+    const other = buildMatcher([
+        { id: 'A', name: 'cottage cheese', in_stock: false, aliases: ['goat cheese'] },
+        { id: 'B', name: 'chevre', in_stock: true, aliases: [] },
+    ]);
+    check('an alias does not jump to an unrelated stocked row',
+        other.matchOne('100g goat cheese').item.id, 'A');
+    check('  and an out-of-stock match is reported as such, not as unmatched',
+        other.matchRecipe([{ item: '100g goat cheese' }]).outOfStock.length, 1);
+}
+
+console.log('\nwords that are both a unit and an ingredient — the cloves bug:');
+{
+    // `cloves` is a unit ("3 cloves garlic") and a spice in its own right.
+    // Stripping it as a measure left the empty string, so the pantry row named
+    // `cloves` was dropped from the index entirely: it could never match, and
+    // linking to it wrote an alias onto a row nothing could reach.
+    check('a lone unit word survives', normalise('cloves').text, 'clove');
+    check('  and so does a measured amount of it', normalise('1 tsp cloves').text, 'clove');
+    check('  while it is still a unit in measure position',
+        normalise('3 cloves garlic').text, 'garlic');
+    check('  singular too', normalise('1 clove garlic').text, 'garlic');
+    check('a lone number still names nothing', normalise('2').text, '');
+
+    const spice = buildMatcher([
+        { id: 'C', name: 'cloves', in_stock: true, aliases: ['laung'] },
+        { id: 'G', name: 'garlic', in_stock: true, aliases: [] },
+    ]);
+    check('the row is indexed at all', spice.size, 2);
+    check('"1 tsp cloves" finds the spice', spice.matchOne('1 tsp cloves').item.id, 'C');
+    check('"3 cloves garlic" still finds garlic', spice.matchOne('3 cloves garlic').item.id, 'G');
+    check('and its taught alias works', spice.matchOne('1 tsp laung').item.id, 'C');
+}
+
+console.log('\na buried synonym must not change what a line is about:');
+{
+    // `thai chilli` -> `bird's eye chilli` fired on "thai chilli paste", so a
+    // jar of paste resolved to a fresh chilli. The head noun decides.
+    check('a jar of paste stays a paste', normalise('2 tbsp thai chilli paste').text, 'thai chilli paste');
+    check('  but the chilli itself still resolves', normalise('2 thai chillies').text, 'bird eye chilli');
+    check('  and a long-winded spice name still resolves',
+        normalise('deggi mirch indian chilli powder').text, 'red chilli powder');
+}
+
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);
