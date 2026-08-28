@@ -7,6 +7,7 @@ import SmartTimeInput from '../components/SmartTimeInput';
 import { Button, Card, ConfirmButton, EmptyState, Field, Tabs } from '../components/ui';
 import SpotsLibrary from '../components/SpotsLibrary';
 import DayBuilder from '../components/DayBuilder';
+import MentionInput from '../components/MentionInput';
 import TableBook from './TableBook';
 import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
@@ -134,6 +135,11 @@ const DayPlanner = () => {
     const [newPlan, setNewPlan] = useState({ title: '', location: '', notes: '' });
 
     const [newItem, setNewItem] = useState({ activity: '', location: '', link: '', cost: '', duration: '', lat: null, lng: null });
+    /* Where an @-mentioned place should be looked for. The plan's own
+       location, geocoded, so the search is *biased* towards the city rather
+       than having the city's name glued onto the query — which is how
+       "@masque" once came back as a list of mosques. */
+    const [planNear, setPlanNear] = useState(null);
 
     // Local state for editing to avoid auto-save jitter
     const [editedPlan, setEditedPlan] = useState(null);
@@ -543,6 +549,31 @@ const DayPlanner = () => {
         }
     }, [isLoaded, placesServiceRef.current]);
 
+    useEffect(() => {
+        const where = selectedPlan?.location;
+        if (!isLoaded || !where) return undefined;
+
+        let alive = true;
+        // `window.` explicitly: the rest of this file reaches for the bare
+        // `google` global, which lint has never been able to see.
+        new window.google.maps.Geocoder().geocode({ address: where }, (res, status) => {
+            if (!alive) return;
+            const at = status === 'OK' && res?.[0]?.geometry?.location;
+            // Tagged with the location it was resolved for, so a stale answer
+            // for the previous plan is ignored rather than used.
+            setPlanNear(at
+                ? { for: where, city: where, lat: at.lat(), lng: at.lng(), radiusKm: 30 }
+                : { for: where, city: where });
+        });
+        return () => { alive = false; };
+    }, [isLoaded, selectedPlan?.location]);
+
+    /* Only the answer for the plan actually on screen. Until it arrives, the
+       city's name alone, which is worse but is not wrong. */
+    const near = planNear?.for === selectedPlan?.location
+        ? planNear
+        : (selectedPlan?.location ? { city: selectedPlan.location } : null);
+
     const addItem = async (isBrainstorm = true) => {
         if (!selectedPlan || !newItem.activity) return;
 
@@ -811,12 +842,29 @@ const DayPlanner = () => {
                                 </h3>
 
                                 <Card variant="flat" className="idea-form">
-                                    <Field
-                                        label="Activity"
-                                        placeholder="Add activity idea..."
-                                        value={newItem.activity}
-                                        onChange={e => setNewItem({ ...newItem, activity: e.target.value })}
-                                    />
+                                    {/* Type "@masque" and the real place
+                                        arrives with its address and its map
+                                        link, the same as in the Atlas — so
+                                        describing the day is also how the
+                                        places get pulled in. */}
+                                    <Field label="Activity">
+                                        <MentionInput
+                                            placeholder="Add activity idea…  @ to pull in a place"
+                                            aria-label="Activity"
+                                            value={newItem.activity}
+                                            near={near}
+                                            onChange={(activity) => setNewItem({ ...newItem, activity })}
+                                            onPick={(place, activity) => setNewItem({
+                                                ...newItem,
+                                                activity,
+                                                location: place.address || newItem.location,
+                                                link: place.maps_url || newItem.link,
+                                                place_id: place.place_id || newItem.place_id,
+                                                lat: place.lat ?? newItem.lat,
+                                                lng: place.lng ?? newItem.lng,
+                                            })}
+                                        />
+                                    </Field>
                                     <div className="idea-form__row">
                                         {isLoaded ? (
                                             <Field label="Location">

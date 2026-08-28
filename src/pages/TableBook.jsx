@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     GiForkKnifeSpoon, GiCheckMark, GiTrashCan, GiPositionMarker,
-    GiQuill, GiClockwork, GiWineGlass,
+    GiQuill, GiClockwork, GiWineGlass, GiRecycle, GiEnvelope,
 } from 'react-icons/gi';
 import {
     Button, Card, PageHeader, Tabs, TabPanel, Modal, Field, Tag, Stat,
@@ -9,6 +9,8 @@ import {
 } from '../components/ui';
 import { useReservations } from '../hooks/useReservations';
 import { useSpots } from '../hooks/useSpots';
+import { supabase } from '../lib/supabase';
+import { sweep } from '../utils/reservationSweep';
 import '../styles/TableBook.css';
 
 const PLATFORMS = ['OpenTable', 'Resy', 'Tock', 'Yelp', 'Google', 'SevenRooms', 'Direct', 'Other'];
@@ -72,6 +74,17 @@ const TableBook = ({ embedded = false }) => {
     const [formOpen, setFormOpen] = useState(false);
     const [form, setForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
+    /* Pasting a confirmation. Kept beside the form rather than replacing it:
+       the parse fills the form in and she presses save, because a
+       confirmation for the wrong Tuesday that saved itself is worse than no
+       parser at all. */
+    const [pasting, setPasting] = useState(false);
+    const [paste, setPaste] = useState('');
+    const [reading, setReading] = useState(false);
+    const [readError, setReadError] = useState(null);
+    /* Whether the sweep's findings are on screen. It costs nothing to compute,
+       so it is always current — the button only decides whether to show it. */
+    const [swept, setSwept] = useState(false);
 
     const kept = useMemo(() => reservations.filter((r) => r.status === 'dined').length, [reservations]);
     const letGo = useMemo(
@@ -151,6 +164,54 @@ const TableBook = ({ embedded = false }) => {
         setFormOpen(true);
     };
 
+    /* Worked out from the bookings rather than fetched: no service will tell
+       you whether a table you hold is still held, but the clock alone settles
+       most of what has gone stale. */
+    const found = useMemo(() => sweep(reservations), [reservations]);
+
+    const readPaste = async () => {
+        const text = paste.trim();
+        if (text.length < 20 || reading) return;
+        setReading(true);
+        setReadError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/reservation-parse', {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    Authorization: `Bearer ${session?.access_token || ''}`,
+                },
+                body: JSON.stringify({ text }),
+            });
+            const json = await res.json();
+            if (!json.ok) { setReadError(json.error || 'Could not read that one.'); return; }
+
+            const d = json.draft;
+            setForm({
+                ...EMPTY_FORM,
+                restaurant: d.restaurant || '',
+                date: d.date || '',
+                time: d.time || '19:00',
+                party_size: d.party_size ? String(d.party_size) : '2',
+                platform: PLATFORMS.includes(d.platform) ? d.platform : 'Other',
+                confirmation: d.confirmation || '',
+                seating: d.seating || '',
+                city: d.city || '',
+                notes: [d.notes, d.cancel_by && `Free to cancel until ${fmtShort(d.cancel_by)}`,
+                    d.cancel_fee && `After that: ${d.cancel_fee}`].filter(Boolean).join(' — '),
+            });
+            setPaste('');
+            setPasting(false);
+            setFormOpen(true);
+        } catch (err) {
+            console.error(err);
+            setReadError('Could not read that one.');
+        } finally {
+            setReading(false);
+        }
+    };
+
     const next = upcoming[0];
 
     const book = () => { setForm(EMPTY_FORM); setFormOpen(true); };
@@ -163,7 +224,19 @@ const TableBook = ({ embedded = false }) => {
                         <h2 className="section-title"><GiForkKnifeSpoon /> The Table Book</h2>
                         <p>Tables held, tables kept, and the ones still worth chasing.</p>
                     </div>
-                    <Button variant="solid" onClick={book}><GiQuill /> Book a table</Button>
+                    <div className="tablebook__acts">
+                        <Button onClick={() => { setReadError(null); setPasting(true); }}>
+                            <GiEnvelope /> Paste a confirmation
+                        </Button>
+                        <Button
+                            onClick={() => setSwept((v) => !v)}
+                            aria-pressed={swept}
+                        >
+                            <GiRecycle /> {swept ? 'Hide what changed' : 'Refresh statuses'}
+                            {found.count > 0 && !swept ? ` (${found.count})` : ''}
+                        </Button>
+                        <Button variant="solid" onClick={book}><GiQuill /> Book a table</Button>
+                    </div>
                 </header>
             ) : (
                 <PageHeader
@@ -171,9 +244,18 @@ const TableBook = ({ embedded = false }) => {
                     icon={<GiForkKnifeSpoon />}
                     subtitle="Tables held, tables kept, and the ones still worth chasing."
                     actions={
-                        <Button variant="solid" onClick={book}>
-                            <GiQuill /> Book a table
-                        </Button>
+                        <div className="tablebook__acts">
+                            <Button onClick={() => { setReadError(null); setPasting(true); }}>
+                                <GiEnvelope /> Paste a confirmation
+                            </Button>
+                            <Button onClick={() => setSwept((v) => !v)} aria-pressed={swept}>
+                                <GiRecycle /> {swept ? 'Hide what changed' : 'Refresh statuses'}
+                                {found.count > 0 && !swept ? ` (${found.count})` : ''}
+                            </Button>
+                            <Button variant="solid" onClick={book}>
+                                <GiQuill /> Book a table
+                            </Button>
+                        </div>
                     }
                 />
             )}
@@ -190,6 +272,81 @@ const TableBook = ({ embedded = false }) => {
                 <Stat value={kept} label="Kept" icon={<GiCheckMark />} />
                 <Stat value={letGo} label="Let go" icon={<GiWineGlass />} />
             </div>
+
+            {swept && (
+                <Card variant="flat" className="sweep">
+                    <h3><GiRecycle /> What has changed</h3>
+                    {/* Said out loud, because "refresh" usually means "go and
+                        ask" and here it cannot: no booking service offers a
+                        way to check a table you already hold. */}
+                    <p className="sweep__how">
+                        Worked out from your own book — nothing here was fetched from Resy or
+                        OpenTable, because neither of them offers a way to ask.
+                    </p>
+
+                    {found.count === 0 && <p>Nothing to settle. Every table is where you left it.</p>}
+
+                    {found.unsettled.length > 0 && (
+                        <div className="sweep__group">
+                            <h4>{found.unsettled.length} {found.unsettled.length === 1 ? 'table has' : 'tables have'} been and gone without a verdict</h4>
+                            <ul>
+                                {found.unsettled.map((r) => (
+                                    <li key={r.id}>
+                                        <span>{r.restaurant} — {fmtShort(r.starts_at)}</span>
+                                        <span className="sweep__acts">
+                                            <Button size="sm" onClick={() => markDined(r)}>
+                                                <GiCheckMark /> Went
+                                            </Button>
+                                            <Button size="sm" onClick={() => cancelReservation(r)}>
+                                                Didn’t
+                                            </Button>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {found.soon.length > 0 && (
+                        <div className="sweep__group">
+                            <h4>Free to cancel until…</h4>
+                            <ul>
+                                {found.soon.map((r) => (
+                                    <li key={r.id}>
+                                        <span>{r.restaurant} — decide by {fmtShort(r.cancel_by)}{r.cancel_fee ? `, then ${r.cancel_fee}` : ''}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {found.missed.length > 0 && (
+                        <div className="sweep__group sweep__group--warn">
+                            <h4>Past the free-cancellation deadline</h4>
+                            <ul>
+                                {found.missed.map((r) => (
+                                    <li key={r.id}>
+                                        <span>{r.restaurant} — {fmtShort(r.starts_at)}{r.cancel_fee ? ` · cancelling now costs ${r.cancel_fee}` : ''}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {found.clashes.length > 0 && (
+                        <div className="sweep__group sweep__group--warn">
+                            <h4>Two tables at nearly the same hour</h4>
+                            <ul>
+                                {found.clashes.map(([a, b]) => (
+                                    <li key={`${a.id}-${b.id}`}>
+                                        <span>{a.restaurant} and {b.restaurant}, {fmtShort(a.starts_at)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </Card>
+            )}
 
             <Tabs
                 label="Table book"
@@ -378,6 +535,34 @@ const TableBook = ({ embedded = false }) => {
                     </TabPanel>
                 </>
             )}
+
+            <Modal open={pasting} onClose={() => setPasting(false)} title="Paste a confirmation">
+                <div className="tablebook__paste">
+                    <p>
+                        The whole email — subject line and all. It fills the booking form in;
+                        nothing is saved until you press save.
+                    </p>
+                    <textarea
+                        rows={12}
+                        autoFocus
+                        aria-label="The confirmation email"
+                        placeholder="Your table at… is confirmed"
+                        value={paste}
+                        onChange={(e) => setPaste(e.target.value)}
+                    />
+                    {readError && <p className="tablebook__error">{readError}</p>}
+                    <div className="tablebook__paste-acts">
+                        <Button onClick={() => setPasting(false)}>Cancel</Button>
+                        <Button
+                            variant="solid"
+                            disabled={paste.trim().length < 20 || reading}
+                            onClick={readPaste}
+                        >
+                            {reading ? 'Reading…' : 'Read it'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Book a table">
                 <form className="tablebook__form" onSubmit={submit}>
