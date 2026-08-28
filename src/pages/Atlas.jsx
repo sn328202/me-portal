@@ -15,6 +15,9 @@ import { GiSunrise } from 'react-icons/gi';
 import { useTripDays } from '../hooks/useTripDays';
 import { useTripIdeas } from '../hooks/useTripIdeas';
 import { flagsForLegs } from '../utils/flags';
+import { atlasStats, costOfTrip } from '../utils/atlasStats';
+import { formatMoney } from '../utils/tripCosts';
+import { todayLocal } from '../utils/planShelf';
 import { legDestination, isTravelLeg } from '../utils/tripLegs';
 import '../styles/Atlas.css';
 
@@ -69,6 +72,55 @@ const Atlas = () => {
     const tripFlags = useMemo(() => Object.fromEntries(
         Object.entries(legsByTrip).map(([id, rows]) => [id, flagsForLegs(rows)])
     ), [legsByTrip]);
+
+    /* What every trip comes to, worked out the same way the trip's own page
+       works it out — three queries for the whole shelf rather than opening
+       each trip to find out. Only on the map room: inside a trip this is
+       already on screen and better. */
+    const [costByTrip, setCostByTrip] = useState({});
+
+    useEffect(() => {
+        if (selectedTripId || !trips.length) return undefined;
+        let alive = true;
+
+        (async () => {
+            const ids = trips.map((t) => t.id);
+            const [{ data: days }, { data: stays }] = await Promise.all([
+                supabase.from('atlas_days').select('*').in('trip_id', ids),
+                supabase.from('atlas_stays').select('*').in('trip_id', ids),
+            ]);
+            if (!alive) return;
+
+            const dayIds = (days || []).map((d) => d.id);
+            const { data: dayItems } = dayIds.length
+                ? await supabase.from('atlas_day_items').select('*').in('day_id', dayIds)
+                : { data: [] };
+            if (!alive) return;
+
+            const itemsByDay = {};
+            for (const it of dayItems || []) (itemsByDay[it.day_id] ||= []).push(it);
+
+            const daysByTrip = {};
+            for (const d of days || []) (daysByTrip[d.trip_id] ||= []).push(d);
+            const staysByTrip = {};
+            for (const st of stays || []) (staysByTrip[st.trip_id] ||= []).push(st);
+
+            setCostByTrip(Object.fromEntries(trips.map((t) => [
+                t.id,
+                costOfTrip(t, daysByTrip[t.id] || [], itemsByDay, staysByTrip[t.id] || []),
+            ])));
+        })();
+
+        return () => { alive = false; };
+    }, [trips, selectedTripId]);
+
+    /* The shelf taken together. The map already answers "where have I been";
+       these are the other questions a pile of trips raises and none of them
+       needed more than arithmetic. */
+    const stats = useMemo(
+        () => atlasStats({ trips, legsByTrip, costByTrip, today: todayLocal() }),
+        [trips, legsByTrip, costByTrip]
+    );
 
     /* A leg on the map is the city it puts you in, so a travel leg shows its
        destination rather than a pin in the sea labelled "Air Travel". */
@@ -386,6 +438,58 @@ const Atlas = () => {
             {/* VIEW: MAP ROOM (Index) */}
             {!selectedTrip && (
                 <div className="atlas__room">
+                    {/* The shelf, taken together. The map below answers "where
+                        have I been" and nothing else; these are the other
+                        questions a pile of trips raises, and none of them
+                        needed more than arithmetic over what is already
+                        stored. */}
+                    {trips.length > 0 && (
+                        <section className="atlas__stats" aria-label="Your Atlas so far">
+                            <div className="atlas__stat">
+                                <strong>{stats.countries.length}</strong>
+                                <span>{stats.countries.length === 1 ? 'country' : 'countries'}</span>
+                                {stats.countries.length > 0 && (
+                                    <p className="atlas__stat-flags" aria-hidden="true">
+                                        {stats.countries.map((c) => c.flag).join(' ')}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="atlas__stat">
+                                <strong>{stats.trips}</strong>
+                                <span>{stats.trips === 1 ? 'expedition' : 'expeditions'}</span>
+                                <p className="atlas__stat-note">
+                                    {stats.been} been · {stats.ahead} ahead
+                                </p>
+                            </div>
+
+                            {/* Shown only once something is priced. A running
+                                total of nothing is not a fact about her
+                                travelling, it is a fact about her typing. */}
+                            {stats.spend > 0 && (
+                                <>
+                                    <div className="atlas__stat">
+                                        <strong>{formatMoney(stats.spend)}</strong>
+                                        <span>all in, per person</span>
+                                        <p className="atlas__stat-note">
+                                            across {stats.priced} priced {stats.priced === 1 ? 'trip' : 'trips'}
+                                        </p>
+                                    </div>
+
+                                    <div className="atlas__stat">
+                                        <strong>{formatMoney(stats.average)}</strong>
+                                        <span>a trip, on average</span>
+                                        {stats.dearest && (
+                                            <p className="atlas__stat-note">
+                                                dearest: {stats.dearest.trip.destination} at {formatMoney(stats.dearest.cost)}
+                                            </p>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </section>
+                    )}
+
                     {/* One pin per trip, and no map at all until at least one
                         of them knows where it is. */}
                     <div className="atlas__map">
