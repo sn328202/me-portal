@@ -124,3 +124,33 @@ it('copes with nothing at all', () => {
 });
 
 console.log(`portalEvents: ${n} passed`);
+
+/* --- the zone --------------------------------------------------------- */
+{
+    const { zonedInstant } = await import('../src/utils/portalEvents.js');
+    let m = 0;
+    const t = (got, want, why) => { assert.equal(got, want, why); m += 1; };
+
+    // The bug: the API runs on Vercel, which is UTC, so an unzoned
+    // "2026-08-30T11:00:00" meant eleven in the morning UTC and a lunch
+    // arrived at four.
+    t(zonedInstant('2026-08-30', '11:00:00', 'America/Los_Angeles'), '2026-08-30T18:00:00.000Z', 'summer, UTC-7');
+    t(zonedInstant('2026-12-24', '11:00:00', 'America/Los_Angeles'), '2026-12-24T19:00:00.000Z', 'winter, UTC-8');
+    t(zonedInstant('2026-08-30', '11:00:00', 'Asia/Kolkata'), '2026-08-30T05:30:00.000Z', 'half-hour offset');
+    t(zonedInstant('2026-08-30', '11:00:00', 'Europe/London'), '2026-08-30T10:00:00.000Z', 'BST');
+    t(zonedInstant('2026-01-15', '11:00:00', 'Europe/London'), '2026-01-15T11:00:00.000Z', 'GMT');
+
+    // Midnight, which is what the all-day trip banner is built from.
+    t(zonedInstant('2026-12-23', '00:00:00', 'America/Los_Angeles'), '2026-12-23T08:00:00.000Z', 'local midnight');
+
+    // No zone: treat the stored time as already being UTC, which is what it
+    // did before and is the only honest fallback.
+    t(zonedInstant('2026-08-30', '11:00:00', null), '2026-08-30T11:00:00.000Z', 'no zone');
+
+    // Same wall clock, read back in the same zone, is the same wall clock.
+    const back = new Date(zonedInstant('2026-08-30', '11:00:00', 'America/Los_Angeles'))
+        .toLocaleTimeString('en-GB', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit' });
+    t(back, '11:00', 'round-trips');
+
+    console.log(`zonedInstant: ${m} passed`);
+}

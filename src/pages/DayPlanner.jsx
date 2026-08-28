@@ -159,6 +159,9 @@ const DayPlanner = () => {
        the day knows its trip, and one query is cheaper than a column that can
        drift out of step with atlas_day_id. */
     const [linkedTrip, setLinkedTrip] = useState(null);
+    /* True while a brainstorm card has a field focused, so the card does not
+       start dragging out from under the cursor mid-selection. */
+    const [editingIdea, setEditingIdea] = useState(false);
     /* Which shelf of the sidebar is showing. Upcoming by default, because a
        list that also holds every Saturday since March is not a list of what
        is next. */
@@ -670,9 +673,22 @@ const DayPlanner = () => {
             .from('plan_items').select('*').eq('plan_id', selectedPlan.id);
         await syncToTrip(updated || editedPlan, fresh || [], user.id);
 
-        // Always re-read, so what is on screen is what is in the database.
-        if (fresh) setItems(sortItems(fresh));
-        else fetchItems(selectedPlan.id);
+        /* Only push the server's rows back into state when the *set* of rows
+           changed — which means an insert happened and a temp id needs
+           swapping for a real one.
+
+           It used to do this after every save unconditionally, and autosave
+           runs 900ms after every keystroke. So typing a title replaced every
+           item object on the board with a fresh one from the database, which
+           re-rendered every card, remounted every uncontrolled input, and
+           left the timeline's scroll container lurching under her hands. That
+           is the freezing and sticking.
+
+           When only fields changed, local state is already right: she typed
+           it, and it is what was just written. */
+        const idsOf = (list) => (list || []).map((i) => i.id).sort().join(',');
+        if (!fresh) fetchItems(selectedPlan.id);
+        else if (idsOf(fresh) !== idsOf(items)) setItems(sortItems(fresh));
     };
 
     const placesServiceRef = React.useRef(null);
@@ -1211,8 +1227,16 @@ const DayPlanner = () => {
                                         <li
                                             key={item.id}
                                             className="idea"
-                                            draggable
+                                            /* Draggable except when she is in a
+                                               field: a native drag starts on
+                                               mousedown and eats the text
+                                               selection she was making. */
+                                            draggable={!editingIdea}
                                             onDragStart={(e) => e.dataTransfer.setData('text/plain', item.id)}
+                                            onFocusCapture={(e) => {
+                                                if (e.target.matches('input, textarea')) setEditingIdea(true);
+                                            }}
+                                            onBlurCapture={() => setEditingIdea(false)}
                                         >
                                             <PlaceImage
                                                 photo={item.place_data?.photos?.[0]}
@@ -1226,7 +1250,41 @@ const DayPlanner = () => {
                                                 }
                                             />
 
-                                            <p className="idea__title">{item.activity}</p>
+                                            {/* Editable here too. A card lands on
+                                                the board with whatever she called it
+                                                in a hurry, and renaming it meant
+                                                dragging it onto the day first. */}
+                                            <input
+                                                className="idea__title"
+                                                key={`it-${item.id}`}
+                                                aria-label={`Name of ${item.activity || 'this idea'}`}
+                                                placeholder="What is it?"
+                                                defaultValue={item.activity || ''}
+                                                onBlur={(e) => {
+                                                    const v = e.target.value.trim();
+                                                    if (v !== (item.activity || '')) {
+                                                        updateItem(item.id, { activity: v });
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                            />
+
+                                            {/* Why it is worth doing, which the title
+                                                never has room for. */}
+                                            <textarea
+                                                className="idea__note"
+                                                key={`in-${item.id}`}
+                                                aria-label={`Notes on ${item.activity || 'this idea'}`}
+                                                placeholder="Notes…"
+                                                rows={1}
+                                                defaultValue={item.notes || ''}
+                                                onBlur={(e) => {
+                                                    const v = e.target.value.trim();
+                                                    if (v !== (item.notes || '')) {
+                                                        updateItem(item.id, { notes: v || null });
+                                                    }
+                                                }}
+                                            />
 
                                             {item.place_data && item.place_data.rating && (
                                                 <p className="idea__rating">
@@ -1385,6 +1443,25 @@ const DayPlanner = () => {
                                                                                 onChange={(duration) => updateItem(item.id, { duration })}
                                                                             />
                                                                         </div>
+
+                                                                        {/* The bit the title has no room for:
+                                                                            the reservation name, what to order,
+                                                                            which entrance. One line until she
+                                                                            goes near it. */}
+                                                                        <textarea
+                                                                            className="tl-item__note"
+                                                                            key={`n-${item.id}`}
+                                                                            aria-label={`Notes on ${item.activity || 'this stop'}`}
+                                                                            placeholder="Notes…"
+                                                                            rows={1}
+                                                                            defaultValue={item.notes || ''}
+                                                                            onBlur={(e) => {
+                                                                                const v = e.target.value.trim();
+                                                                                if (v !== (item.notes || '')) {
+                                                                                    updateItem(item.id, { notes: v || null });
+                                                                                }
+                                                                            }}
+                                                                        />
                                                                     </div>
 
                                                                     {/* Top-right of the card rather than inside the title

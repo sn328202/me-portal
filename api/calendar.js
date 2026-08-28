@@ -135,6 +135,11 @@ export default async function handler(req, res) {
        fetch and no permission — same database, same user, one query. Change
        an itinerary and this shows the change, because there is no copy. */
     const mine = config?.settings?.portalCalendar || {};
+    /* Her zone, sent by the browser. The portal stores wall-clock times with
+       no zone — "lunch at eleven" is eleven wherever you are standing — and
+       this function runs on Vercel, which is UTC. Without this an eleven
+       o'clock lunch arrived in the agenda at four in the morning. */
+    const zone = typeof body.zone === 'string' && body.zone.length < 64 ? body.zone : null;
     const wantPlans = mine.itineraries !== false;
     const wantTrips = mine.trips !== false;
 
@@ -159,7 +164,7 @@ export default async function handler(req, res) {
             for (const i of items || []) (byPlan[i.plan_id] ||= []).push(i);
 
             const built = within(
-                itineraryEvents(plans || [], byPlan, { color: 'var(--accent-gold)' }),
+                itineraryEvents(plans || [], byPlan, { color: 'var(--accent-gold)', zone }),
                 from, to
             );
             own.push(...built);
@@ -192,7 +197,7 @@ export default async function handler(req, res) {
             for (const i of items || []) (byDay[i.day_id] ||= []).push(i);
 
             const built = within(
-                tripEvents(trips || [], byTrip, byDay, { color: 'var(--accent-crimson)' }),
+                tripEvents(trips || [], byTrip, byDay, { color: 'var(--accent-crimson)', zone }),
                 from, to
             );
             own.push(...built);

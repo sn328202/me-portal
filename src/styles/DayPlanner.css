@@ -1449,3 +1449,74 @@
 }
 
 .daydream__synced button:hover { color: var(--text-main); }
+
+
+/* The bit the title has no room for: the reservation name, what to order,
+   which entrance. One line until she goes near it, so a card with nothing to
+   say costs nothing. */
+
+.tl-item__note,
+.idea__note {
+    width: 100%;
+    margin-top: 2px;
+    padding: 1px var(--space-1);
+    border: 1px dashed transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    line-height: var(--leading-normal);
+    resize: vertical;
+    /* Empty and unfocused, it should read as absent rather than as a control
+       waiting to be noticed. */
+    opacity: 0.75;
+}
+
+.tl-item__note::placeholder,
+.idea__note::placeholder { color: var(--text-dim); }
+
+.tl-item__note:hover,
+.idea__note:hover {
+    border-color: var(--border-dim);
+    opacity: 1;
+}
+
+.tl-item__note:focus,
+.idea__note:focus {
+    border-style: solid;
+    border-color: var(--border-gold);
+    background: var(--field-bg);
+    color: var(--text-main);
+    outline: none;
+    opacity: 1;
+    min-height: 3.5rem;
+}
+
+/* On the board the title is a field too now. */
+input.idea__title {
+    width: 100%;
+    padding: 1px var(--space-1);
+    margin-left: calc(var(--space-1) * -1);
+    border: 1px dashed transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    line-height: var(--leading-tight);
+    color: var(--text-main);
+}
+
+input.idea__title:hover { border-color: var(--border-dim); }
+
+input.idea__title:focus {
+    border-style: solid;
+    border-color: var(--border-gold);
+    background: var(--field-bg);
+    outline: none;
+}
+
+/* A card being edited must not start a drag: the board's cards are natively
+   draggable, and selecting text inside one otherwise flings it. */
+.idea input,
+.idea textarea { cursor: text; }

@@ -56,7 +56,9 @@ export const useCalendar = () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await post({});
+            /* Her zone travels with the request: the portal's own days are
+               wall-clock times with no zone, and the API runs in UTC. */
+            const data = await post({ zone: Intl.DateTimeFormat().resolvedOptions().timeZone });
             setEvents(data.events || []);
             setFeeds(data.feeds || []);
         } catch (err) {

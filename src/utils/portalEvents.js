@@ -18,11 +18,54 @@
 
 const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '').slice(0, 10));
 
-/** A local wall-clock date and time as an ISO instant. */
-const at = (date, time) => {
+/**
+ * The offset of a zone at a given instant, in milliseconds.
+ *
+ * Worked out by asking Intl what the wall clock reads there and subtracting.
+ * No library, and it handles the summer-time changes a fixed offset cannot.
+ */
+const offsetAt = (utcMs, zone) => {
+    const parts = Object.fromEntries(
+        new Intl.DateTimeFormat('en-US', {
+            timeZone: zone,
+            hour12: false,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+        }).formatToParts(new Date(utcMs)).map((p) => [p.type, p.value])
+    );
+    const wall = Date.UTC(
+        Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+        Number(parts.hour) % 24, Number(parts.minute), Number(parts.second)
+    );
+    return wall - utcMs;
+};
+
+/**
+ * A wall-clock date and time in a named zone, as the instant it actually is.
+ *
+ * This is the whole reason the zone has to travel with the request. The
+ * portal stores "11:00 on the 30th" with no zone at all, because that is what
+ * a plan is — you are having lunch at eleven wherever you are standing. The
+ * API runs on Vercel, which is UTC, so `new Date('2026-08-30T11:00:00')` on
+ * the server meant eleven in the morning *in UTC*, and an eleven o'clock
+ * lunch arrived in her agenda at four.
+ *
+ * Two passes, because the offset depends on the instant and the instant
+ * depends on the offset. The second settles the hour either side of a clock
+ * change.
+ */
+export const zonedInstant = (date, time, zone) => {
     const d = String(date).slice(0, 10);
+    const [y, mo, dd] = d.split('-').map(Number);
     const t = String(time || '00:00:00').slice(0, 8).padEnd(8, '0');
-    return `${d}T${t}`;
+    const [hh, mm, ss] = t.split(':').map(Number);
+
+    const wall = Date.UTC(y, mo - 1, dd, hh || 0, mm || 0, ss || 0);
+    if (!zone) return new Date(wall - offsetAt(wall, 'UTC')).toISOString();
+
+    let utc = wall - offsetAt(wall, zone);
+    utc = wall - offsetAt(utc, zone);
+    return new Date(utc).toISOString();
 };
 
 const plus = (iso, minutes) => new Date(new Date(iso).getTime() + minutes * 60000).toISOString();
@@ -44,7 +87,7 @@ const spanOf = (start, end) => {
  * not decided when to do, and a calendar is the wrong place to argue about
  * it. Brainstorm cards never come across at all — they are maybes.
  */
-export const itineraryEvents = (plans = [], itemsByPlan = {}, { source, color } = {}) => {
+export const itineraryEvents = (plans = [], itemsByPlan = {}, { source, color, zone } = {}) => {
     const out = [];
     for (const plan of plans) {
         if (!isDate(plan?.planned_date)) continue;
@@ -55,11 +98,11 @@ export const itineraryEvents = (plans = [], itemsByPlan = {}, { source, color } 
             const title = String(item.activity || '').trim();
             if (!title) continue;
 
-            const start = at(plan.planned_date, item.start_time);
+            const start = zonedInstant(plan.planned_date, item.start_time, zone);
             out.push({
                 id: `plan-item-${item.id}`,
                 title,
-                start: new Date(start).toISOString(),
+                start,
                 end: plus(start, 60),
                 allDay: false,
                 location: item.location || null,
@@ -81,7 +124,7 @@ export const itineraryEvents = (plans = [], itemsByPlan = {}, { source, color } 
  * fortnight is the thing you want to see when someone asks if you are free
  * in December, and no individual stop tells you that.
  */
-export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { source, color } = {}) => {
+export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { source, color, zone } = {}) => {
     const out = [];
 
     for (const trip of trips) {
@@ -93,10 +136,10 @@ export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { sourc
             out.push({
                 id: `trip-${trip.id}`,
                 title: name,
-                start: new Date(`${from}T00:00:00`).toISOString(),
+                start: zonedInstant(from, '00:00:00', zone),
                 // All-day events end at the start of the following day, which
                 // is how every calendar reads an inclusive last day.
-                end: new Date(new Date(`${to}T00:00:00`).getTime() + 86400000).toISOString(),
+                end: new Date(new Date(zonedInstant(to, '00:00:00', zone)).getTime() + 86400000).toISOString(),
                 allDay: true,
                 location: null,
                 status: null,
@@ -111,12 +154,12 @@ export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { sourc
                 const title = String(item?.title || '').trim();
                 if (!title || !item?.start_time) continue;
 
-                const start = at(day.date, item.start_time);
+                const start = zonedInstant(day.date, item.start_time, zone);
                 out.push({
                     id: `trip-item-${item.id}`,
                     title,
-                    start: new Date(start).toISOString(),
-                    end: plus(start, spanOf(start, item.end_time ? at(day.date, item.end_time) : null)),
+                    start,
+                    end: plus(start, spanOf(start, item.end_time ? zonedInstant(day.date, item.end_time, zone) : null)),
                     allDay: false,
                     location: item.location || day.city || null,
                     status: null,
