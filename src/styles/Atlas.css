@@ -1648,7 +1648,10 @@
 .timeline-pane.is-full {
     position: fixed;
     inset: 0;
-    z-index: 90;
+    /* Over the rail (100) and the capture bar (200), under a modal (1000).
+       Below the rail's own z-index the hour column hides *behind* the rail,
+       which is the one column that must never go missing. */
+    z-index: 400;
     gap: var(--space-3);
     padding: var(--space-4);
     background: var(--bg-main);
