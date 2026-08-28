@@ -128,7 +128,21 @@ const SendToAtlas = ({ plan, items = [], onSent }) => {
             // trip's days, which is exactly the case we have just fixed.
             const sending = verdict.items.length ? verdict.items : atlasItemsFrom(items);
 
-            const rows = sending.map((i) => ({ ...i, day_id: day.id, user_id: user.id }));
+            /* Replace, not append. Anything this itinerary put on a day
+               before is cleared first, so sending twice is sending once —
+               and anything she made in the Atlas itself has no from_plan_id
+               and is left alone. */
+            await supabase.from('atlas_day_items')
+                .delete()
+                .eq('from_plan_id', plan_.id)
+                .eq('day_id', day.id);
+
+            const rows = sending.map((i) => ({
+                ...i,
+                day_id: day.id,
+                from_plan_id: plan_.id,
+                user_id: user.id,
+            }));
             const { error: insertError } = await supabase.from('atlas_day_items').insert(rows);
             if (insertError) throw insertError;
 
@@ -155,7 +169,7 @@ const SendToAtlas = ({ plan, items = [], onSent }) => {
 
     return (
         <>
-            <Button onClick={openDialog} title="Put this day into a trip">
+            <Button size="sm" onClick={openDialog} title="Put this day into a trip">
                 <GiWorld /> Send to a trip
             </Button>
 
@@ -168,8 +182,9 @@ const SendToAtlas = ({ plan, items = [], onSent }) => {
                             {done.made ? ', the first day of a new expedition' : ''}.
                         </p>
                         <p className="send-atlas__note">
-                            They are ordinary items on that day now — change them there and this
-                            itinerary is not affected, and the other way round.
+                            The day stays in step from here: change this itinerary and the trip's
+                            copy follows. Anything you add in the Atlas itself is yours and is
+                            never overwritten.
                         </p>
                         <div className="send-atlas__acts">
                             <Button variant="solid" onClick={close}>Done</Button>
@@ -178,10 +193,16 @@ const SendToAtlas = ({ plan, items = [], onSent }) => {
                 ) : (
                     <div className="send-atlas">
                         {plan_.atlas_sent_at && (
-                            <p className="send-atlas__warn">
-                                This itinerary was already sent to a trip
-                                on {format(parseISO(plan_.atlas_sent_at.slice(0, 10)), 'd MMM')}.
-                                Sending it again adds everything a second time.
+                            /* This used to warn that sending again would add
+                               everything a second time — an apology for the
+                               behaviour rather than a fix for it. The day now
+                               keeps itself in step, and a second send
+                               replaces rather than appends. */
+                            <p className="send-atlas__matched">
+                                Sent to a trip on {format(parseISO(plan_.atlas_sent_at.slice(0, 10)), 'd MMM')},
+                                and kept in step since — changes here go across on their own.
+                                Sending again replaces what this itinerary put there rather than
+                                adding it twice.
                             </p>
                         )}
 

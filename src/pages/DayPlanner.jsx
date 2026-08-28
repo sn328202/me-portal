@@ -14,6 +14,7 @@ import { useTravelTimes } from '../hooks/useTravelTimes';
 import { departAt, nextSlot } from '../utils/departAt';
 import DateField from '../components/DateField';
 import { onShelf, shelfCounts, hasBeen, isArchived } from '../utils/planShelf';
+import { isLinked, syncRows, describeSync } from '../utils/planSync';
 import DurationPicker from '../components/DurationPicker';
 import ActivityFace from '../components/ActivityFace';
 import { compareItems, timeBetween, asMinutes, asTime, lengthOf } from '../utils/dayOrder';
@@ -152,6 +153,8 @@ const DayPlanner = () => {
     const [saveError, setSaveError] = useState(null);
     /* The send-to-someone sheet. */
     const [sharing, setSharing] = useState(false);
+    /* What the last push to a linked trip day did. */
+    const [synced, setSynced] = useState(null);
     /* Which shelf of the sidebar is showing. Upcoming by default, because a
        list that also holds every Saturday since March is not a list of what
        is next. */
@@ -471,6 +474,37 @@ const DayPlanner = () => {
         }
     };
 
+    /**
+     * Push a linked itinerary onto its trip day.
+     *
+     * Delete what this plan put there last time, insert what it says now.
+     * Anything she made in the Atlas itself has no `from_plan_id` and is left
+     * exactly where it is.
+     *
+     * Best-effort: a trip day that could not be updated is worth saying, and
+     * is never a reason to fail the save of the itinerary itself.
+     */
+    const syncToTrip = async (plan, planItems, userId) => {
+        if (!isLinked(plan)) return;
+
+        try {
+            await supabase.from('atlas_day_items')
+                .delete()
+                .eq('from_plan_id', plan.id)
+                .eq('day_id', plan.atlas_day_id);
+
+            const rows = syncRows(plan, planItems, userId);
+            if (rows.length) {
+                const { error } = await supabase.from('atlas_day_items').insert(rows);
+                if (error) throw error;
+            }
+            setSynced(describeSync(rows));
+        } catch (err) {
+            console.error('Error keeping the trip day in step:', err);
+            setSynced('The trip day could not be updated. The itinerary is saved.');
+        }
+    };
+
     const runSave = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -595,10 +629,22 @@ const DayPlanner = () => {
         // The plan row, whether or not the update handed one back.
         const updated = planData?.[0];
         if (updated) {
-            setPlans(plans.map(p => p.id === id ? updated : p));
+            setPlans((list) => list.map((p) => (p.id === id ? updated : p)));
         }
+
+        /* If this day already went to a trip, the trip's copy of it goes back
+           in step now — rather than being left behind until she sends it
+           again and gets a second copy of everything.
+
+           Read straight out of the fresh rows: the temp ids have just been
+           swapped for real ones, and the ones already saved are current. */
+        const { data: fresh } = await supabase
+            .from('plan_items').select('*').eq('plan_id', selectedPlan.id);
+        await syncToTrip(updated || editedPlan, fresh || [], user.id);
+
         // Always re-read, so what is on screen is what is in the database.
-        fetchItems(selectedPlan.id);
+        if (fresh) setItems(sortItems(fresh));
+        else fetchItems(selectedPlan.id);
     };
 
     const placesServiceRef = React.useRef(null);
@@ -775,7 +821,7 @@ const DayPlanner = () => {
                             aria-pressed={shelf === id}
                             onClick={() => setShelf(id)}
                         >
-                            {label}
+                            <span>{label}</span>
                             {counts[id] > 0 && <span>{counts[id]}</span>}
                         </button>
                     ))}
@@ -910,7 +956,12 @@ const DayPlanner = () => {
                                     value={editedPlan.title}
                                     onChange={(e) => handlePlanChange('title', e.target.value)}
                                 />
-                                <div className="row daydream__head-actions">
+                                {/* Small, and one row. Three full-size
+                                    buttons under the title took as much of the
+                                    page as the title, the location and the
+                                    date put together, and none of them is used
+                                    once a day. */}
+                                <div className="daydream__head-actions">
                                     {/* One quiet line rather than a button she
                                         has to notice. Said here rather than in
                                         an alert box, which interrupts and then
@@ -921,16 +972,14 @@ const DayPlanner = () => {
                                     >
                                         {saving ? 'Saving…' : isDirty ? 'Unsaved' : savedAt ? 'Saved' : ''}
                                     </span>
-                                    {/* A day worked out here is the same thing
-                                        as a day of a trip, one scale down. It
-                                        knows which day of the trip it is,
-                                        because the itinerary has a date. */}
                                     {/* One page to send to whoever is coming.
                                         The editor is a working surface; this
                                         is the document. */}
-                                    <Button onClick={() => setSharing(true)}>
+                                    <Button size="sm" onClick={() => setSharing(true)}>
                                         📮 Share sheet
                                     </Button>
+                                    {/* A day worked out here is the same thing
+                                        as a day of a trip, one scale down. */}
                                     <SendToAtlas
                                         plan={editedPlan}
                                         items={items}
@@ -939,12 +988,13 @@ const DayPlanner = () => {
                                         ))}
                                     />
                                     <Button
+                                        size="sm"
                                         onClick={() => {
                                             const icsContent = generateICS(editedPlan, items);
                                             if (icsContent) {
                                                 downloadICS(`${editedPlan.title || 'Itinerary'}.ics`, icsContent);
                                             } else {
-                                                alert('No scheduled items to export.');
+                                                setSaveError('Nothing on this day has a time yet, so there is nothing to put in a calendar.');
                                             }
                                         }}
                                         title="Export to Calendar (.ics)"
@@ -953,6 +1003,15 @@ const DayPlanner = () => {
                                     </Button>
                                 </div>
                             </div>
+
+                            {/* What the last save did to the trip this day
+                                belongs to, when it belongs to one. */}
+                            {synced && !saveError && (
+                                <p className="daydream__synced" role="status">
+                                    {synced}
+                                    <button type="button" onClick={() => setSynced(null)} aria-label="Dismiss">×</button>
+                                </p>
+                            )}
 
                             {saveError && (
                                 <p className="daydream__save-error" role="status">

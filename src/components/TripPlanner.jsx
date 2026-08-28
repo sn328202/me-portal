@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { GiTrashCan, GiPlainCircle } from 'react-icons/gi';
-import { Button, Card, Field } from './ui';
+import { GiTrashCan, GiPlainCircle, GiGears } from 'react-icons/gi';
+import { Button, Card, Field, Modal } from './ui';
 import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
@@ -128,11 +128,14 @@ const DayItem = ({ item, currency, near, onChange, onDelete }) => (
     </li>
 );
 
+/* Three ways of looking at the same days, and that is all this is. Setup was
+   a fourth entry here and is not a view of anything — it is the sheet links,
+   the photo album and the budget, which you open twice a trip and which have
+   nothing to do with how the days are drawn. It is a button now. */
 const VIEWS = [
     { value: 'route', label: 'Route' },
     { value: 'timeline', label: 'Timeline' },
     { value: 'cards', label: 'Cards' },
-    { value: 'setup', label: 'Setup' },
 ];
 
 const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
@@ -155,6 +158,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
     // open twice a trip was costing the timeline a sixth of the page on every
     // other day of it.
     const [view, setView] = useState('route');
+    const [setupOpen, setSetupOpen] = useState(false);
     const currency = trip?.currency || 'USD';
     const party = trip?.party_size || 1;
 
@@ -196,24 +200,11 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                             })}
                         />
                     </label>
-                    {/* Weather moved to the Where-and-when tile, which is
-                        where the cities and the dates it depends on are, and
-                        the share sheet up beside Save & Return, which is where
-                        the other whole-expedition action lives. */}
-
-                    <div className="trip-planner__views" role="group" aria-label="View">
-                        {VIEWS.filter((v) => v.value !== 'setup' || setup).map((v) => (
-                            <button
-                                key={v.value}
-                                type="button"
-                                className={`trip-planner__view${view === v.value ? ' is-on' : ''}`}
-                                aria-pressed={view === v.value}
-                                onClick={() => setView(v.value)}
-                            >
-                                {v.label}
-                            </button>
-                        ))}
-                    </div>
+                    {/* The view toggle used to be here, at the top of a card
+                        two sections above the thing it switched — which is why
+                        pressing it looked like it was changing the trip's
+                        details rather than the days below them. It sits
+                        directly on top of what it controls now. */}
                 </div>
 
                 <ul className="trip-planner__buckets">
@@ -248,6 +239,46 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                 </p>
             )}
 
+            {/* Directly on top of what it switches. Setup sits apart from the
+                three, with a rule between them, because it is not a fourth way
+                of looking at the days — it is the paperwork. */}
+            <div className="trip-planner__switch">
+                <div className="trip-planner__views" role="group" aria-label="View">
+                    {VIEWS.map((v) => (
+                        <button
+                            key={v.value}
+                            type="button"
+                            className={`trip-planner__view${view === v.value ? ' is-on' : ''}`}
+                            aria-pressed={view === v.value}
+                            onClick={() => setView(v.value)}
+                        >
+                            {v.label}
+                        </button>
+                    ))}
+                </div>
+
+                {setup && (
+                    <Button size="sm" className="trip-planner__setup-btn" onClick={() => setSetupOpen(true)}>
+                        <GiGears /> Setup
+                    </Button>
+                )}
+            </div>
+
+            {setup && (
+                <Modal
+                    open={setupOpen}
+                    onClose={() => setSetupOpen(false)}
+                    title="Setup"
+                    size="wide"
+                >
+                    {/* The sheet links, the photo album and the budget. This
+                        used to hold a permanent right-hand column open on
+                        every other view; here it costs nothing until you want
+                        it, which is about twice a trip. */}
+                    <div className="trip-planner__setup">{setup}</div>
+                </Modal>
+            )}
+
             {view === 'route' ? (
                 <TripRoute
                     legs={legs}
@@ -260,10 +291,6 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                     onUpdate={updateLeg}
                     onDelete={deleteLeg}
                 />
-            ) : view === 'setup' ? (
-                /* The paperwork. It used to hold a permanent column open on
-                   every other view; here it costs nothing until you want it. */
-                <div className="trip-planner__setup">{setup}</div>
             ) : view === 'timeline' ? (
                 <>
                     <TripTimeline

@@ -413,18 +413,24 @@ const Atlas = () => {
                         {/* Existing Trips */}
                         {trips.map(trip => (
                             <li key={trip.id}>
+                                {/* A poster only when there is a photo to
+                                    make one out of. Without one the card was
+                                    still 200px of black-over-nothing — a
+                                    muddy rectangle with a flag stranded in
+                                    the middle of it and the name pushed to
+                                    the very bottom.
+
+                                    The "Mission File" corner tag has gone
+                                    with it: it was dark on dark, and every
+                                    card said the same thing, so it denoted
+                                    nothing. */}
                                 <Card
                                     as="article"
                                     interactive
                                     padded={false}
-                                    className="trip-card"
+                                    className={`trip-card${trip.image_url ? '' : ' trip-card--bare'}`}
                                     style={{ '--trip-cover': trip.image_url ? `url(${trip.image_url})` : 'none' }}
                                 >
-                                    <span className="trip-card__tag">Mission File</span>
-                                    {/* Something to recognise the trip by. A
-                                        photo if there is one; otherwise the
-                                        flags of the places it goes, big enough
-                                        to actually read from the grid. */}
                                     {!trip.image_url && tripFlags[trip.id]?.length > 0 && (
                                         <span className="trip-card__flags" aria-hidden="true">
                                             {tripFlags[trip.id].join('')}
@@ -454,19 +460,28 @@ const Atlas = () => {
             {selectedTrip && (
                 <div className="expedition">
 
+                    {/* One overview rather than four boxes. What the trip
+                        is and when it runs, then the days themselves — which
+                        is the thing she is actually here for.
+
+                        These used to be a Card that wrapped everything below
+                        it, including the Route/Timeline/Cards toggle. Which
+                        is why switching view appeared to change the
+                        where-and-when box: it was inside it. */}
                     <Card className="expedition__log">
-                        <Field label="DESTINATION" className="expedition__destination">
+                        <div className="expedition__bar">
                             <input
-                                className="input expedition__destination-input"
+                                className="expedition__destination-input"
+                                aria-label="Destination"
                                 value={selectedTrip.destination}
                                 onChange={(e) => handleUpdateTrip(selectedTrip.id, { destination: e.target.value })}
+                                placeholder="Where are you going?"
                             />
-                        </Field>
 
-                        <div className="field-row">
-                            <Field label="STATUS">
+                            <div className="expedition__facts">
                                 <select
-                                    className="select"
+                                    className="select expedition__status"
+                                    aria-label="Status"
                                     value={selectedTrip.status}
                                     onChange={(e) => handleUpdateTrip(selectedTrip.id, { status: e.target.value })}
                                 >
@@ -474,55 +489,67 @@ const Atlas = () => {
                                     <option>Planned</option>
                                     <option>Completed</option>
                                 </select>
-                            </Field>
-                            {/* Not a plain date input writing through on
-                                change: typing 2026 into the year sends 0002,
-                                0020 and 0202 on the way, each of which was
-                                saved — and the saved value then replaced what
-                                she was typing, so the year could never be
-                                finished. */}
-                            <Field label="DEPARTURE">
-                                <DateField
-                                    value={selectedTrip.start_date}
-                                    onCommit={(v) => handleUpdateTrip(selectedTrip.id, { start_date: v || null })}
-                                    aria-label="Departure"
-                                />
-                            </Field>
-                            {/* end_date has been in the schema all along and was
-                                never on screen. The day planner needs it: it is
-                                what says how many days a trip has. */}
-                            <Field label="RETURN">
-                                <DateField
-                                    value={selectedTrip.end_date}
-                                    onCommit={(v) => handleUpdateTrip(selectedTrip.id, { end_date: v || null })}
-                                    aria-label="Return"
-                                />
-                            </Field>
+
+                                {/* Not plain date inputs writing through on
+                                    change: typing 2026 into the year sends
+                                    0002, 0020 and 0202 on the way, each of
+                                    which was saved — and the saved value then
+                                    replaced what she was typing, so the year
+                                    could never be finished. */}
+                                <span className="expedition__when">
+                                    <DateField
+                                        value={selectedTrip.start_date}
+                                        onCommit={(v) => handleUpdateTrip(selectedTrip.id, { start_date: v || null })}
+                                        aria-label="Departure"
+                                    />
+                                    <i aria-hidden="true">→</i>
+                                    <DateField
+                                        value={selectedTrip.end_date}
+                                        onCommit={(v) => handleUpdateTrip(selectedTrip.id, { end_date: v || null })}
+                                        aria-label="Return"
+                                    />
+                                </span>
+
+                                {/* Weather is worked out from the cities and
+                                    the dates. It belongs beside them, which is
+                                    here, and not two sections down beside the
+                                    per-person spend, which is where it was. */}
+                                <Button
+                                    size="sm"
+                                    onClick={planner.refreshWeather}
+                                    disabled={planner.weatherBusy}
+                                >
+                                    <GiSunrise /> {planner.weatherBusy ? 'Checking…' : 'Fill in weather'}
+                                </Button>
+                            </div>
                         </div>
 
-                        {/* Weather is worked out from the cities and the
-                            dates, and both of those are on this tile. It used
-                            to live in the cost header two sections down,
-                            nowhere near the things it depends on. */}
-                        <div className="expedition__weather">
-                            <Button onClick={planner.refreshWeather} disabled={planner.weatherBusy}>
-                                <GiSunrise /> {planner.weatherBusy ? 'Checking…' : 'Fill in weather'}
-                            </Button>
-                            {planner.weatherMessage && (
-                                <p className="expedition__weather-note" role="status">{planner.weatherMessage}</p>
-                            )}
-                        </div>
+                        {planner.weatherMessage && (
+                            <p className="expedition__weather-note" role="status">{planner.weatherMessage}</p>
+                        )}
 
-                        <Field
-                            label="NOTES / ITINERARY"
-                            as="textarea"
-                            className="expedition__notes"
-                            value={selectedTrip.notes || ''}
-                            onChange={(e) => handleUpdateTrip(selectedTrip.id, { notes: e.target.value })}
-                            placeholder="Rough plan..."
-                        />
+                        {/* Open when there is something in it, folded away
+                            when there is not — a full-height textarea holding
+                            nothing was taking a third of the page above the
+                            plan. */}
+                        <details className="expedition__notes-fold" open={Boolean(selectedTrip.notes)}>
+                            <summary>
+                                Notes
+                                {selectedTrip.notes
+                                    ? <em>{selectedTrip.notes.trim().split(/\s+/).length} words</em>
+                                    : <em>empty</em>}
+                            </summary>
+                            <textarea
+                                className="expedition__notes"
+                                aria-label="Notes and rough itinerary"
+                                value={selectedTrip.notes || ''}
+                                onChange={(e) => handleUpdateTrip(selectedTrip.id, { notes: e.target.value })}
+                                placeholder="Rough plan..."
+                            />
+                        </details>
 
-                        {/* The day-by-day plan: the spreadsheet's spine. */}
+                        {/* The day-by-day plan: the spreadsheet's spine, and
+                            the reason for the page. */}
                         <section className="expedition__planner">
                             <h3 className="section-title">The Days</h3>
                             <TripPlanner
@@ -533,81 +560,80 @@ const Atlas = () => {
                                 setup={setupPanels}
                             />
                         </section>
-
-                        {/* Where a thought goes before it has a date. */}
-                        <TripIdeas
-                            trip={selectedTrip}
-                            days={planner.days}
-                            legs={planner.legs}
-                            hooks={ideas}
-                            onAddToDay={planner.addItem}
-                            onBook={planner.addStay}
-                        />
-
-                        {/* The bottom of the page: what is still unfinished,
-                            and the pins and the map. None of it decides
-                            anything — the trip can be planned start to finish
-                            without opening any of it — so none of it sits
-                            halfway up looking like the next step. */}
-                        <section className="expedition__loose">
-                            <TripLooseEnds
-                                tripDates={planner.tripDates}
-                                legs={planner.legs}
-                                stays={planner.stays}
-                            />
-
-                            <div className="field">
-                            <span className="field__label">WAYPOINTS (CLICK MAP TO ADD)</span>
-                            <ul className="waypoints">
-                                {currentWaypoints.map((wp, idx) => (
-                                    <li key={wp.id || idx} className="waypoint">
-                                        <GiPin className="waypoint__pin" />
-                                        <input
-                                            className="input waypoint__name"
-                                            value={wp.name || ''}
-                                            onChange={(e) => updateWaypoint(wp.id, selectedTrip.id, { name: e.target.value })}
-                                            placeholder="Waypoint Name"
-                                            aria-label={`Waypoint ${idx + 1} name`}
-                                        />
-                                        <ConfirmButton
-                                            icon="×"
-                                            label={`Delete waypoint ${wp.name || idx + 1}`}
-                                            onConfirm={() => deleteWaypoint(wp.id, selectedTrip.id)}
-                                        />
-                                    </li>
-                                ))}
-                                {currentWaypoints.length === 0 && (
-                                    <li className="waypoints__empty">Click map to drop the first pin.</li>
-                                )}
-                            </ul>
-
-                            {/* The cities she planned, in order, plus any pin
-                                she dropped by hand. */}
-                            <InteractiveMap
-                                route
-                                stops={[
-                                    ...routeStops,
-                                    /* A dot rather than a number: a pin she
-                                       dropped is a note, not the fourth stop. */
-                                    ...currentWaypoints.map((wp) => ({
-                                        key: `wp-${wp.id}`,
-                                        lat: wp.lat,
-                                        lng: wp.lng,
-                                        label: wp.name || 'Waypoint',
-                                        sub: 'Dropped by hand',
-                                        badge: '',
-                                    })),
-                                ]}
-                                isEditing={true}
-                                onLocationSelect={(latlng) => {
-                                    handleAddWaypoint(`Stop #${currentWaypoints.length + 1}`, latlng.lat, latlng.lng);
-                                }}
-                            />
-                            {locating && <p className="atlas__locating">Finding these places…</p>}
-                            </div>
-                        </section>
                     </Card>
 
+                    {/* Where a thought goes before it has a date. */}
+                    <TripIdeas
+                        trip={selectedTrip}
+                        days={planner.days}
+                        legs={planner.legs}
+                        hooks={ideas}
+                        onAddToDay={planner.addItem}
+                        onBook={planner.addStay}
+                    />
+
+                    {/* The bottom of the page: what is still unfinished,
+                        and the pins and the map. None of it decides
+                        anything — the trip can be planned start to finish
+                        without opening any of it — so none of it sits
+                        halfway up looking like the next step. */}
+                    <section className="expedition__loose">
+                        <TripLooseEnds
+                            tripDates={planner.tripDates}
+                            legs={planner.legs}
+                            stays={planner.stays}
+                        />
+
+                        <div className="field">
+                        <span className="field__label">WAYPOINTS (CLICK MAP TO ADD)</span>
+                        <ul className="waypoints">
+                            {currentWaypoints.map((wp, idx) => (
+                                <li key={wp.id || idx} className="waypoint">
+                                    <GiPin className="waypoint__pin" />
+                                    <input
+                                        className="input waypoint__name"
+                                        value={wp.name || ''}
+                                        onChange={(e) => updateWaypoint(wp.id, selectedTrip.id, { name: e.target.value })}
+                                        placeholder="Waypoint Name"
+                                        aria-label={`Waypoint ${idx + 1} name`}
+                                    />
+                                    <ConfirmButton
+                                        icon="×"
+                                        label={`Delete waypoint ${wp.name || idx + 1}`}
+                                        onConfirm={() => deleteWaypoint(wp.id, selectedTrip.id)}
+                                    />
+                                </li>
+                            ))}
+                            {currentWaypoints.length === 0 && (
+                                <li className="waypoints__empty">Click map to drop the first pin.</li>
+                            )}
+                        </ul>
+
+                        {/* The cities she planned, in order, plus any pin
+                            she dropped by hand. */}
+                        <InteractiveMap
+                            route
+                            stops={[
+                                ...routeStops,
+                                /* A dot rather than a number: a pin she
+                                   dropped is a note, not the fourth stop. */
+                                ...currentWaypoints.map((wp) => ({
+                                    key: `wp-${wp.id}`,
+                                    lat: wp.lat,
+                                    lng: wp.lng,
+                                    label: wp.name || 'Waypoint',
+                                    sub: 'Dropped by hand',
+                                    badge: '',
+                                })),
+                            ]}
+                            isEditing={true}
+                            onLocationSelect={(latlng) => {
+                                handleAddWaypoint(`Stop #${currentWaypoints.length + 1}`, latlng.lat, latlng.lng);
+                            }}
+                        />
+                        {locating && <p className="atlas__locating">Finding these places…</p>}
+                        </div>
+                    </section>
 
                 </div>
             )}

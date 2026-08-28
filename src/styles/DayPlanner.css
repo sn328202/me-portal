@@ -250,9 +250,31 @@
     font-size: var(--text-2xl);
 }
 
+/* One row, small, right-aligned, wrapping only when it has to. It was three
+   full-size buttons on a line of their own under the title — as much of the
+   page as the title, the location and the date put together, for three things
+   used less than once a day. */
 .daydream__head-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
     flex-shrink: 0;
 }
+
+.daydream__head-actions .btn {
+    font-size: var(--text-2xs);
+}
+
+/* Delete is the one thing here that cannot be undone. It sits at the end of
+   the meta line rather than beside the things she uses, quiet until wanted. */
+.btn.daydream__delete {
+    font-size: var(--text-2xs);
+    opacity: 0.7;
+}
+
+.btn.daydream__delete:hover { opacity: 1; }
 
 .daydream__meta {
     display: flex;
@@ -1305,8 +1327,12 @@
 /* The sidebar listed every day plan ever made, so a Saturday from March sat
    between two things she was actually planning. One shelf at a time. */
 
+/* Two by two, not four across. The rail is twelve to seventeen rems wide and
+   the labels are uppercase mono; four of them in a row clipped the first one
+   to "MING UP" and ran its count into the next label. */
 .daydream__shelves {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 2px;
     margin-bottom: var(--space-3);
     padding: 2px;
@@ -1315,13 +1341,12 @@
 }
 
 .daydream__shelf {
-    flex: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
     min-width: 0;
-    padding: var(--space-1) 2px;
+    padding: var(--space-1) var(--space-1);
     border: none;
     border-radius: calc(var(--radius-sm) - 1px);
     background: transparent;
@@ -1343,10 +1368,18 @@
 }
 
 .daydream__shelf > span {
-    padding: 0 3px;
+    flex-shrink: 0;
+    padding: 0 4px;
     border-radius: 999px;
     background: var(--bg-hover);
     font-size: 9px;
+}
+
+/* The label is what gets squeezed, and it may. The count never does — a
+   number cut in half is worse than no number. */
+.daydream__shelf > :first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .daydream__shelf.is-on > span { background: rgba(0, 0, 0, 0.25); }
@@ -1393,3 +1426,26 @@
 }
 
 .daydream__save-error button:hover { background: var(--bg-hover); }
+
+
+/* What the last save did to the trip this day belongs to. Quiet, dismissible,
+   and never in the way — it is confirmation, not a decision. */
+.daydream__synced {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-gold);
+}
+
+.daydream__synced button {
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.daydream__synced button:hover { color: var(--text-main); }
