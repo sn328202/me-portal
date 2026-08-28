@@ -9,6 +9,8 @@ import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
 import TripLooseEnds from '../components/TripLooseEnds';
 import DateField from '../components/DateField';
+import TripCard from '../components/TripCard';
+import { GiSunrise } from 'react-icons/gi';
 import { useTripDays } from '../hooks/useTripDays';
 import { useTripIdeas } from '../hooks/useTripIdeas';
 import { flagsForLegs } from '../utils/flags';
@@ -364,9 +366,19 @@ const Atlas = () => {
                 icon={<GiWorld />}
                 subtitle={selectedTrip ? `Expedition Log: ${selectedTrip.destination}` : 'The Map Room'}
                 actions={selectedTrip && (
-                    <Button variant="primary" onClick={() => setSelectedTripId(null)}>
-                        Save &amp; Return to Map
-                    </Button>
+                    <>
+                        {/* Up here rather than buried in the cost header: it
+                            is a thing you do with the whole expedition, which
+                            is what the other button up here is too. */}
+                        <TripCard
+                            trip={selectedTrip}
+                            days={planner.days}
+                            itemsByDay={planner.items}
+                        />
+                        <Button variant="primary" onClick={() => setSelectedTripId(null)}>
+                            Save &amp; Return to Map
+                        </Button>
+                    </>
                 )}
             />
 
@@ -486,6 +498,19 @@ const Atlas = () => {
                                     aria-label="Return"
                                 />
                             </Field>
+                        </div>
+
+                        {/* Weather is worked out from the cities and the
+                            dates, and both of those are on this tile. It used
+                            to live in the cost header two sections down,
+                            nowhere near the things it depends on. */}
+                        <div className="expedition__weather">
+                            <Button onClick={planner.refreshWeather} disabled={planner.weatherBusy}>
+                                <GiSunrise /> {planner.weatherBusy ? 'Checking…' : 'Fill in weather'}
+                            </Button>
+                            {planner.weatherMessage && (
+                                <p className="expedition__weather-note" role="status">{planner.weatherMessage}</p>
+                            )}
                         </div>
 
                         <Field

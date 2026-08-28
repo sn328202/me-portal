@@ -1903,3 +1903,20 @@
     flex-direction: column;
     gap: var(--space-5);
 }
+
+
+/* Weather is worked out from the cities and the dates, and both of those are
+   on this tile. It used to sit in the cost header two sections down, nowhere
+   near the things it depends on. */
+.expedition__weather {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.expedition__weather-note {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}

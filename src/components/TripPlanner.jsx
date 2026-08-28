@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { GiSunrise, GiTrashCan, GiPlainCircle } from 'react-icons/gi';
+import { GiTrashCan, GiPlainCircle } from 'react-icons/gi';
 import { Button, Card, Field } from './ui';
 import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
-import TripCard from './TripCard';
 import TripStays from './TripStays';
 import TripRoute from './TripRoute';
 import MentionInput from './MentionInput';
@@ -138,10 +137,10 @@ const VIEWS = [
 
 const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
     const {
-        days, items, stays, legs, strays, costs, weatherBusy, weatherMessage,
+        days, items, stays, legs, strays, costs,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
         legOnDate, cityLabelFor, addLeg, updateLeg, deleteLeg, moveItem,
-        ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather,
+        ensureDays, updateDay, addItem, updateItem, deleteItem,
     // Lifted to the page so the spreadsheet export and the Wardrobe handoff
     // read the same trip this is showing, rather than fetching a second copy.
     } = planner;
@@ -197,13 +196,10 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                             })}
                         />
                     </label>
-                    <Button onClick={refreshWeather} disabled={weatherBusy}>
-                        <GiSunrise /> {weatherBusy ? 'Checking…' : 'Fill in weather'}
-                    </Button>
-
-                    {/* One sheet per day, to send to whoever is coming. The
-                        planner is a working surface; this is the document. */}
-                    <TripCard trip={trip} days={days} itemsByDay={items} />
+                    {/* Weather moved to the Where-and-when tile, which is
+                        where the cities and the dates it depends on are, and
+                        the share sheet up beside Save & Return, which is where
+                        the other whole-expedition action lives. */}
 
                     <div className="trip-planner__views" role="group" aria-label="View">
                         {VIEWS.filter((v) => v.value !== 'setup' || setup).map((v) => (
@@ -219,8 +215,6 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                         ))}
                     </div>
                 </div>
-
-                {weatherMessage && <p className="trip-planner__note">{weatherMessage}</p>}
 
                 <ul className="trip-planner__buckets">
                     {COST_BUCKETS.map((b) => (
