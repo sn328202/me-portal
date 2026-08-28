@@ -7,6 +7,8 @@ import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
 import TripStays from './TripStays';
 import TripRoute from './TripRoute';
+import MentionInput from './MentionInput';
+import { isTravelLeg } from '../utils/tripLegs';
 
 /**
  * The spreadsheet, made to think.
@@ -58,7 +60,7 @@ const WeatherChip = ({ weather }) => {
     );
 };
 
-const DayItem = ({ item, currency, onChange, onDelete }) => (
+const DayItem = ({ item, currency, city, onChange, onDelete }) => (
     <li className="trip-item">
         <input
             type="time"
@@ -67,13 +69,31 @@ const DayItem = ({ item, currency, onChange, onDelete }) => (
             aria-label="Time"
             onChange={(e) => onChange({ start_time: e.target.value || null })}
         />
-        <input
-            type="text"
+        {/* Type "@masque" and the restaurant arrives with its map link. */}
+        <MentionInput
             className="trip-item__title"
             value={item.title || ''}
             aria-label="What"
-            onChange={(e) => onChange({ title: e.target.value })}
+            city={city}
+            onChange={(title) => onChange({ title })}
+            onPick={(place, title) => onChange({
+                title,
+                link: place.maps_url || null,
+                location: place.address || null,
+            })}
         />
+        {item.link && (
+            <a
+                className="trip-item__link"
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={item.location || 'Open the map'}
+                aria-label={`Open ${item.title || 'this'} on the map`}
+            >
+                ↗
+            </a>
+        )}
         <select
             className="trip-item__kind"
             value={item.kind}
@@ -257,6 +277,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                         })}
                         onRename={(dayId, id, title) => updateItem(dayId, id, { title })}
                         onRecolour={(dayId, id, colour) => updateItem(dayId, id, { colour })}
+                        onAttach={(dayId, id, patch) => updateItem(dayId, id, patch)}
                         onDelete={deleteItem}
                         onMove={moveItem}
                         onDropIdea={async (dayId, times, idea) => {
@@ -279,6 +300,10 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                     const money = byId[day.id] || { buckets: {}, total: 0, runningTotal: 0 };
                     const dayItems = items[day.id] || [];
                     const key = `${day.id}-new`;
+                    /* Where the search should look. A travel day has no city
+                       of its own worth biasing towards — you are in the air. */
+                    const leg = legOnDate(day.date);
+                    const near = leg && !isTravelLeg(leg) ? leg.city : (day.city || null);
 
                     return (
                         <Card key={day.id} className="trip-day">
@@ -335,6 +360,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                                         key={item.id}
                                         item={item}
                                         currency={currency}
+                                        city={near}
                                         onChange={(patch) => updateItem(day.id, item.id, patch)}
                                         onDelete={() => deleteItem(day.id, item.id)}
                                     />
@@ -351,11 +377,25 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                                     setDraft((prev) => ({ ...prev, [key]: '' }));
                                 }}
                             >
-                                <input
-                                    type="text"
+                                <MentionInput
                                     placeholder="Add something to this day…"
                                     value={draft[key] || ''}
-                                    onChange={(e) => setDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+                                    aria-label="Add something to this day"
+                                    city={near}
+                                    onChange={(text) => setDraft((prev) => ({ ...prev, [key]: text }))}
+                                    /* Picked from the menu, the plan is made
+                                       there and then with its link, rather
+                                       than waiting for an Enter that would
+                                       lose the place it just found. */
+                                    onPick={(place, text) => {
+                                        addItem(day.id, {
+                                            title: text.trim() || place.name,
+                                            kind: 'todo',
+                                            link: place.maps_url || null,
+                                            location: place.address || null,
+                                        });
+                                        setDraft((prev) => ({ ...prev, [key]: '' }));
+                                    }}
                                 />
                             </form>
 

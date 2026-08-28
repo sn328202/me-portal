@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { GiTrashCan, GiLightBulb, GiHouse, GiPathDistance } from 'react-icons/gi';
 import { Button, Card } from './ui';
+import MentionInput from './MentionInput';
 import { formatMoney } from '../utils/tripCosts';
+import { anchorCity } from '../utils/wardrobeHandoff';
 
 /**
  * Somewhere to put an idea before it has a date.
@@ -18,7 +20,7 @@ import { formatMoney } from '../utils/tripCosts';
  * Without that this is a notes app that happens to live next to a trip.
  */
 
-const IdeaRow = ({ idea, currency, onUpdate, onDelete, onPromote, canPromote }) => {
+const IdeaRow = ({ idea, currency, city, onUpdate, onDelete, onPromote, canPromote }) => {
     const [open, setOpen] = useState(false);
 
     return (
@@ -36,12 +38,17 @@ const IdeaRow = ({ idea, currency, onUpdate, onDelete, onPromote, canPromote }) 
             }}
         >
             <div className="idea__head">
-                <input
-                    type="text"
+                <MentionInput
                     className="idea__title"
                     value={idea.title}
                     aria-label="Idea"
-                    onChange={(e) => onUpdate(idea.id, { title: e.target.value })}
+                    city={city}
+                    onChange={(title) => onUpdate(idea.id, { title })}
+                    onPick={(place, title) => onUpdate(idea.id, {
+                        title,
+                        url: place.maps_url || idea.url || null,
+                        area: place.address ? placeArea(place) : idea.area,
+                    })}
                 />
                 <button
                     type="button"
@@ -121,7 +128,14 @@ const IdeaRow = ({ idea, currency, onUpdate, onDelete, onPromote, canPromote }) 
     );
 };
 
-const Column = ({ title, icon, kind, ideas, currency, hooks, placeholder, onPromote, canPromote }) => {
+/* The neighbourhood, which is the part of an address worth keeping on a
+   one-line idea. The street number is not a reason to go somewhere. */
+const placeArea = (place) => {
+    const parts = String(place.address || '').split(',').map((p) => p.trim()).filter(Boolean);
+    return parts.length > 2 ? parts[parts.length - 3] : (parts[0] || null);
+};
+
+const Column = ({ title, icon, kind, ideas, currency, city, hooks, placeholder, onPromote, canPromote }) => {
     const [draft, setDraft] = useState('');
 
     const submit = (e) => {
@@ -145,6 +159,7 @@ const Column = ({ title, icon, kind, ideas, currency, hooks, placeholder, onProm
                         key={idea.id}
                         idea={idea}
                         currency={currency}
+                        city={city}
                         onUpdate={hooks.updateIdea}
                         onDelete={hooks.deleteIdea}
                         onPromote={onPromote}
@@ -159,20 +174,32 @@ const Column = ({ title, icon, kind, ideas, currency, hooks, placeholder, onProm
             )}
 
             <form className="ideas__add" onSubmit={submit}>
-                <input
-                    type="text"
+                <MentionInput
                     value={draft}
                     placeholder={kind === 'stay' ? 'Somewhere to stay…' : 'Something to do…'}
                     aria-label={kind === 'stay' ? 'A place to stay' : 'A thing to do'}
-                    onChange={(e) => setDraft(e.target.value)}
+                    city={city}
+                    onChange={setDraft}
+                    onPick={(place, text) => {
+                        hooks.addIdea({
+                            kind,
+                            title: text.trim() || place.name,
+                            url: place.maps_url || null,
+                            area: placeArea(place),
+                        });
+                        setDraft('');
+                    }}
                 />
             </form>
         </div>
     );
 };
 
-const TripIdeas = ({ trip, days = [], hooks, onAddToDay, onBook }) => {
+const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) => {
     const currency = trip?.currency || 'USD';
+    /* Somewhere to bias a place search: the trip's anchor city, so "@masque"
+       finds the one in Mumbai rather than the one in London. */
+    const city = anchorCity(legs) || trip?.destination || null;
     const [target, setTarget] = useState('');
 
     if (!trip) return null;
@@ -250,6 +277,7 @@ const TripIdeas = ({ trip, days = [], hooks, onAddToDay, onBook }) => {
                     kind="do"
                     ideas={hooks.toDo}
                     currency={currency}
+                    city={city}
                     hooks={hooks}
                     placeholder="Nothing yet. Type anything you might want to do."
                     onPromote={promoteToDay}
@@ -261,6 +289,7 @@ const TripIdeas = ({ trip, days = [], hooks, onAddToDay, onBook }) => {
                     kind="stay"
                     ideas={hooks.toStay}
                     currency={currency}
+                    city={city}
                     hooks={hooks}
                     placeholder="Nowhere yet. Hotels, rentals, a friend's spare room."
                     onPromote={promoteToStay}

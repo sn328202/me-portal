@@ -1740,3 +1740,107 @@
 .trip-planner__setup {
     margin-top: var(--space-4);
 }
+
+
+/* --- @-mentions: typing a name, getting a place ---------------- */
+
+/* The wrapper is what the surrounding layout now sees, so it has to inherit
+   the flex behaviour the input used to have — otherwise every field that was
+   "the one that stretches" quietly becomes the one that does not. */
+.mention {
+    position: relative;
+    display: block;
+    min-width: 0;
+}
+
+.mention > input {
+    width: 100%;
+    min-width: 0;
+}
+
+.trip-item .mention { flex: 1 1 9em; }
+.idea__head .mention { flex: 1; }
+
+.mention__menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 30;
+    /* Wide enough to read an address, never wider than the room it is in. */
+    min-width: min(22rem, 80vw);
+    max-width: min(28rem, 90vw);
+    max-height: 15rem;
+    overflow-y: auto;
+    margin: 0;
+    padding: var(--space-1);
+    list-style: none;
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+    box-shadow: var(--shadow-md);
+}
+
+.mention__hit {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0 var(--space-2);
+    width: 100%;
+    padding: var(--space-2);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-main);
+    font-family: var(--font-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.mention__hit.is-on {
+    background: var(--bg-hover);
+}
+
+.mention__hit strong {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+}
+
+/* The address is the half that tells two branches of a chain apart, so it
+   gets its own line rather than being elided into the name. */
+.mention__hit span {
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mention__hit em {
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-style: normal;
+}
+
+.mention__waiting {
+    padding: var(--space-2);
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+    font-style: italic;
+}
+
+/* A plan that knows where it is says so with one character. */
+.trip-item__link,
+.timeline__open {
+    flex: 0 0 auto;
+    color: var(--text-gold);
+    font-size: var(--text-xs);
+    line-height: 1;
+    text-decoration: none;
+}
+
+.trip-item__link:hover,
+.timeline__open:hover { text-decoration: underline; }
+
+.timeline__open { color: inherit; }

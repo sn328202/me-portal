@@ -503,6 +503,7 @@ const Atlas = () => {
                         <TripIdeas
                             trip={selectedTrip}
                             days={planner.days}
+                            legs={planner.legs}
                             hooks={ideas}
                             onAddToDay={planner.addItem}
                             onBook={planner.addStay}

@@ -6,6 +6,7 @@ import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
 import { legBands, legLabel, cityLabelOn } from '../utils/tripLegs';
 import { HOURS, rowsFor, dragRange, timesFromDrag, movedTo, describeSpan } from '../utils/timeline';
+import MentionInput from './MentionInput';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -32,7 +33,7 @@ const FIRST_HOUR_ROW = 4;
 
 const TripTimeline = ({
     days, items, stays, legs = [], costs, currency = 'USD',
-    onCreate, onMove, onDropIdea, onRename, onDelete, onRecolour,
+    onCreate, onMove, onDropIdea, onRename, onDelete, onRecolour, onAttach,
 }) => {
     /* The whole window, for a trip too wide for a column. Fifteen days at a
        readable width is wider than any page that also has a sidebar, and the
@@ -45,6 +46,9 @@ const TripTimeline = ({
        timeline. A block called "New plan" that can only be renamed in another
        view is a block you rename never. */
     const [editing, setEditing] = useState(null);
+    /* What is in the rename box. Held here rather than left uncontrolled
+       because picking from the mention menu has to write into it. */
+    const [draft, setDraft] = useState(null);
     /* A drag in progress: which day, and the two rows it has touched. Held
        here rather than written per-cell so the highlight and the commit read
        the same selection. */
@@ -298,25 +302,52 @@ const TripTimeline = ({
                                 onDoubleClick={() => setEditing(item.id)}
                             >
                                 {editing === item.id ? (
-                                    <input
+                                    /* Naming it is also where you say what it
+                                       is: "@masque" here fetches the place and
+                                       hangs its map link on the block. */
+                                    <MentionInput
                                         className="timeline__rename"
-                                        defaultValue={item.title}
+                                        value={draft ?? item.title ?? ''}
                                         autoFocus
                                         aria-label="What is it"
+                                        city={cityLabelOn(legs, day.date) || day.city || null}
                                         onFocus={(e) => e.target.select()}
-                                        onBlur={(e) => {
-                                            onRename?.(day.id, item.id, e.target.value.trim() || item.title);
+                                        onChange={setDraft}
+                                        onPick={(place, text) => {
+                                            setDraft(text);
+                                            onAttach?.(day.id, item.id, {
+                                                title: text.trim() || place.name,
+                                                link: place.maps_url || null,
+                                                location: place.address || null,
+                                            });
+                                        }}
+                                        onBlur={() => {
+                                            onRename?.(day.id, item.id, (draft ?? '').trim() || item.title);
                                             setEditing(null);
+                                            setDraft(null);
                                         }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') e.target.blur();
-                                            if (e.key === 'Escape') setEditing(null);
+                                            if (e.key === 'Escape') { setEditing(null); setDraft(null); }
                                         }}
                                     />
                                 ) : (
                                     <>
                                         {item.title}
                                         <span className="timeline__tools">
+                                            {item.link && (
+                                                <a
+                                                    className="timeline__open"
+                                                    href={item.link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title={item.location || 'Open the map'}
+                                                    aria-label={`Open ${item.title} on the map`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    ↗
+                                                </a>
+                                            )}
                                             {onRecolour && (
                                                 <button
                                                     type="button"

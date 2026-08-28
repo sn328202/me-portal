@@ -230,6 +230,114 @@ export async function resolvePlace(name, { city = null } = {}) {
     };
 }
 
+/**
+ * A handful of candidates for a name someone is halfway through typing.
+ *
+ * `resolvePlace` answers "what is this place" and takes the first hit, which
+ * is right when the name is already decided. An @-mention is the other
+ * question — "which of these did you mean" — and one result cannot be
+ * disagreed with. So: several, cheap fields only, and never an error, because
+ * a menu that throws while you are typing is worse than a menu with nothing
+ * in it.
+ */
+export async function searchPlaces(query, { city = null, limit = 6 } = {}) {
+    const text = String(query || '').trim();
+    if (text.length < 2) return [];
+
+    const full = [text, city].filter(Boolean).join(' ');
+    const key = process.env.GOOGLE_PLACES_API_KEY;
+    const want = Math.min(10, Math.max(1, limit));
+
+    if (key) {
+        try {
+            const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': key,
+                    // Deliberately short: a menu needs a name, a place to tell
+                    // two of them apart, and a link. Every extra field is
+                    // billed on every keystroke.
+                    'X-Goog-FieldMask': [
+                        'places.id', 'places.displayName', 'places.formattedAddress',
+                        'places.location', 'places.googleMapsUri', 'places.rating',
+                        'places.primaryTypeDisplayName', 'places.types',
+                    ].join(','),
+                },
+                body: JSON.stringify({ textQuery: full, pageSize: want, languageCode: 'en' }),
+                signal: AbortSignal.timeout(8000),
+            });
+            if (res.ok) {
+                const hits = ((await res.json()).places || []).map((place) => {
+                    const name = place.displayName?.text || text;
+                    return {
+                        name,
+                        address: place.formattedAddress || null,
+                        lat: place.location?.latitude ?? null,
+                        lng: place.location?.longitude ?? null,
+                        maps_url: place.googleMapsUri || mapsSearchUrl(name, place.id),
+                        place_id: place.id || null,
+                        rating: typeof place.rating === 'number' ? place.rating : null,
+                        category: toCategory(
+                            place.primaryTypeDisplayName?.text,
+                            (place.types || []).join(' ')
+                        ),
+                        source: 'google',
+                    };
+                }).filter((p) => p.name);
+                if (hits.length) return hits;
+            }
+        } catch {
+            // Fall through: a quota problem should still leave her a menu.
+        }
+    }
+
+    try {
+        const url = new URL('https://nominatim.openstreetmap.org/search');
+        url.searchParams.set('q', full);
+        url.searchParams.set('format', 'jsonv2');
+        url.searchParams.set('addressdetails', '1');
+        url.searchParams.set('limit', String(want));
+        const res = await fetch(url, {
+            headers: { 'User-Agent': NOMINATIM_UA, accept: 'application/json' },
+            signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+            const hits = (await res.json()).map((hit) => {
+                const name = hit.name || (hit.display_name || '').split(',')[0] || text;
+                return {
+                    name,
+                    address: hit.display_name || null,
+                    lat: hit.lat ? Number(hit.lat) : null,
+                    lng: hit.lon ? Number(hit.lon) : null,
+                    maps_url: mapsSearchUrl(hit.display_name || name),
+                    place_id: null,
+                    rating: null,
+                    category: toCategory(hit.type, hit.class),
+                    source: 'openstreetmap',
+                };
+            }).filter((p) => p.name);
+            if (hits.length) return hits;
+        }
+    } catch {
+        // Fall through to the last resort.
+    }
+
+    // Nothing knew it. A map search for the words she typed is still a link
+    // that opens something, which is the whole point of the feature.
+    return [{
+        name: text,
+        address: null,
+        lat: null,
+        lng: null,
+        maps_url: mapsSearchUrl(full),
+        place_id: null,
+        rating: null,
+        category: null,
+        source: 'unresolved',
+    }];
+}
+
 export { toCategory, mapsSearchUrl, PRICE_LEVELS };
 
 /* ---------- geography ---------------------------------------------------- */
