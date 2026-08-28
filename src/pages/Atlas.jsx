@@ -10,6 +10,7 @@ import TripIdeas from '../components/TripIdeas';
 import TripLooseEnds from '../components/TripLooseEnds';
 import DateField from '../components/DateField';
 import TripCard from '../components/TripCard';
+import TripRoute from '../components/TripRoute';
 import { GiSunrise } from 'react-icons/gi';
 import { useTripDays } from '../hooks/useTripDays';
 import { useTripIdeas } from '../hooks/useTripIdeas';
@@ -510,23 +511,51 @@ const Atlas = () => {
                                     />
                                 </span>
 
-                                {/* Weather is worked out from the cities and
-                                    the dates. It belongs beside them, which is
-                                    here, and not two sections down beside the
-                                    per-person spend, which is where it was. */}
+                            </div>
+                        </div>
+
+                        {/* Where and when: the cities, and the dates they run
+                            between. This was a fourth entry in the
+                            Route/Timeline/Cards toggle, which was wrong twice
+                            over — it is not a way of looking at the days, it
+                            is what the days are *made out of*, and it was
+                            sitting a page away from the thing it feeds.
+
+                            Fill in weather is here because it can only be
+                            answered from a city and a date, and those are
+                            these. It was in the cost header; before that it
+                            was nowhere near either. */}
+                        <section className="expedition__where">
+                            <div className="expedition__where-head">
+                                <h3 className="section-title">Where and when</h3>
                                 <Button
                                     size="sm"
                                     onClick={planner.refreshWeather}
-                                    disabled={planner.weatherBusy}
+                                    disabled={planner.weatherBusy || !planner.legs.length}
+                                    title={planner.legs.length
+                                        ? 'Look up the weather for these cities on these dates'
+                                        : 'Add a city and its dates first — that is what the forecast is looked up from'}
                                 >
                                     <GiSunrise /> {planner.weatherBusy ? 'Checking…' : 'Fill in weather'}
                                 </Button>
                             </div>
-                        </div>
 
-                        {planner.weatherMessage && (
-                            <p className="expedition__weather-note" role="status">{planner.weatherMessage}</p>
-                        )}
+                            {planner.weatherMessage && (
+                                <p className="expedition__weather-note" role="status">{planner.weatherMessage}</p>
+                            )}
+
+                            <TripRoute
+                                legs={planner.legs}
+                                stays={planner.stays}
+                                days={planner.days}
+                                items={planner.items}
+                                costs={planner.costs}
+                                currency={selectedTrip.currency || 'USD'}
+                                onAdd={planner.addLeg}
+                                onUpdate={planner.updateLeg}
+                                onDelete={planner.deleteLeg}
+                            />
+                        </section>
 
                         {/* Open when there is something in it, folded away
                             when there is not — a full-height textarea holding

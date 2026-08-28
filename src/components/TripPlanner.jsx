@@ -6,7 +6,6 @@ import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
 import TripStays from './TripStays';
-import TripRoute from './TripRoute';
 import MentionInput from './MentionInput';
 import { isTravelLeg } from '../utils/tripLegs';
 
@@ -128,12 +127,15 @@ const DayItem = ({ item, currency, near, onChange, onDelete }) => (
     </li>
 );
 
-/* Three ways of looking at the same days, and that is all this is. Setup was
-   a fourth entry here and is not a view of anything — it is the sheet links,
-   the photo album and the budget, which you open twice a trip and which have
-   nothing to do with how the days are drawn. It is a button now. */
+/* Two ways of looking at the same days, and that is all this is.
+
+   It had four entries. Setup was never a view of the days — it is the sheet
+   links, the photo album and the budget, opened about twice a trip; it is a
+   button now. And Route was never a view of the days either: it is the cities
+   and the dates they run between, which is what the days are *made out of*.
+   It lives in the overview, next to Fill in weather, because those cities and
+   those dates are precisely what the weather is looked up from. */
 const VIEWS = [
-    { value: 'route', label: 'Route' },
     { value: 'timeline', label: 'Timeline' },
     { value: 'cards', label: 'Cards' },
 ];
@@ -142,7 +144,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
     const {
         days, items, stays, legs, strays, costs,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
-        legOnDate, cityLabelFor, addLeg, updateLeg, deleteLeg, moveItem,
+        legOnDate, cityLabelFor, moveItem,
         ensureDays, updateDay, addItem, updateItem, deleteItem,
     // Lifted to the page so the spreadsheet export and the Wardrobe handoff
     // read the same trip this is showing, rather than fetching a second copy.
@@ -157,7 +159,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
     // budget used to sit in a permanent right-hand column, and a column you
     // open twice a trip was costing the timeline a sixth of the page on every
     // other day of it.
-    const [view, setView] = useState('route');
+    const [view, setView] = useState('timeline');
     const [setupOpen, setSetupOpen] = useState(false);
     const currency = trip?.currency || 'USD';
     const party = trip?.party_size || 1;
@@ -279,19 +281,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                 </Modal>
             )}
 
-            {view === 'route' ? (
-                <TripRoute
-                    legs={legs}
-                    stays={stays}
-                    days={days}
-                    items={items}
-                    costs={costs}
-                    currency={currency}
-                    onAdd={addLeg}
-                    onUpdate={updateLeg}
-                    onDelete={deleteLeg}
-                />
-            ) : view === 'timeline' ? (
+            {view === 'timeline' ? (
                 <>
                     <TripTimeline
                         days={days}

@@ -2077,8 +2077,33 @@ textarea.expedition__notes:focus {
     outline: none;
 }
 
-/* A rule between the trip's details and its days, so the overview reads as one
-   thing with two halves rather than as a box containing the whole page. */
+/* Where and when: the cities and the dates they run between, with the weather
+   button beside them because that is the only thing it can be answered from.
+
+   This was the fourth entry in the Route/Timeline/Cards toggle, which was
+   wrong twice over — it is not a way of looking at the days, it is what the
+   days are made out of, and it sat a page away from the thing it feeds. */
+.expedition__where {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: var(--rule-hair);
+}
+
+.expedition__where-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.expedition__where-head .section-title { margin: 0; }
+
+.expedition__where-head .btn { font-size: var(--text-2xs); }
+
+/* Rules between the three parts of the page, so it reads as one overview with
+   sections rather than as a box containing everything. */
 .expedition__planner {
     margin-top: var(--space-5);
     padding-top: var(--space-4);
