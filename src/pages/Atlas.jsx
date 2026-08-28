@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { GiWorld, GiCompass, GiPin } from 'react-icons/gi';
 import InteractiveMap from '../components/InteractiveMap';
 import { Button, Card, ConfirmButton, Field, PageHeader, Tag } from '../components/ui';
 import { useAtlas } from '../hooks/useAtlas';
+import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
 import TripSheet from '../components/TripSheet';
+import TripIdeas from '../components/TripIdeas';
 import { useTripDays } from '../hooks/useTripDays';
+import { flagsForLegs } from '../utils/flags';
+import { legDestination, isTravelLeg } from '../utils/tripLegs';
 import '../styles/Atlas.css';
 
 const STATUS_TONE = {
@@ -30,8 +34,76 @@ const Atlas = () => {
     // three answers to one question.
     const planner = useTripDays(selectedTrip);
 
-    // Derive main "center" coordinates from first waypoint or trip field if exists (backwards compat)
-    const tripCenter = (currentWaypoints.length > 0) ? [currentWaypoints[0].lat, currentWaypoints[0].lng] : (selectedTrip?.coordinates || null);
+    const { legs } = planner;
+    const [locating, setLocating] = useState(false);
+    const [legsByTrip, setLegsByTrip] = useState({});
+
+    /* Every trip's legs, for the flags on the index cards. One query, not one
+       per card — and only the two columns the flags actually need. */
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            const ids = trips.map((t) => t.id);
+            if (!ids.length) { setLegsByTrip({}); return; }
+            const { data } = await supabase
+                .from('atlas_legs').select('trip_id, city, country, country_code')
+                .in('trip_id', ids);
+            if (!alive) return;
+            const grouped = {};
+            for (const row of data || []) (grouped[row.trip_id] ||= []).push(row);
+            setLegsByTrip(grouped);
+        })();
+        return () => { alive = false; };
+    }, [trips]);
+
+    const tripFlags = useMemo(() => Object.fromEntries(
+        Object.entries(legsByTrip).map(([id, rows]) => [id, flagsForLegs(rows)])
+    ), [legsByTrip]);
+
+    /* A leg on the map is the city it puts you in, so a travel leg shows its
+       destination rather than a pin in the sea labelled "Air Travel". */
+    const routeStops = useMemo(() => (legs || [])
+        .filter((leg) => leg.lat != null && leg.lng != null)
+        .map((leg) => ({
+            key: leg.id,
+            lat: leg.lat,
+            lng: leg.lng,
+            label: isTravelLeg(leg) ? legDestination(leg, legs) : leg.city,
+            sub: `${String(leg.start_date).slice(0, 10)} → ${String(leg.end_date).slice(0, 10)}`,
+        })), [legs]);
+
+    /**
+     * Look up any leg that does not yet know where it is.
+     *
+     * Automatic rather than a button: a city she has typed is a city she wants
+     * on the map, and asking her to press "locate" afterwards is asking her to
+     * do the computer's remembering.
+     */
+    const locate = useCallback(async () => {
+        if (!selectedTrip?.id) return;
+        const unlocated = (legs || []).filter((l) => l.city && !isTravelLeg(l) && l.lat == null);
+        if (!unlocated.length) return;
+
+        setLocating(true);
+        try {
+            const { data: session } = await supabase.auth.getSession();
+            const res = await fetch('/api/atlas-locate', {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    authorization: `Bearer ${session?.session?.access_token}`,
+                },
+                body: JSON.stringify({ tripId: selectedTrip.id }),
+            });
+            if (res.ok) await planner.reload();
+        } catch (err) {
+            console.error('Could not locate the legs:', err);
+        } finally {
+            setLocating(false);
+        }
+    }, [selectedTrip?.id, legs, planner]);
+
+    useEffect(() => { locate(); }, [locate]);
 
     // Handlers
     const handleAddTrip = async () => {
@@ -138,11 +210,20 @@ const Atlas = () => {
             {/* VIEW: MAP ROOM (Index) */}
             {!selectedTrip && (
                 <div className="atlas__room">
+                    {/* One pin per trip, and no map at all until at least one
+                        of them knows where it is. */}
                     <div className="atlas__map">
-                        <InteractiveMap trips={trips.map(t => ({
-                            ...t,
-                            waypoints: waypoints[t.id] || []
-                        }))} />
+                        <InteractiveMap
+                            stops={trips.map((t) => ({
+                                key: t.id,
+                                lat: t.coordinates?.lat,
+                                lng: t.coordinates?.lng,
+                                label: t.destination,
+                                sub: t.start_date || 'Date TBD',
+                                badge: '',
+                                onOpen: () => setSelectedTripId(t.id),
+                            }))}
+                        />
                     </div>
 
                     <ul className="atlas__grid">
@@ -164,7 +245,11 @@ const Atlas = () => {
                                     className="trip-card"
                                     style={{ '--trip-cover': trip.image_url ? `url(${trip.image_url})` : 'none' }}
                                 >
-                                    <span className="trip-card__tag">Mission File</span>
+                                    <span className="trip-card__tag">
+                                        {trip.image_url ? 'Mission File' : (
+                                            tripFlags[trip.id]?.join(' ') || 'Mission File'
+                                        )}
+                                    </span>
                                     <span className="trip-card__title">
                                         <button
                                             type="button"
@@ -243,6 +328,14 @@ const Atlas = () => {
                             <TripPlanner trip={selectedTrip} onUpdateTrip={handleUpdateTrip} planner={planner} />
                         </section>
 
+                        {/* Where a thought goes before it has a date. */}
+                        <TripIdeas
+                            trip={selectedTrip}
+                            days={planner.days}
+                            onAddToDay={planner.addItem}
+                            onBook={planner.addStay}
+                        />
+
                         <div className="field">
                             <span className="field__label">WAYPOINTS (CLICK MAP TO ADD)</span>
                             <ul className="waypoints">
@@ -268,14 +361,26 @@ const Atlas = () => {
                                 )}
                             </ul>
 
+                            {/* The cities she planned, in order, plus any pin
+                                she dropped by hand. */}
                             <InteractiveMap
-                                trips={[{ ...selectedTrip, waypoints: currentWaypoints, coordinates: tripCenter }]}
+                                route
+                                stops={[
+                                    ...routeStops,
+                                    ...currentWaypoints.map((wp) => ({
+                                        key: `wp-${wp.id}`,
+                                        lat: wp.lat,
+                                        lng: wp.lng,
+                                        label: wp.name || 'Waypoint',
+                                        sub: 'Dropped by hand',
+                                    })),
+                                ]}
                                 isEditing={true}
                                 onLocationSelect={(latlng) => {
                                     handleAddWaypoint(`Stop #${currentWaypoints.length + 1}`, latlng.lat, latlng.lng);
                                 }}
-                                selectedLocation={tripCenter}
                             />
+                            {locating && <p className="atlas__locating">Finding these places…</p>}
                         </div>
                     </Card>
 

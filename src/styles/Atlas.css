@@ -1200,3 +1200,236 @@
     color: var(--text-dim);
     font-style: normal;
 }
+
+/* --- The map, once it is worth having ------------------------- */
+
+/* Leaflet paints its own controls and attribution in its own colours, which
+   is the last thing on the page still ignoring the theme. */
+.interactive-map__canvas .leaflet-control-zoom a,
+.interactive-map__canvas .leaflet-control-attribution {
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    border-color: var(--border-dim);
+}
+
+.interactive-map__canvas .leaflet-control-attribution a { color: var(--text-gold); }
+
+.interactive-map__canvas .leaflet-popup-content-wrapper,
+.interactive-map__canvas .leaflet-popup-tip {
+    background: var(--bg-panel);
+    color: var(--text-main);
+    box-shadow: var(--glow-gold);
+}
+
+.map-popup strong { font-family: var(--font-display); }
+.map-popup__sub { color: var(--text-muted); font-size: var(--text-2xs); }
+
+/* A numbered dot in the theme's accent, rather than Leaflet's blue teardrop.
+   The order of the stops is half of what the map is saying. */
+.trip-pin__dot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 2px solid;
+    border-radius: 50%;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.atlas__locating {
+    margin: var(--space-2) 0 0;
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+}
+
+/* Flags stand in for a cover photo, so they need to read as a label rather
+   than as tiny pictures crammed into the corner. */
+.trip-card__tag { letter-spacing: var(--tracking-label); }
+
+/* --- Ideas: before they have a date --------------------------- */
+
+.ideas__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.ideas__head h3 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+}
+
+.ideas__hint { color: var(--text-dim); font-size: var(--text-2xs); }
+
+.ideas__columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    margin-top: var(--space-3);
+}
+
+@media (max-width: 760px) {
+    .ideas__columns { grid-template-columns: 1fr; }
+}
+
+.ideas__column h4 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+}
+
+.ideas__count {
+    margin-left: auto;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+}
+
+.ideas__list { margin: 0; padding: 0; list-style: none; }
+
+.ideas__empty,
+.ideas__moved {
+    margin: 0 0 var(--space-2);
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+}
+
+.idea {
+    padding: var(--space-2) 0;
+    border-bottom: var(--rule-hair);
+}
+
+.idea:last-child { border-bottom: none; }
+
+/* An idea that has become a plan stays visible but stops competing for
+   attention: the note explaining why it was a good idea is often the part
+   worth keeping. */
+.idea.is-promoted { opacity: 0.55; }
+
+.idea__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.idea__title {
+    flex: 1;
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 16px;
+}
+
+.idea__title:hover,
+.idea__title:focus {
+    border-color: var(--border-dim);
+    background: var(--field-bg);
+}
+
+.idea__more,
+.idea__drop {
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    cursor: pointer;
+}
+
+.idea__more:hover { color: var(--text-gold); }
+.idea__drop:hover { color: var(--accent-crimson); }
+
+.idea__facts {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    padding-left: var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+}
+
+.idea__facts a { color: var(--text-gold); }
+.idea__done { color: var(--text-gold); font-style: normal; }
+
+.idea__detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding-left: var(--space-2);
+}
+
+.idea__fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) 5.5em minmax(0, 1fr);
+    gap: var(--space-2);
+}
+
+.idea__detail textarea,
+.idea__fields input {
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 16px;
+    resize: vertical;
+}
+
+.idea__promote {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    margin-top: var(--space-2);
+    padding-left: var(--space-2);
+}
+
+.idea__promote select {
+    padding: var(--space-1) var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+}
+
+.ideas__add { margin-top: var(--space-2); }
+
+.ideas__add input {
+    width: 100%;
+    padding: var(--space-2);
+    border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 16px;
+}
+
+.ideas__add input:focus {
+    border-style: solid;
+    border-color: var(--text-gold);
+    background: var(--field-bg);
+}

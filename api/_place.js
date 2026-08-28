@@ -270,7 +270,7 @@ export async function geocodeArea(query) {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Goog-Api-Key': key,
-                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.viewport',
+                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.viewport,places.addressComponents',
                 },
                 body: JSON.stringify({ textQuery: query, pageSize: 1, languageCode: 'en' }),
                 signal: AbortSignal.timeout(10000),
@@ -285,12 +285,19 @@ export async function geocodeArea(query) {
                             { lat: vp.high.latitude, lng: vp.high.longitude }
                         ) / 2
                         : null;
+                    // The country is read by type rather than by position:
+                    // splitting formattedAddress on commas puts the postcode
+                    // where the country should be about half the time.
+                    const country = (place.addressComponents || [])
+                        .find((c) => (c.types || []).includes('country'));
                     return {
                         name: place.displayName?.text || query,
                         address: place.formattedAddress || null,
                         lat: place.location.latitude,
                         lng: place.location.longitude,
                         radiusKm: clampRadius(radiusKm),
+                        country: country?.longText || null,
+                        countryCode: country?.shortText ? country.shortText.toLowerCase() : null,
                         source: 'google',
                     };
                 }
@@ -305,6 +312,7 @@ export async function geocodeArea(query) {
         url.searchParams.set('q', query);
         url.searchParams.set('format', 'jsonv2');
         url.searchParams.set('limit', '1');
+        url.searchParams.set('addressdetails', '1');
         const res = await fetch(url, {
             headers: { 'User-Agent': NOMINATIM_UA, accept: 'application/json' },
             signal: AbortSignal.timeout(10000),
@@ -325,6 +333,10 @@ export async function geocodeArea(query) {
             lat: Number(hit.lat),
             lng: Number(hit.lon),
             radiusKm: clampRadius(radiusKm),
+            country: hit.address?.country || null,
+            countryCode: hit.address?.country_code
+                ? String(hit.address.country_code).toLowerCase()
+                : null,
             source: 'openstreetmap',
         };
     } catch {
@@ -378,6 +390,7 @@ export async function geocodeAddress(address) {
         url.searchParams.set('q', address);
         url.searchParams.set('format', 'jsonv2');
         url.searchParams.set('limit', '1');
+        url.searchParams.set('addressdetails', '1');
         const res = await fetch(url, {
             headers: { 'User-Agent': NOMINATIM_UA, accept: 'application/json' },
             signal: AbortSignal.timeout(10000),
