@@ -15,7 +15,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 // Atlas -> leaflet, Daydream -> google-maps + dnd-kit.
 const Atlas = lazy(() => import('./pages/Atlas'));
 const DayPlanner = lazy(() => import('./pages/DayPlanner'));
-const Commonplace = lazy(() => import('./pages/Commonplace'));
 const Larder = lazy(() => import('./pages/Larder'));
 const Treasury = lazy(() => import('./pages/Treasury'));
 const Library = lazy(() => import('./pages/Library'));
@@ -71,7 +70,12 @@ function App() {
                                 path="/tablebook"
                                 element={<Navigate to="/daydream?tab=table" replace />}
                             />
-                            <Route path="/commonplace" element={<Commonplace />} />
+                            {/* A tab of the Daydream now, like the Table
+                                Book. The old address still works. */}
+                            <Route
+                                path="/commonplace"
+                                element={<Navigate to="/daydream?tab=keeping" replace />}
+                            />
                             <Route path="/study" element={<Studio />} />
                             <Route path="/learning" element={<Learning />} />
                             <Route path="/play" element={<Play />} />

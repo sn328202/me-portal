@@ -169,7 +169,12 @@ const Plan = ({ plan, toggleStep, setStatus, rate, setNotes, remove }) => {
     );
 };
 
-const Commonplace = () => {
+/**
+ * `embedded` drops the page furniture — the whole-page heading — and leaves
+ * the content, which is all a tab of the Daydream needs. See TableBook for the
+ * same treatment and the same reason.
+ */
+const Commonplace = ({ embedded = false }) => {
     const { plans, loading, error, toggleStep, setStatus, rate, setNotes, remove } = usePlans();
     const { submit, pending } = useCapture();
     const [link, setLink] = useState('');
@@ -196,12 +201,19 @@ const Commonplace = () => {
     };
 
     return (
-        <div className="commonplace">
-            <PageHeader
-                title="The Commonplace"
-                subtitle="Things worth keeping, and whether you ever got round to them."
-                icon={<GiOpenBook />}
-            />
+        <div className={`commonplace${embedded ? ' is-embedded' : ''}`}>
+            {embedded ? (
+                <header className="commonplace__head">
+                    <h2 className="section-title"><GiOpenBook /> The Commonplace</h2>
+                    <p>Things worth keeping, and whether you ever got round to them.</p>
+                </header>
+            ) : (
+                <PageHeader
+                    title="The Commonplace"
+                    subtitle="Things worth keeping, and whether you ever got round to them."
+                    icon={<GiOpenBook />}
+                />
+            )}
 
             <form className="commonplace__add" onSubmit={save}>
                 <Field
@@ -218,6 +230,7 @@ const Commonplace = () => {
 
             <Tabs
                 label="Commonplace views"
+                variant={embedded ? 'segmented' : 'underline'}
                 active={view}
                 onChange={setView}
                 tabs={VIEWS.map((v) => ({ ...v, count: counts[v.id] }))}

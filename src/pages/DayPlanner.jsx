@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiRoughWound, GiForkKnifeSpoon } from 'react-icons/gi';
+import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiRoughWound, GiForkKnifeSpoon, GiOpenBook } from 'react-icons/gi';
 import { useSearchParams } from 'react-router-dom';
 import { useJsApiLoader } from '@react-google-maps/api';
 import PlacesSearch from '../components/PlacesSearch';
@@ -9,6 +9,7 @@ import SpotsLibrary from '../components/SpotsLibrary';
 import DayBuilder from '../components/DayBuilder';
 import MentionInput from '../components/MentionInput';
 import TableBook from './TableBook';
+import Commonplace from './Commonplace';
 import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
@@ -110,7 +111,7 @@ const DayPlanner = () => {
        the room that no longer exists still lands on the thing it was for. */
     const [params, setParams] = useSearchParams();
     const [view, setView] = useState(() => (
-        ['itineraries', 'spots', 'build', 'table'].includes(params.get('tab'))
+        ['itineraries', 'spots', 'build', 'table', 'keeping'].includes(params.get('tab'))
             ? params.get('tab')
             : 'itineraries'
     ));
@@ -666,10 +667,16 @@ const DayPlanner = () => {
                        own, which meant choosing which room to walk into
                        before you knew which one you wanted. */
                     { id: 'table', label: 'The Table Book', icon: <GiForkKnifeSpoon /> },
+                    /* Same argument as the Table Book: what you saved because
+                       it looked worth doing and the day you might do it on are
+                       the same thought, and they were two rooms apart. */
+                    { id: 'keeping', label: 'The Commonplace', icon: <GiOpenBook /> },
                 ]}
             />
 
-            {view === 'table' ? (
+            {view === 'keeping' ? (
+                <Commonplace embedded />
+            ) : view === 'table' ? (
                 <TableBook embedded />
             ) : view === 'build' ? (
                 <DayBuilder onOpenPlan={handleOpenBuiltPlan} />
