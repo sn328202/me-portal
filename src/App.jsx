@@ -16,7 +16,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 const Atlas = lazy(() => import('./pages/Atlas'));
 const DayPlanner = lazy(() => import('./pages/DayPlanner'));
 const Commonplace = lazy(() => import('./pages/Commonplace'));
-const TableBook = lazy(() => import('./pages/TableBook'));
 const Larder = lazy(() => import('./pages/Larder'));
 const Treasury = lazy(() => import('./pages/Treasury'));
 const Library = lazy(() => import('./pages/Library'));
@@ -65,7 +64,13 @@ function App() {
                             <Route path="/library" element={<Library />} />
                             <Route path="/atlas" element={<Atlas />} />
                             <Route path="/daydream" element={<DayPlanner />} />
-                            <Route path="/tablebook" element={<TableBook />} />
+                            {/* The Table Book is a tab of the Daydream now.
+                                The old address still works, because a
+                                bookmark is a promise. */}
+                            <Route
+                                path="/tablebook"
+                                element={<Navigate to="/daydream?tab=table" replace />}
+                            />
                             <Route path="/commonplace" element={<Commonplace />} />
                             <Route path="/study" element={<Studio />} />
                             <Route path="/learning" element={<Learning />} />

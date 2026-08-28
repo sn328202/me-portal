@@ -54,8 +54,14 @@ const countdown = (iso) => {
  * The Spots library records wanting to go somewhere. This records going. The
  * third tab is the gap between the two: places she booked and let go without
  * ever rebooking, and saved spots that never became a table at all.
+ *
+ * It is a tab of the Daydream rather than a room of its own now. Booking a
+ * table is not a different activity from planning the day the table is in,
+ * and two rooms meant deciding which one to walk into before you knew.
+ * `embedded` drops the page furniture — the whole-page heading and the room's
+ * own name — and leaves the content, which is all a tab needs.
  */
-const TableBook = () => {
+const TableBook = ({ embedded = false }) => {
     const {
         upcoming, past, reservations, loading, error,
         addReservation, markDined, cancelReservation, deleteReservation,
@@ -147,18 +153,30 @@ const TableBook = () => {
 
     const next = upcoming[0];
 
+    const book = () => { setForm(EMPTY_FORM); setFormOpen(true); };
+
     return (
-        <div className="tablebook">
-            <PageHeader
-                title="The Table Book"
-                icon={<GiForkKnifeSpoon />}
-                subtitle="Tables held, tables kept, and the ones still worth chasing."
-                actions={
-                    <Button variant="solid" onClick={() => { setForm(EMPTY_FORM); setFormOpen(true); }}>
-                        <GiQuill /> Book a table
-                    </Button>
-                }
-            />
+        <div className={`tablebook${embedded ? ' is-embedded' : ''}`}>
+            {embedded ? (
+                <header className="tablebook__head">
+                    <div>
+                        <h2 className="section-title"><GiForkKnifeSpoon /> The Table Book</h2>
+                        <p>Tables held, tables kept, and the ones still worth chasing.</p>
+                    </div>
+                    <Button variant="solid" onClick={book}><GiQuill /> Book a table</Button>
+                </header>
+            ) : (
+                <PageHeader
+                    title="The Table Book"
+                    icon={<GiForkKnifeSpoon />}
+                    subtitle="Tables held, tables kept, and the ones still worth chasing."
+                    actions={
+                        <Button variant="solid" onClick={book}>
+                            <GiQuill /> Book a table
+                        </Button>
+                    }
+                />
+            )}
 
             {error && <p className="tablebook__error">{error}</p>}
 
@@ -175,6 +193,7 @@ const TableBook = () => {
 
             <Tabs
                 label="Table book"
+                variant={embedded ? 'segmented' : 'underline'}
                 active={tab}
                 onChange={setTab}
                 tabs={[

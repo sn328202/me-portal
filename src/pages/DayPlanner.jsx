@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiRoughWound } from 'react-icons/gi';
+import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiRoughWound, GiForkKnifeSpoon } from 'react-icons/gi';
+import { useSearchParams } from 'react-router-dom';
 import { useJsApiLoader } from '@react-google-maps/api';
 import PlacesSearch from '../components/PlacesSearch';
 import SmartTimeInput from '../components/SmartTimeInput';
 import { Button, Card, ConfirmButton, EmptyState, Field, Tabs } from '../components/ui';
 import SpotsLibrary from '../components/SpotsLibrary';
 import DayBuilder from '../components/DayBuilder';
+import TableBook from './TableBook';
 import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
@@ -103,7 +105,21 @@ const DayPlanner = () => {
     // 'itineraries' | 'spots' | 'build'. A saved place outlives any particular
     // day, so the library sits beside the days rather than inside one; the
     // builder is what turns a place name into a day made of both.
-    const [view, setView] = useState('itineraries');
+    /* ?tab=table is how the old /tablebook address arrives, so a bookmark to
+       the room that no longer exists still lands on the thing it was for. */
+    const [params, setParams] = useSearchParams();
+    const [view, setView] = useState(() => (
+        ['itineraries', 'spots', 'build', 'table'].includes(params.get('tab'))
+            ? params.get('tab')
+            : 'itineraries'
+    ));
+
+    const chooseView = (next) => {
+        setView(next);
+        // Keep the address honest, so the tab survives a reload and can be
+        // linked to from anywhere else in the portal.
+        setParams(next === 'itineraries' ? {} : { tab: next }, { replace: true });
+    };
     const [plans, setPlans] = useState([]);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [items, setItems] = useState([]); // Items for selected plan
@@ -588,7 +604,7 @@ const DayPlanner = () => {
     /** Jump straight to a day the builder just made. */
     const handleOpenBuiltPlan = async (planId) => {
         await fetchPlans();
-        setView('itineraries');
+        chooseView('itineraries');
         const plan = plans.find((p) => p.id === planId);
         if (plan) setSelectedPlan(plan);
     };
@@ -599,7 +615,7 @@ const DayPlanner = () => {
         if (!created) return;
         // Keep the open plan in sync when the spot landed on the one on screen.
         if (selectedPlan?.id === planId) setItems((prev) => [...prev, created]);
-        setView('itineraries');
+        chooseView('itineraries');
         const plan = plans.find((p) => p.id === planId);
         if (plan) setSelectedPlan(plan);
     };
@@ -609,15 +625,22 @@ const DayPlanner = () => {
             <Tabs
                 label="Daydream sections"
                 active={view}
-                onChange={setView}
+                onChange={chooseView}
                 tabs={[
                     { id: 'itineraries', label: 'Itineraries', icon: <GiTreasureMap />, count: plans.length },
                     { id: 'spots', label: 'Spots', icon: <GiPositionMarker /> },
                     { id: 'build', label: 'Plan a day', icon: <GiCompass /> },
+                    /* Booking a table is not a different activity from
+                       planning the day the table is in. It was a room of its
+                       own, which meant choosing which room to walk into
+                       before you knew which one you wanted. */
+                    { id: 'table', label: 'The Table Book', icon: <GiForkKnifeSpoon /> },
                 ]}
             />
 
-            {view === 'build' ? (
+            {view === 'table' ? (
+                <TableBook embedded />
+            ) : view === 'build' ? (
                 <DayBuilder onOpenPlan={handleOpenBuiltPlan} />
             ) : view === 'spots' ? (
                 <SpotsLibrary plans={plans} onAddToPlan={handleAddSpotToPlan} />
