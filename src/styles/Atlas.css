@@ -2197,7 +2197,6 @@ textarea.expedition__notes:focus {
 .trip-planner__switch {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     flex-wrap: wrap;
     gap: var(--space-3);
     margin-top: var(--space-4);
@@ -2205,12 +2204,9 @@ textarea.expedition__notes:focus {
     border-bottom: var(--rule-hair);
 }
 
-.trip-planner__setup-btn {
-    font-size: var(--text-2xs);
-    opacity: 0.8;
-}
-
-.trip-planner__setup-btn:hover { opacity: 1; }
+/* Setup moved to the page header — see Atlas.jsx. It is where a trip starts
+   when there already is one on a spreadsheet, and it used to live inside a
+   component that refuses to render until the trip has dates. */
 
 
 /* ---------- The Atlas, taken together ----------------------- */
@@ -2279,3 +2275,20 @@ textarea.expedition__notes:focus {
 
     .atlas__stat > strong { font-size: var(--text-xl); }
 }
+
+
+/* A trip with no dates yet. It used to say only "give this a start date",
+   which is one of two ways in and not the one you want when the itinerary
+   already exists on a spreadsheet. */
+.card.trip-planner__empty p {
+    margin: 0 0 var(--space-2);
+    color: var(--text-muted);
+}
+
+.card.trip-planner__empty p:last-child {
+    margin-bottom: 0;
+    font-size: var(--text-sm);
+    color: var(--text-dim);
+}
+
+.card.trip-planner__empty strong { color: var(--text-gold); }

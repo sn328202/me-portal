@@ -460,7 +460,7 @@ const TableBook = ({ embedded = false }) => {
                             <EmptyState
                                 icon={<GiForkKnifeSpoon />}
                                 message="No tables held."
-                                hint="Book one above, or pick something off Worth chasing."
+                                hint="Book one above, or paste a confirmation email."
                             />
                         ) : (
                             <ul className="tablebook__slips">
@@ -507,6 +507,11 @@ const TableBook = ({ embedded = false }) => {
                                                     {r.notes && <p className="slip__notes">{r.notes}</p>}
                                                 </div>
 
+                                                {/* A row, not a stack. Four buttons
+                                                    stretched down a column made the card
+                                                    as tall as the tallest thing on it and
+                                                    left the icon-only delete stranded on a
+                                                    line of its own. */}
                                                 <div className="slip__actions">
                                                     {/* A booked table is a plan with a time on it.
                                                         It belongs on the day it happens, not only
@@ -521,14 +526,20 @@ const TableBook = ({ embedded = false }) => {
                                                     <Button size="sm" onClick={() => cancelReservation(r)}>
                                                         Cancelled it
                                                     </Button>
-                                                    <ConfirmButton
-                                                        size="sm" icon
-                                                        label={`Delete the ${r.restaurant} booking`}
-                                                        onConfirm={() => deleteReservation(r.id)}
-                                                    >
-                                                        <GiTrashCan />
-                                                    </ConfirmButton>
                                                 </div>
+
+                                                {/* Out of the row of things she does with a
+                                                    booking and into the corner: it is the one
+                                                    here that cannot be undone, and it was
+                                                    sitting among them at the same weight. */}
+                                                <ConfirmButton
+                                                    className="slip__drop"
+                                                    size="sm" icon
+                                                    label={`Delete the ${r.restaurant} booking`}
+                                                    onConfirm={() => deleteReservation(r.id)}
+                                                >
+                                                    <GiTrashCan />
+                                                </ConfirmButton>
                                             </Card>
                                         </li>
                                     );

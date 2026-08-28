@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { GiTrashCan, GiPlainCircle, GiGears } from 'react-icons/gi';
-import { Button, Card, Field, Modal } from './ui';
+import { GiTrashCan, GiPlainCircle } from 'react-icons/gi';
+import { Button, Card, Field } from './ui';
 import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
@@ -140,7 +140,7 @@ const VIEWS = [
     { value: 'cards', label: 'Cards' },
 ];
 
-const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
+const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
     const {
         days, items, stays, legs, strays, costs,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
@@ -160,7 +160,6 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
     // open twice a trip was costing the timeline a sixth of the page on every
     // other day of it.
     const [view, setView] = useState('timeline');
-    const [setupOpen, setSetupOpen] = useState(false);
     const currency = trip?.currency || 'USD';
     const party = trip?.party_size || 1;
 
@@ -173,6 +172,10 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
         return (
             <Card className="trip-planner__empty">
                 <p>Give this trip a start date and the days will lay themselves out.</p>
+                <p>
+                    Or bring one you already have: <strong>Setup</strong>, at the top of the
+                    page, imports a whole itinerary from a spreadsheet.
+                </p>
             </Card>
         );
     }
@@ -241,9 +244,10 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                 </p>
             )}
 
-            {/* Directly on top of what it switches. Setup sits apart from the
-                three, with a rule between them, because it is not a fourth way
-                of looking at the days — it is the paperwork. */}
+            {/* Directly on top of what it switches. Setup used to sit here
+                too; it is in the page header now, because importing an
+                existing itinerary is where a trip *starts* and this whole
+                component refuses to render until the trip has dates. */}
             <div className="trip-planner__switch">
                 <div className="trip-planner__views" role="group" aria-label="View">
                     {VIEWS.map((v) => (
@@ -258,28 +262,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                         </button>
                     ))}
                 </div>
-
-                {setup && (
-                    <Button size="sm" className="trip-planner__setup-btn" onClick={() => setSetupOpen(true)}>
-                        <GiGears /> Setup
-                    </Button>
-                )}
             </div>
-
-            {setup && (
-                <Modal
-                    open={setupOpen}
-                    onClose={() => setSetupOpen(false)}
-                    title="Setup"
-                    size="wide"
-                >
-                    {/* The sheet links, the photo album and the budget. This
-                        used to hold a permanent right-hand column open on
-                        every other view; here it costs nothing until you want
-                        it, which is about twice a trip. */}
-                    <div className="trip-planner__setup">{setup}</div>
-                </Modal>
-            )}
 
             {view === 'timeline' ? (
                 <>

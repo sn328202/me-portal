@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { GiWorld, GiCompass, GiPin } from 'react-icons/gi';
 import InteractiveMap from '../components/InteractiveMap';
-import { Button, Card, ConfirmButton, Field, PageHeader, Tag } from '../components/ui';
+import { Button, Card, ConfirmButton, Field, Modal, PageHeader, Tag } from '../components/ui';
 import { useAtlas } from '../hooks/useAtlas';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
@@ -11,7 +11,7 @@ import TripLooseEnds from '../components/TripLooseEnds';
 import DateField from '../components/DateField';
 import TripCard from '../components/TripCard';
 import TripRoute from '../components/TripRoute';
-import { GiSunrise } from 'react-icons/gi';
+import { GiSunrise, GiGears } from 'react-icons/gi';
 import { useTripDays } from '../hooks/useTripDays';
 import { useTripIdeas } from '../hooks/useTripIdeas';
 import { flagsForLegs } from '../utils/flags';
@@ -49,6 +49,9 @@ const Atlas = () => {
 
     const { legs } = planner;
     const [locating, setLocating] = useState(false);
+    /* The paperwork, and the way in for a trip that already exists on a
+       spreadsheet. */
+    const [setupOpen, setSetupOpen] = useState(false);
     const [legsByTrip, setLegsByTrip] = useState({});
 
     /* Every trip's legs, for the flags on the index cards. One query, not one
@@ -420,9 +423,16 @@ const Atlas = () => {
                 subtitle={selectedTrip ? `Expedition Log: ${selectedTrip.destination}` : 'The Map Room'}
                 actions={selectedTrip && (
                     <>
-                        {/* Up here rather than buried in the cost header: it
-                            is a thing you do with the whole expedition, which
-                            is what the other button up here is too. */}
+                        {/* Setup is where a trip starts when there already is
+                            one: the sheet import brings a whole itinerary in.
+                            It lived inside the day planner, which refuses to
+                            render until the trip has dates — so on a brand new
+                            expedition, the one thing that could fill it in was
+                            behind the thing it was meant to fill in. */}
+                        <Button size="sm" onClick={() => setSetupOpen(true)}>
+                            <GiGears /> Setup
+                        </Button>
+                        {/* Things you do with the whole expedition, together. */}
                         <TripCard
                             trip={selectedTrip}
                             days={planner.days}
@@ -561,6 +571,20 @@ const Atlas = () => {
                 </div>
             )}
 
+            {/* The sheet links, the photo album and the budget — and the
+                spreadsheet import, which is why this is reachable before a
+                trip has anything in it. */}
+            {selectedTrip && (
+                <Modal
+                    open={setupOpen}
+                    onClose={() => setSetupOpen(false)}
+                    title="Setup"
+                    size="wide"
+                >
+                    <div className="trip-planner__setup">{setupPanels}</div>
+                </Modal>
+            )}
+
             {/* VIEW: EXPEDITION DETAIL */}
             {selectedTrip && (
                 <div className="expedition">
@@ -690,7 +714,6 @@ const Atlas = () => {
                                 onUpdateTrip={handleUpdateTrip}
                                 planner={planner}
                                 onIdeaUsed={ideas.markPromoted}
-                                setup={setupPanels}
                             />
                         </section>
                     </Card>

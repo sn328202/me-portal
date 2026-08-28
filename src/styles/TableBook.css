@@ -40,12 +40,19 @@
 
 /* Card renders its children inside .card__body, so the three-column layout
    has to live on that wrapper — not on .slip, which is the outer surface. */
+.card.slip { position: relative; }
+
+/* Two columns and two rows, not three columns: when, what, and then what to
+   do about it underneath. The third column was a stretched stack of four
+   buttons, so every card was as tall as four buttons whatever was on it. */
 .slip__grid {
     display: grid;
-    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) auto;
-    gap: var(--space-4);
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
     align-items: start;
 }
+
+.slip__when { grid-row: span 2; }
 
 /* Three days out is the point at which most cancellation windows
    close, so it is the point worth colouring. */
@@ -56,56 +63,62 @@
 .slip__when {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-    padding-right: var(--space-4);
+    gap: 0;
+    width: 5.5rem;
+    padding-right: var(--space-3);
     border-right: var(--rule-hair);
 }
 
 .slip__day {
     font-family: var(--font-display);
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
     line-height: var(--leading-tight);
     color: var(--text-heading);
 }
 
 .slip__time {
     font-family: var(--font-mono);
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     color: var(--text-gold);
     font-variant-numeric: tabular-nums;
 }
 
 .slip__count {
     font-family: var(--font-mono);
-    font-size: var(--text-2xs);
+    font-size: 9px;
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
     color: var(--text-muted);
-    margin-top: var(--space-1);
+    margin-top: 2px;
 }
 
 .slip__body {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-1);
     min-width: 0;
+    /* Room for the delete in the corner. */
+    padding-right: var(--space-5);
 }
 
 .slip__name {
     font-family: var(--font-display);
-    font-size: var(--text-xl);
+    font-size: var(--text-base);
     line-height: var(--leading-tight);
     margin: 0;
     color: var(--text-heading);
+    overflow-wrap: break-word;
 }
 
 .slip__where {
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-1);
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     color: var(--text-muted);
+    overflow-wrap: break-word;
 }
 
 .slip__tags {
@@ -116,23 +129,41 @@
 
 .slip__deadline {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     color: var(--accent-gold);
 }
 
 .slip__notes {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     color: var(--text-dim);
     line-height: var(--leading-normal);
 }
 
+/* A row under what it acts on, wrapping when it has to. It was a column of
+   stretched buttons in a third grid column, which set the height of every
+   card and left the icon-only delete on a line by itself at the bottom. */
 .slip__actions {
+    grid-column: 2;
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-2);
-    align-items: stretch;
 }
+
+.slip__actions .btn { font-size: var(--text-2xs); }
+
+/* The one thing here that cannot be undone, in the corner rather than in the
+   row, and quiet until the card is under the cursor. */
+.btn.slip__drop {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    opacity: 0.35;
+}
+
+.slip:hover .slip__drop,
+.slip__drop:focus-visible { opacity: 1; }
 
 /* --- The ledger ------------------------------------------ */
 
@@ -310,12 +341,14 @@
     }
 
     .slip__when {
+        grid-row: auto;
         flex-direction: row;
         align-items: baseline;
+        width: auto;
         gap: var(--space-3);
         border-right: none;
         border-bottom: var(--rule-hair);
-        padding: 0 0 var(--space-3);
+        padding: 0 var(--space-5) var(--space-2) 0;
     }
 
     .slip__count {
@@ -323,10 +356,9 @@
         margin-left: auto;
     }
 
-    .slip__actions {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
+    .slip__body { padding-right: 0; }
+
+    .slip__actions { grid-column: 1; }
 }
 
 @media (max-width: 600px) {
