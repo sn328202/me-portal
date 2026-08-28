@@ -105,7 +105,14 @@ const DayItem = ({ item, currency, onChange, onDelete }) => (
     </li>
 );
 
-const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
+const VIEWS = [
+    { value: 'route', label: 'Route' },
+    { value: 'timeline', label: 'Timeline' },
+    { value: 'cards', label: 'Cards' },
+    { value: 'setup', label: 'Setup' },
+];
+
+const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
     const {
         days, items, stays, legs, strays, tripDates, costs, weatherBusy, weatherMessage,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
@@ -116,9 +123,14 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
     } = planner;
 
     const [draft, setDraft] = useState({});
-    // Three views, because they answer three different questions. Route is the
+    // Four views, because they answer four different questions. Route is the
     // default: you decide the shape of a trip before you decide what to do on
     // its Tuesday, and until now there was nowhere to do that.
+    //
+    // Setup is the fourth because the sheet links, the photos album and the
+    // budget used to sit in a permanent right-hand column, and a column you
+    // open twice a trip was costing the timeline a sixth of the page on every
+    // other day of it.
     const [view, setView] = useState('route');
     const currency = trip?.currency || 'USD';
     const party = trip?.party_size || 1;
@@ -166,15 +178,15 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                     </Button>
 
                     <div className="trip-planner__views" role="group" aria-label="View">
-                        {['route', 'timeline', 'cards'].map((v) => (
+                        {VIEWS.filter((v) => v.value !== 'setup' || setup).map((v) => (
                             <button
-                                key={v}
+                                key={v.value}
                                 type="button"
-                                className={`trip-planner__view${view === v ? ' is-on' : ''}`}
-                                aria-pressed={view === v}
-                                onClick={() => setView(v)}
+                                className={`trip-planner__view${view === v.value ? ' is-on' : ''}`}
+                                aria-pressed={view === v.value}
+                                onClick={() => setView(v.value)}
                             >
-                                {v === 'route' ? 'Route' : v === 'cards' ? 'Cards' : 'Timeline'}
+                                {v.label}
                             </button>
                         ))}
                     </div>
@@ -227,6 +239,10 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                     onUpdate={updateLeg}
                     onDelete={deleteLeg}
                 />
+            ) : view === 'setup' ? (
+                /* The paperwork. It used to hold a permanent column open on
+                   every other view; here it costs nothing until you want it. */
+                <div className="trip-planner__setup">{setup}</div>
             ) : view === 'timeline' ? (
                 <>
                     <TripTimeline
@@ -240,6 +256,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                             title: 'New plan', kind: 'todo', ...times,
                         })}
                         onRename={(dayId, id, title) => updateItem(dayId, id, { title })}
+                        onRecolour={(dayId, id, colour) => updateItem(dayId, id, { colour })}
                         onDelete={deleteItem}
                         onMove={moveItem}
                         onDropIdea={async (dayId, times, idea) => {
@@ -255,10 +272,6 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                             await onIdeaUsed?.(idea.id);
                         }}
                     />
-                    <p className="timeline__hint">
-                        Drag across the hours to block something out, drag a plan to move it,
-                        or drag an idea in from below.
-                    </p>
                 </>
             ) : (
             <div className="trip-planner__days">

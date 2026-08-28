@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
+import { useTheme } from '../contexts/ThemeContext';
+import { HUES, blockPalette, blockStyle } from '../utils/blockColour';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
 import { legBands, legLabel, cityLabelOn } from '../utils/tripLegs';
@@ -30,8 +32,15 @@ const FIRST_HOUR_ROW = 4;
 
 const TripTimeline = ({
     days, items, stays, legs = [], costs, currency = 'USD',
-    onCreate, onMove, onDropIdea, onRename, onDelete,
+    onCreate, onMove, onDropIdea, onRename, onDelete, onRecolour,
 }) => {
+    /* The whole window, for a trip too wide for a column. Fifteen days at a
+       readable width is wider than any page that also has a sidebar, and the
+       answer to "where are the gaps" is one you want to see all of. */
+    const [full, setFull] = useState(false);
+    /* Which block has its swatches open. One at a time: two palettes on
+       screen is two questions and no answer. */
+    const [painting, setPainting] = useState(null);
     /* The block just dragged out, so it can be named without leaving the
        timeline. A block called "New plan" that can only be renamed in another
        view is a block you rename never. */
@@ -41,6 +50,17 @@ const TripTimeline = ({
        the same selection. */
     const [drag, setDrag] = useState(null);
     const [over, setOver] = useState(null);
+
+    /* The eight hues as this vibe has them. Re-read when the vibe changes,
+       and not otherwise: it is a getComputedStyle call per hue. */
+    const { themeId } = useTheme();
+    const palette = useMemo(() => blockPalette(
+        (name) => (typeof document === 'undefined'
+            ? ''
+            : getComputedStyle(document.documentElement).getPropertyValue(name))
+    // themeId is not read inside, but it is exactly when the answer changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ), [themeId]);
 
     const finish = useCallback(() => {
         setDrag((current) => {
@@ -62,6 +82,19 @@ const TripTimeline = ({
         window.addEventListener('mouseup', finish);
         return () => window.removeEventListener('mouseup', finish);
     }, [drag, finish]);
+
+    /* Escape is what people press to get a full-screen thing off the screen,
+       and it closes the swatches for the same reason. */
+    useEffect(() => {
+        if (!full && !painting) return undefined;
+        const onKey = (e) => {
+            if (e.key !== 'Escape') return;
+            if (painting) setPainting(null);
+            else setFull(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [full, painting]);
 
     if (!days.length) return null;
 
@@ -90,7 +123,23 @@ const TripTimeline = ({
     }).filter(Boolean);
 
     return (
-        <div className="timeline" role="table" aria-label="Trip timeline">
+        <div className={`timeline-pane${full ? ' is-full' : ''}`}>
+            <div className="timeline-pane__bar">
+                <p className="timeline__hint">
+                    Drag across the hours to block something out, drag a plan to move it,
+                    or drag an idea in from below.
+                </p>
+                <button
+                    type="button"
+                    className="timeline-pane__expand"
+                    aria-pressed={full}
+                    onClick={() => setFull((v) => !v)}
+                >
+                    {full ? 'Close' : 'Expand'}
+                </button>
+            </div>
+
+            <div className="timeline" role="table" aria-label="Trip timeline">
             <div
                 className="timeline__grid"
                 style={{ '--days': days.length }}
@@ -225,10 +274,11 @@ const TripTimeline = ({
                     {days.map((day, column) => (items[day.id] || []).map((item) => {
                         const box = rowsFor(item, HOURS);
                         if (!box) return null;
+                        const open = painting === item.id;
                         return (
                             <span
                                 key={item.id}
-                                className={`timeline__item is-${item.kind}`}
+                                className={`timeline__item is-${item.kind}${open ? ' is-painting' : ''}`}
                                 draggable
                                 onDragStart={(e) => {
                                     e.dataTransfer.effectAllowed = 'move';
@@ -239,6 +289,10 @@ const TripTimeline = ({
                                 style={{
                                     gridColumn: column + 1,
                                     gridRow: `${box.start + 1} / span ${box.span}`,
+                                    /* Its own colour if it has one; otherwise
+                                       nothing at all, so the stylesheet's rule
+                                       for its kind still applies. */
+                                    ...(blockStyle(item, palette) || {}),
                                 }}
                                 title={`${item.title} · ${describeSpan(item)}`}
                                 onDoubleClick={() => setEditing(item.id)}
@@ -262,17 +316,61 @@ const TripTimeline = ({
                                 ) : (
                                     <>
                                         {item.title}
-                                        {onDelete && (
-                                            <button
-                                                type="button"
-                                                className="timeline__drop"
-                                                aria-label={`Remove ${item.title}`}
-                                                onClick={() => onDelete(day.id, item.id)}
-                                            >
-                                                ×
-                                            </button>
-                                        )}
+                                        <span className="timeline__tools">
+                                            {onRecolour && (
+                                                <button
+                                                    type="button"
+                                                    className="timeline__paint"
+                                                    aria-label={`Colour ${item.title}`}
+                                                    aria-expanded={open}
+                                                    onClick={() => setPainting(open ? null : item.id)}
+                                                >
+                                                    ◑
+                                                </button>
+                                            )}
+                                            {onDelete && (
+                                                <button
+                                                    type="button"
+                                                    className="timeline__drop"
+                                                    aria-label={`Remove ${item.title}`}
+                                                    onClick={() => onDelete(day.id, item.id)}
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
+                                        </span>
                                     </>
+                                )}
+
+                                {open && (
+                                    <span className="timeline__palette" role="group" aria-label="Colour">
+                                        {HUES.map((n) => (
+                                            <button
+                                                key={n}
+                                                type="button"
+                                                className={`timeline__swatch${Number(item.colour) === n ? ' is-on' : ''}`}
+                                                style={{ background: palette[n - 1]?.fill }}
+                                                aria-label={`Colour ${n}`}
+                                                onClick={() => {
+                                                    onRecolour(day.id, item.id, n);
+                                                    setPainting(null);
+                                                }}
+                                            />
+                                        ))}
+                                        {/* Back to the colour of its kind, which
+                                            is a choice and not an absence. */}
+                                        <button
+                                            type="button"
+                                            className="timeline__swatch timeline__swatch--none"
+                                            aria-label="By kind"
+                                            onClick={() => {
+                                                onRecolour(day.id, item.id, null);
+                                                setPainting(null);
+                                            }}
+                                        >
+                                            ×
+                                        </button>
+                                    </span>
                                 )}
                             </span>
                         );
@@ -296,7 +394,11 @@ const TripTimeline = ({
                             style={{ gridRow: FIRST_HOUR_ROW + HOURS.length, gridColumn: column + 2 }}
                         >
                             {loose.map((item) => (
-                                <span key={item.id} className={`timeline__item is-${item.kind}`}>
+                                <span
+                                    key={item.id}
+                                    className={`timeline__item is-${item.kind}`}
+                                    style={blockStyle(item, palette) || undefined}
+                                >
                                     {item.title}
                                 </span>
                             ))}
@@ -320,6 +422,7 @@ const TripTimeline = ({
                         <em>{formatMoney(byId[day.id]?.runningTotal || 0, currency)}</em>
                     </div>
                 ))}
+            </div>
             </div>
         </div>
     );

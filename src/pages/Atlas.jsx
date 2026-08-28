@@ -202,6 +202,159 @@ const Atlas = () => {
         setSelectedTripId(null);
     };
 
+    /* The paperwork: the sheet, the photos album, the budget, and burning
+       the file. It used to hold a permanent right-hand column open on every
+       view of every trip — a column opened twice a journey, charging the
+       timeline a sixth of the page on all the other days. It is a tab now,
+       and costs nothing until it is asked for. */
+    const setupPanels = selectedTrip ? (
+        <div className="expedition__setup">
+            {/* MISSION INTELLIGENCE */}
+            <Card variant="flat" as="div">
+                <details className="panel">
+                    <summary className="panel__summary">Mission Intelligence</summary>
+
+                    <div className="panel__body">
+                        <div className="field">
+                            <Field
+                                label="GOOGLE PHOTOS ALBUM"
+                                type="text"
+                                value={selectedTrip.google_photos_url || ''}
+                                onChange={(e) => handleUpdateTrip(selectedTrip.id, { google_photos_url: e.target.value })}
+                                onBlur={(e) => fetchCoverImage(e.target.value)}
+                                placeholder="https://photos.google.com/..."
+                            />
+                            <div className="panel__row">
+                                {selectedTrip.google_photos_url && (
+                                    <a href={selectedTrip.google_photos_url} target="_blank" rel="noopener noreferrer" className="atlas-link">
+                                        Open Album
+                                    </a>
+                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="panel__row-end"
+                                    onClick={() => fetchCoverImage(selectedTrip.google_photos_url)}
+                                    disabled={loadingCover}
+                                >
+                                    {loadingCover ? 'Scanning...' : 'Extract Cover Image'}
+                                </Button>
+                            </div>
+                            {coverError && (
+                                <p className="panel__error" role="status">{coverError}</p>
+                            )}
+                        </div>
+
+                        <div className="field">
+                            <Field
+                                label="GOOGLE SHEET ITINERARY"
+                                type="text"
+                                value={selectedTrip.google_sheets_url || ''}
+                                onChange={(e) => handleUpdateTrip(selectedTrip.id, { google_sheets_url: e.target.value })}
+                                placeholder="https://docs.google.com/spreadsheets/..."
+                            />
+                            {/* The link is only half of it: the sheet
+                                can be written from the trip, and an
+                                older one read back into it. */}
+                            <TripSheet
+                                trip={selectedTrip}
+                                data={planner}
+                                onUpdateTrip={handleUpdateTrip}
+                                onImport={planner.applyImport}
+                            />
+                        </div>
+
+                        <div className="panel__section">
+                            <div className="panel__row">
+                                <span className="field__label">ADDITIONAL ASSETS</span>
+                                <Button icon label="Add link" className="panel__row-end" onClick={handleAddLink}>+</Button>
+                            </div>
+                            <ul className="asset-list">
+                                {(selectedTrip.links || []).map((link, idx) => (
+                                    <li key={idx} className="asset">
+                                        <input
+                                            className="input asset__title"
+                                            value={link.title}
+                                            onChange={(e) => handleUpdateLink(idx, 'title', e.target.value)}
+                                            placeholder="Title"
+                                            aria-label={`Asset ${idx + 1} title`}
+                                        />
+                                        <input
+                                            className="input asset__url"
+                                            value={link.url}
+                                            onChange={(e) => handleUpdateLink(idx, 'url', e.target.value)}
+                                            placeholder="URL"
+                                            aria-label={`Asset ${idx + 1} URL`}
+                                        />
+                                        {link.url && (
+                                            <a
+                                                href={link.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="atlas-link"
+                                                aria-label={`Open ${link.title || 'asset'}`}
+                                            >
+                                                ↗
+                                            </a>
+                                        )}
+                                        <ConfirmButton
+                                            icon="×"
+                                            label={`Delete link ${link.title || idx + 1}`}
+                                            onConfirm={() => handleDeleteLink(idx)}
+                                        />
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </details>
+            </Card>
+
+            {/* LOGISTICS */}
+            <Card variant="flat" as="div">
+                <details className="panel">
+                    <summary className="panel__summary">Logistics</summary>
+
+                    <div className="panel__body">
+                        <Field
+                            label="ESTIMATED BUDGET"
+                            type="number"
+                            hint="In dollars."
+                            value={selectedTrip.budget}
+                            onChange={(e) => handleUpdateTrip(selectedTrip.id, { budget: parseInt(e.target.value) || 0 })}
+                        />
+
+                        <div className="field">
+                            <Field
+                                label="COVER IMAGE URL"
+                                type="text"
+                                value={selectedTrip.image_url}
+                                onChange={(e) => handleUpdateTrip(selectedTrip.id, { image_url: e.target.value })}
+                                placeholder="https://..."
+                            />
+                            {selectedTrip.image_url && (
+                                <span
+                                    className="cover-preview"
+                                    style={{ backgroundImage: `url(${selectedTrip.image_url})` }}
+                                />
+                            )}
+                        </div>
+
+                        <ConfirmButton
+                            className="burn-file"
+                            block
+                            label="Burn Mission File"
+                            confirmLabel="CONFIRM: BURN THIS FILE?"
+                            onConfirm={() => handleDeleteTrip(selectedTrip.id)}
+                        >
+                            Burn Mission File
+                        </ConfirmButton>
+                    </div>
+                </details>
+            </Card>
+        </div>
+    ) : null;
+
     return (
         <div className="page atlas">
             <PageHeader
@@ -287,7 +440,6 @@ const Atlas = () => {
             {selectedTrip && (
                 <div className="expedition">
 
-                    {/* PRIMARY COLUMN: the expedition itself */}
                     <Card className="expedition__log">
                         <Field label="DESTINATION" className="expedition__destination">
                             <input
@@ -343,6 +495,7 @@ const Atlas = () => {
                                 onUpdateTrip={handleUpdateTrip}
                                 planner={planner}
                                 onIdeaUsed={ideas.markPromoted}
+                                setup={setupPanels}
                             />
                         </section>
 
@@ -406,153 +559,6 @@ const Atlas = () => {
                         </div>
                     </Card>
 
-                    {/* SECONDARY COLUMN: the paperwork. Quieter, and folded away. */}
-                    <aside className="expedition__config">
-
-                        {/* MISSION INTELLIGENCE */}
-                        <Card variant="flat" as="div">
-                            <details className="panel">
-                                <summary className="panel__summary">Mission Intelligence</summary>
-
-                                <div className="panel__body">
-                                    <div className="field">
-                                        <Field
-                                            label="GOOGLE PHOTOS ALBUM"
-                                            type="text"
-                                            value={selectedTrip.google_photos_url || ''}
-                                            onChange={(e) => handleUpdateTrip(selectedTrip.id, { google_photos_url: e.target.value })}
-                                            onBlur={(e) => fetchCoverImage(e.target.value)}
-                                            placeholder="https://photos.google.com/..."
-                                        />
-                                        <div className="panel__row">
-                                            {selectedTrip.google_photos_url && (
-                                                <a href={selectedTrip.google_photos_url} target="_blank" rel="noopener noreferrer" className="atlas-link">
-                                                    Open Album
-                                                </a>
-                                            )}
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="panel__row-end"
-                                                onClick={() => fetchCoverImage(selectedTrip.google_photos_url)}
-                                                disabled={loadingCover}
-                                            >
-                                                {loadingCover ? 'Scanning...' : 'Extract Cover Image'}
-                                            </Button>
-                                        </div>
-                                        {coverError && (
-                                            <p className="panel__error" role="status">{coverError}</p>
-                                        )}
-                                    </div>
-
-                                    <div className="field">
-                                        <Field
-                                            label="GOOGLE SHEET ITINERARY"
-                                            type="text"
-                                            value={selectedTrip.google_sheets_url || ''}
-                                            onChange={(e) => handleUpdateTrip(selectedTrip.id, { google_sheets_url: e.target.value })}
-                                            placeholder="https://docs.google.com/spreadsheets/..."
-                                        />
-                                        {/* The link is only half of it: the sheet
-                                            can be written from the trip, and an
-                                            older one read back into it. */}
-                                        <TripSheet
-                                            trip={selectedTrip}
-                                            data={planner}
-                                            onUpdateTrip={handleUpdateTrip}
-                                            onImport={planner.applyImport}
-                                        />
-                                    </div>
-
-                                    <div className="panel__section">
-                                        <div className="panel__row">
-                                            <span className="field__label">ADDITIONAL ASSETS</span>
-                                            <Button icon label="Add link" className="panel__row-end" onClick={handleAddLink}>+</Button>
-                                        </div>
-                                        <ul className="asset-list">
-                                            {(selectedTrip.links || []).map((link, idx) => (
-                                                <li key={idx} className="asset">
-                                                    <input
-                                                        className="input asset__title"
-                                                        value={link.title}
-                                                        onChange={(e) => handleUpdateLink(idx, 'title', e.target.value)}
-                                                        placeholder="Title"
-                                                        aria-label={`Asset ${idx + 1} title`}
-                                                    />
-                                                    <input
-                                                        className="input asset__url"
-                                                        value={link.url}
-                                                        onChange={(e) => handleUpdateLink(idx, 'url', e.target.value)}
-                                                        placeholder="URL"
-                                                        aria-label={`Asset ${idx + 1} URL`}
-                                                    />
-                                                    {link.url && (
-                                                        <a
-                                                            href={link.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="atlas-link"
-                                                            aria-label={`Open ${link.title || 'asset'}`}
-                                                        >
-                                                            ↗
-                                                        </a>
-                                                    )}
-                                                    <ConfirmButton
-                                                        icon="×"
-                                                        label={`Delete link ${link.title || idx + 1}`}
-                                                        onConfirm={() => handleDeleteLink(idx)}
-                                                    />
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </div>
-                            </details>
-                        </Card>
-
-                        {/* LOGISTICS */}
-                        <Card variant="flat" as="div">
-                            <details className="panel">
-                                <summary className="panel__summary">Logistics</summary>
-
-                                <div className="panel__body">
-                                    <Field
-                                        label="ESTIMATED BUDGET"
-                                        type="number"
-                                        hint="In dollars."
-                                        value={selectedTrip.budget}
-                                        onChange={(e) => handleUpdateTrip(selectedTrip.id, { budget: parseInt(e.target.value) || 0 })}
-                                    />
-
-                                    <div className="field">
-                                        <Field
-                                            label="COVER IMAGE URL"
-                                            type="text"
-                                            value={selectedTrip.image_url}
-                                            onChange={(e) => handleUpdateTrip(selectedTrip.id, { image_url: e.target.value })}
-                                            placeholder="https://..."
-                                        />
-                                        {selectedTrip.image_url && (
-                                            <span
-                                                className="cover-preview"
-                                                style={{ backgroundImage: `url(${selectedTrip.image_url})` }}
-                                            />
-                                        )}
-                                    </div>
-
-                                    <ConfirmButton
-                                        className="burn-file"
-                                        block
-                                        label="Burn Mission File"
-                                        confirmLabel="CONFIRM: BURN THIS FILE?"
-                                        onConfirm={() => handleDeleteTrip(selectedTrip.id)}
-                                    >
-                                        Burn Mission File
-                                    </ConfirmButton>
-                                </div>
-                            </details>
-                        </Card>
-                    </aside>
 
                 </div>
             )}
