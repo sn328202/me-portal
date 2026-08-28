@@ -491,13 +491,21 @@
     z-index: 1;
 }
 
+/* Flex, not a three-column grid: the photo is optional — most places have no
+   usable one — and with a grid a missing photo left the text sitting in the
+   photo's column and an empty column after it. Flex simply closes up.
+
+   The gap is space-3, not space-4: three of those across a column this tight
+   was the difference between an address on one line and an address on four. */
 .card.tl-item .card__body {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    /* space-4 three times over, on a column that is already tight, was the
-       difference between an address on one line and an address on four. */
+    display: flex;
+    align-items: flex-start;
     gap: var(--space-3);
-    align-items: start;
+}
+
+.tl-item__main {
+    flex: 1;
+    min-width: 0;
 }
 
 .tl-item__aside {
@@ -527,9 +535,6 @@
     border-radius: var(--radius-md);
 }
 
-.tl-item__main {
-    min-width: 0;
-}
 
 /* The buttons do not shrink, so on a narrow card they were taking their width
    out of the title beside them. They wrap under it instead. */
@@ -823,9 +828,6 @@
 }
 
 @media (max-width: 640px) {
-    .card.tl-item .card__body {
-        grid-template-columns: auto minmax(0, 1fr);
-    }
 
     .tl-item__photo {
         display: none;
