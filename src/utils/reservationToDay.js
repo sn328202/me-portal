@@ -17,6 +17,12 @@
 
 const two = (n) => String(n).padStart(2, '0');
 
+/* How long a table is, unless told otherwise. Nobody books a restaurant for
+   half an hour, and a dinner that claims to end when it starts makes a mess of
+   every timeline it lands on. Two hours is the honest default and she can
+   change it on the card. */
+export const DEFAULT_TABLE = 120;
+
 /* `new Date(null)` is the epoch, not an invalid date, so an absent value has
    to be turned away before it becomes 1 Jan 1970 at midnight. */
 const when = (value) => {
@@ -55,15 +61,26 @@ export const bookingNote = (r) => [
     r?.notes || null,
 ].filter(Boolean).join(' · ');
 
+/** A time plus some minutes, as a time. Midnight is 00:00, never 24:00. */
+export const plus = (time, minutes) => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(String(time || ''));
+    if (!m) return null;
+    const total = Number(m[1]) * 60 + Number(m[2]) + minutes;
+    const wrapped = ((total % 1440) + 1440) % 1440;
+    return `${two(Math.floor(wrapped / 60))}:${two(wrapped % 60)}:00`;
+};
+
 /** A reservation as a row of `atlas_day_items`. */
 export const asAtlasItem = (r) => ({
     title: String(r?.restaurant || '').trim() || 'Reservation',
     // A booked table is food, and belongs in the trip's food total.
     kind: 'food',
     start_time: localTime(r?.starts_at),
-    end_time: null,
+    end_time: plus(localTime(r?.starts_at), DEFAULT_TABLE),
     location: r?.address || r?.city || null,
-    link: null,
+    // The whole reason for resolving the restaurant against Google: the card
+    // this becomes should open the map, not just say a name.
+    link: r?.maps_url || r?.website || null,
     notes: bookingNote(r) || null,
     cost: null,
 });
@@ -72,8 +89,9 @@ export const asAtlasItem = (r) => ({
 export const asPlanItem = (r) => ({
     activity: String(r?.restaurant || '').trim() || 'Reservation',
     start_time: localTime(r?.starts_at),
+    duration: '2 hours',
     location: r?.address || r?.city || null,
-    link: null,
+    link: r?.maps_url || r?.website || null,
     notes: bookingNote(r) || null,
     cost: null,
     is_brainstorm: false,

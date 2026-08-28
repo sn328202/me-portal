@@ -922,3 +922,34 @@
 }
 
 .tl-travel__clear:hover { color: var(--text-main); }
+
+
+/* How long a thing takes, editable where it is read. It was displayed but
+   could only be set on the way in, which meant it was usually not set. */
+.tl-item__duration {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.tl-item__duration input {
+    width: 6.5em;
+    padding: 1px var(--space-1);
+    border: 1px dashed transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}
+
+.tl-item__duration input::placeholder { color: var(--text-dim); }
+
+.tl-item__duration input:hover { border-color: var(--border-dim); }
+
+.tl-item__duration input:focus {
+    border-style: solid;
+    border-color: var(--border-gold);
+    background: var(--field-bg);
+    outline: none;
+}

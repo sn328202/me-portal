@@ -12,6 +12,7 @@ import { useSpots } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { sweep } from '../utils/reservationSweep';
 import AddBookingToDay from '../components/AddBookingToDay';
+import MentionInput from '../components/MentionInput';
 import '../styles/TableBook.css';
 
 const PLATFORMS = ['OpenTable', 'Resy', 'Tock', 'Yelp', 'Google', 'SevenRooms', 'Direct', 'Other'];
@@ -22,6 +23,10 @@ const EATING = ['restaurant', 'bar', 'cafe'];
 const EMPTY_FORM = {
     restaurant: '', spot_id: '', date: '', time: '19:00', party_size: '2',
     platform: 'OpenTable', confirmation: '', seating: '', city: '', notes: '',
+    /* Filled in when the restaurant is picked from Google rather than typed.
+       A booking that knows which restaurant it is can link to it — and so can
+       the itinerary card it becomes. */
+    address: '', phone: '', maps_url: '', place_id: '', website: '', rating: null,
 };
 
 const STATUS_LABEL = { booked: 'Booked', dined: 'Dined', cancelled: 'Cancelled', no_show: 'No-show' };
@@ -145,8 +150,13 @@ const TableBook = ({ embedded = false }) => {
                 confirmation: form.confirmation.trim() || null,
                 seating: form.seating.trim() || null,
                 city: form.city.trim() || linked?.city || null,
-                address: linked?.address || null,
-                phone: linked?.phone || null,
+                // What she picked wins; a linked spot fills the gaps.
+                address: form.address || linked?.address || null,
+                phone: form.phone || linked?.phone || null,
+                maps_url: form.maps_url || linked?.maps_url || null,
+                place_id: form.place_id || linked?.place_id || null,
+                website: form.website || linked?.website || null,
+                rating: form.rating ?? linked?.rating ?? null,
                 spot_id: form.spot_id || null,
                 notes: form.notes.trim() || null,
             });
@@ -161,7 +171,18 @@ const TableBook = ({ embedded = false }) => {
 
     /** Pre-fill the form from a saved spot so booking one is two clicks. */
     const bookFrom = (spot) => {
-        setForm({ ...EMPTY_FORM, restaurant: spot.name, spot_id: spot.id, city: spot.city || '' });
+        setForm({
+            ...EMPTY_FORM,
+            restaurant: spot.name,
+            spot_id: spot.id,
+            city: spot.city || '',
+            address: spot.address || '',
+            phone: spot.phone || '',
+            maps_url: spot.maps_url || '',
+            place_id: spot.place_id || '',
+            website: spot.website || '',
+            rating: spot.rating ?? null,
+        });
         setFormOpen(true);
     };
 
@@ -199,12 +220,45 @@ const TableBook = ({ embedded = false }) => {
                 confirmation: d.confirmation || '',
                 seating: d.seating || '',
                 city: d.city || '',
+                address: d.address || '',
+                phone: d.phone || '',
                 notes: [d.notes, d.cancel_by && `Free to cancel until ${fmtShort(d.cancel_by)}`,
                     d.cancel_fee && `After that: ${d.cancel_fee}`].filter(Boolean).join(' — '),
             });
             setPaste('');
             setPasting(false);
             setFormOpen(true);
+
+            /* And find the restaurant itself, so a pasted confirmation ends up
+               as well furnished as one picked by hand: address, map link, the
+               lot. Best-effort — a booking with no map link is still a
+               booking. */
+            try {
+                const look = await fetch('/api/place-search', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        Authorization: `Bearer ${session?.access_token || ''}`,
+                    },
+                    body: JSON.stringify({
+                        q: d.restaurant,
+                        city: d.city || null,
+                        limit: 1,
+                    }),
+                });
+                const found = (await look.json())?.places?.[0];
+                if (found?.maps_url) {
+                    setForm((f) => ({
+                        ...f,
+                        address: f.address || found.address || '',
+                        maps_url: found.maps_url,
+                        place_id: found.place_id || '',
+                        rating: found.rating ?? null,
+                    }));
+                }
+            } catch {
+                /* no map link, then */
+            }
         } catch (err) {
             console.error(err);
             setReadError('Could not read that one.');
@@ -391,8 +445,14 @@ const TableBook = ({ embedded = false }) => {
                                                     <h3 className="slip__name">{r.restaurant}</h3>
                                                     <p className="slip__where">
                                                         <span aria-hidden="true"><GiPositionMarker /></span>
-                                                        {[r.seating, r.party_size && `party of ${r.party_size}`, r.address || r.city]
-                                                            .filter(Boolean).join(' · ')}
+                                                        {r.maps_url ? (
+                                                            <a href={r.maps_url} target="_blank" rel="noopener noreferrer">
+                                                                {r.address || r.city || 'On the map'}
+                                                            </a>
+                                                        ) : (r.address || r.city)}
+                                                        {[r.seating, r.party_size && `party of ${r.party_size}`]
+                                                            .filter(Boolean).map((bit) => ` · ${bit}`)}
+                                                        {r.rating != null && <span className="slip__rating">★ {r.rating}</span>}
                                                     </p>
                                                     <div className="slip__tags">
                                                         {r.platform && <Tag>{r.platform}</Tag>}
@@ -575,12 +635,32 @@ const TableBook = ({ embedded = false }) => {
 
             <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Book a table">
                 <form className="tablebook__form" onSubmit={submit}>
-                    <Field
-                        label="Restaurant"
-                        placeholder="Bosco"
-                        value={form.restaurant}
-                        onChange={(e) => setForm({ ...form, restaurant: e.target.value })}
-                    />
+                    {/* Type a name, or "@" it and pick the real place — which
+                        brings its address, phone, map link and rating with it. */}
+                    <Field label="Restaurant">
+                        <MentionInput
+                            placeholder="Bosco   @ to find it"
+                            aria-label="Restaurant"
+                            value={form.restaurant}
+                            near={form.city ? { city: form.city } : null}
+                            onChange={(restaurant) => setForm({ ...form, restaurant })}
+                            onPick={(place, text) => setForm({
+                                ...form,
+                                restaurant: text.trim() || place.name,
+                                address: place.address || '',
+                                maps_url: place.maps_url || '',
+                                place_id: place.place_id || '',
+                                rating: place.rating ?? null,
+                                city: form.city || '',
+                            })}
+                        />
+                    </Field>
+                    {form.maps_url && (
+                        <p className="tablebook__found">
+                            <GiPositionMarker /> {form.address || 'Found on Google'}
+                            <a href={form.maps_url} target="_blank" rel="noopener noreferrer">map</a>
+                        </p>
+                    )}
                     <Field
                         label="Date"
                         type="date"

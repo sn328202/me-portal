@@ -10,7 +10,7 @@
  */
 
 import {
-    localDate, localTime, bookingNote, asAtlasItem, asPlanItem, dayOn,
+    localDate, localTime, bookingNote, asAtlasItem, asPlanItem, dayOn, plus,
 } from '../src/utils/reservationToDay.js';
 
 let failed = 0;
@@ -39,6 +39,7 @@ console.log('\nwhat gets written under the name:');
 const r = {
     restaurant: 'Nari', starts_at: evening, party_size: 4, seating: 'Main dining room',
     platform: 'Resy', confirmation: 'RSY-8841Q', address: '1625 Post St, San Francisco',
+    maps_url: 'https://maps.google.com/?cid=1',
 };
 check('everything worth reading at the door', bookingNote(r),
     'Party of 4 · Main dining room · Booked via Resy · Confirmation RSY-8841Q');
@@ -49,15 +50,27 @@ const atlas = asAtlasItem(r);
 check('the restaurant is the title', atlas.title, 'Nari');
 check('a table is food, so it counts as food', atlas.kind, 'food');
 check('with its local time', atlas.start_time, '20:45:00');
-check('and no invented end', atlas.end_time, null);
+check('a table runs two hours unless told otherwise', atlas.end_time, '22:45:00');
 check('the address is the location', atlas.location, '1625 Post St, San Francisco');
 check('a nameless one still has a name', asAtlasItem({}).title, 'Reservation');
+check('the map link comes across', atlas.link, 'https://maps.google.com/?cid=1');
+check('a website will do if there is no map link',
+    asAtlasItem({ restaurant: 'X', website: 'https://x.com' }).link, 'https://x.com');
+check('and nothing if there is neither', asAtlasItem({ restaurant: 'X' }).link, null);
 
 console.log('\nas an itinerary item:');
 const plan = asPlanItem(r);
 check('the restaurant is the activity', plan.activity, 'Nari');
 check('and it is on the timeline, not the board', plan.is_brainstorm, false);
 check('with the same time', plan.start_time, '20:45:00');
+check('and the same link', plan.link, 'https://maps.google.com/?cid=1');
+check('and two hours on the card', plan.duration, '2 hours');
+
+console.log('\nadding minutes to a time:');
+check('an ordinary evening', plus('19:30:00', 120), '21:30:00');
+check('over midnight wraps rather than reaching 24', plus('23:00:00', 120), '01:00:00');
+check('exactly midnight is 00:00', plus('22:00:00', 120), '00:00:00');
+check('no time in, no time out', plus(null, 120), null);
 
 console.log('\nfinding the day:');
 const days = [{ id: 'a', date: '2026-09-05' }, { id: 'b', date: '2026-09-06' }];

@@ -1071,9 +1071,27 @@ const DayPlanner = () => {
                                                                             {item.cost && (
                                                                                 <span><GiCoins /> {item.cost}</span>
                                                                             )}
-                                                                            {item.duration && (
-                                                                                <span><GiHourglass /> {item.duration}</span>
-                                                                            )}
+                                                                            {/* How long it takes was shown but
+                                                                                never editable here, so it could
+                                                                                only be set on the way in — which
+                                                                                meant it usually was not set at
+                                                                                all. A dinner is two hours until
+                                                                                she says otherwise. */}
+                                                                            <span className="tl-item__duration">
+                                                                                <GiHourglass />
+                                                                                <input
+                                                                                    defaultValue={item.duration || ''}
+                                                                                    aria-label={`How long for ${item.activity || 'this'}`}
+                                                                                    placeholder="how long?"
+                                                                                    onBlur={(e) => {
+                                                                                        const v = e.target.value.trim();
+                                                                                        if (v !== (item.duration || '')) {
+                                                                                            updateItem(item.id, { duration: v || null });
+                                                                                        }
+                                                                                    }}
+                                                                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                                                />
+                                                                            </span>
                                                                         </div>
                                                                     </div>
                                                                 </Card>
