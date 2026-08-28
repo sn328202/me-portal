@@ -903,16 +903,29 @@
 
 .timeline__rowlabel--total { color: var(--text-gold); }
 
-/* Lodging spans its nights — the merged cell, restored. */
+/* Lodging spans its nights — the merged cell, restored.
+
+   `subgrid`, not another `repeat()`. Declaring its own tracks made this layer
+   fifteen columns *plus* fourteen gaps plus padding wide inside a span that
+   was fifteen columns exactly — thirty-three pixels of overhang that the
+   grid's `overflow: clip` then swallowed, so the right-hand edge of the last
+   day could not be scrolled to at all. Subgrid uses the parent's tracks, so
+   the bars sit on the days by construction rather than by arithmetic that
+   has to be kept in step. */
 .timeline__stays {
     grid-column: 2 / -1;
     display: grid;
-    grid-template-columns: repeat(var(--days), minmax(9rem, 1fr));
-    gap: 2px;
-    padding: var(--space-1);
+    grid-template-columns: subgrid;
     border-top: var(--rule-hair);
     border-left: var(--rule-hair);
     background: var(--bg-hover);
+}
+
+/* The breathing room the gap and the padding used to give, moved onto the
+   things themselves where it costs the grid no width. */
+.timeline__stay,
+.timeline__leg {
+    margin: var(--space-1) 2px;
 }
 
 .timeline__stay {
@@ -1541,6 +1554,16 @@
     .trip-card__flags { font-size: 2rem; }
 }
 
+@supports not (grid-template-columns: subgrid) {
+    .timeline__stays,
+    .timeline__blocks {
+        grid-template-columns: repeat(var(--days), minmax(9rem, 1fr));
+    }
+
+    .timeline__blocks { grid-template-rows: repeat(19, 1fr); }
+}
+
+
 /* --- Dragging on the timeline --------------------------------- */
 
 /* The cells are the drag surface; the plans are drawn over them, so a block
@@ -1559,10 +1582,11 @@
 .timeline__blocks {
     grid-column: 2 / -1;
     display: grid;
-    grid-template-columns: repeat(var(--days), minmax(9rem, 1fr));
-    grid-template-rows: repeat(19, 1fr);
-    gap: 2px;
-    padding: 2px;
+    /* The parent's own tracks, in both directions: a block then sits on its
+       day and its hours exactly, instead of on a second grid computed to the
+       same intention and drifting a pixel per column. */
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
     /* The layer must not swallow the drags meant for the cells beneath it. */
     pointer-events: none;
 }
@@ -1570,7 +1594,7 @@
 .timeline__blocks .timeline__item {
     display: block;
     overflow: hidden;
-    margin: 0;
+    margin: 1px 2px;
     padding: 2px var(--space-2);
     border-radius: var(--radius-sm);
     background: var(--fill-quiet);
@@ -1854,3 +1878,90 @@
 .timeline__open:hover { text-decoration: underline; }
 
 .timeline__open { color: inherit; }
+
+
+/* --- Room to breathe on the expedition page --------------------
+   The page grew section by section — the days, then the ideas, then the
+   waypoints, then the map — and each arrived flush against the last, so
+   a label for one thing sat a few pixels under the card belonging to
+   another. Everything below is that: saying where one section ends. */
+
+.card.expedition__log {
+    gap: var(--space-6);
+}
+
+/* A label under a card belongs to the thing beneath it, and has to look
+   like it. */
+.expedition__log > .field {
+    margin-top: var(--space-2);
+}
+
+.expedition__log > .field > .field__label,
+.expedition__log > .field > .field__label:first-child {
+    margin-bottom: var(--space-1);
+}
+
+/* The day planner is the biggest thing on the page; it should not touch
+   what comes after it. */
+.expedition__planner {
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-6);
+}
+
+.timeline-pane {
+    margin-bottom: var(--space-2);
+}
+
+.trip-planner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.ideas {
+    margin-top: var(--space-2);
+}
+
+.ideas__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+/* Three piles now, so they need the width rather than half of it each. */
+.ideas__columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5);
+    margin-top: var(--space-4);
+}
+
+@media (max-width: 1080px) {
+    .ideas__columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+    .ideas__columns { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A column of three ideas and a column of none should still read as two
+   columns of the same board. */
+.ideas__column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.ideas__column h4 {
+    margin-bottom: var(--space-1);
+}
+
+.ideas__add { margin-top: var(--space-3); }
+
+.waypoints { margin-bottom: var(--space-3); }
+
+.waypoint { padding: var(--space-1) 0; }
+
+.atlas .interactive-map { margin-top: var(--space-2); }

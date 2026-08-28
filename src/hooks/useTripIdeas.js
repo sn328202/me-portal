@@ -15,7 +15,13 @@ import { useAuth } from '../contexts/AuthContext';
  * which it acquires a date is the point at which it stops being an idea:
  * `promote` moves it onto a day or into the lodging list and marks it as gone
  * across, without deleting the note it started as.
+ *
+ * Three piles, not two. Where to eat was going in with things to do, where a
+ * restaurant someone mentioned sat between a houseboat and a shopping trip and
+ * could not be found again when the question was "where shall we eat".
  */
+
+const KINDS = ['do', 'eat', 'stay'];
 
 export const useTripIdeas = (tripId) => {
     const { user } = useAuth();
@@ -43,7 +49,7 @@ export const useTripIdeas = (tripId) => {
 
     const addIdea = useCallback(async (idea) => {
         if (!user || !tripId) return null;
-        const kind = idea.kind === 'stay' ? 'stay' : 'do';
+        const kind = KINDS.includes(idea.kind) ? idea.kind : 'do';
         const row = {
             trip_id: tripId,
             user_id: user.id,
@@ -100,6 +106,7 @@ export const useTripIdeas = (tripId) => {
         ideas,
         loading,
         toDo: ideas.filter((i) => i.kind === 'do'),
+        toEat: ideas.filter((i) => i.kind === 'eat'),
         toStay: ideas.filter((i) => i.kind === 'stay'),
         addIdea,
         updateIdea,

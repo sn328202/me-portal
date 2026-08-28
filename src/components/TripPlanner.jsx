@@ -24,6 +24,9 @@ import { isTravelLeg } from '../utils/tripLegs';
  * and the weather fills itself in.
  */
 
+/* Which pile of the ideas board lands as which kind of plan. */
+const IDEA_KIND = { do: 'todo', eat: 'food', stay: 'lodging' };
+
 const BUCKET_LABEL = {
     lodging: 'Lodging',
     food: 'Food',
@@ -283,8 +286,12 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                         onDropIdea={async (dayId, times, idea) => {
                             await addItem(dayId, {
                                 title: idea.title,
-                                kind: idea.kind === 'stay' ? 'lodging' : 'todo',
+                                // An idea's pile is its bucket: somewhere to
+                                // eat becomes food, and adds up with the food.
+                                kind: IDEA_KIND[idea.kind] || 'todo',
                                 cost: idea.cost ?? null,
+                                link: idea.url || null,
+                                location: idea.area || null,
                                 ...times,
                             });
                             // The idea stays on the board, dimmed: the note

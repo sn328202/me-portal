@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { GiTrashCan, GiLightBulb, GiHouse, GiPathDistance } from 'react-icons/gi';
+import { GiTrashCan, GiLightBulb, GiHouse, GiPathDistance, GiForkKnifeSpoon } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import MentionInput from './MentionInput';
 import { formatMoney } from '../utils/tripCosts';
@@ -9,8 +9,11 @@ import { tripRect } from '../utils/tripBounds';
 /**
  * Somewhere to put an idea before it has a date.
  *
- * Two columns, because "what shall we do" and "where shall we stay" are two
- * different piles and always have been. One line of typing gets an idea in;
+ * Three columns, because "what shall we do", "where shall we eat" and "where
+ * shall we stay" are three different piles and always have been. Eating used
+ * to go in with doing, where a restaurant someone mentioned sat between a
+ * houseboat and a shopping trip and could not be found again when the question
+ * was the one it was written down to answer. One line of typing gets an idea in;
  * everything else — a link, a rough cost, a neighbourhood — is optional and
  * hidden until asked for, because a form with six boxes is a form you do not
  * fill in when you are half-reading a message from a friend.
@@ -34,6 +37,7 @@ const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromo
                 e.dataTransfer.effectAllowed = 'copy';
                 e.dataTransfer.setData('application/x-idea', JSON.stringify({
                     id: idea.id, title: idea.title, cost: idea.cost, kind: idea.kind,
+                    url: idea.url, area: idea.area,
                 }));
             }}
         >
@@ -135,6 +139,18 @@ const placeArea = (place) => {
     return parts.length > 2 ? parts[parts.length - 3] : (parts[0] || null);
 };
 
+const PROMPT = {
+    do: 'Something to do…',
+    eat: 'Somewhere to eat…',
+    stay: 'Somewhere to stay…',
+};
+
+const LABEL = {
+    do: 'A thing to do',
+    eat: 'A place to eat',
+    stay: 'A place to stay',
+};
+
 const Column = ({ title, icon, kind, ideas, currency, near, hooks, placeholder, onPromote, canPromote }) => {
     const [draft, setDraft] = useState('');
 
@@ -176,8 +192,8 @@ const Column = ({ title, icon, kind, ideas, currency, near, hooks, placeholder, 
             <form className="ideas__add" onSubmit={submit}>
                 <MentionInput
                     value={draft}
-                    placeholder={kind === 'stay' ? 'Somewhere to stay…' : 'Something to do…'}
-                    aria-label={kind === 'stay' ? 'A place to stay' : 'A thing to do'}
+                    placeholder={PROMPT[kind]}
+                    aria-label={LABEL[kind]}
                     near={near}
                     onChange={setDraft}
                     onPick={(place, text) => {
@@ -202,18 +218,20 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
        every leg, which contains all of them and invents no middle the trip
        never visits. */
     const near = tripRect(legs) || (trip?.destination ? { city: trip.destination } : null);
-    const [target, setTarget] = useState('');
+    /* Which day each idea is being put on, by idea. One shared value meant
+       choosing a day for one idea chose it for all of them. */
+    const [target, setTarget] = useState({});
 
     if (!trip) return null;
 
     const dated = days.filter((d) => d.date);
 
-    const promoteToDay = (idea) => (
+    const promoteToDay = (idea, kind = 'todo') => (
         <>
             <select
-                value={target}
+                value={target[idea.id] || ''}
                 aria-label="Which day"
-                onChange={(e) => setTarget(e.target.value)}
+                onChange={(e) => setTarget((prev) => ({ ...prev, [idea.id]: e.target.value }))}
             >
                 <option value="">Put it on…</option>
                 {dated.map((d) => (
@@ -225,17 +243,21 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
             <Button
                 size="sm"
                 variant="ghost"
-                disabled={!target}
+                disabled={!target[idea.id]}
                 onClick={async () => {
-                    const day = dated.find((d) => String(d.id) === String(target));
+                    const day = dated.find((d) => String(d.id) === String(target[idea.id]));
                     if (!day) return;
                     await onAddToDay?.(day.id, {
                         title: idea.title,
-                        kind: 'todo',
+                        kind,
                         cost: idea.cost ?? null,
+                        // The link it was found with goes across too: the
+                        // whole point of "@masque" was not typing it twice.
+                        link: idea.url || null,
+                        location: idea.area || null,
                     });
                     await hooks.markPromoted(idea.id);
-                    setTarget('');
+                    setTarget((prev) => ({ ...prev, [idea.id]: '' }));
                 }}
             >
                 Add
@@ -283,6 +305,20 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
                     hooks={hooks}
                     placeholder="Nothing yet. Type anything you might want to do."
                     onPromote={promoteToDay}
+                    canPromote={dated.length > 0 && Boolean(onAddToDay)}
+                />
+                <Column
+                    title="Places to eat"
+                    icon={<GiForkKnifeSpoon />}
+                    kind="eat"
+                    ideas={hooks.toEat}
+                    currency={currency}
+                    near={near}
+                    hooks={hooks}
+                    placeholder="Nowhere yet. Restaurants, a bakery, the place with the good coffee."
+                    /* Put on a day it becomes a meal, not a to-do: it lands in
+                       the food bucket, where the trip's food budget adds up. */
+                    onPromote={(idea) => promoteToDay(idea, 'food')}
                     canPromote={dated.length > 0 && Boolean(onAddToDay)}
                 />
                 <Column
