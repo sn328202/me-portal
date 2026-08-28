@@ -401,7 +401,7 @@
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     line-height: var(--leading-tight);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .idea__rating {
@@ -419,14 +419,14 @@
     margin: 0;
     color: var(--text-muted);
     font-size: var(--text-2xs);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .idea__link {
     display: block;
     color: var(--text-gold);
     font-size: var(--text-2xs);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .idea .idea__delete.btn {
@@ -531,23 +531,36 @@
     min-width: 0;
 }
 
+/* The buttons do not shrink, so on a narrow card they were taking their width
+   out of the title beside them. They wrap under it instead. */
 .tl-item__head {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-2);
 }
 
-/* Every one of these wraps rather than pushing the card open. A place name
-   is as long as the place is called, and "Crossroads Bougie Box + Tasting"
-   was running out through the right-hand edge of its own card. */
+.tl-item__head > div {
+    flex: 1 1 11rem;
+    min-width: 0;
+}
+
+/* Every one of these wraps rather than pushing the card open. A place name is
+   as long as the place is called, and "Crossroads Bougie Box + Tasting" was
+   running out through the right-hand edge of its own card.
+
+   `break-word`, not `anywhere`: `anywhere` is taken into account when the
+   browser works out a box's minimum content width, so a flex item that uses
+   it can be squeezed to a single character. Which is what happened — the
+   title came out one letter per line. */
 .tl-item__title {
     margin: 0 0 var(--space-1);
     font-family: var(--font-display);
     font-size: var(--text-base);
     line-height: var(--leading-tight);
     color: var(--text-main);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .tl-item__location {
@@ -557,13 +570,12 @@
     margin: 0;
     font-size: var(--text-xs);
     color: var(--text-muted);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 /* The icon is not text and must not be squeezed into a column of its own. */
 .tl-item__location > svg { flex-shrink: 0; }
 
-.tl-item__head > div { min-width: 0; }
 
 .tl-item__location a {
     color: inherit;
