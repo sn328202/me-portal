@@ -5,15 +5,13 @@ import { useJsApiLoader } from '@react-google-maps/api';
 import PlacesSearch from '../components/PlacesSearch';
 import SmartTimeInput from '../components/SmartTimeInput';
 import { Button, Card, ConfirmButton, EmptyState, Field, Tabs } from '../components/ui';
-import SpotsLibrary from '../components/SpotsLibrary';
-import DayBuilder from '../components/DayBuilder';
 import MentionInput from '../components/MentionInput';
 import TableBook from './TableBook';
 import Commonplace from './Commonplace';
 import SendToAtlas from '../components/SendToAtlas';
 import { useTravelTimes } from '../hooks/useTravelTimes';
+import { departAt, nextSlot } from '../utils/departAt';
 import { compareItems, timeBetween } from '../utils/dayOrder';
-import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -114,7 +112,7 @@ const DayPlanner = () => {
        the room that no longer exists still lands on the thing it was for. */
     const [params, setParams] = useSearchParams();
     const [view, setView] = useState(() => (
-        ['itineraries', 'spots', 'build', 'table', 'keeping'].includes(params.get('tab'))
+        ['itineraries', 'table', 'keeping'].includes(params.get('tab'))
             ? params.get('tab')
             : 'itineraries'
     ));
@@ -339,8 +337,14 @@ const DayPlanner = () => {
         setIsDirty(true);
     };
 
+    /* Off the board and onto the day. It used to always land at 09:00, which
+       on a day that already runs to six means dragging it the whole length of
+       the board. The end of the day is where it almost always belongs. */
     const moveItemToTimeline = async (id) => {
-        await updateItem(id, { is_brainstorm: false, start_time: '09:00:00' });
+        await updateItem(id, {
+            is_brainstorm: false,
+            start_time: nextSlot(items.filter((i) => !i.is_brainstorm && i.id !== id)),
+        });
     };
 
     const handlePlanChange = (field, value) => {
@@ -584,6 +588,11 @@ const DayPlanner = () => {
             cost: newItem.cost === '' ? null : newItem.cost,
             duration: newItem.duration === '' ? null : newItem.duration,
             is_brainstorm: isBrainstorm,
+            /* Straight onto the day goes at the end of it — after whatever
+               currently finishes last — rather than at nine in the morning or
+               with no time at all. Every other position is one short drag
+               from there. */
+            start_time: isBrainstorm ? null : nextSlot(items.filter((i) => !i.is_brainstorm)),
             place_id: newItem.place_id,
             place_data: placeData
         };
@@ -591,7 +600,7 @@ const DayPlanner = () => {
         delete newItemObj.lng;
 
         // Add to local state
-        setItems([...items, newItemObj]);
+        setItems(sortItems([...items, newItemObj]));
         setNewItem({ activity: '', location: '', link: '', cost: '', duration: '', lat: null, lng: null, place_id: null });
         setIsDirty(true);
     };
@@ -606,23 +615,7 @@ const DayPlanner = () => {
     const legFor = (id) => travelLegs.find((l) => l.id === id);
 
     /** Jump straight to a day the builder just made. */
-    const handleOpenBuiltPlan = async (planId) => {
-        await fetchPlans();
-        chooseView('itineraries');
-        const plan = plans.find((p) => p.id === planId);
-        if (plan) setSelectedPlan(plan);
-    };
 
-    const handleAddSpotToPlan = async (spot, planId) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        const created = await addSpotToPlan(spot, planId, user?.id);
-        if (!created) return;
-        // Keep the open plan in sync when the spot landed on the one on screen.
-        if (selectedPlan?.id === planId) setItems((prev) => [...prev, created]);
-        chooseView('itineraries');
-        const plan = plans.find((p) => p.id === planId);
-        if (plan) setSelectedPlan(plan);
-    };
 
     return (
         <div className="daydream-page">
@@ -632,8 +625,6 @@ const DayPlanner = () => {
                 onChange={chooseView}
                 tabs={[
                     { id: 'itineraries', label: 'Itineraries', icon: <GiTreasureMap />, count: plans.length },
-                    { id: 'spots', label: 'Spots', icon: <GiPositionMarker /> },
-                    { id: 'build', label: 'Plan a day', icon: <GiCompass /> },
                     /* Booking a table is not a different activity from
                        planning the day the table is in. It was a room of its
                        own, which meant choosing which room to walk into
@@ -650,10 +641,6 @@ const DayPlanner = () => {
                 <Commonplace embedded />
             ) : view === 'table' ? (
                 <TableBook embedded />
-            ) : view === 'build' ? (
-                <DayBuilder onOpenPlan={handleOpenBuiltPlan} />
-            ) : view === 'spots' ? (
-                <SpotsLibrary plans={plans} onAddToPlan={handleAddSpotToPlan} />
             ) : (
         <div className="daydream">
             {/* Hidden node the Google PlacesService attaches to */}
@@ -849,7 +836,7 @@ const DayPlanner = () => {
                                         places get pulled in. */}
                                     <Field label="Activity">
                                         <MentionInput
-                                            placeholder="Something to do…   @ for a place"
+                                            placeholder="Something to do — type @ for a place"
                                             aria-label="Activity"
                                             value={newItem.activity}
                                             near={near}
@@ -916,9 +903,19 @@ const DayPlanner = () => {
                                         />
                                     </div>
                                     {newItem.link && <p className="idea-form__linked">Linked: {newItem.location}</p>}
-                                    <Button variant="primary" block onClick={() => addItem(true)}>
-                                        Add to Board
-                                    </Button>
+                                    {/* Two doors, and the default is the one
+                                        she uses: most things typed in here are
+                                        things she is doing, not things she is
+                                        considering. Straight onto the day, at
+                                        the end of it. */}
+                                    <div className="idea-form__actions">
+                                        <Button variant="primary" block onClick={() => addItem(false)}>
+                                            Add to the day
+                                        </Button>
+                                        <Button variant="ghost" block onClick={() => addItem(true)}>
+                                            Just an idea
+                                        </Button>
+                                    </div>
                                 </Card>
 
                                 <ul className="idea-grid">
@@ -1144,6 +1141,31 @@ const DayPlanner = () => {
                                                                     onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                                                                 />
                                                             )}
+                                                            {/* The subtraction nobody does in their
+                                                                head: the next thing starts at seven,
+                                                                the drive is forty-five minutes, so
+                                                                leave at quarter past six. Marked
+                                                                when this card is still running then. */}
+                                                            {(() => {
+                                                                const leave = departAt(
+                                                                    item,
+                                                                    arr[index + 1],
+                                                                    item.travel_note || travelTimes[item.id]
+                                                                );
+                                                                if (!leave) return null;
+                                                                return (
+                                                                    <span
+                                                                        className={`tl-travel__leave${leave.tight ? ' is-tight' : ''}`}
+                                                                        title={
+                                                                            leave.tight
+                                                                                ? `${item.activity || 'This'} does not finish until after you need to leave`
+                                                                                : undefined
+                                                                        }
+                                                                    >
+                                                                        leave by {leave.time.substring(0, 5)}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                         </p>
                                                     )}
                                                 </React.Fragment>

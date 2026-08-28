@@ -142,7 +142,7 @@ const TOOLS = [
     {
         name: 'save_spot',
         description:
-            'Save a place she wants to go — a restaurant, bar, cafe, museum, park, hike, shop or venue. This is the default for any "I want to go to..." or "I want to try..." thought. The real place is looked up automatically, so pass the name as she said it and let the lookup supply the address, neighbourhood, map link, rating and hours. Do NOT use add_to_itinerary for this: a place she wants to go does not belong to any particular day yet.',
+            'Save a place she wants to check out — a restaurant, bar, cafe, museum, park, hike, shop or venue. This is the default for any "I want to go to..." or "I want to try..." thought. It goes to the Commonplace, beside the links she saves, and the real place is looked up automatically, so pass the name as she said it and let the lookup supply the address, map link, rating and hours. Do NOT use add_to_itinerary for this: a place she wants to go does not belong to any particular day yet.',
         input_schema: {
             type: 'object',
             properties: {
@@ -162,7 +162,7 @@ const TOOLS = [
     {
         name: 'add_to_itinerary',
         description:
-            'Put something on a specific day itinerary. Use ONLY when she is planning an actual day — she named a date, said "for Saturday", or referred to an itinerary that already exists. A place she merely wants to visit someday is a spot, not an itinerary item: use save_spot instead. Items with no fixed time go in as brainstorm entries.',
+            'Put something on a specific day itinerary. Use ONLY when she is planning an actual day — she named a date, said "for Saturday", or referred to an itinerary that already exists. A place she merely wants to visit someday belongs in the Commonplace, not on a day: use save_spot instead. Items with no fixed time go in as brainstorm entries.',
         input_schema: {
             type: 'object',
             properties: {
@@ -295,7 +295,7 @@ const TOOLS = [
     {
         name: 'save_plan',
         description:
-            'Save something to the Commonplace as a plan she can work through and then tick off. Use for anything whose useful part is a sequence: a technique from a video, a how-to, a list of tips, a routine, a set of things to see somewhere. If it is a recipe with real quantities, prefer import_recipe or add_recipe; if it is a single place, prefer save_spot. Use save_plan when neither fits, or alongside them for the doing part.',
+            'Save something to the Commonplace as a plan she can work through and then tick off. Use for anything whose useful part is a sequence: a technique from a video, a how-to, a list of tips, a routine, a set of things to see somewhere. If it is a recipe with real quantities, prefer import_recipe or add_recipe; if it is a single place, prefer save_spot, which also files to the Commonplace but looks the place up first. Use save_plan when neither fits, or alongside them for the doing part.',
         input_schema: {
             type: 'object',
             properties: {
@@ -407,7 +407,7 @@ async function loadContext(sb, userId) {
         q('social_plans', 'who, what, when_date', { limit: 30 }),
         q('recipes', 'title, source_url', { limit: 80 }),
         q('spots', 'name, city, category, status, place_id', { limit: 120 }),
-        q('plans', 'title, status, intent, source_url', { limit: 60 }),
+        q('plans', 'title, status, intent, source_url, place', { limit: 80 }),
     ]);
 
     // A single failed sub-query must not take the whole capture down; the
@@ -465,8 +465,15 @@ async function loadContext(sb, userId) {
         // The same post saved twice is the commonest duplicate of all.
         planUrls: new Set(rows(commonplace).map((pl) => pl.source_url).filter(Boolean)),
         // Google's identifier survives her calling the same place three
-        // different things.
+        // different things. Kept for the Commonplace, which is where places
+        // are saved now; `spots` is read only so that a place already in the
+        // old library is not offered back as new.
         spotPlaceIds: new Set(rows(spots).map((sp) => sp.place_id).filter(Boolean)),
+        commonplacePlaceIds: new Set([
+            ...rows(commonplace).map((pl) => pl.place?.place_id),
+            ...rows(spots).map((sp) => sp.place_id),
+        ].filter(Boolean)),
+        commonplace: setOf(rows(commonplace).map((pl) => pl.title)),
         // Same dish saved twice from the same page is the likeliest repeat,
         // and titles drift between imports where the URL does not.
         recipeUrls: new Set(rows(recipes).map((r) => r.source_url).filter(Boolean)),
@@ -534,7 +541,7 @@ Aspirations:${bullets(ctx.goals)}
 Daily rituals:${bullets(ctx.habits)}
 Social plans:${bullets(ctx.social)}
 Recipes in the Larder:${bullets(ctx.recipes)}
-Saved spots — places she already means to go:${bullets(ctx.spots.map((sp) => `${sp.name}${sp.city ? ` (${sp.city})` : ''}${sp.category ? ` — ${sp.category}` : ''}${sp.status === 'been' ? ' [been]' : ''}`))}
+Places she has already been or already means to go (the old Spots library, kept only so the same place is not saved twice):${bullets(ctx.spots.map((sp) => `${sp.name}${sp.city ? ` (${sp.city})` : ''}${sp.category ? ` — ${sp.category}` : ''}${sp.status === 'been' ? ' [been]' : ''}`))}
 In the Commonplace — saved plans:${bullets(ctx.plans.map((pl) => `${pl.title}${pl.intent ? ` — ${pl.intent}` : ''}${pl.status === 'done' ? ' [done]' : ''}`))}
 Chore rooms in use: ${ctx.rooms.join(', ') || 'none yet'}
 In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
@@ -561,7 +568,7 @@ This arrives as phone dictation, so words come through mangled. Map near-misses 
   - Prefer **the brand's own product page** over Amazon, a marketplace, a reseller or a review article. Brand pages have accurate prices, real photography and stable URLs.
   - Search at most once or twice per item. If nothing convincing turns up, file it without a link rather than attaching a page you are unsure about — a wrong product is worse than a missing one.
   - Do not use web_search for anything except finding a Treasury product page.
-- **A place she wants to go is a spot, not a todo and not an itinerary.** "I want to try that ramen place", "we should check out the new wine bar", "someone told me about a garden in Berkeley" — all save_spot. The address, neighbourhood, map link and hours are looked up for you, so pass the name as she said it plus any city, and keep her reason verbatim in the why field.
+- **A place she wants to check out goes to the Commonplace, not a todo and not an itinerary.** "I want to try that ramen place", "we should check out the new wine bar", "someone told me about a garden in Berkeley" — all save_spot, which files it in the Commonplace beside the links she saves. The address, neighbourhood, map link and hours are looked up for you, so pass the name as she said it plus any city, and keep her reason verbatim in the why field.
 - Use add_to_itinerary only when she is planning an actual day: a date, "for Saturday", or an itinerary that already exists. If she is planning a day around places she has already saved, add them to the itinerary by name.
 - Travel to another city or country is a trip, not a spot and not an itinerary.
 - **A shared post is usually two things at once.** A TikTok of a pasta dish is a recipe in the Larder *and* a plan in the Commonplace; a video about a bakery is a spot *and* a plan. File both when both are true — the room holds the structured data, the Commonplace holds the doing. Do not create a plan when the post is only a fact with nothing to act on.
@@ -720,50 +727,50 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             return `"${title}" to the Treasury at ${meta.price_currency === 'USD' ? '$' : ''}${amount}`;
         }
         case 'save_spot': {
-            // Look the place up first: the resolved name is the one worth
-            // deduplicating against, since she may call it "that ramen place"
-            // twice and mean the same restaurant.
+            /* A place she wants to check out goes to the Commonplace, beside
+               the links. It used to go to a Spots library of its own, which
+               meant a place had to be visited on purpose to be seen again —
+               and thirty of them later, twenty-nine were marked "been" and it
+               had quietly become a diary rather than a list of intentions.
+               The whole resolved place rides along in one column. */
             const place = await resolvePlace(input.name, { city: input.city });
 
-            if (place.place_id && ctx.index.spotPlaceIds.has(place.place_id)) {
-                dupes.push({ item: place.name, where: 'in your spots' });
+            if (place.place_id && ctx.index.commonplacePlaceIds.has(place.place_id)) {
+                dupes.push({ item: place.name, where: 'in your commonplace' });
                 return null;
             }
 
-            const spotName = once('spots', place.name, 'in your spots');
+            const spotName = once('commonplace', place.name, 'in your commonplace');
             if (!spotName) return null;
-            if (place.place_id) ctx.index.spotPlaceIds.add(place.place_id);
-
-            const [r] = await ins('spots', [{
-                name: spotName,
-                category: input.category || place.category,
-                why: input.why || null,
-                address: place.address,
-                neighborhood: place.neighborhood,
-                city: place.city || input.city || null,
-                lat: place.lat,
-                lng: place.lng,
-                maps_url: place.maps_url,
-                place_id: place.place_id,
-                website: place.website,
-                phone: place.phone,
-                rating: place.rating,
-                price_level: place.price_level,
-                hours: place.hours,
-                image_url: place.image_url,
-                tags: input.tags && input.tags.length ? input.tags : [],
-                status: 'want to go',
-                source: 'capture',
-                user_id: userId,
-            }]);
-            push('spots', r.id, spotName);
-            ctx.spots.push({ name: spotName, city: place.city, category: place.category, status: 'want to go' });
+            if (place.place_id) ctx.index.commonplacePlaceIds.add(place.place_id);
 
             const where = place.neighborhood || place.city;
+            const [r] = await ins('plans', [{
+                title: spotName,
+                category: 'place',
+                intent: input.category || place.category || 'visit',
+                // The link is the map link: it is the one that answers "where
+                // is it and is it open", which is what you want at the door.
+                source_url: place.maps_url || place.website || null,
+                platform: 'place',
+                excerpt: [where, place.address].filter(Boolean).join(' — ') || null,
+                thumbnail_url: place.image_url || null,
+                notes: input.why || null,
+                steps: [],
+                linked: {},
+                status: 'to do',
+                place: {
+                    ...place,
+                    tags: input.tags && input.tags.length ? input.tags : [],
+                },
+                user_id: userId,
+            }]);
+            push('plans', r.id, spotName);
+
             if (place.source === 'unresolved') {
-                return `"${spotName}" to your spots — could not find it on a map, so it is just the name for now`;
+                return `"${spotName}" to your commonplace — could not find it on a map, so it is just the name for now`;
             }
-            return `"${spotName}"${where ? ` in ${where}` : ''} to your spots`;
+            return `"${spotName}"${where ? ` in ${where}` : ''} to your commonplace`;
         }
         case 'add_to_itinerary': {
             let planId = input.plan_id;

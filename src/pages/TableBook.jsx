@@ -8,7 +8,6 @@ import {
     ConfirmButton, EmptyState,
 } from '../components/ui';
 import { useReservations } from '../hooks/useReservations';
-import { useSpots } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { sweep } from '../utils/reservationSweep';
 import AddBookingToDay from '../components/AddBookingToDay';
@@ -17,11 +16,8 @@ import '../styles/TableBook.css';
 
 const PLATFORMS = ['OpenTable', 'Resy', 'Tock', 'Yelp', 'Google', 'SevenRooms', 'Direct', 'Other'];
 
-/** Categories where "a reservation" is a thing that exists. */
-const EATING = ['restaurant', 'bar', 'cafe'];
-
 const EMPTY_FORM = {
-    restaurant: '', spot_id: '', date: '', time: '19:00', party_size: '2',
+    restaurant: '', date: '', time: '19:00', party_size: '2',
     platform: 'OpenTable', confirmation: '', seating: '', city: '', notes: '',
     /* Filled in when the restaurant is picked from Google rather than typed.
        A booking that knows which restaurant it is can link to it — and so can
@@ -59,9 +55,11 @@ const countdown = (iso) => {
 /**
  * The Table Book — every restaurant reservation, held and historic.
  *
- * The Spots library records wanting to go somewhere. This records going. The
- * third tab is the gap between the two: places she booked and let go without
- * ever rebooking, and saved spots that never became a table at all.
+ * There used to be a third tab, "Worth chasing", built on the Spots library:
+ * places booked and let go without rebooking, and saved spots that never
+ * became a table. Spots is gone — a place she wants to check out goes to the
+ * Commonplace now — and this is the tables, held and kept, which is what it
+ * was always for.
  *
  * It is a tab of the Daydream rather than a room of its own now. Booking a
  * table is not a different activity from planning the day the table is in,
@@ -74,7 +72,6 @@ const TableBook = ({ embedded = false }) => {
         upcoming, past, reservations, loading, error,
         addReservation, markDined, cancelReservation, deleteReservation, refresh,
     } = useReservations();
-    const { spots } = useSpots();
 
     const [tab, setTab] = useState('held');
     const [formOpen, setFormOpen] = useState(false);
@@ -98,50 +95,11 @@ const TableBook = ({ embedded = false }) => {
         [reservations]
     );
 
-    /**
-     * Somewhere she cancelled and never went back to. The interest was real
-     * enough to book once — it is the most honest wishlist the app has.
-     */
-    const lapsed = useMemo(() => {
-        const settled = new Set(
-            reservations.filter((r) => r.status === 'dined').map((r) => r.restaurant.toLowerCase())
-        );
-        const stillLive = new Set(upcoming.map((r) => r.restaurant.toLowerCase()));
-        const seen = new Map();
-        reservations
-            .filter((r) => r.status === 'cancelled' || r.status === 'no_show')
-            .forEach((r) => {
-                const key = r.restaurant.toLowerCase();
-                if (settled.has(key) || stillLive.has(key)) return;
-                const prior = seen.get(key);
-                seen.set(key, {
-                    restaurant: r.restaurant,
-                    city: r.city || prior?.city,
-                    attempts: (prior?.attempts || 0) + 1,
-                    last: prior ? prior.last : r.starts_at,
-                });
-            });
-        return [...seen.values()].sort((a, b) => b.attempts - a.attempts);
-    }, [reservations, upcoming]);
-
-    /** Saved eating spots that have never had a table booked against them. */
-    const unbooked = useMemo(() => {
-        const booked = new Set(reservations.map((r) => r.spot_id).filter(Boolean));
-        const byName = new Set(reservations.map((r) => r.restaurant.toLowerCase()));
-        return spots.filter((s) => (
-            s.status !== 'been'
-            && EATING.includes(s.category)
-            && !booked.has(s.id)
-            && !byName.has((s.name || '').toLowerCase())
-        ));
-    }, [spots, reservations]);
-
     const submit = async (e) => {
         e.preventDefault();
         if (!form.restaurant.trim() || !form.date || saving) return;
         setSaving(true);
         try {
-            const linked = spots.find((s) => s.id === form.spot_id);
             await addReservation({
                 restaurant: form.restaurant.trim(),
                 starts_at: new Date(`${form.date}T${form.time || '19:00'}`).toISOString(),
@@ -149,15 +107,15 @@ const TableBook = ({ embedded = false }) => {
                 platform: form.platform,
                 confirmation: form.confirmation.trim() || null,
                 seating: form.seating.trim() || null,
-                city: form.city.trim() || linked?.city || null,
-                // What she picked wins; a linked spot fills the gaps.
-                address: form.address || linked?.address || null,
-                phone: form.phone || linked?.phone || null,
-                maps_url: form.maps_url || linked?.maps_url || null,
-                place_id: form.place_id || linked?.place_id || null,
-                website: form.website || linked?.website || null,
-                rating: form.rating ?? linked?.rating ?? null,
-                spot_id: form.spot_id || null,
+                city: form.city.trim() || null,
+                // The form carries the place itself now: the @ picker, the
+                // paste parser and nothing else fill these in.
+                address: form.address || null,
+                phone: form.phone || null,
+                maps_url: form.maps_url || null,
+                place_id: form.place_id || null,
+                website: form.website || null,
+                rating: form.rating ?? null,
                 notes: form.notes.trim() || null,
             });
             setForm(EMPTY_FORM);
@@ -167,23 +125,6 @@ const TableBook = ({ embedded = false }) => {
         } finally {
             setSaving(false);
         }
-    };
-
-    /** Pre-fill the form from a saved spot so booking one is two clicks. */
-    const bookFrom = (spot) => {
-        setForm({
-            ...EMPTY_FORM,
-            restaurant: spot.name,
-            spot_id: spot.id,
-            city: spot.city || '',
-            address: spot.address || '',
-            phone: spot.phone || '',
-            maps_url: spot.maps_url || '',
-            place_id: spot.place_id || '',
-            website: spot.website || '',
-            rating: spot.rating ?? null,
-        });
-        setFormOpen(true);
     };
 
     /* Worked out from the bookings rather than fetched: no service will tell
@@ -411,7 +352,6 @@ const TableBook = ({ embedded = false }) => {
                 tabs={[
                     { id: 'held', label: 'On the books', count: upcoming.length },
                     { id: 'history', label: 'The full book', count: past.length },
-                    { id: 'chasing', label: 'Worth chasing', count: lapsed.length + unbooked.length },
                 ]}
             />
 
@@ -541,67 +481,6 @@ const TableBook = ({ embedded = false }) => {
                         )}
                     </TabPanel>
 
-                    <TabPanel id="chasing" active={tab}>
-                        {lapsed.length === 0 && unbooked.length === 0 ? (
-                            <EmptyState
-                                icon={<GiPositionMarker />}
-                                message="Nothing outstanding."
-                                hint="Everywhere you've booked, you've been."
-                            />
-                        ) : (
-                            <div className="chasing">
-                                {lapsed.length > 0 && (
-                                    <section>
-                                        <h2 className="chasing__heading">Booked and let go</h2>
-                                        <p className="chasing__lede">
-                                            You wanted to go enough to book. Then it slipped, and never came back.
-                                        </p>
-                                        <ul className="chasing__list">
-                                            {lapsed.map((p) => (
-                                                <li key={p.restaurant} className="chasing__row">
-                                                    <div>
-                                                        <h3>{p.restaurant}</h3>
-                                                        <p>
-                                                            {[p.city, `last tried ${fmtShort(p.last)}`]
-                                                                .filter(Boolean).join(' · ')}
-                                                        </p>
-                                                    </div>
-                                                    <span className="chasing__why">
-                                                        {p.attempts > 1 ? `${p.attempts} attempts` : 'Cancelled'}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </section>
-                                )}
-
-                                {unbooked.length > 0 && (
-                                    <section>
-                                        <h2 className="chasing__heading">Saved, never booked</h2>
-                                        <p className="chasing__lede">
-                                            Places sitting in your spots library that have never become a table.
-                                        </p>
-                                        <ul className="chasing__list">
-                                            {unbooked.map((s) => (
-                                                <li key={s.id} className="chasing__row">
-                                                    <div>
-                                                        <h3>{s.name}</h3>
-                                                        <p>
-                                                            {[s.neighborhood, s.city].filter(Boolean).join(', ')}
-                                                            {s.why ? ` — “${s.why}”` : ''}
-                                                        </p>
-                                                    </div>
-                                                    <Button size="sm" onClick={() => bookFrom(s)}>
-                                                        Book it
-                                                    </Button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </section>
-                                )}
-                            </div>
-                        )}
-                    </TabPanel>
                 </>
             )}
 

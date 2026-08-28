@@ -973,3 +973,39 @@
     color: var(--text-gold);
     font-size: var(--text-xs);
 }
+
+
+/* When to leave, beside how long it takes. A drive time answers "is this
+   gap crossable"; this answers the question she actually has at six o'clock,
+   which is whether there is time for dessert. Warned when the card above it
+   is still running at that point — the time is still right, it is just now
+   a problem rather than a note. */
+
+.tl-travel__leave {
+    flex-shrink: 0;
+    padding: 0 var(--space-2);
+    border-left: 1px solid var(--border-dim);
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+
+.tl-travel__leave.is-tight {
+    color: var(--accent-red);
+    border-left-color: currentColor;
+    cursor: help;
+}
+
+/* Two ways out of the add box. The one she wants is the loud one: things
+   typed in here are usually things she is doing, not things she is weighing. */
+
+.idea-form__actions {
+    display: flex;
+    gap: var(--space-2);
+    align-items: stretch;
+}
+
+.idea-form__actions > * {
+    flex: 1;
+    min-width: 0;
+}

@@ -101,6 +101,43 @@ const Plan = ({ plan, toggleStep, setStatus, rate, setNotes, remove }) => {
                 <p className="plan__excerpt">{plan.excerpt}</p>
             )}
 
+            {/* A place kept here is a place you will want to look up again at
+                the moment you decide to go: where it is, whether it is any
+                good, and a link that opens the map rather than a description
+                of the map. */}
+            {plan.place && (
+                <div className="plan__place">
+                    {plan.place.address && (
+                        <p className="plan__place-line">
+                            <GiPositionMarker aria-hidden="true" /> {plan.place.address}
+                        </p>
+                    )}
+                    <p className="plan__place-line">
+                        {plan.place.rating != null && (
+                            <span className="plan__place-rating">★ {plan.place.rating}</span>
+                        )}
+                        {plan.place.price_level != null && (
+                            <span>{'$'.repeat(Math.max(1, plan.place.price_level))}</span>
+                        )}
+                        {plan.place.phone && <span>{plan.place.phone}</span>}
+                        {plan.place.website && (
+                            <a href={plan.place.website} target="_blank" rel="noopener noreferrer">website</a>
+                        )}
+                        {plan.place.maps_url && (
+                            <a href={plan.place.maps_url} target="_blank" rel="noopener noreferrer">map</a>
+                        )}
+                    </p>
+                    {plan.place.hours?.weekday?.length > 0 && (
+                        <details className="plan__place-hours">
+                            <summary>Hours</summary>
+                            <ul>
+                                {plan.place.hours.weekday.map((line) => <li key={line}>{line}</li>)}
+                            </ul>
+                        </details>
+                    )}
+                </div>
+            )}
+
             {steps.length > 0 && (
                 <>
                     <p className="plan__progress">

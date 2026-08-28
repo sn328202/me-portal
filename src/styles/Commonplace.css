@@ -265,3 +265,50 @@
     color: var(--text-muted);
     font-size: var(--text-sm);
 }
+
+
+/* --- A place kept here ----------------------------------------
+   Somewhere she wants to check out, saved beside the links. What is
+   worth having at the moment she decides to go: where it is, whether
+   it is any good, and a link that opens the map. */
+
+.plan__place {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-left: 2px solid var(--border-gold);
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+}
+
+.plan__place-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    overflow-wrap: break-word;
+}
+
+.plan__place-line a { color: var(--text-gold); }
+
+.plan__place-rating {
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+}
+
+.plan__place-hours summary {
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+    cursor: pointer;
+}
+
+.plan__place-hours ul {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-4);
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+}
