@@ -526,64 +526,80 @@
     z-index: 1;
 }
 
-/* Flex, not a three-column grid: the photo is optional — most places have no
-   usable one — and with a grid a missing photo left the text sitting in the
-   photo's column and an empty column after it. Flex simply closes up.
+/* Four columns: grip, a narrow column for the clock and the kind of thing,
+   the words, and the buttons.
 
-   The gap is space-3, not space-4: three of those across a column this tight
-   was the difference between an address on one line and an address on four. */
+   It was a flex row of four peers, and the clock alone was taking a third of
+   the card — which is what folded a two-line address into four and pushed the
+   buttons underneath the title, where they read as part of the address. The
+   words get everything left over, which is what they need and what nothing
+   else does. */
 .card.tl-item .card__body {
-    display: flex;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: start;
     gap: var(--space-3);
 }
 
 .tl-item__main {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
     min-width: 0;
+    /* Vertically with the clock beside it rather than at the very top of a
+       card whose left column is two things tall. */
+    padding-top: 2px;
 }
 
+/* The clock over the face, in a column exactly as wide as they need. Three
+   siblings across the card is what made this a layout problem. */
 .tl-item__aside {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-1);
-    /* Whatever the time input needs and not a pixel more: this column was
-       reserving sixty pixels of nothing next to a title with none to spare. */
-    min-width: 0;
+    gap: var(--space-2);
     flex-shrink: 0;
 }
 
-.tl-item .tl-item__handle {
-    cursor: grab;
-    touch-action: none;
+/* The clock inside a card is not a form field on a page: it wants to read as
+   a time, not to be a box the width of a sentence. */
+.tl-item__aside .time-input__control {
+    padding: 0 2px;
 }
 
-.tl-item .tl-item__handle:active {
-    cursor: grabbing;
+.tl-item__aside .time-input__field {
+    width: 3.6rem;
+    padding: var(--space-1) 2px;
+    font-size: var(--text-xs);
+    text-align: center;
+}
+
+.tl-item__aside .time-input__control > button {
+    min-width: 0;
+    min-height: 0;
+    padding: 2px;
 }
 
 .tl-item__photo {
-    width: 72px;
-    height: 72px;
+    width: 56px;
+    height: 56px;
     flex-shrink: 0;
     border-radius: var(--radius-md);
 }
 
-
-/* The buttons do not shrink, so on a narrow card they were taking their width
-   out of the title beside them. They wrap under it instead. */
-.tl-item__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-2);
+.tl-item__aside .face__btn {
+    width: 56px;
+    height: 56px;
 }
 
-.tl-item__head > div {
-    flex: 1 1 11rem;
-    min-width: 0;
+
+/* The buttons, top-right, out of the flow of the words. They used to sit in
+   the title block and wrap under it on a narrow card. */
+.tl-item__actions {
+    display: flex;
+    align-items: flex-start;
+    gap: 2px;
+    flex-shrink: 0;
 }
 
 /* Every one of these wraps rather than pushing the card open. A place name is
@@ -595,7 +611,7 @@
    it can be squeezed to a single character. Which is what happened — the
    title came out one letter per line. */
 .tl-item__title {
-    margin: 0 0 var(--space-1);
+    margin: 0;
     font-family: var(--font-display);
     font-size: var(--text-base);
     line-height: var(--leading-tight);
@@ -609,8 +625,20 @@
     gap: var(--space-1);
     margin: 0;
     font-size: var(--text-xs);
+    line-height: var(--leading-tight);
     color: var(--text-muted);
     overflow-wrap: break-word;
+}
+
+/* Two lines of address is context; six is the card shouting the street name
+   at you. The whole thing is still there on hover and in the share sheet. */
+.tl-item__location > a,
+.tl-item__location > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
 }
 
 /* The icon is not text and must not be squeezed into a column of its own. */
@@ -622,17 +650,13 @@
     text-decoration: underline;
 }
 
-.tl-item__actions {
-    display: flex;
-    gap: var(--space-1);
-    flex-shrink: 0;
-}
-
+/* One line of facts that wraps, rather than one line each. */
 .tl-item__meta {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-1) var(--space-3);
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
     font-size: var(--text-xs);
     color: var(--text-muted);
 }
@@ -644,7 +668,17 @@
 }
 
 .tl-item__rating {
+    display: flex;
+    align-items: center;
+    gap: 3px;
     color: var(--text-gold);
+}
+
+/* The review count is the least of it: same line, quieter, not its own row
+   with an icon in front. */
+.tl-item__rating em {
+    font-style: normal;
+    color: var(--text-dim);
 }
 
 .tl-travel {
@@ -864,8 +898,23 @@
 
 @media (max-width: 640px) {
 
-    .tl-item__photo {
-        display: none;
+    /* Three columns on a phone: the buttons go under the words rather than
+       taking width from them. The face stays — it is how the day is skimmed,
+       and on a phone that matters more, not less. */
+    .card.tl-item .card__body {
+        grid-template-columns: auto auto minmax(0, 1fr);
+        gap: var(--space-2);
+    }
+
+    .tl-item__actions {
+        grid-column: 2 / -1;
+        justify-content: flex-end;
+    }
+
+    .tl-item__photo,
+    .tl-item__aside .face__btn {
+        width: 44px;
+        height: 44px;
     }
 
     .tl-travel {
@@ -1228,3 +1277,74 @@
     height: 56px;
     font-size: 28px;
 }
+
+
+/* ---------- The shelves ------------------------------------- */
+
+/* The sidebar listed every day plan ever made, so a Saturday from March sat
+   between two things she was actually planning. One shelf at a time. */
+
+.daydream__shelves {
+    display: flex;
+    gap: 2px;
+    margin-bottom: var(--space-3);
+    padding: 2px;
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+}
+
+.daydream__shelf {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+    padding: var(--space-1) 2px;
+    border: none;
+    border-radius: calc(var(--radius-sm) - 1px);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
+}
+
+.daydream__shelf:hover { color: var(--text-main); }
+
+.daydream__shelf.is-on {
+    background: var(--accent-gold);
+    color: var(--bg-main);
+}
+
+.daydream__shelf > span {
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--bg-hover);
+    font-size: 9px;
+}
+
+.daydream__shelf.is-on > span { background: rgba(0, 0, 0, 0.25); }
+
+.daydream__shelve-all {
+    margin-bottom: var(--space-3);
+    font-size: var(--text-xs);
+}
+
+/* Beside the delete, and quieter than it: putting something away is
+   reversible and deleting is not. */
+.plan-card .plan-card__shelve {
+    position: absolute;
+    top: var(--space-2);
+    right: calc(var(--space-2) + 1.75rem);
+    opacity: 0.55;
+    font-size: var(--text-sm);
+    line-height: 1;
+}
+
+.plan-card:hover .plan-card__shelve,
+.plan-card__shelve:focus-visible { opacity: 1; }

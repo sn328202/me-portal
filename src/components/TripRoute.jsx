@@ -3,6 +3,7 @@ import { GiTrashCan, GiPathDistance } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import { formatMoney } from '../utils/tripCosts';
 import { summariseLegs, isTravelLeg, legDestination } from '../utils/tripLegs';
+import DateField from './DateField';
 
 /**
  * The trip before it is days: five in Goa, then four in Kerala.
@@ -72,17 +73,15 @@ const TripRoute = ({
                                 aria-label="City"
                                 onChange={(e) => onUpdate(leg.id, { city: e.target.value })}
                             />
-                            <input
-                                type="date"
-                                value={String(leg.start_date).slice(0, 10)}
+                            <DateField
+                                value={leg.start_date}
                                 aria-label="Arrive"
-                                onChange={(e) => onUpdate(leg.id, { start_date: e.target.value })}
+                                onCommit={(v) => onUpdate(leg.id, { start_date: v || null })}
                             />
-                            <input
-                                type="date"
-                                value={String(leg.end_date).slice(0, 10)}
+                            <DateField
+                                value={leg.end_date}
                                 aria-label="Leave"
-                                onChange={(e) => onUpdate(leg.id, { end_date: e.target.value })}
+                                onCommit={(v) => onUpdate(leg.id, { end_date: v || null })}
                             />
 
                             <span className="route__facts">

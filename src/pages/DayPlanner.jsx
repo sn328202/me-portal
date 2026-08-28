@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiForkKnifeSpoon, GiOpenBook } from 'react-icons/gi';
 import { useSearchParams } from 'react-router-dom';
 import { useJsApiLoader } from '@react-google-maps/api';
@@ -12,6 +12,8 @@ import SendToAtlas from '../components/SendToAtlas';
 import DayCard from '../components/DayCard';
 import { useTravelTimes } from '../hooks/useTravelTimes';
 import { departAt, nextSlot } from '../utils/departAt';
+import DateField from '../components/DateField';
+import { onShelf, shelfCounts, hasBeen, isArchived } from '../utils/planShelf';
 import DurationPicker from '../components/DurationPicker';
 import ActivityFace from '../components/ActivityFace';
 import { compareItems, timeBetween, asMinutes, asTime, lengthOf } from '../utils/dayOrder';
@@ -151,6 +153,11 @@ const DayPlanner = () => {
     const [saveError, setSaveError] = useState(null);
     /* The send-to-someone sheet. */
     const [sharing, setSharing] = useState(false);
+    /* Which shelf of the sidebar is showing. Upcoming by default, because a
+       list that also holds every Saturday since March is not a list of what
+       is next. */
+    const [shelf, setShelf] = useState('upcoming');
+    const [shelving, setShelving] = useState(false);
     const [savedAt, setSavedAt] = useState(null);
 
     // Local state for editing to avoid auto-save jitter
@@ -304,6 +311,44 @@ const DayPlanner = () => {
             setDeletedItemIds([...deletedItemIds, id]);
         }
         setIsDirty(true);
+    };
+
+    /**
+     * Put an itinerary away, or take it back out.
+     *
+     * Not deleting: a day that happened is the best record there is of what a
+     * place was like and what it cost, and it is exactly what she opens when
+     * planning the next one.
+     */
+    const archivePlan = async (id, archived = true) => {
+        const at = archived ? new Date().toISOString() : null;
+        setPlans((list) => list.map((p) => (p.id === id ? { ...p, archived_at: at } : p)));
+        if (selectedPlan?.id === id && archived) setSelectedPlan(null);
+
+        const { error } = await supabase.from('day_plans').update({ archived_at: at }).eq('id', id);
+        if (error) {
+            console.error('Error archiving plan:', error);
+            fetchPlans();
+        }
+    };
+
+    /** Everything whose day has been, in one go. */
+    const archivePast = async () => {
+        const gone = plans.filter((p) => !isArchived(p) && hasBeen(p));
+        if (!gone.length || shelving) return;
+        setShelving(true);
+
+        const at = new Date().toISOString();
+        const ids = gone.map((p) => p.id);
+        setPlans((list) => list.map((p) => (ids.includes(p.id) ? { ...p, archived_at: at } : p)));
+        if (selectedPlan && ids.includes(selectedPlan.id)) setSelectedPlan(null);
+
+        const { error } = await supabase.from('day_plans').update({ archived_at: at }).in('id', ids);
+        if (error) {
+            console.error('Error archiving past plans:', error);
+            fetchPlans();
+        }
+        setShelving(false);
     };
 
     const deletePlan = async (id) => {
@@ -614,6 +659,11 @@ const DayPlanner = () => {
         setIsDirty(true);
     };
 
+    /* One shelf at a time, so the sidebar is a list of what is next rather
+       than an archive that happens to have the next thing in it. */
+    const counts = useMemo(() => shelfCounts(plans), [plans]);
+    const shelved = useMemo(() => onShelf(plans, shelf), [plans, shelf]);
+
     const timelineItems = items.filter(i => !i.is_brainstorm);
     const brainstormItems = items.filter(i => i.is_brainstorm);
 
@@ -675,6 +725,40 @@ const DayPlanner = () => {
                     <Button icon label="Create itinerary" onClick={() => setIsCreating(true)}>+</Button>
                 </div>
 
+                <div className="daydream__shelves" role="group" aria-label="Which itineraries">
+                    {[
+                        ['upcoming', 'Coming up'],
+                        ['past', 'Been'],
+                        ['archived', 'Archive'],
+                        ['all', 'All'],
+                    ].map(([id, label]) => (
+                        <button
+                            key={id}
+                            type="button"
+                            className={`daydream__shelf${shelf === id ? ' is-on' : ''}`}
+                            aria-pressed={shelf === id}
+                            onClick={() => setShelf(id)}
+                        >
+                            {label}
+                            {counts[id] > 0 && <span>{counts[id]}</span>}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Offered only where it makes sense, and only when there is
+                    something to do: on the Been shelf, looking at the days
+                    that have been. */}
+                {shelf === 'past' && counts.past > 0 && (
+                    <Button
+                        block
+                        className="daydream__shelve-all"
+                        onClick={archivePast}
+                        disabled={shelving}
+                    >
+                        {shelving ? 'Filing…' : `Archive all ${counts.past} that have been`}
+                    </Button>
+                )}
+
                 {isCreating && (
                     <Card variant="flat" className="daydream__create">
                         <Field
@@ -700,12 +784,13 @@ const DayPlanner = () => {
                             />
                         )}
 
-                        <Field
-                            label="Date"
-                            type="date"
-                            value={newPlan.planned_date || ''}
-                            onChange={e => setNewPlan({ ...newPlan, planned_date: e.target.value })}
-                        />
+                        <Field label="Date">
+                            <DateField
+                                value={newPlan.planned_date}
+                                onCommit={(v) => setNewPlan({ ...newPlan, planned_date: v })}
+                                aria-label="Date"
+                            />
+                        </Field>
 
                         <div className="row">
                             <Button variant="primary" onClick={createPlan}>Create</Button>
@@ -715,7 +800,16 @@ const DayPlanner = () => {
                 )}
 
                 <ul className="daydream__list">
-                    {plans.map(plan => (
+                    {shelved.length === 0 && (
+                        <li className="daydream__list-empty">
+                            {shelf === 'archived'
+                                ? 'Nothing filed away yet.'
+                                : shelf === 'past'
+                                    ? 'Nothing has been and gone.'
+                                    : 'Nothing coming up. Make one with +.'}
+                        </li>
+                    )}
+                    {shelved.map(plan => (
                         <li key={plan.id}>
                             <Card
                                 variant="flat"
@@ -732,6 +826,22 @@ const DayPlanner = () => {
                                 </h3>
                                 <p className="plan-card__meta">{plan.location || 'Unknown Locale'}</p>
                                 <p className="plan-card__meta plan-card__date">{plan.planned_date || ''}</p>
+
+                                {/* Not a confirm: putting something away is
+                                    reversible, and asking twice about a
+                                    reversible thing is how people stop
+                                    tidying. */}
+                                <Button
+                                    icon
+                                    size="sm"
+                                    className="plan-card__shelve"
+                                    label={isArchived(plan)
+                                        ? `Put ${plan.title} back on the board`
+                                        : `Archive ${plan.title}`}
+                                    onClick={() => archivePlan(plan.id, !isArchived(plan))}
+                                >
+                                    {isArchived(plan) ? '↩' : '🗄'}
+                                </Button>
 
                                 <ConfirmButton
                                     className="plan-card__delete"
@@ -826,11 +936,10 @@ const DayPlanner = () => {
                                 </span>
                                 <span className="daydream__meta-item">
                                     <GiSandsOfTime />
-                                    <input
+                                    <DateField
                                         className="daydream__meta-input"
-                                        type="date"
-                                        value={editedPlan.planned_date || ''}
-                                        onChange={(e) => handlePlanChange('planned_date', e.target.value)}
+                                        value={editedPlan.planned_date}
+                                        onCommit={(v) => handlePlanChange('planned_date', v || null)}
                                         aria-label="Planned date"
                                     />
                                 </span>
@@ -1044,97 +1153,101 @@ const DayPlanner = () => {
                                                                         <span className="tl-item__grip-dots" aria-hidden="true" />
                                                                     </button>
 
+                                                                    {/* Time and the kind of thing it is, stacked in one
+                                                                        narrow column. They were three siblings across the
+                                                                        card, and the time box alone was taking a third of
+                                                                        the width — which is what pushed a two-line address
+                                                                        into four. */}
                                                                     <div className="tl-item__aside">
                                                                         <SmartTimeInput
                                                                             label={`Start time for ${item.activity || 'item'}`}
                                                                             value={item.start_time ? item.start_time.substring(0, 5) : ''}
                                                                             onChange={(newTime) => updateItem(item.id, { start_time: newTime ? newTime + ':00' : null })}
                                                                         />
+
+                                                                        {/* A photo when Google has one worth showing, and a
+                                                                            kind of thing when it does not — which is most of
+                                                                            the time. */}
+                                                                        <PlaceImage
+                                                                            photo={item.place_data?.photos?.[0]}
+                                                                            className="tl-item__photo"
+                                                                            fallback={
+                                                                                <ActivityFace
+                                                                                    item={item}
+                                                                                    onChange={(icon) => updateItem(item.id, { icon })}
+                                                                                />
+                                                                            }
+                                                                        />
                                                                     </div>
 
-                                                                    {/* A photo when Google has one worth
-                                                                        showing, and a kind of thing when it
-                                                                        does not — which is most of the time. */}
-                                                                    <PlaceImage
-                                                                        photo={item.place_data?.photos?.[0]}
-                                                                        className="tl-item__photo"
-                                                                        fallback={
-                                                                            <ActivityFace
-                                                                                item={item}
-                                                                                onChange={(icon) => updateItem(item.id, { icon })}
-                                                                            />
-                                                                        }
-                                                                    />
-
-                                                                    {/* Main Content */}
                                                                     <div className="tl-item__main">
-                                                                        <div className="tl-item__head">
-                                                                            <div>
-                                                                                <h4 className="tl-item__title">{item.activity}</h4>
-                                                                                {item.location && (
-                                                                                    <p className="tl-item__location">
-                                                                                        <GiPositionMarker />
-                                                                                        {item.link ? (
-                                                                                            <a href={item.link} target="_blank" rel="noopener noreferrer">{item.location}</a>
-                                                                                        ) : (
-                                                                                            item.location
-                                                                                        )}
-                                                                                    </p>
-                                                                                )}
-                                                                            </div>
+                                                                        <h4 className="tl-item__title">{item.activity}</h4>
 
-                                                                            {/* Action Icons (Grouped & Smaller) */}
-                                                                            <div className="tl-item__actions">
-                                                                                {editedPlan.planned_date && item.start_time && (
-                                                                                    <Button
-                                                                                        as="a"
-                                                                                        icon
-                                                                                        size="sm"
-                                                                                        href={generateGoogleCalendarUrl(item, editedPlan.planned_date)}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        label="Add to Google Calendar"
-                                                                                    >
-                                                                                        📅
-                                                                                    </Button>
+                                                                        {item.location && (
+                                                                            <p className="tl-item__location">
+                                                                                <GiPositionMarker aria-hidden="true" />
+                                                                                {item.link ? (
+                                                                                    <a href={item.link} target="_blank" rel="noopener noreferrer">{item.location}</a>
+                                                                                ) : (
+                                                                                    item.location
                                                                                 )}
-                                                                                <Button
-                                                                                    icon
-                                                                                    size="sm"
-                                                                                    label="Move back to brainstorm"
-                                                                                    onClick={() => updateItem(item.id, { is_brainstorm: true })}
-                                                                                >
-                                                                                    <GiNotebook size={16} />
-                                                                                </Button>
-                                                                                <ConfirmButton
-                                                                                    icon={<GiCancel size={16} />}
-                                                                                    label="Delete plan item"
-                                                                                    confirmLabel="Confirm?"
-                                                                                    onConfirm={() => deleteItem(item.id)}
-                                                                                />
-                                                                            </div>
-                                                                        </div>
+                                                                            </p>
+                                                                        )}
 
-                                                                        {/* Metadata Row */}
+                                                                        {/* Everything that is a fact about this stop, on one
+                                                                            line that wraps rather than one line each. */}
                                                                         <div className="tl-item__meta">
-                                                                            {item.place_data && item.place_data.rating && (
-                                                                                <span className="tl-item__rating">★ {item.place_data.rating}</span>
+                                                                            {item.place_data?.rating && (
+                                                                                <span className="tl-item__rating">
+                                                                                    ★ {item.place_data.rating}
+                                                                                    {item.place_data.user_ratings_total ? <em>({item.place_data.user_ratings_total})</em> : null}
+                                                                                </span>
                                                                             )}
                                                                             {item.cost && (
-                                                                                <span><GiCoins /> {item.cost}</span>
+                                                                                <span><GiCoins aria-hidden="true" /> {item.cost}</span>
                                                                             )}
-                                                                            {/* How long it takes was shown but
-                                                                                never editable here, so it could
-                                                                                only be set on the way in — which
-                                                                                meant it usually was not set at
-                                                                                all. A dinner is two hours until
-                                                                                she says otherwise. */}
+                                                                            {/* How long it takes was shown but never editable
+                                                                                here, so it could only be set on the way in —
+                                                                                which meant it usually was not set at all. */}
                                                                             <DurationPicker
                                                                                 value={item.duration}
                                                                                 label={item.activity}
                                                                                 onChange={(duration) => updateItem(item.id, { duration })}
                                                                             />
                                                                         </div>
+                                                                    </div>
+
+                                                                    {/* Top-right of the card rather than inside the title
+                                                                        block, where they wrapped underneath it and read as
+                                                                        part of the address. */}
+                                                                    <div className="tl-item__actions">
+                                                                        {editedPlan.planned_date && item.start_time && (
+                                                                            <Button
+                                                                                as="a"
+                                                                                icon
+                                                                                size="sm"
+                                                                                href={generateGoogleCalendarUrl(item, editedPlan.planned_date)}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                label="Add to Google Calendar"
+                                                                            >
+                                                                                📅
+                                                                            </Button>
+                                                                        )}
+                                                                        <Button
+                                                                            icon
+                                                                            size="sm"
+                                                                            label="Move back to brainstorm"
+                                                                            onClick={() => updateItem(item.id, { is_brainstorm: true })}
+                                                                        >
+                                                                            <GiNotebook size={16} />
+                                                                        </Button>
+                                                                        <ConfirmButton
+                                                                            icon={<GiCancel size={16} />}
+                                                                            label="Delete plan item"
+                                                                            confirmLabel="Confirm?"
+                                                                            onConfirm={() => deleteItem(item.id)}
+                                                                        />
                                                                     </div>
                                                                 </Card>
                                                             </div>

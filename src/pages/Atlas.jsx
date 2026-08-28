@@ -8,6 +8,7 @@ import TripPlanner from '../components/TripPlanner';
 import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
 import TripLooseEnds from '../components/TripLooseEnds';
+import DateField from '../components/DateField';
 import { useTripDays } from '../hooks/useTripDays';
 import { useTripIdeas } from '../hooks/useTripIdeas';
 import { flagsForLegs } from '../utils/flags';
@@ -462,21 +463,29 @@ const Atlas = () => {
                                     <option>Completed</option>
                                 </select>
                             </Field>
-                            <Field
-                                label="DEPARTURE"
-                                type="date"
-                                value={selectedTrip.start_date || ''}
-                                onChange={(e) => handleUpdateTrip(selectedTrip.id, { start_date: e.target.value })}
-                            />
+                            {/* Not a plain date input writing through on
+                                change: typing 2026 into the year sends 0002,
+                                0020 and 0202 on the way, each of which was
+                                saved — and the saved value then replaced what
+                                she was typing, so the year could never be
+                                finished. */}
+                            <Field label="DEPARTURE">
+                                <DateField
+                                    value={selectedTrip.start_date}
+                                    onCommit={(v) => handleUpdateTrip(selectedTrip.id, { start_date: v || null })}
+                                    aria-label="Departure"
+                                />
+                            </Field>
                             {/* end_date has been in the schema all along and was
                                 never on screen. The day planner needs it: it is
                                 what says how many days a trip has. */}
-                            <Field
-                                label="RETURN"
-                                type="date"
-                                value={selectedTrip.end_date || ''}
-                                onChange={(e) => handleUpdateTrip(selectedTrip.id, { end_date: e.target.value })}
-                            />
+                            <Field label="RETURN">
+                                <DateField
+                                    value={selectedTrip.end_date}
+                                    onCommit={(v) => handleUpdateTrip(selectedTrip.id, { end_date: v || null })}
+                                    aria-label="Return"
+                                />
+                            </Field>
                         </div>
 
                         <Field

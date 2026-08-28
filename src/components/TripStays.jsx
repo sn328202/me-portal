@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { format, parseISO } from 'date-fns';
 import { GiTrashCan, GiHouse } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import { nightsOf, perPerson, formatMoney } from '../utils/tripCosts';
+import DateField from './DateField';
 
 /**
  * Lodging, entered once for the nights it covers.
@@ -64,17 +64,15 @@ const TripStays = ({ stays, currency, partySize, tripStart, tripEnd, onAdd, onUp
                                 aria-label="Where"
                                 onChange={(e) => onUpdate(stay.id, { name: e.target.value })}
                             />
-                            <input
-                                type="date"
-                                value={String(stay.check_in).slice(0, 10)}
+                            <DateField
+                                value={stay.check_in}
                                 aria-label="Check in"
-                                onChange={(e) => onUpdate(stay.id, { check_in: e.target.value })}
+                                onCommit={(v) => onUpdate(stay.id, { check_in: v || null })}
                             />
-                            <input
-                                type="date"
-                                value={String(stay.check_out).slice(0, 10)}
+                            <DateField
+                                value={stay.check_out}
                                 aria-label="Check out"
-                                onChange={(e) => onUpdate(stay.id, { check_out: e.target.value })}
+                                onCommit={(v) => onUpdate(stay.id, { check_out: v || null })}
                             />
                             <input
                                 type="number"
