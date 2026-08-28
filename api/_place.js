@@ -240,34 +240,53 @@ export async function resolvePlace(name, { city = null } = {}) {
  * a menu that throws while you are typing is worse than a menu with nothing
  * in it.
  */
+const point = (v) => v != null && Number.isFinite(Number(v));
+
 export async function searchPlaces(query, {
-    city = null, lat = null, lng = null, radiusKm = 40, limit = 6,
+    city = null, lat = null, lng = null, radiusKm = 40, rect = null, limit = 6,
 } = {}) {
     const text = String(query || '').trim();
     if (text.length < 2) return [];
 
-    const near = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+    const circle = point(lat) && point(lng);
+    const box = rect && point(rect.low?.lat) && point(rect.high?.lat);
 
     /**
-     * Where the trip is belongs in the *bias*, not in the query.
+     * Where the trip is belongs in the *geography*, not in the query.
      *
      * Appending it turned "@masque" into a search for "masque Kerala", and
-     * Google — reasonably — answered with mosques. A location bias changes
-     * only which of the matches for "masque" come first, which is the thing
-     * actually wanted. The city is glued on only when there are no
-     * coordinates to bias with, where a worse tool beats no tool.
+     * Google — reasonably — answered with mosques. The city is glued on only
+     * when there is no geography to go on at all, where a worse tool beats no
+     * tool.
+     *
+     * A day knows which city it is in, so it gets a *bias*: a soft preference
+     * that still allows the day trip an hour away. An idea has no date, so it
+     * gets the trip's bounding box as a *restriction* — a circle around the
+     * middle of Mumbai → Kerala → Goa is a field near Belagavi with Mumbai
+     * six hundred kilometres outside it.
      */
-    const full = near ? text : [text, city].filter(Boolean).join(' ');
-    const bias = near
-        ? {
+    const full = (circle || box) ? text : [text, city].filter(Boolean).join(' ');
+
+    let where = {};
+    if (circle) {
+        where = {
             locationBias: {
                 circle: {
                     center: { latitude: Number(lat), longitude: Number(lng) },
                     radius: Math.min(50000, Math.max(1000, radiusKm * 1000)),
                 },
             },
-        }
-        : {};
+        };
+    } else if (box) {
+        where = {
+            locationRestriction: {
+                rectangle: {
+                    low: { latitude: Number(rect.low.lat), longitude: Number(rect.low.lng) },
+                    high: { latitude: Number(rect.high.lat), longitude: Number(rect.high.lng) },
+                },
+            },
+        };
+    }
 
     const key = process.env.GOOGLE_PLACES_API_KEY;
     const want = Math.min(10, Math.max(1, limit));
@@ -289,7 +308,7 @@ export async function searchPlaces(query, {
                     ].join(','),
                 },
                 body: JSON.stringify({
-                    textQuery: full, pageSize: want, languageCode: 'en', ...bias,
+                    textQuery: full, pageSize: want, languageCode: 'en', ...where,
                 }),
                 signal: AbortSignal.timeout(8000),
             });
@@ -324,14 +343,18 @@ export async function searchPlaces(query, {
         url.searchParams.set('format', 'jsonv2');
         url.searchParams.set('addressdetails', '1');
         url.searchParams.set('limit', String(want));
-        if (near) {
-            // Nominatim has no soft bias, only a box. Preferred, not bounded:
-            // a place just outside it is still a real answer.
+        // Nominatim has one geographic control, a viewbox, and it is a
+        // preference unless `bounded` is set — which suits both cases here.
+        if (circle) {
             const d = Math.min(2, radiusKm / 100);
             url.searchParams.set(
                 'viewbox',
                 [Number(lng) - d, Number(lat) + d, Number(lng) + d, Number(lat) - d].join(',')
             );
+        } else if (box) {
+            url.searchParams.set('viewbox', [
+                rect.low.lng, rect.high.lat, rect.high.lng, rect.low.lat,
+            ].join(','));
         }
         const res = await fetch(url, {
             headers: { 'User-Agent': NOMINATIM_UA, accept: 'application/json' },

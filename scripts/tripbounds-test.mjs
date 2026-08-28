@@ -1,12 +1,12 @@
 /**
- * The circle a trip's place search is biased to.
+ * The box a trip's place search is confined to.
  *
- * The numbers matter in one direction only: too small and half the trip falls
- * outside the bias, which is the bug this exists to fix. Too large is merely
- * a weaker preference.
+ * The failure this exists to prevent is a box that does not contain a city
+ * the trip actually visits — which is what a circle around the *centre* of
+ * Mumbai → Kerala → Goa does to Mumbai.
  */
 
-import { tripBounds } from '../src/utils/tripBounds.js';
+import { tripRect } from '../src/utils/tripBounds.js';
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -15,38 +15,42 @@ const check = (name, got, want) => {
     failed += 1;
     console.log(`  FAIL ${name}\n       got  ${a}\n       want ${b}`);
 };
-const near = (name, got, want, slack = 0.5) => {
-    if (Math.abs(got - want) <= slack) { console.log(`  ok   ${name}`); return; }
-    failed += 1;
-    console.log(`  FAIL ${name}\n       got  ${got}\n       want ~${want}`);
-};
 
 const MUMBAI = { city: 'Mumbai', lat: 18.9582347, lng: 72.8319514 };
 const KERALA = { city: 'Kerala', lat: 10.1631526, lng: 76.6412712 };
 const GOA = { city: 'Goa', lat: 15.2993265, lng: 74.123996 };
 const AIR = { city: 'Air Travel', lat: null, lng: null };
 
-console.log('\nnothing to go on:');
-check('no legs, no circle', tripBounds([]), null);
-check('legs with no coordinates, no circle', tripBounds([AIR, { city: 'x' }]), null);
+const holds = (box, p) => Boolean(box)
+    && p.lat >= box.rect.low.lat && p.lat <= box.rect.high.lat
+    && p.lng >= box.rect.low.lng && p.lng <= box.rect.high.lng;
 
-console.log('\none city:');
-const one = tripBounds([MUMBAI]);
-near('the centre is the city', one.lat, 18.958);
-check('and the radius is a city, not a point', one.radiusKm, 20);
+console.log('\nnothing to go on:');
+check('no legs, no box', tripRect([]), null);
+check('legs with no coordinates, no box', tripRect([AIR, { city: 'x' }]), null);
+check('a leg at 0,0 is an unset leg', tripRect([{ lat: 0, lng: 0 }]), null);
 
 console.log('\nthe real trip:');
-const all = tripBounds([AIR, MUMBAI, KERALA, GOA, MUMBAI]);
-near('the centre sits between them', all.lat, 15.8, 0.6);
-near('and so does the longitude', all.lng, 74.1, 0.6);
-check('the radius is capped at what Places takes', all.radiusKm, 50);
+const trip = tripRect([AIR, MUMBAI, KERALA, GOA, MUMBAI]);
+check('Mumbai is inside it', holds(trip, MUMBAI), true);
+check('so is Kerala', holds(trip, KERALA), true);
+check('and Goa', holds(trip, GOA), true);
+check('London is not', holds(trip, { lat: 51.5, lng: -0.12 }), false);
+check('nor is Delhi', holds(trip, { lat: 28.6, lng: 77.2 }), false);
 
-console.log('\ntwo cities close together:');
-const pair = tripBounds([
-    { lat: 18.95, lng: 72.83 },
-    { lat: 19.05, lng: 72.90 },
-]);
-check('still at least a city wide', pair.radiusKm, 20);
+console.log('\none city:');
+const one = tripRect([MUMBAI]);
+check('the city is inside its own box', holds(one, MUMBAI), true);
+check('and the box has extent', one.rect.high.lat > one.rect.low.lat, true);
+check(
+    'about fifty kilometres of it',
+    Math.round((one.rect.high.lat - one.rect.low.lat) * 100) / 100,
+    0.9
+);
+
+console.log('\nthe corners are the right way round:');
+check('low is south of high', trip.rect.low.lat < trip.rect.high.lat, true);
+check('and west of it', trip.rect.low.lng < trip.rect.high.lng, true);
 
 console.log(failed ? `\n${failed} failing` : '\nall passing');
 process.exit(failed ? 1 : 0);

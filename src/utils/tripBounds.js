@@ -1,36 +1,32 @@
 /**
- * The middle of a trip, and how far it reaches.
+ * The box a trip happens in.
  *
  * An idea has no date, so it does not belong to one city of a multi-city trip
- * — it belongs to the trip. Biasing its place search to the anchor city alone
- * put a Mumbai restaurant below every mosque in Kerala, because the anchor is
- * whichever city has the most nights and that is not where the idea is.
+ * — it belongs to the trip. The first attempt biased the search to a circle
+ * around the *centre* of everywhere the trip goes, and for Mumbai → Kerala →
+ * Goa that centre is a field near Belagavi with Mumbai six hundred kilometres
+ * outside it. "@masque" duly returned mosques in the middle of nowhere.
  *
- * A centre and a radius covering every leg is the honest answer: it ranks
- * anywhere on the trip above anywhere off it, and prefers nothing within it.
+ * A box around every leg is the honest shape. It contains all three cities,
+ * excludes the rest of the world, and — unlike a circle — does not invent a
+ * middle that the trip never visits.
  */
 
-/** Rough kilometres between two points. Good enough to size a circle. */
-const spanKm = (a, b) => {
-    const dLat = (b.lat - a.lat) * 111;
-    // Longitude degrees shrink towards the poles; at the mid-latitude of the
-    // pair is close enough for a radius.
-    const dLng = (b.lng - a.lng) * 111 * Math.cos(((a.lat + b.lat) / 2) * Math.PI / 180);
-    return Math.sqrt(dLat * dLat + dLng * dLng);
-};
+/* Padding, in degrees: about fifty kilometres, so a place just outside a city
+   limit is still in the box, and a single-city trip has some extent at all. */
+const PAD = 0.45;
 
 /**
- * `{ lat, lng, radiusKm }` covering every leg that knows where it is, or null.
- *
- * The radius is clamped: Places takes 50km at most, and a one-city trip still
- * wants a city's worth of room rather than a point.
+ * `{ rect: { low, high } }` covering every leg that knows where it is, or
+ * null. `low` is the south-west corner, `high` the north-east, which is the
+ * order the Places API wants them in.
  */
-export const tripBounds = (legs = []) => {
+export const tripRect = (legs = []) => {
     const points = (legs || [])
-        // `Number(null)` is 0, and 0 is finite — so a null coordinate passed
-        // straight through this filter and dragged the centre of an Indian
-        // trip into the Atlantic. Reject the empty ones by hand, and 0,0
-        // with them: it is what an unset pair looks like.
+        // `Number(null)` is 0, and 0 is finite — so a null coordinate sailed
+        // straight through this guard and dragged the box out into the
+        // Atlantic. Reject the empty ones by hand, and 0,0 with them: it is
+        // what an unset pair looks like.
         .filter((l) => l?.lat != null && l?.lng != null
             && Number.isFinite(Number(l.lat)) && Number.isFinite(Number(l.lng))
             && !(Number(l.lat) === 0 && Number(l.lng) === 0))
@@ -38,10 +34,19 @@ export const tripBounds = (legs = []) => {
 
     if (!points.length) return null;
 
-    const lat = points.reduce((sum, p) => sum + p.lat, 0) / points.length;
-    const lng = points.reduce((sum, p) => sum + p.lng, 0) / points.length;
-    const centre = { lat, lng };
+    const lats = points.map((p) => p.lat);
+    const lngs = points.map((p) => p.lng);
 
-    const reach = points.reduce((far, p) => Math.max(far, spanKm(centre, p)), 0);
-    return { lat, lng, radiusKm: Math.min(50, Math.max(20, Math.round(reach) + 10)) };
+    return {
+        rect: {
+            low: {
+                lat: Math.max(-90, Math.min(...lats) - PAD),
+                lng: Math.max(-180, Math.min(...lngs) - PAD),
+            },
+            high: {
+                lat: Math.min(90, Math.max(...lats) + PAD),
+                lng: Math.min(180, Math.max(...lngs) + PAD),
+            },
+        },
+    };
 };

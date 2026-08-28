@@ -4,7 +4,7 @@ import { GiTrashCan, GiLightBulb, GiHouse, GiPathDistance } from 'react-icons/gi
 import { Button, Card } from './ui';
 import MentionInput from './MentionInput';
 import { formatMoney } from '../utils/tripCosts';
-import { tripBounds } from '../utils/tripBounds';
+import { tripRect } from '../utils/tripBounds';
 
 /**
  * Somewhere to put an idea before it has a date.
@@ -197,12 +197,11 @@ const Column = ({ title, icon, kind, ideas, currency, near, hooks, placeholder, 
 
 const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) => {
     const currency = trip?.currency || 'USD';
-    /* Somewhere to bias a place search. An idea has no date, so it belongs to
-       the whole trip rather than to one city of it: the middle of everywhere
-       it goes, and a radius wide enough to reach the ends. Biasing to the
-       anchor city alone would rank a Mumbai restaurant below every mosque in
-       Kerala, which is what it did. */
-    const near = tripBounds(legs) || (trip?.destination ? { city: trip.destination } : null);
+    /* Where a place mentioned here could be. An idea has no date, so it
+       belongs to the whole trip rather than to one city of it — a box around
+       every leg, which contains all of them and invents no middle the trip
+       never visits. */
+    const near = tripRect(legs) || (trip?.destination ? { city: trip.destination } : null);
     const [target, setTarget] = useState('');
 
     if (!trip) return null;

@@ -48,6 +48,7 @@ export default async function handler(req, res) {
         lat: body.lat ?? null,
         lng: body.lng ?? null,
         radiusKm: Number(body.radiusKm) || 40,
+        rect: body.rect || null,
         limit: Number(body.limit) || 6,
     });
 
