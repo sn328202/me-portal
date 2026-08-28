@@ -144,3 +144,58 @@
 .chores-delete-btn:hover {
     color: var(--accent-red);
 }
+
+
+/* The rooms come from the chores now rather than from a constant, so there
+   can be any number of them and they can be made here. */
+
+.chores-room-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* What is left to do in there. Without it a tab with nothing open reads as
+   done rather than as empty, and there is no way to see from the row where
+   the work is. */
+.chores-room-count {
+    min-width: 1.1em;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--bg-hover);
+    color: inherit;
+    font-size: var(--text-2xs);
+    line-height: 1.4;
+    text-align: center;
+}
+
+.chores-room-btn.active .chores-room-count {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* The bucket, not a room. Dashed, so it does not read as a place in the
+   house. */
+.chores-room-btn.is-misc {
+    border-style: dashed;
+}
+
+.chores-room-add {
+    border-style: dashed;
+    opacity: 0.7;
+}
+
+.chores-room-add:hover { opacity: 1; }
+
+.chores-room-new input {
+    width: 8rem;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-gold);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    outline: none;
+}

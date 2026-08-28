@@ -95,6 +95,68 @@ const compareToken = (given) => {
 
 /* ---------- what the model is allowed to do -------------------------- */
 
+/**
+ * The room a chore goes in.
+ *
+ * Dictation and typing disagree about capitals and articles constantly, and
+ * the board keys its tabs on the name — so "the guest bath" arriving next to
+ * an existing "Guest Bathroom" used to start a second room beside the first,
+ * and half the chores would end up in one and half in the other.
+ *
+ * Matched against the rooms already in use before it is taken at face value.
+ * With nothing usable it goes to Misc, which is a real tab on the board: a
+ * chore that could not be placed still has to be findable, and inventing a
+ * plausible-sounding room is the one outcome worse than admitting it.
+ *
+ * (The board's own copy of the grouping rules lives in src/utils/rooms.js.
+ * Kept separate deliberately — the API bundle should not reach into the app.)
+ */
+const MISC_ROOM = 'Misc';
+
+const ROOM_NOISE = ['the', 'a', 'an', 'my', 'our', 'room'];
+
+/* Singular, so "guest rooms" and "the guest room" are one place. Only on
+   words long enough that the s is a plural rather than the word. */
+const oneOf = (word) => (word.length > 3 && word.endsWith('s') ? word.slice(0, -1) : word);
+
+const roomWords = (room) => String(room ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .map(oneOf)
+    .filter((w) => w && !ROOM_NOISE.includes(w));
+
+export const matchRoom = (asked, inUse = []) => {
+    const want = roomWords(asked);
+    if (!want.length) return MISC_ROOM;
+
+    const near = (a, b) => a.startsWith(b) || b.startsWith(a);
+
+    for (const room of inUse) {
+        const have = roomWords(room);
+        if (!have.length) continue;
+        // Every word on both sides has to find a partner. "guest bath" and
+        // "Guest Bathroom" pair up completely; "guest" alone leaves
+        // "bathroom" unpartnered, which is right — "guest" fits the Guest
+        // Room and the Guest Bathroom equally, and fitting both is not
+        // fitting either.
+        const paired = want.every((w) => have.some((h) => near(w, h)))
+            && have.every((h) => want.some((w) => near(w, h)));
+        if (paired) return room;
+    }
+
+    // A room she has not used before, tidied: the leading article dropped so
+    // "the balcony" becomes the Balcony rather than The Balcony, single
+    // spaces, Each Word Capitalised. New rooms are fine — that is how the
+    // Laundry Room started.
+    const tidy = String(asked)
+        .trim()
+        .replace(/^(the|a|an|my|our)\s+/i, '')
+        .replace(/\s+/g, ' ')
+        .replace(/\b[a-z]/g, (c) => c.toUpperCase());
+    return tidy || MISC_ROOM;
+};
+
 const TOOLS = [
     {
         name: 'add_groceries',
@@ -227,14 +289,21 @@ const TOOLS = [
     },
     {
         name: 'add_chore',
-        description: 'Add a household chore, which always belongs to a room.',
+        description: 'Add a household chore. Give it a room when one is clear.',
         input_schema: {
             type: 'object',
             properties: {
                 text: { type: 'string' },
-                room: { type: 'string', description: 'Reuse an existing room name when one fits.' },
+                /* Not required any more. It used to be, which meant a chore
+                   with no obvious room got one invented for it — and an
+                   invented room is a room she never looks in. Leaving it out
+                   files the chore under Misc, where she will find it. */
+                room: {
+                    type: 'string',
+                    description: 'Reuse an existing room name when one fits. Leave this out rather than inventing a room: a chore with no room goes to Misc, where it stays visible.',
+                },
             },
-            required: ['text', 'room'],
+            required: ['text'],
         },
     },
     {
@@ -543,7 +612,7 @@ Social plans:${bullets(ctx.social)}
 Recipes in the Larder:${bullets(ctx.recipes)}
 Places she has already been or already means to go (the old Spots library, kept only so the same place is not saved twice):${bullets(ctx.spots.map((sp) => `${sp.name}${sp.city ? ` (${sp.city})` : ''}${sp.category ? ` — ${sp.category}` : ''}${sp.status === 'been' ? ' [been]' : ''}`))}
 In the Commonplace — saved plans:${bullets(ctx.plans.map((pl) => `${pl.title}${pl.intent ? ` — ${pl.intent}` : ''}${pl.status === 'done' ? ' [done]' : ''}`))}
-Chore rooms in use: ${ctx.rooms.join(', ') || 'none yet'}
+Chore rooms in use: ${ctx.rooms.join(', ') || 'none yet'} (plus Misc, the catch-all)
 In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
 
 # The rooms, and what she may call them
@@ -571,6 +640,7 @@ This arrives as phone dictation, so words come through mangled. Map near-misses 
 - **A place she wants to check out goes to the Commonplace, not a todo and not an itinerary.** "I want to try that ramen place", "we should check out the new wine bar", "someone told me about a garden in Berkeley" — all save_spot, which files it in the Commonplace beside the links she saves. The address, neighbourhood, map link and hours are looked up for you, so pass the name as she said it plus any city, and keep her reason verbatim in the why field.
 - Use add_to_itinerary only when she is planning an actual day: a date, "for Saturday", or an itinerary that already exists. If she is planning a day around places she has already saved, add them to the itinerary by name.
 - Travel to another city or country is a trip, not a spot and not an itinerary.
+- **A chore's room is a guess, and a wrong guess is fine.** Reuse a room above when one clearly fits; name a new one when she names a new one — the board makes it. When there is no room in what she said, leave the room out entirely rather than picking the likeliest: an unset room files the chore under **Misc**, which is a visible tab she works through, whereas a chore filed into a plausible-sounding room she never opens is a chore she has lost.
 - **A shared post is usually two things at once.** A TikTok of a pasta dish is a recipe in the Larder *and* a plan in the Commonplace; a video about a bakery is a spot *and* a plan. File both when both are true — the room holds the structured data, the Commonplace holds the doing. Do not create a plan when the post is only a fact with nothing to act on.
 - When a post could not be read, save what you can from the link itself and say plainly that the text was unavailable. Never invent steps or ingredients that were not in the source.
 - Do not invent dates, prices or times she did not say.
@@ -985,11 +1055,19 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
         case 'add_chore': {
             // Chores repeat by nature — the same room needs sweeping weekly —
             // so this one is deliberately not deduplicated.
+            //
+            // A room is matched against the ones already in use before it is
+            // taken at face value, so "the guest bath" joins the Guest
+            // Bathroom rather than starting a second room next to it. With no
+            // room at all it goes to Misc, which is a visible tab: a chore
+            // that cannot be placed must still be findable.
+            const room = matchRoom(input.room, ctx.rooms);
             const [r] = await ins('chores', [{
-                text: input.text, room: input.room, completed: false, user_id: userId,
+                text: input.text, room, completed: false, user_id: userId,
             }]);
             push('chores', r.id, input.text);
-            return `"${input.text}" to ${input.room}`;
+            if (!ctx.rooms.includes(room)) ctx.rooms.push(room);
+            return `"${input.text}" to ${room}`;
         }
         case 'add_goal': {
             const text = once('goals', input.text, 'in your aspirations');
