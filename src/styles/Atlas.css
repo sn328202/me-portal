@@ -23,7 +23,15 @@
 
 /* ---------- The Map Room ----------------------------------- */
 
+/* Leaflet numbers its own panes from 400 and its controls at 1000, and those
+   numbers are stated in the page's stacking context unless something contains
+   them — which is how a map three screens down painted itself over a
+   full-screen timeline. `isolation: isolate` gives the map its own context,
+   so its 400s and 1000s are private and every layer above it wins on merit. */
 .atlas .interactive-map {
+    position: relative;
+    isolation: isolate;
+    z-index: 0;
     height: 400px;
     width: 100%;
     overflow: hidden;
