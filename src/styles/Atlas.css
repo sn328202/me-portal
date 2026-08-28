@@ -1761,13 +1761,15 @@
 .trip-item .mention { flex: 1 1 9em; }
 .idea__head .mention { flex: 1; }
 
+/* On the body, in a portal, positioned by measurement: every field this is
+   used in sits inside something that clips — a Card is overflow: hidden, the
+   timeline pane scrolls, and the expanded timeline is a fixed layer. Drawn in
+   place, the menu was a sliver at the bottom of a card. */
 .mention__menu {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    z-index: 30;
-    /* Wide enough to read an address, never wider than the room it is in. */
-    min-width: min(22rem, 80vw);
+    position: fixed;
+    /* Over the expanded timeline (400) and everything below it; under a
+       modal (1000), which is the one thing that should cover a menu. */
+    z-index: 500;
     max-width: min(28rem, 90vw);
     max-height: 15rem;
     overflow-y: auto;

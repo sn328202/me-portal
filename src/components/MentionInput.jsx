@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { mentionAt, replaceMention, placeSubtitle } from '../utils/mention';
 import { usePlaceSearch } from '../hooks/usePlaceSearch';
 
@@ -37,11 +38,52 @@ const MentionInput = ({
        storing it as state would mean a render whose only job is to clear it. */
     const pendingCaret = useRef(null);
 
+    /* Where to draw the menu, in viewport coordinates.
+
+       It cannot be drawn inside the input's own box. Every place this field
+       is used is inside something that clips: a Card is `overflow: hidden`,
+       the timeline pane scrolls, and the expanded timeline is a fixed layer
+       with its own grid clipped to it. So the menu goes in a portal on the
+       body and is positioned by measurement. */
+    const [box, setBox] = useState(null);
+
     const { results, busy } = usePlaceSearch(token?.query, city);
-    const open = Boolean(token) && (results.length > 0 || busy);
+    const open = Boolean(token) && Boolean(box) && (results.length > 0 || busy);
     /* The list can come back shorter than the last one, so the highlight is
        clamped where it is used rather than trusted where it is stored. */
     const at = results.length ? Math.min(highlight, results.length - 1) : 0;
+
+    /* Re-measure while the menu is up: the page can scroll under it, and a
+       menu that stays where the input used to be is worse than none. */
+    useEffect(() => {
+        // No clearing on close: `open` already requires a token, so a stale
+        // measurement is never drawn, and clearing it would be a render whose
+        // only job is to blank something invisible.
+        if (!token) return undefined;
+
+        const place = () => {
+            const el = field.current;
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            // Below by default; above when there is not room below and there
+            // is room above.
+            const below = window.innerHeight - r.bottom;
+            setBox({
+                left: r.left,
+                width: r.width,
+                top: below < 220 && r.top > below ? null : r.bottom + 4,
+                bottom: below < 220 && r.top > below ? window.innerHeight - r.top + 4 : null,
+            });
+        };
+
+        place();
+        window.addEventListener('scroll', place, true);
+        window.addEventListener('resize', place);
+        return () => {
+            window.removeEventListener('scroll', place, true);
+            window.removeEventListener('resize', place);
+        };
+    }, [token, field]);
 
     useEffect(() => {
         if (pendingCaret.current === null || !field.current) return;
@@ -116,8 +158,17 @@ const MentionInput = ({
                 onBlur={() => setTimeout(() => setToken(null), 150)}
             />
 
-            {open && (
-                <ul className="mention__menu" role="listbox">
+            {open && createPortal((
+                <ul
+                    className="mention__menu"
+                    role="listbox"
+                    style={{
+                        left: box.left,
+                        top: box.top ?? undefined,
+                        bottom: box.bottom ?? undefined,
+                        minWidth: Math.max(box.width, 220),
+                    }}
+                >
                     {results.map((place, i) => (
                         <li key={place.place_id || `${place.name}-${i}`}>
                             <button
@@ -139,7 +190,7 @@ const MentionInput = ({
                         <li className="mention__waiting">Looking…</li>
                     )}
                 </ul>
-            )}
+            ), document.body)}
         </span>
     );
 };
