@@ -575,44 +575,101 @@
    Wrapping instead. The time and the title keep the first line; the kind,
    the cost and the buttons drop to a second one when there is no room,
    and on a wide card nothing wraps at all. */
+/* A line of a day, not a form.
+   
+   Every one of these fields was a bordered, filled box at 16px, so a stop
+   with four small facts on it — a time, a name, a kind and a price — came out
+   as four chunky controls that wrapped onto two rows and stood a hundred and
+   thirty pixels tall. Four stops filled the screen, and the names were
+   clipped anyway because the boxes took the width.
+
+   They read as text now and become fields when you go near them. Same
+   controls, same clicks; they just stop shouting when nobody is editing. */
 .trip-item {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) 0;
+    gap: var(--space-2);
+    padding: 1px 0;
+    border-bottom: 1px dashed transparent;
+}
+
+.trip-item:hover,
+.trip-item:focus-within {
+    border-bottom-color: var(--border-dim);
 }
 
 .trip-item__time {
     flex: 0 0 auto;
+    width: 6.4em;
+    font-family: var(--font-mono) !important;
 }
 
-/* Never narrower than a few words, and first in line for spare room. */
+/* The name is what you read the line for: it gets the room, and it is the
+   only thing here allowed to take it. */
 .trip-item__title {
-    flex: 1 1 9em;
+    flex: 1 1 6em;
+    min-width: 0;
 }
 
 .trip-item__kind {
-    flex: 0 1 6em;
+    flex: 0 0 auto;
+    width: 5.4em;
 }
 
 .trip-item__cost {
-    flex: 0 1 4.5em;
+    flex: 0 0 auto;
+    width: 3.6em;
+    text-align: right;
 }
 
 .trip-item input,
 .trip-item select {
     min-width: 0;
-    padding: var(--space-1) var(--space-2);
-    border: var(--rule-hair);
+    padding: 2px var(--space-1);
+    border: 1px solid transparent;
     border-radius: var(--radius-sm);
-    background: var(--field-bg);
+    background: transparent;
     color: var(--text-main);
     font-family: var(--font-body);
-    font-size: 16px;
+    font-size: var(--text-sm);
+}
+
+.trip-item input::placeholder { color: var(--text-dim); }
+
+.trip-item input:hover,
+.trip-item select:hover { border-color: var(--border-dim); }
+
+.trip-item input:focus,
+.trip-item select:focus {
+    border-color: var(--border-gold);
+    background: var(--field-bg);
+    outline: none;
+}
+
+/* iOS zooms a focused field under 16px. It only does that on a touch screen,
+   so the full size is kept for narrow widths and nowhere else — which is also
+   where the row is allowed to wrap. */
+@media (max-width: 640px) {
+    .trip-item {
+        flex-wrap: wrap;
+        gap: var(--space-1);
+    }
+
+    .trip-item input,
+    .trip-item select { font-size: 16px; }
+
+    .trip-item__title { flex: 1 1 100%; }
+}
+
+.trip-item__link {
+    flex-shrink: 0;
+    color: var(--text-gold);
+    text-decoration: none;
 }
 
 .trip-item__split {
+    flex-shrink: 0;
     padding: 0 var(--space-2);
     border: var(--rule-hair);
     border-radius: var(--radius-pill);
@@ -629,11 +686,19 @@
 }
 
 .trip-item__drop {
+    flex-shrink: 0;
+    padding: 0;
     border: none;
     background: transparent;
     color: var(--text-dim);
+    opacity: 0.5;
     cursor: pointer;
 }
+
+/* Quiet until the line is under the cursor: it is the one control here that
+   cannot be undone. */
+.trip-item:hover .trip-item__drop,
+.trip-item__drop:focus-visible { opacity: 1; }
 
 .trip-item__drop:hover {
     color: var(--accent-crimson);
@@ -642,12 +707,23 @@
 .trip-day__add input {
     width: 100%;
     margin-top: var(--space-2);
-    padding: var(--space-2);
-    border: var(--rule-hair);
+    padding: var(--space-1) var(--space-2);
+    border: 1px dashed var(--border-dim);
     border-radius: var(--radius-sm);
-    background: var(--field-bg);
+    background: transparent;
     color: var(--text-main);
-    font-size: 16px;
+    font-size: var(--text-sm);
+}
+
+.trip-day__add input:focus {
+    border-style: solid;
+    border-color: var(--border-gold);
+    background: var(--field-bg);
+    outline: none;
+}
+
+@media (max-width: 640px) {
+    .trip-day__add input { font-size: 16px; }
 }
 
 .trip-day__costs {
