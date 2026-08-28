@@ -265,6 +265,13 @@ export const sheetPayload = (trip, data) => ({
 
 const isTime = (label) => /^\s*\d{1,2}:\d{2}\s*(am|pm)\s*$/i.test(String(label || ''));
 
+/* A formula whose reference broke. It is not a city, a hotel, or a cost. */
+const BROKEN = /^#(REF|N\/A|VALUE|NAME\?|DIV\/0)!?$/i;
+const clean = (value) => {
+    const text = String(value ?? '').trim();
+    return BROKEN.test(text) ? '' : text;
+};
+
 /** "6:00 PM" -> "18:00". */
 export const parseHour = (label) => {
     const m = /^\s*(\d{1,2}):(\d{2})\s*(am|pm)\s*$/i.exec(String(label || ''));
@@ -285,7 +292,9 @@ export const parseHour = (label) => {
 export const parseDayHeader = (label, year) => {
     const text = String(label || '').trim();
     const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(text);
-    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    // A stray Excel serial formatted as a date lands in 1900, and a column
+    // headed "10 Jan 1900" is a leftover, not a day of anyone's trip.
+    if (iso) return Number(iso[1]) >= 1990 ? `${iso[1]}-${iso[2]}-${iso[3]}` : null;
 
     if (!year) return null;
 
@@ -313,11 +322,16 @@ export const parseDayHeader = (label, year) => {
  */
 export const readSheet = (grid = [], { year } = {}) => {
     const rows = grid.filter((r) => Array.isArray(r));
-    if (!rows.length) return { days: [], items: [], skipped: ['the sheet was empty'] };
+    if (!rows.length) return { days: [], items: [], skipped: ['the sheet was empty'], hours: 0 };
 
     const skipped = [];
     const headerIndex = rows.findIndex((r) => String(r[0] || '').trim().toLowerCase().startsWith('date'));
-    if (headerIndex < 0) return { days: [], items: [], skipped: ['no row starting with "Date" — is this the itinerary tab?'] };
+    if (headerIndex < 0) {
+        return {
+            days: [], items: [], hours: 0,
+            skipped: ['no row starting with "Date" — is this the itinerary tab?'],
+        };
+    }
 
     const header = rows[headerIndex];
     const columns = [];
@@ -343,7 +357,9 @@ export const readSheet = (grid = [], { year } = {}) => {
         previous = date;
         columns.push({ index: c, date });
     }
-    if (!columns.length) return { days: [], items: [], skipped: [...skipped, 'no day columns could be read'] };
+    if (!columns.length) {
+        return { days: [], items: [], hours: 0, skipped: [...skipped, 'no day columns could be read'] };
+    }
 
     const rowLabelled = (test) => rows.find((r) => test(String(r[0] || '').trim().toLowerCase()));
     const cityRow = rowLabelled((l) => l === 'city' || l === 'primary city');
@@ -362,8 +378,8 @@ export const readSheet = (grid = [], { year } = {}) => {
         };
         return {
             date,
-            city: String(cityRow?.[index] || '').trim(),
-            lodging: String(lodgingRow?.[index] || '').trim(),
+            city: clean(cityRow?.[index]),
+            lodging: clean(lodgingRow?.[index]),
             cost_lodging: money(costRow('lodging')),
             cost_food: money(costRow('food')),
             cost_excursions: money(costRow('excursion')),
@@ -373,6 +389,13 @@ export const readSheet = (grid = [], { year } = {}) => {
     });
 
     const items = [];
+    // An activity that runs from 9 to 5 is one merged cell in the sheet, and a
+    // merged cell reads back as the same text on every hour it covers. Emitting
+    // one item per hour would turn a paragliding trip into nine paraglidings,
+    // so a value identical to the hour above it in the same column is a
+    // continuation, not a new plan.
+    const running = new Map();
+
     for (const row of rows) {
         const label = String(row[0] || '').trim();
         const unscheduled = /^unscheduled$/i.test(label);
@@ -380,15 +403,23 @@ export const readSheet = (grid = [], { year } = {}) => {
         const time = unscheduled ? null : parseHour(label);
 
         for (const { index, date } of columns) {
-            const cell = String(row[index] || '').trim();
-            if (!cell) continue;
-            // One cell can hold several things, one per line, the way a busy
-            // afternoon actually gets typed in.
-            for (const title of cell.split('\n').map((t) => t.trim()).filter(Boolean)) {
-                items.push({ date, start_time: time, title, kind: 'todo' });
-            }
+            const cell = clean(row[index]);
+            if (!cell) { running.delete(index); continue; }
+            if (running.get(index) === cell) continue;
+            running.set(index, cell);
+
+            // The second line of a cell is a detail, not a second plan:
+            // "St. Beatus Caves / Lauterbrunnen", "S&J Brunch / 11-1".
+            const title = cell.split('\n').map((t) => t.trim()).filter(Boolean).join(' — ');
+            if (title) items.push({ date, start_time: time, title, kind: 'todo' });
         }
     }
 
-    return { days, items, skipped };
+    // How many rows are labelled with a clock time. This is the fingerprint of
+    // the itinerary grid, and the only reliable way to tell it from her packing
+    // tab — which also has a Date row and a Primary City row, over more days,
+    // and so wins any contest decided on day count.
+    const hours = rows.filter((r) => isTime(String(r[0] || '').trim())).length;
+
+    return { days, items, skipped, hours };
 };

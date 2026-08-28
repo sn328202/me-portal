@@ -95,11 +95,15 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
             // The year lives in the trip, not in a header that says "Sat Dec 16".
             const year = Number(String(trip.start_date || '').slice(0, 4)) || undefined;
 
-            // Try every tab and keep whichever yields the most days: her older
-            // sheets do not agree on what the itinerary tab is called.
+            // Her older sheets do not agree on what the itinerary tab is
+            // called, so every tab is tried. The hour grid decides it: her
+            // packing tab has a Date row and a Primary City row too, over more
+            // days, and wins any contest settled on day count alone.
             const best = (result.tabs || [])
                 .map((tab) => ({ tab: tab.name, ...readSheet(tab.rows, { year }) }))
-                .sort((a, b) => b.days.length - a.days.length)[0];
+                .sort((a, b) => (b.hours - a.hours)
+                    || (b.items.length - a.items.length)
+                    || (b.days.length - a.days.length))[0];
 
             if (!best || !best.days.length) {
                 fail(best?.skipped?.[0] || 'Nothing in that file looked like an itinerary.');

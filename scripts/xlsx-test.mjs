@@ -169,5 +169,68 @@ const foreignRead = readSheet(alien, { year: 2026 });
 check('an alien sheet reads as days', foreignRead.days.map((d) => d.date), ['2026-12-27', '2026-12-28']);
 check('with its city', foreignRead.days[0].city, 'Flower Mound');
 
+/* ---- the bug her Switzerland sheet exposed ------------------------------ */
+console.log('\nempty cells, and the damage they did:');
+{
+    const file = (body) => strToU8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + body);
+    const book = (sheetBody, styles) => zipSync({
+        'xl/workbook.xml': file(
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+            + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            + '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'),
+        'xl/_rels/workbook.xml.rels': file(
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            + '<Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/></Relationships>'),
+        'xl/styles.xml': file(styles || '<styleSheet><cellXfs count="1"><xf numFmtId="0"/></cellXfs></styleSheet>'),
+        'xl/sharedStrings.xml': file(
+            '<sst><si><t>Zurich</t></si><si><t>Interlaken</t></si><si><t>Paragliding</t></si></sst>'),
+        'xl/worksheets/sheet1.xml': file(
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            + `<sheetData>${sheetBody}</sheetData></worksheet>`),
+    }, { mtime: new Date('2020-01-01T00:00:00Z') });
+
+    /**
+     * Google writes every untouched cell as a self-closing <c ... />. A greedy
+     * attribute match eats that slash, so the parser then hunts for a </c> and
+     * swallows the cells after it — which is how an empty Wednesday shifted
+     * Thursday's plans into Wednesday and printed a shared-string index as a
+     * bare number. It cost her whole Lodging row.
+     */
+    const holes = book(
+        '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" s="0"/><c r="C1" s="0"/>'
+        + '<c r="D1" t="s"><v>1</v></c><c r="E1" s="0"/><c r="F1" t="s"><v>2</v></c></row>'
+    );
+    check('an empty cell does not swallow the ones after it',
+        readXlsx(holes).tabs[0].rows[0], ['Zurich', '', '', 'Interlaken', '', 'Paragliding']);
+
+    /**
+     * Her hour column is not text. Google stores 6am as a quarter of a day with
+     * a time format, so without reading the format the entire left-hand column
+     * comes back as 0.25, 0.29166666666666669, 0.33333333333333331 — and not one
+     * row parses as an hour, so every plan in the grid is dropped.
+     */
+    const clock = book(
+        '<row r="1"><c r="A1" s="1"><v>0.25</v></c><c r="B1" s="1"><v>0.5</v></c>'
+        + '<c r="C1" s="1"><v>0.79166666666666663</v></c><c r="D1" s="1"><v>1</v></c>'
+        + '<c r="E1" s="0"><v>0.25</v></c></row>',
+        '<styleSheet><numFmts><numFmt numFmtId="166" formatCode="h:mm AM/PM"/></numFmts>'
+        + '<cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="166"/></cellXfs></styleSheet>'
+    );
+    check('a fraction of a day becomes a clock time',
+        readXlsx(clock).tabs[0].rows[0].slice(0, 4),
+        ['6:00 AM', '12:00 PM', '7:00 PM', '12:00 AM']);
+    check('and a plain 0.25 with no time format stays a number',
+        readXlsx(clock).tabs[0].rows[0][4], '0.25');
+
+    /* Google leaves a thousand styled-but-empty rows past the data. */
+    const padded = book(
+        '<row r="1"><c r="A1" t="s"><v>0</v></c></row>'
+        + Array.from({ length: 40 }, (_, i) => `<row r="${i + 2}"><c r="A${i + 2}" s="0"/><c r="J${i + 2}" s="0"/></row>`).join('')
+    );
+    const trimmed = readXlsx(padded).tabs[0].rows;
+    check('trailing empty rows are dropped', trimmed.length, 1);
+    check('and trailing empty columns with them', trimmed[0].length, 1);
+}
+
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);

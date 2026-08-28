@@ -166,9 +166,12 @@ check('"Primary City" is the city row too', read.days[0].city, 'Flower Mound');
 check('lodging comes back', read.days[0].lodging, "Mom's");
 check('costs come back as numbers', [read.days[1].cost_lodging, read.days[0].cost_food], [120, 35]);
 check('the side column is not mistaken for a day', read.days.length, 2);
-check('two things in one cell are two things',
+// The first guess was that a second line meant a second plan. Her real
+// Switzerland sheet says otherwise: the second line is a detail — "St. Beatus
+// Caves / Lauterbrunnen", "S&J Brunch / 11-1" — so the lines join.
+check('a second line is a detail, not a second plan',
     read.items.filter((i) => i.date === '2023-12-16' && i.start_time === '18:00').map((i) => i.title),
-    ['Dinner with Ma', 'Call Dad']);
+    ['Dinner with Ma — Call Dad']);
 check('a morning item keeps its hour',
     read.items.find((i) => i.title === 'Pack')?.start_time, '09:00');
 check('a sheet with no Date row says so plainly',
@@ -282,6 +285,51 @@ check('a corrupt store does not lose the send',
     sendToWardrobe(trip, { days, items, legs }, {
         getItem: () => 'not json', setItem: () => {},
     }).ok, true);
+
+/* --- what her real Switzerland sheet turned out to contain --------------- */
+console.log('\nthings a real exported sheet does:');
+{
+    // An activity from 9 to 5 is one merged cell, which reads back as the same
+    // text on every hour it covers. One paragliding trip, not nine.
+    const merged = [
+        ['Date/Time', 'Tue Apr 30'],
+        ['City', 'Interlaken'],
+        ['9:00 AM', 'Paragliding Interlaken'],
+        ['10:00 AM', 'Paragliding Interlaken'],
+        ['11:00 AM', 'Paragliding Interlaken'],
+        ['12:00 PM', ''],
+        ['1:00 PM', 'Paragliding Interlaken'],
+    ];
+    const out = readSheet(merged, { year: 2024 }).items;
+    check('a merged block is one plan, at the hour it starts',
+        out.map((i) => `${i.start_time} ${i.title}`),
+        ['09:00 Paragliding Interlaken', '13:00 Paragliding Interlaken']);
+
+    // A gap resets it, so the afternoon repeat above is a genuine second entry.
+    check('the hour grid is what identifies the itinerary tab',
+        readSheet(merged, { year: 2024 }).hours, 5);
+
+    // Her packing tab has a Date row and a Primary City row too, over more
+    // days, so day count alone picks the wrong tab.
+    const packing = [
+        ['Date', 'Sat Dec 16', 'Sun Dec 17', 'Mon Dec 18'],
+        ['Primary City', '#REF!', 'Flower Mound', 'Airplane'],
+        ['Socks', '1', '1', '1'],
+    ];
+    const wardrobeTab = readSheet(packing, { year: 2023 });
+    check('a packing tab has no hours at all', wardrobeTab.hours, 0);
+    check('and so loses to an itinerary with fewer days',
+        [wardrobeTab, readSheet(merged, { year: 2024 })]
+            .sort((a, b) => b.hours - a.hours)[0].days.length, 1);
+
+    // A formula whose reference broke is not a city.
+    check('#REF! does not become a place', wardrobeTab.days[0].city, '');
+    check('a real city beside it still does', wardrobeTab.days[1].city, 'Flower Mound');
+
+    // A stray serial formatted as a date lands in 1900.
+    check('a 1900 column is a leftover, not a day', parseDayHeader('1900-01-10'), null);
+    check('a real ISO date is still fine', parseDayHeader('2024-04-28'), '2024-04-28');
+}
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);

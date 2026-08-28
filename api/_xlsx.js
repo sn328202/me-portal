@@ -219,33 +219,66 @@ const serialToDate = (serial) => {
     return d.toISOString().slice(0, 10);
 };
 
-const DATE_FORMATS = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47]);
+/**
+ * A fraction of a day as a clock time: 0.25 -> "6:00 AM".
+ *
+ * Her sheet's hour column is not text. Google stores 6am as a quarter of a day
+ * with a time format on it, so without this the whole left-hand column reads
+ * back as 0.25, 0.2916666666666667, 0.3333333333333333 — and none of it parses
+ * as an hour, so every planned thing in the grid is dropped.
+ */
+const serialToTime = (serial) => {
+    const n = Number(serial);
+    if (!Number.isFinite(n)) return null;
+    const minutes = Math.round((n % 1 === 0 && n >= 1 ? n : n % 1 || (n >= 1 ? 1 : 0)) * 1440);
+    const h = Math.floor(minutes / 60) % 24;
+    const m = minutes % 60;
+    const suffix = h < 12 ? 'AM' : 'PM';
+    const twelve = h % 12 === 0 ? 12 : h % 12;
+    return `${twelve}:${String(m).padStart(2, '0')} ${suffix}`;
+};
 
-/** Which style indexes mean "this number is really a date". */
-const dateStyles = (stylesXml) => {
+/* The built-in formats. 18-21 and 45-47 are clock times, not dates — 22 is
+   both, and a date is the more useful half of it here. */
+const DATE_FORMATS = new Set([14, 15, 16, 17, 22]);
+const TIME_FORMATS = new Set([18, 19, 20, 21, 45, 46, 47]);
+
+/**
+ * Which style indexes mean "this number is really a date, or a time".
+ *
+ * A number carries no hint of what it means; the meaning lives in the number
+ * format its style points at, two files away.
+ */
+const numberKinds = (stylesXml) => {
     const dateFmts = new Set(DATE_FORMATS);
+    const timeFmts = new Set(TIME_FORMATS);
+
     const fmtRe = /<numFmt[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g;
     let m;
     while ((m = fmtRe.exec(stylesXml || ''))) {
-        const code = unescape(m[2]);
-        // A format with y/d and no hour markers is a date; "0.00" is not.
-        if (/[yd]/i.test(code.replace(/\[[^\]]*\]/g, '')) && !/^[#0.,%$\s"]*$/.test(code)) {
-            dateFmts.add(Number(m[1]));
-        }
+        // Strip the bracketed bits ([$-409], [Red]) so their letters do not vote.
+        const code = unescape(m[2]).replace(/\[[^\]]*\]/g, '').replace(/"[^"]*"/g, '');
+        const id = Number(m[1]);
+        if (/[yd]/i.test(code)) dateFmts.add(id);
+        else if (/h/i.test(code)) timeFmts.add(id);
     }
 
-    const out = new Set();
+    const dates = new Set();
+    const times = new Set();
     const block = /<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/.exec(stylesXml || '');
-    if (!block) return out;
-    const xfRe = /<xf\b[^>]*numFmtId="(\d+)"[^>]*>|<xf\b[^>]*numFmtId="(\d+)"[^>]*\/>/g;
+    if (!block) return { dates, times };
+
+    // Cell styles are positional: the nth <xf> is style index n.
+    const xfRe = /<xf\b[^>]*?numFmtId="(\d+)"[^>]*?(?:\/>|>)/g;
     let i = 0;
     let x;
     while ((x = xfRe.exec(block[1]))) {
-        const id = Number(x[1] ?? x[2]);
-        if (dateFmts.has(id)) out.add(i);
+        const id = Number(x[1]);
+        if (dateFmts.has(id)) dates.add(i);
+        else if (timeFmts.has(id)) times.add(i);
         i += 1;
     }
-    return out;
+    return { dates, times };
 };
 
 const colIndex = (ref) => {
@@ -273,7 +306,7 @@ export const readXlsx = (data) => {
         while ((m = re.exec(sst))) shared.push(textOf(m[1]));
     }
 
-    const dated = dateStyles(text('xl/styles.xml'));
+    const { dates: dated, times: timed } = numberKinds(text('xl/styles.xml'));
 
     // Sheet order and names live in workbook.xml; the file each one maps to
     // lives in the rels. Trusting sheet1.xml = the first sheet is wrong the
@@ -308,7 +341,12 @@ export const readXlsx = (data) => {
         let rowMatch;
         while ((rowMatch = rowRe.exec(xml))) {
             const rowIndex = Number(rowMatch[1]) - 1;
-            const cellRe = /<c\b([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g;
+            // The attribute run must be lazy. Greedy, it eats the "/" of a
+            // self-closing <c r="C4" s="56"/>, so the parser then hunts for a
+            // </c> and swallows the next few cells whole — which is why an
+            // empty Wednesday used to shift Thursday's plans into Wednesday
+            // and print a shared-string index as if it were a number.
+            const cellRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
             let cellMatch;
             while ((cellMatch = cellRe.exec(rowMatch[2]))) {
                 const attrs = cellMatch[1];
@@ -331,6 +369,7 @@ export const readXlsx = (data) => {
                     const raw = (/<v>([\s\S]*?)<\/v>/.exec(inner) || [, ''])[1];
                     if (raw === '' || raw === undefined) value = '';
                     else if (dated.has(style)) value = serialToDate(raw) || raw;
+                    else if (timed.has(style)) value = serialToTime(raw) || raw;
                     else value = unescape(raw);
                 }
 
@@ -353,9 +392,19 @@ export const readXlsx = (data) => {
             }
         }
 
+        // Google writes a thousand styled-but-empty rows past the end of the
+        // data, and a tab of nothing but blanks is worth neither the bytes nor
+        // the chance of being picked as "the itinerary".
+        while (grid.length && grid[grid.length - 1].every((c) => !c)) grid.pop();
+
+        let width = grid.reduce((max, line) => Math.max(max, line.length), 0);
+        while (width > 0 && grid.every((line) => !line[width - 1])) width -= 1;
+
         // Square it off, so a consumer can index any cell without guarding.
-        const width = grid.reduce((max, line) => Math.max(max, line.length), 0);
-        for (const line of grid) while (line.length < width) line.push('');
+        for (const line of grid) {
+            line.length = Math.min(line.length, width);
+            while (line.length < width) line.push('');
+        }
 
         tabs.push({ name, rows: grid });
     }
