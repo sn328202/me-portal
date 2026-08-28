@@ -271,8 +271,13 @@ const Atlas = () => {
         <div className="expedition__setup">
             {/* MISSION INTELLIGENCE */}
             <Card variant="flat" as="div">
-                <details className="panel">
-                    <summary className="panel__summary">Mission Intelligence</summary>
+                {/* Open. This was a fold, which made sense when these
+                    panels held a permanent column open beside the timeline —
+                    but they live in a dialog you opened on purpose now, and
+                    a dialog whose contents are hidden behind two more clicks
+                    is a dialog that has not opened. */}
+                <section className="panel">
+                    <h3 className="panel__summary">Mission Intelligence</h3>
 
                     <div className="panel__body">
                         <div className="field">
@@ -367,13 +372,18 @@ const Atlas = () => {
                             </ul>
                         </div>
                     </div>
-                </details>
+                </section>
             </Card>
 
             {/* LOGISTICS */}
             <Card variant="flat" as="div">
-                <details className="panel">
-                    <summary className="panel__summary">Logistics</summary>
+                {/* Open. This was a fold, which made sense when these
+                    panels held a permanent column open beside the timeline —
+                    but they live in a dialog you opened on purpose now, and
+                    a dialog whose contents are hidden behind two more clicks
+                    is a dialog that has not opened. */}
+                <section className="panel">
+                    <h3 className="panel__summary">Logistics</h3>
 
                     <div className="panel__body">
                         <Field
@@ -410,7 +420,7 @@ const Atlas = () => {
                             Burn Mission File
                         </ConfirmButton>
                     </div>
-                </details>
+                </section>
             </Card>
         </div>
     ) : null;

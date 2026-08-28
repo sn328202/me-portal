@@ -98,18 +98,47 @@ export const useTripDays = (trip) => {
         const missing = wanted.filter((d) => !have.has(d));
         const orphans = days.filter((d) => !want.has(String(d.date).slice(0, 10)));
 
-        const isEmpty = (d) => !d.city && !d.lodging && !d.notes
-            && !(items[d.id] || []).length
+        /* Whether a day is worth keeping is decided against the database, not
+           against `items`.
+
+           `load` sets `days` and then fetches the items, so there is a render
+           in between where every day looks empty. Deleting on that reading is
+           how eight days imported from a sheet disappeared a second after
+           they were created — and it would have taken real days with them
+           given the right timing.
+
+           One query, only for the days that are candidates, and only when
+           there are any. */
+        const looksBare = (d) => !d.city && !d.lodging && !d.notes
             && ['lodging', 'food', 'excursions', 'transport', 'points']
                 .every((b) => !Number(d[`cost_${b}`]));
 
-        const disposable = orphans.filter(isEmpty).map((d) => d.id);
+        const bare = orphans.filter(looksBare);
+        let disposable = [];
+        if (bare.length) {
+            const { data: held, error: readError } = await supabase
+                .from('atlas_day_items').select('day_id')
+                .in('day_id', bare.map((d) => d.id)).eq('user_id', user.id);
+            // Could not check: keep them. A day wrongly kept is a tidy-up; a
+            // day wrongly deleted is someone's evening.
+            if (!readError) {
+                const busy = new Set((held || []).map((r) => r.day_id));
+                disposable = bare.filter((d) => !busy.has(d.id)).map((d) => d.id);
+            }
+        }
 
         if (!missing.length && !disposable.length) return;
 
         if (missing.length) {
-            const { error } = await supabase.from('atlas_days').insert(
-                missing.map((date) => ({ trip_id: trip.id, user_id: user.id, date }))
+            /* Upsert, not insert. `days` here is state, and state can be
+               behind the table — an import that has just created the same
+               dates, another tab, a re-render mid-flight. `(trip_id, date)`
+               is unique, so an insert that overlaps comes back 409 and takes
+               the whole batch with it. A day that already exists is not an
+               error; it is the desired state. */
+            const { error } = await supabase.from('atlas_days').upsert(
+                missing.map((date) => ({ trip_id: trip.id, user_id: user.id, date })),
+                { onConflict: 'trip_id,date', ignoreDuplicates: true }
             );
             if (error) console.error('Error creating days:', error);
         }
@@ -118,7 +147,7 @@ export const useTripDays = (trip) => {
                 .in('id', disposable).eq('user_id', user.id);
         }
         await load();
-    }, [user, trip, days, items, load]);
+    }, [user, trip, days, load]);
 
     /* ---------- legs: a city, for a stretch of days ---------------------- */
 
@@ -316,13 +345,51 @@ export const useTripDays = (trip) => {
         if (!user || !tripId) return { ok: false, reason: 'No trip open.' };
         if (!rows.length) return { ok: false, reason: 'Nothing to import.' };
 
-        const dates = rows.map((r) => String(r.date).slice(0, 10));
+        const dates = rows.map((r) => String(r.date).slice(0, 10))
+            .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+            .sort();
+        if (!dates.length) return { ok: false, reason: 'No usable dates in that sheet.' };
+
+        /* Make the trip cover what the sheet describes, before creating a
+           single day.
+
+           This is what made an import look like it worked and then vanish.
+           `ensureDays` deletes days that fall outside the trip's own dates
+           and have nothing in them — reasonable on its own, and fatal here:
+           the sheet's days landed outside the range, `ensureDays` ran with
+           `items` still empty because the load had not come back, judged all
+           eight of them disposable, and swept them away. The report said
+           "brought in 8 days and 10 things" and it was telling the truth at
+           the time.
+
+           A sheet describing eight days *is* the trip's dates. Widening only,
+           because an import is an addition. */
+        const from = dates[0];
+        const to = dates[dates.length - 1];
+        const start = String(trip?.start_date || '').slice(0, 10);
+        const end = String(trip?.end_date || '').slice(0, 10) || start;
+        const span = {};
+        if (!start || from < start) span.start_date = from;
+        if (!end || to > end) span.end_date = to;
+        if (Object.keys(span).length) {
+            const { error } = await supabase.from('atlas_trips')
+                .update(span).eq('id', tripId);
+            if (error) return { ok: false, reason: error.message };
+        }
+
+        /* Every date the trip now covers, not only the ones in the sheet — so
+           a gap in the middle of an imported fortnight is still a day. */
+        const wanted = datesBetween(span.start_date || start || from, span.end_date || end || to);
         const have = new Set(days.map((d) => String(d.date).slice(0, 10)));
-        const missing = dates.filter((d) => !have.has(d));
+        const missing = (wanted.length ? wanted : dates).filter((d) => !have.has(d));
 
         if (missing.length) {
-            const { error } = await supabase.from('atlas_days').insert(
-                missing.map((date) => ({ trip_id: tripId, user_id: user.id, date }))
+            // Upsert: `days` is state and may be behind the table, and
+            // (trip_id, date) is unique — an overlap is a 409 that takes the
+            // whole batch with it.
+            const { error } = await supabase.from('atlas_days').upsert(
+                missing.map((date) => ({ trip_id: tripId, user_id: user.id, date })),
+                { onConflict: 'trip_id,date', ignoreDuplicates: true }
             );
             if (error) return { ok: false, reason: error.message };
         }
@@ -339,7 +406,9 @@ export const useTripDays = (trip) => {
         for (const row of rows) {
             const id = idFor.get(String(row.date).slice(0, 10));
             if (!id) continue;
-            const { date, ...patch } = row;
+            // Everything but the date, which is what found the day.
+            const patch = { ...row };
+            delete patch.date;
             // A blank cell in the sheet is "not filled in", not "set to empty".
             const meaningful = Object.fromEntries(
                 Object.entries(patch).filter(([, v]) => v !== '' && v !== null && v !== 0)
@@ -379,7 +448,7 @@ export const useTripDays = (trip) => {
 
         await load();
         return { ok: true, days: rows.length, items: rowsToInsert.length };
-    }, [user, tripId, days, load]);
+    }, [user, tripId, trip, days, load]);
 
     /**
      * Ask the server to fill in the weather.

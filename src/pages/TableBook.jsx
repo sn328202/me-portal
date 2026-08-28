@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     GiForkKnifeSpoon, GiCheckMark, GiTrashCan, GiPositionMarker,
-    GiQuill, GiClockwork, GiWineGlass, GiRecycle, GiEnvelope,
+    GiQuill, GiClockwork, GiWineGlass, GiEnvelope,
 } from 'react-icons/gi';
 import {
     Button, Card, PageHeader, Tabs, TabPanel, Modal, Field, Tag, Stat,
@@ -9,7 +9,6 @@ import {
 } from '../components/ui';
 import { useReservations } from '../hooks/useReservations';
 import { supabase } from '../lib/supabase';
-import { sweep } from '../utils/reservationSweep';
 import { looksLike, fillFrom } from '../utils/placeMatch';
 import AddBookingToDay from '../components/AddBookingToDay';
 import MentionInput from '../components/MentionInput';
@@ -28,8 +27,11 @@ const EMPTY_FORM = {
 
 const STATUS_LABEL = { booked: 'Booked', dined: 'Dined', cancelled: 'Cancelled', no_show: 'No-show' };
 
+/* Short forms. "Sunday, August 30" is nineteen characters in a rail five and
+   a half rems wide, so it broke into three lines and put the 30 on one of its
+   own. Nothing on a booking slip needs the word September spelled out. */
 const fmtDay = (iso) => new Date(iso).toLocaleDateString(undefined, {
-    weekday: 'long', day: 'numeric', month: 'long',
+    weekday: 'short', day: 'numeric', month: 'short',
 });
 const fmtTime = (iso) => new Date(iso).toLocaleTimeString(undefined, {
     hour: 'numeric', minute: '2-digit',
@@ -87,9 +89,6 @@ const TableBook = ({ embedded = false }) => {
     const [paste, setPaste] = useState('');
     const [reading, setReading] = useState(false);
     const [readError, setReadError] = useState(null);
-    /* Whether the sweep's findings are on screen. It costs nothing to compute,
-       so it is always current — the button only decides whether to show it. */
-    const [swept, setSwept] = useState(false);
     /* Going back over the bookings made before the Table Book knew what a
        place was, and finding each one on Google. */
     const [linking, setLinking] = useState(false);
@@ -133,10 +132,6 @@ const TableBook = ({ embedded = false }) => {
         }
     };
 
-    /* Worked out from the bookings rather than fetched: no service will tell
-       you whether a table you hold is still held, but the clock alone settles
-       most of what has gone stale. */
-    const found = useMemo(() => sweep(reservations), [reservations]);
 
     const readPaste = async () => {
         const text = paste.trim();
@@ -289,13 +284,6 @@ const TableBook = ({ embedded = false }) => {
                         <Button onClick={() => { setReadError(null); setPasting(true); }}>
                             <GiEnvelope /> Paste a confirmation
                         </Button>
-                        <Button
-                            onClick={() => setSwept((v) => !v)}
-                            aria-pressed={swept}
-                        >
-                            <GiRecycle /> {swept ? 'Hide what changed' : 'Refresh statuses'}
-                            {found.count > 0 && !swept ? ` (${found.count})` : ''}
-                        </Button>
                         {/* Only offered when there is something to do:
                             once every booking carries a place, this is
                             noise. */}
@@ -318,10 +306,6 @@ const TableBook = ({ embedded = false }) => {
                         <div className="tablebook__acts">
                             <Button onClick={() => { setReadError(null); setPasting(true); }}>
                                 <GiEnvelope /> Paste a confirmation
-                            </Button>
-                            <Button onClick={() => setSwept((v) => !v)} aria-pressed={swept}>
-                                <GiRecycle /> {swept ? 'Hide what changed' : 'Refresh statuses'}
-                                {found.count > 0 && !swept ? ` (${found.count})` : ''}
                             </Button>
                             {/* Only offered when there is something to do:
                                 once every booking carries a place, this is
@@ -367,80 +351,14 @@ const TableBook = ({ embedded = false }) => {
                 <Stat value={letGo} label="Let go" icon={<GiWineGlass />} />
             </div>
 
-            {swept && (
-                <Card variant="flat" className="sweep">
-                    <h3><GiRecycle /> What has changed</h3>
-                    {/* Said out loud, because "refresh" usually means "go and
-                        ask" and here it cannot: no booking service offers a
-                        way to check a table you already hold. */}
-                    <p className="sweep__how">
-                        Worked out from your own book — nothing here was fetched from Resy or
-                        OpenTable, because neither of them offers a way to ask.
-                    </p>
-
-                    {found.count === 0 && <p>Nothing to settle. Every table is where you left it.</p>}
-
-                    {found.unsettled.length > 0 && (
-                        <div className="sweep__group">
-                            <h4>{found.unsettled.length} {found.unsettled.length === 1 ? 'table has' : 'tables have'} been and gone without a verdict</h4>
-                            <ul>
-                                {found.unsettled.map((r) => (
-                                    <li key={r.id}>
-                                        <span>{r.restaurant} — {fmtShort(r.starts_at)}</span>
-                                        <span className="sweep__acts">
-                                            <Button size="sm" onClick={() => markDined(r)}>
-                                                <GiCheckMark /> Went
-                                            </Button>
-                                            <Button size="sm" onClick={() => cancelReservation(r)}>
-                                                Didn’t
-                                            </Button>
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {found.soon.length > 0 && (
-                        <div className="sweep__group">
-                            <h4>Free to cancel until…</h4>
-                            <ul>
-                                {found.soon.map((r) => (
-                                    <li key={r.id}>
-                                        <span>{r.restaurant} — decide by {fmtShort(r.cancel_by)}{r.cancel_fee ? `, then ${r.cancel_fee}` : ''}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {found.missed.length > 0 && (
-                        <div className="sweep__group sweep__group--warn">
-                            <h4>Past the free-cancellation deadline</h4>
-                            <ul>
-                                {found.missed.map((r) => (
-                                    <li key={r.id}>
-                                        <span>{r.restaurant} — {fmtShort(r.starts_at)}{r.cancel_fee ? ` · cancelling now costs ${r.cancel_fee}` : ''}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {found.clashes.length > 0 && (
-                        <div className="sweep__group sweep__group--warn">
-                            <h4>Two tables at nearly the same hour</h4>
-                            <ul>
-                                {found.clashes.map(([a, b]) => (
-                                    <li key={`${a.id}-${b.id}`}>
-                                        <span>{a.restaurant} and {b.restaurant}, {fmtShort(a.starts_at)}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                </Card>
-            )}
+            /* "Refresh statuses" is gone. It promised the one thing it
+               could not do — no booking service offers a way to ask whether a
+               table you hold is still held — so it was a button that went
+               away and came back with arithmetic over her own book, which is
+               a strange thing to have to press. What it found that was worth
+               finding is on the bookings themselves: the cancellation
+               deadline is on the slip, and a table that has been and gone
+               still has Went and Cancelled it sitting on it. */
 
             <Tabs
                 label="Table book"

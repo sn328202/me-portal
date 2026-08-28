@@ -295,27 +295,21 @@
 
 /* ---------- Folded panels (Intelligence / Logistics) -------- */
 
+/* A heading now, not a fold. These panels used to hold a permanent column
+   open beside the timeline, where collapsing them earned their space back;
+   they live in a dialog you opened on purpose, and a dialog whose contents
+   are hidden behind two more clicks has not opened. */
 .panel__summary {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    min-height: var(--tap-min);
-    color: var(--text-muted);
+    margin: 0 0 var(--space-3);
+    color: var(--text-main);
     font-family: var(--font-body);
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     letter-spacing: var(--tracking-label);
     text-transform: var(--case-heading);
-    cursor: pointer;
-}
-
-.panel__summary::marker,
-.panel__summary::-webkit-details-marker {
-    color: var(--text-muted);
-}
-
-.panel[open] .panel__summary {
-    color: var(--text-main);
 }
 
 .panel__body {

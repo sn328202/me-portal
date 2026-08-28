@@ -29,13 +29,20 @@
 
 /* --- Held tables ---------------------------------------- */
 
+/* Two abreast where there is room for two. A single column across a wide
+   screen gave every booking two thousand pixels for a restaurant name and an
+   address, and meant four of them filled the page. */
 .tablebook__slips {
     list-style: none;
     margin: var(--space-5) 0 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+    gap: var(--space-3);
+    align-items: start;
+    /* Three columns is a spreadsheet rather than a list, and the cards start
+       to lose the address to wrapping. */
+    max-width: 76rem;
 }
 
 /* Card renders its children inside .card__body, so the three-column layout
@@ -64,7 +71,7 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    width: 5.5rem;
+    width: 5rem;
     padding-right: var(--space-3);
     border-right: var(--rule-hair);
 }
@@ -414,68 +421,7 @@
     gap: var(--space-2);
 }
 
-.sweep {
-    margin-bottom: var(--space-5);
-}
-
-.sweep h3 {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin: 0 0 var(--space-1);
-    font-family: var(--font-display);
-    font-size: var(--text-base);
-}
-
 /* Said out loud, and styled so it is read once and then ignored. */
-.sweep__how {
-    margin: 0 0 var(--space-4);
-    color: var(--text-dim);
-    font-size: var(--text-2xs);
-}
-
-.sweep__group {
-    padding-top: var(--space-3);
-    border-top: 1px dashed var(--border-dim);
-}
-
-.sweep__group + .sweep__group { margin-top: var(--space-3); }
-
-.sweep__group h4 {
-    margin: 0 0 var(--space-2);
-    color: var(--text-muted);
-    font-family: var(--font-body);
-    font-size: var(--text-xs);
-    font-weight: var(--weight-medium);
-    letter-spacing: var(--tracking-label);
-    text-transform: var(--case-heading);
-}
-
-.sweep__group--warn h4 { color: var(--accent-crimson, var(--text-gold)); }
-
-.sweep__group ul {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.sweep__group li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    font-size: var(--text-sm);
-}
-
-.sweep__acts {
-    display: flex;
-    gap: var(--space-2);
-}
-
 .tablebook__paste {
     display: flex;
     flex-direction: column;
