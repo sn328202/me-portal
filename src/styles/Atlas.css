@@ -1965,3 +1965,37 @@
 .waypoint { padding: var(--space-1) 0; }
 
 .atlas .interactive-map { margin-top: var(--space-2); }
+
+
+/* --- Loose ends ------------------------------------------------
+   The pins dropped by hand and the map they sit on. Neither decides
+   anything: the trip can be planned start to finish without opening
+   this. So it is a section of its own at the bottom, marked off by a
+   rule and named, rather than trailing off the end of the planner as
+   though it were the next thing to do. */
+
+.expedition__loose {
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px dashed var(--border-dim);
+}
+
+.expedition__loose-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.expedition__loose-head h3 {
+    margin: 0;
+}
+
+/* Quieter than the heading it sits beside: this is a note about the
+   section, not a thing to read. */
+.expedition__loose-head p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}

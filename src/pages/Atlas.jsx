@@ -509,7 +509,19 @@ const Atlas = () => {
                             onBook={planner.addStay}
                         />
 
-                        <div className="field">
+                        {/* Loose ends: the pins dropped by hand and the map
+                            they live on. Neither decides anything about the
+                            trip — you can plan the whole thing without ever
+                            opening this — so it sits at the bottom, under its
+                            own heading, rather than trailing off the end of
+                            the planner as though it were the next step. */}
+                        <section className="expedition__loose">
+                            <header className="expedition__loose-head">
+                                <h3 className="section-title">Loose ends</h3>
+                                <p>Pins and the map. Nice to have; nothing here is needed to plan.</p>
+                            </header>
+
+                            <div className="field">
                             <span className="field__label">WAYPOINTS (CLICK MAP TO ADD)</span>
                             <ul className="waypoints">
                                 {currentWaypoints.map((wp, idx) => (
@@ -557,7 +569,8 @@ const Atlas = () => {
                                 }}
                             />
                             {locating && <p className="atlas__locating">Finding these places…</p>}
-                        </div>
+                            </div>
+                        </section>
                     </Card>
 
 
