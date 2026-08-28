@@ -11,6 +11,7 @@ import { useReservations } from '../hooks/useReservations';
 import { useSpots } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { sweep } from '../utils/reservationSweep';
+import AddBookingToDay from '../components/AddBookingToDay';
 import '../styles/TableBook.css';
 
 const PLATFORMS = ['OpenTable', 'Resy', 'Tock', 'Yelp', 'Google', 'SevenRooms', 'Direct', 'Other'];
@@ -66,7 +67,7 @@ const countdown = (iso) => {
 const TableBook = ({ embedded = false }) => {
     const {
         upcoming, past, reservations, loading, error,
-        addReservation, markDined, cancelReservation, deleteReservation,
+        addReservation, markDined, cancelReservation, deleteReservation, refresh,
     } = useReservations();
     const { spots } = useSpots();
 
@@ -397,6 +398,7 @@ const TableBook = ({ embedded = false }) => {
                                                         {r.platform && <Tag>{r.platform}</Tag>}
                                                         {r.confirmation && <Tag>#{r.confirmation}</Tag>}
                                                         {r.spot_id && <Tag>From your spots</Tag>}
+                                                        {r.placed_where && <Tag>On {r.placed_where}</Tag>}
                                                     </div>
                                                     {r.cancel_by && (
                                                         <p className="slip__deadline">
@@ -408,6 +410,13 @@ const TableBook = ({ embedded = false }) => {
                                                 </div>
 
                                                 <div className="slip__actions">
+                                                    {/* A booked table is a plan with a time on it.
+                                                        It belongs on the day it happens, not only
+                                                        in a list of bookings. */}
+                                                    <AddBookingToDay
+                                                        reservation={r}
+                                                        onPlaced={() => refresh?.()}
+                                                    />
                                                     <Button size="sm" onClick={() => markDined(r)}>
                                                         <GiCheckMark /> Went
                                                     </Button>

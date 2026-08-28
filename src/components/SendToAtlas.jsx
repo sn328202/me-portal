@@ -4,6 +4,7 @@ import { GiWorld } from 'react-icons/gi';
 import { Button, Modal } from './ui';
 import { supabase } from '../lib/supabase';
 import { describeSend } from '../utils/planToAtlas';
+import '../styles/SendToDay.css';
 
 /**
  * Send a day plan into an Atlas trip, as one of its days.
