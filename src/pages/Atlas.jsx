@@ -248,11 +248,16 @@ const Atlas = () => {
                                     className="trip-card"
                                     style={{ '--trip-cover': trip.image_url ? `url(${trip.image_url})` : 'none' }}
                                 >
-                                    <span className="trip-card__tag">
-                                        {trip.image_url ? 'Mission File' : (
-                                            tripFlags[trip.id]?.join(' ') || 'Mission File'
-                                        )}
-                                    </span>
+                                    <span className="trip-card__tag">Mission File</span>
+                                    {/* Something to recognise the trip by. A
+                                        photo if there is one; otherwise the
+                                        flags of the places it goes, big enough
+                                        to actually read from the grid. */}
+                                    {!trip.image_url && tripFlags[trip.id]?.length > 0 && (
+                                        <span className="trip-card__flags" aria-hidden="true">
+                                            {tripFlags[trip.id].join('')}
+                                        </span>
+                                    )}
                                     <span className="trip-card__title">
                                         <button
                                             type="button"
