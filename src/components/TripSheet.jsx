@@ -194,7 +194,12 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
                             <li key={d.date}>
                                 <strong>{dayLabel(d.date)}</strong>
                                 <span>{d.city || '—'}</span>
-                                <span>{preview.items.filter((i) => i.date === d.date).length} things</span>
+                                {/* "1 things" reads like a bug even when it is not. */}
+                                <span>
+                                    {preview.items.filter((i) => i.date === d.date).length === 1
+                                        ? '1 thing'
+                                        : `${preview.items.filter((i) => i.date === d.date).length} things`}
+                                </span>
                             </li>
                         ))}
                         {preview.days.length > 6 && (
