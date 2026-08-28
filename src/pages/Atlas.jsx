@@ -8,6 +8,7 @@ import TripPlanner from '../components/TripPlanner';
 import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
 import { useTripDays } from '../hooks/useTripDays';
+import { useTripIdeas } from '../hooks/useTripIdeas';
 import { flagsForLegs } from '../utils/flags';
 import { legDestination, isTravelLeg } from '../utils/tripLegs';
 import '../styles/Atlas.css';
@@ -33,6 +34,10 @@ const Atlas = () => {
     // and the handoff to the Wardrobe. Fetching them three times would be
     // three answers to one question.
     const planner = useTripDays(selectedTrip);
+
+    // Lifted for the same reason as the days: the board shows the ideas and
+    // the timeline needs to mark one used when it is dragged onto an hour.
+    const ideas = useTripIdeas(selectedTrip?.id);
 
     const { legs } = planner;
     const [locating, setLocating] = useState(false);
@@ -333,13 +338,19 @@ const Atlas = () => {
                         {/* The day-by-day plan: the spreadsheet's spine. */}
                         <section className="expedition__planner">
                             <h3 className="section-title">The Days</h3>
-                            <TripPlanner trip={selectedTrip} onUpdateTrip={handleUpdateTrip} planner={planner} />
+                            <TripPlanner
+                                trip={selectedTrip}
+                                onUpdateTrip={handleUpdateTrip}
+                                planner={planner}
+                                onIdeaUsed={ideas.markPromoted}
+                            />
                         </section>
 
                         {/* Where a thought goes before it has a date. */}
                         <TripIdeas
                             trip={selectedTrip}
                             days={planner.days}
+                            hooks={ideas}
                             onAddToDay={planner.addItem}
                             onBook={planner.addStay}
                         />

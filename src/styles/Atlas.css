@@ -1480,3 +1480,59 @@
 @media (max-width: 720px) {
     .trip-card__flags { font-size: 2rem; }
 }
+
+/* --- Dragging on the timeline --------------------------------- */
+
+/* The cells are the drag surface; the plans are drawn over them, so a block
+   can span hours without the row it starts in having to contain it. */
+.timeline__cell {
+    cursor: cell;
+    user-select: none;
+}
+
+.timeline__cell.is-selecting,
+.timeline__cell.is-over {
+    background: var(--accent-gold-dim);
+    box-shadow: inset 0 0 0 1px var(--text-gold);
+}
+
+.timeline__blocks {
+    grid-column: 2 / -1;
+    grid-row: 4 / span 19;
+    display: grid;
+    grid-template-columns: repeat(var(--days), minmax(9rem, 1fr));
+    grid-template-rows: repeat(19, 1fr);
+    gap: 2px;
+    padding: 2px;
+    /* The layer must not swallow the drags meant for the cells beneath it. */
+    pointer-events: none;
+}
+
+.timeline__blocks .timeline__item {
+    display: block;
+    overflow: hidden;
+    margin: 0;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--fill-quiet);
+    color: var(--bg-panel);
+    font-size: var(--text-2xs);
+    line-height: 1.3;
+    white-space: normal;
+    text-overflow: ellipsis;
+    cursor: grab;
+    pointer-events: auto;
+}
+
+.timeline__blocks .timeline__item:active { cursor: grabbing; }
+.timeline__blocks .timeline__item.is-food { background: var(--fill-strong); }
+.timeline__blocks .timeline__item.is-transport { background: var(--text-dim); }
+
+.timeline__hint {
+    margin: var(--space-2) 0 0;
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+}
+
+/* An idea being dragged out of the board. */
+.idea[draggable='true'] .idea__title { cursor: grab; }

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { GiTrashCan, GiLightBulb, GiHouse, GiPathDistance } from 'react-icons/gi';
 import { Button, Card } from './ui';
-import { useTripIdeas } from '../hooks/useTripIdeas';
 import { formatMoney } from '../utils/tripCosts';
 
 /**
@@ -23,7 +22,19 @@ const IdeaRow = ({ idea, currency, onUpdate, onDelete, onPromote, canPromote }) 
     const [open, setOpen] = useState(false);
 
     return (
-        <li className={`idea${idea.promoted_at ? ' is-promoted' : ''}`}>
+        <li
+            className={`idea${idea.promoted_at ? ' is-promoted' : ''}`}
+            /* Dragged onto an hour on the timeline, an idea becomes a plan at
+               that date and time — which is the shortest path there is from
+               "someone mentioned this" to a thing on a Tuesday. */
+            draggable={!idea.promoted_at}
+            onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'copy';
+                e.dataTransfer.setData('application/x-idea', JSON.stringify({
+                    id: idea.id, title: idea.title, cost: idea.cost, kind: idea.kind,
+                }));
+            }}
+        >
             <div className="idea__head">
                 <input
                     type="text"
@@ -160,8 +171,7 @@ const Column = ({ title, icon, kind, ideas, currency, hooks, placeholder, onProm
     );
 };
 
-const TripIdeas = ({ trip, days = [], onAddToDay, onBook }) => {
-    const hooks = useTripIdeas(trip?.id);
+const TripIdeas = ({ trip, days = [], hooks, onAddToDay, onBook }) => {
     const currency = trip?.currency || 'USD';
     const [target, setTarget] = useState('');
 

@@ -331,5 +331,39 @@ console.log('\nthings a real exported sheet does:');
     check('a real ISO date is still fine', parseDayHeader('2024-04-28'), '2024-04-28');
 }
 
+/* --- an activity has a length, and it survives the trip ------------------ */
+console.log('\nhow long something lasts:');
+{
+    const withSpan = {
+        days: [{ id: 'd1', date: '2026-12-25' }],
+        items: {
+            d1: [
+                { id: 'a', title: 'Day on a houseboat', kind: 'todo', start_time: '09:00:00', end_time: '17:00:00' },
+                { id: 'b', title: 'Dinner', kind: 'food', start_time: '19:00:00' },
+            ],
+        },
+        legs: [], stays: [], costs: {},
+    };
+    const grid = itineraryTab(withSpan).rows;
+    const at = (label) => grid.find((r) => r[0] === label)?.[1];
+
+    // The block is drawn on every hour it covers, the way she draws it by hand.
+    check('a block fills every hour it covers', at('9:00 AM'), 'Day on a houseboat');
+    check('including the last one before it ends', at('4:00 PM'), 'Day on a houseboat');
+    check('but not the hour it ends at', at('5:00 PM'), '');
+    check('something with no length is one row', at('7:00 PM'), 'Dinner');
+    check('and does not bleed into the next', at('8:00 PM'), '');
+
+    const back = readSheet(grid, { year: 2026 });
+    check('it comes back as one thing, not eight',
+        back.items.map((i) => i.title), ['Day on a houseboat', 'Dinner']);
+    check('with the hour it started',
+        back.items[0].start_time, '09:00');
+    // The run of identical cells is the length; without recording where it
+    // ends, a full day and a one-hour coffee read back identically.
+    check('and the length it ran for', back.items[0].end_time, '17:00:00');
+    check('while a one-hour thing claims no length', back.items[1].end_time, undefined);
+}
+
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);

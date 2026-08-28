@@ -15,6 +15,7 @@
  */
 
 import { cityLabelOn } from './tripLegs.js';
+import { spanOf } from './timeline.js';
 import { nightsOf } from './tripCosts.js';
 
 /* 6am to midnight, as the sheet has it. 12am is the end of the day, not the
@@ -174,7 +175,13 @@ export const itineraryTab = (
     for (const hour of HOURS) {
         const cells = dates.map((date) => {
             const day = days.find((d) => String(d.date).slice(0, 10) === date);
-            const slot = (items[day?.id] || []).filter((i) => hourOf(i.start_time) === hour);
+            // Every hour a thing covers, not only the one it starts in — so a
+            // day on a houseboat reads as a block, the way she draws it by
+            // hand, and comes back as a block when it is read in again.
+            const slot = (items[day?.id] || []).filter((i) => {
+                const span = spanOf(i);
+                return span && hour >= span.from && hour < span.to;
+            });
             return slot.map((i) => i.title).filter(Boolean).join('\n');
         });
         put([hourLabel(hour), ...cells]);
@@ -393,27 +400,45 @@ export const readSheet = (grid = [], { year } = {}) => {
     // merged cell reads back as the same text on every hour it covers. Emitting
     // one item per hour would turn a paragliding trip into nine paraglidings,
     // so a value identical to the hour above it in the same column is a
-    // continuation, not a new plan.
+    // continuation — and the hour the run ends at is how long it lasts.
     const running = new Map();
+
+    const close = (index, endHour) => {
+        const open = running.get(index);
+        if (!open) return;
+        // Only the ones that actually ran on: giving everything an end would
+        // claim an hour's length for things typed in with no length at all.
+        if (open.item && endHour !== null && endHour > open.hour + 1) {
+            open.item.end_time = `${String(endHour % 24).padStart(2, '0')}:00:00`;
+        }
+        running.delete(index);
+    };
 
     for (const row of rows) {
         const label = String(row[0] || '').trim();
         const unscheduled = /^unscheduled$/i.test(label);
         if (!isTime(label) && !unscheduled) continue;
         const time = unscheduled ? null : parseHour(label);
+        const hour = time === null ? null : Number(time.slice(0, 2));
 
         for (const { index, date } of columns) {
             const cell = clean(row[index]);
-            if (!cell) { running.delete(index); continue; }
-            if (running.get(index) === cell) continue;
-            running.set(index, cell);
+            if (!cell) { close(index, hour); continue; }
+            if (running.get(index)?.text === cell) continue;
+            close(index, hour);
 
             // The second line of a cell is a detail, not a second plan:
             // "St. Beatus Caves / Lauterbrunnen", "S&J Brunch / 11-1".
             const title = cell.split('\n').map((t) => t.trim()).filter(Boolean).join(' — ');
-            if (title) items.push({ date, start_time: time, title, kind: 'todo' });
+            if (!title) continue;
+            const item = { date, start_time: time, title, kind: 'todo' };
+            items.push(item);
+            running.set(index, { text: cell, hour, item });
         }
     }
+
+    // A block that runs to the bottom of the grid ends at midnight.
+    for (const index of [...running.keys()]) close(index, 24);
 
     // How many rows are labelled with a clock time. This is the fingerprint of
     // the itinerary grid, and the only reliable way to tell it from her packing

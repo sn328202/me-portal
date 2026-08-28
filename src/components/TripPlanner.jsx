@@ -105,11 +105,11 @@ const DayItem = ({ item, currency, onChange, onDelete }) => (
     </li>
 );
 
-const TripPlanner = ({ trip, onUpdateTrip, planner }) => {
+const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
     const {
         days, items, stays, legs, strays, tripDates, costs, weatherBusy, weatherMessage,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
-        legOnDate, cityLabelFor, addLeg, updateLeg, deleteLeg,
+        legOnDate, cityLabelFor, addLeg, updateLeg, deleteLeg, moveItem,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather,
     // Lifted to the page so the spreadsheet export and the Wardrobe handoff
     // read the same trip this is showing, rather than fetching a second copy.
@@ -228,14 +228,36 @@ const TripPlanner = ({ trip, onUpdateTrip, planner }) => {
                     onDelete={deleteLeg}
                 />
             ) : view === 'timeline' ? (
-                <TripTimeline
-                    days={days}
-                    items={items}
-                    stays={stays}
-                    legs={legs}
-                    costs={costs}
-                    currency={currency}
-                />
+                <>
+                    <TripTimeline
+                        days={days}
+                        items={items}
+                        stays={stays}
+                        legs={legs}
+                        costs={costs}
+                        currency={currency}
+                        onCreate={(dayId, times) => addItem(dayId, {
+                            title: 'New plan', kind: 'todo', ...times,
+                        })}
+                        onMove={moveItem}
+                        onDropIdea={async (dayId, times, idea) => {
+                            await addItem(dayId, {
+                                title: idea.title,
+                                kind: idea.kind === 'stay' ? 'lodging' : 'todo',
+                                cost: idea.cost ?? null,
+                                ...times,
+                            });
+                            // The idea stays on the board, dimmed: the note
+                            // saying why it was worth doing does not fit in a
+                            // day item, and is often the useful half.
+                            await onIdeaUsed?.(idea.id);
+                        }}
+                    />
+                    <p className="timeline__hint">
+                        Drag across the hours to block something out, drag a plan to move it,
+                        or drag an idea in from below.
+                    </p>
+                </>
             ) : (
             <div className="trip-planner__days">
                 {days.map((day) => {

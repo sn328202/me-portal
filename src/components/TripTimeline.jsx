@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
 import { legBands, legLabel, cityLabelOn } from '../utils/tripLegs';
+import { HOURS, rowsFor, dragRange, timesFromDrag, movedTo, describeSpan } from '../utils/timeline';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -17,15 +18,6 @@ import { legBands, legLabel, cityLabelOn } from '../utils/tripLegs';
  * merged cell in the Lodging row was doing.
  */
 
-/** 6am to midnight, as the sheet had it. */
-const HOURS = Array.from({ length: 19 }, (_, i) => i + 6);
-
-const hourOf = (time) => {
-    if (!time) return null;
-    const h = Number(String(time).slice(0, 2));
-    return Number.isFinite(h) ? h : null;
-};
-
 const label = (hour) => {
     const h = hour % 24;
     const suffix = h < 12 ? 'am' : 'pm';
@@ -33,7 +25,37 @@ const label = (hour) => {
     return `${twelve}${suffix}`;
 };
 
-const TripTimeline = ({ days, items, stays, legs = [], costs, currency = 'USD' }) => {
+/* The hour rows begin on the fourth grid row: day heads, City, Lodging. */
+const FIRST_HOUR_ROW = 4;
+
+const TripTimeline = ({
+    days, items, stays, legs = [], costs, currency = 'USD',
+    onCreate, onMove, onDropIdea,
+}) => {
+    /* A drag in progress: which day, and the two rows it has touched. Held
+       here rather than written per-cell so the highlight and the commit read
+       the same selection. */
+    const [drag, setDrag] = useState(null);
+    const [over, setOver] = useState(null);
+
+    const finish = useCallback(() => {
+        setDrag((current) => {
+            if (current && onCreate) {
+                const { from, to } = dragRange(current.from, current.to);
+                if (to > from) onCreate(current.dayId, timesFromDrag(current.from, current.to));
+            }
+            return null;
+        });
+    }, [onCreate]);
+
+    /* The mouse leaves the grid mid-drag more often than it does not, so the
+       release is listened for on the window rather than on a cell. */
+    useEffect(() => {
+        if (!drag) return undefined;
+        window.addEventListener('mouseup', finish);
+        return () => window.removeEventListener('mouseup', finish);
+    }, [drag, finish]);
+
     if (!days.length) return null;
 
     const byId = Object.fromEntries((costs?.days || []).map((d) => [d.id, d]));
@@ -124,33 +146,87 @@ const TripTimeline = ({ days, items, stays, legs = [], costs, currency = 'USD' }
                     {!bars.length && <span className="timeline__nostay">No lodging booked</span>}
                 </div>
 
+                {/* The cells are the drag surface and nothing else; the things
+                    planned are drawn over them, so a block can span hours
+                    without the row it starts in having to contain it. */}
                 {HOURS.map((hour) => (
                     <React.Fragment key={hour}>
                         <div className="timeline__rowlabel">{label(hour)}</div>
                         {days.map((day) => {
-                            const slot = (items[day.id] || []).filter((i) => hourOf(i.start_time) === hour);
+                            const selected = drag && drag.dayId === day.id
+                                && hour >= Math.min(drag.from, drag.to)
+                                && hour <= Math.max(drag.from, drag.to);
+                            const hovered = over && over.dayId === day.id && over.hour === hour;
                             return (
-                                <div key={`${day.id}-${hour}`} className="timeline__cell">
-                                    {slot.map((item) => (
-                                        <span
-                                            key={item.id}
-                                            className={`timeline__item is-${item.kind}`}
-                                            title={item.title}
-                                        >
-                                            {item.title}
-                                        </span>
-                                    ))}
-                                </div>
+                                <div
+                                    key={`${day.id}-${hour}`}
+                                    className={`timeline__cell${selected ? ' is-selecting' : ''}${hovered ? ' is-over' : ''}`}
+                                    onMouseDown={(e) => {
+                                        if (e.button !== 0 || !onCreate) return;
+                                        e.preventDefault();
+                                        setDrag({ dayId: day.id, from: hour, to: hour });
+                                    }}
+                                    onMouseEnter={() => {
+                                        setDrag((d) => (d && d.dayId === day.id ? { ...d, to: hour } : d));
+                                    }}
+                                    onDragOver={(e) => {
+                                        if (!onMove && !onDropIdea) return;
+                                        e.preventDefault();
+                                        setOver({ dayId: day.id, hour });
+                                    }}
+                                    onDragLeave={() => setOver(null)}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        setOver(null);
+                                        const idea = e.dataTransfer.getData('application/x-idea');
+                                        if (idea) {
+                                            onDropIdea?.(day.id, timesFromDrag(hour, hour), JSON.parse(idea));
+                                            return;
+                                        }
+                                        const moving = e.dataTransfer.getData('application/x-item');
+                                        if (!moving) return;
+                                        const { id, fromDay, item } = JSON.parse(moving);
+                                        onMove?.(fromDay, day.id, id, movedTo(item, hour));
+                                    }}
+                                />
                             );
                         })}
                     </React.Fragment>
                 ))}
 
+                {/* Everything planned, drawn as blocks over the grid. */}
+                <div className="timeline__blocks" style={{ '--days': days.length }}>
+                    {days.map((day, column) => (items[day.id] || []).map((item) => {
+                        const box = rowsFor(item, HOURS);
+                        if (!box) return null;
+                        return (
+                            <span
+                                key={item.id}
+                                className={`timeline__item is-${item.kind}`}
+                                draggable
+                                onDragStart={(e) => {
+                                    e.dataTransfer.effectAllowed = 'move';
+                                    e.dataTransfer.setData('application/x-item', JSON.stringify({
+                                        id: item.id, fromDay: day.id, item,
+                                    }));
+                                }}
+                                style={{
+                                    gridColumn: column + 1,
+                                    gridRow: `${box.start + 1} / span ${box.span}`,
+                                }}
+                                title={`${item.title} · ${describeSpan(item)}`}
+                            >
+                                {item.title}
+                            </span>
+                        );
+                    }))}
+                </div>
+
                 {/* Anything without a time still has to go somewhere, or it
                     would vanish from this view entirely. */}
                 <div className="timeline__rowlabel">Unscheduled</div>
                 {days.map((day) => {
-                    const loose = (items[day.id] || []).filter((i) => hourOf(i.start_time) === null);
+                    const loose = (items[day.id] || []).filter((i) => !i.start_time);
                     return (
                         <div key={`${day.id}-loose`} className="timeline__cell">
                             {loose.map((item) => (

@@ -263,6 +263,36 @@ export const useTripDays = (trip) => {
         if (error) { console.error('Error updating item:', error); load(); }
     }, [user, load]);
 
+    /**
+     * Move a planned thing to another hour, and possibly another day.
+     *
+     * A move within a day is a patch; a move across days changes which row it
+     * hangs off, so the local state has to lift it out of one list and into
+     * another rather than editing it in place. Doing that wrong leaves the item
+     * drawn in both columns until the next reload, which looks like it was
+     * copied.
+     */
+    const moveItem = useCallback(async (fromDayId, toDayId, id, patch) => {
+        if (!user) return;
+        const source = items[fromDayId] || [];
+        const moving = source.find((i) => i.id === id);
+        if (!moving) return;
+
+        const next = { ...moving, ...patch, day_id: toDayId };
+
+        setItems((prev) => {
+            const out = { ...prev, [fromDayId]: (prev[fromDayId] || []).filter((i) => i.id !== id) };
+            if (fromDayId !== toDayId) out[toDayId] = [...(prev[toDayId] || []), next];
+            else out[fromDayId] = [...out[fromDayId], next];
+            return out;
+        });
+
+        const { error } = await supabase.from('atlas_day_items')
+            .update({ ...patch, day_id: toDayId })
+            .eq('id', id).eq('user_id', user.id);
+        if (error) { console.error('Error moving item:', error); load(); }
+    }, [user, items, load]);
+
     const deleteItem = useCallback(async (dayId, id) => {
         if (!user) return;
         setItems((prev) => ({ ...prev, [dayId]: (prev[dayId] || []).filter((i) => i.id !== id) }));
@@ -414,6 +444,6 @@ export const useTripDays = (trip) => {
         addLeg, updateLeg, deleteLeg, applyImport,
         weatherBusy: weatherState.busy,
         weatherMessage: weatherState.message,
-        ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather, reload: load,
+        ensureDays, updateDay, addItem, updateItem, moveItem, deleteItem, refreshWeather, reload: load,
     };
 };
