@@ -1433,3 +1433,13 @@
     border-color: var(--text-gold);
     background: var(--field-bg);
 }
+
+/* One tile source, two looks. Inverting the tile pane gives a dark map from
+   light tiles without a second provider or an API key — and only the pane, so
+   the pins and popups keep their own colours. */
+.interactive-map.is-dark .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.94) contrast(0.9);
+}
+
+/* An empty badge would collapse the dot to nothing. */
+.trip-pin__dot:empty { width: 14px; height: 14px; }

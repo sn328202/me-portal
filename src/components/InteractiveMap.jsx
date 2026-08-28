@@ -71,9 +71,9 @@ const valid = (lat, lng) => (
 );
 
 /**
- * `stops` are the places, in order: { lat, lng, label, sub, badge, onOpen }.
- * `route` draws a line through them, which suits one trip and not an index of
- * several unrelated ones.
+ * `stops` are the places: { lat, lng, label, sub, badge, leg, onOpen }.
+ * `route` draws a line through the ones marked `leg`, which suits one trip and
+ * not an index of several unrelated ones.
  */
 const InteractiveMap = ({
     stops = [], route = false, onLocationSelect, selectedLocation, isEditing,
@@ -98,31 +98,35 @@ const InteractiveMap = ({
     // to take the space back.
     if (!plotted.length && !isEditing) return null;
 
+    // Only the stops that are part of the route get a line through them: a pin
+    // she dropped by hand is a note, not a stop on the itinerary.
+    const line = plotted.filter((s) => s.leg).map((s) => [Number(s.lat), Number(s.lng)]);
+
     return (
-        <div className="interactive-map">
+        <div className={`interactive-map${theme.dark ? ' is-dark' : ''}`}>
             <MapContainer
                 center={points[0] || [20, 0]}
                 zoom={points.length ? 5 : 2}
                 scrollWheelZoom={false}
                 className="interactive-map__canvas"
             >
-                {/* Light tiles under a light theme. The map was the one part of
-                    the app that stayed dark whatever the vibe. */}
+                {/* OpenStreetMap's own tiles, because CARTO now stamps
+                    "API KEY REQUIRED" across its light basemap and a map with
+                    that written over India is not a map. One source for both
+                    themes; the dark version is the same tiles inverted in CSS,
+                    which needs no key and no second provider. */}
                 <TileLayer
-                    key={theme.dark ? 'dark' : 'light'}
-                    url={theme.dark
-                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'}
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                    url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
 
                 {/* One trip among several wants the region; one stop on a
                     route wants the city it is in. */}
                 <FitTo points={points} solo={route ? 8 : 4} />
 
-                {route && points.length > 1 && (
+                {route && line.length > 1 && (
                     <Polyline
-                        positions={points}
+                        positions={line}
                         pathOptions={{ color: theme.accent, weight: 2, opacity: 0.7, dashArray: '5 7' }}
                     />
                 )}
@@ -131,7 +135,7 @@ const InteractiveMap = ({
                     <Marker
                         key={stop.key || `${stop.lat},${stop.lng},${i}`}
                         position={[Number(stop.lat), Number(stop.lng)]}
-                        icon={pin(route ? String(i + 1) : (stop.badge || '•'), theme)}
+                        icon={pin(stop.badge ?? '•', theme)}
                         eventHandlers={stop.onOpen ? { click: stop.onOpen } : undefined}
                     >
                         <Popup>

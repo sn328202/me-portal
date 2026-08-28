@@ -64,12 +64,15 @@ const Atlas = () => {
        destination rather than a pin in the sea labelled "Air Travel". */
     const routeStops = useMemo(() => (legs || [])
         .filter((leg) => leg.lat != null && leg.lng != null)
-        .map((leg) => ({
+        .map((leg, i) => ({
             key: leg.id,
             lat: leg.lat,
             lng: leg.lng,
             label: isTravelLeg(leg) ? legDestination(leg, legs) : leg.city,
             sub: `${String(leg.start_date).slice(0, 10)} → ${String(leg.end_date).slice(0, 10)}`,
+            // Numbered, because the order is half of what the map is saying.
+            badge: String(i + 1),
+            leg: true,
         })), [legs]);
 
     /**
@@ -367,12 +370,15 @@ const Atlas = () => {
                                 route
                                 stops={[
                                     ...routeStops,
+                                    /* A dot rather than a number: a pin she
+                                       dropped is a note, not the fourth stop. */
                                     ...currentWaypoints.map((wp) => ({
                                         key: `wp-${wp.id}`,
                                         lat: wp.lat,
                                         lng: wp.lng,
                                         label: wp.name || 'Waypoint',
                                         sub: 'Dropped by hand',
+                                        badge: '',
                                     })),
                                 ]}
                                 isEditing={true}
