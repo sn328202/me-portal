@@ -153,7 +153,11 @@ const SendToAtlas = ({ plan, items = [], onSent }) => {
                 .eq('id', plan_.id);
 
             setDone({ count: rows.length, date: day.date, made });
-            onSent?.({ dayId: day.id, count: rows.length });
+            /* The day id, not just the timestamp. Without it the plan in
+               memory has no atlas_day_id until the next page load, so the
+               very next save does not sync — the one save most likely to
+               matter, right after sending. */
+            onSent?.({ dayId: day.id, tripId: made ? undefined : tripId, count: rows.length });
         } catch (err) {
             console.error('Error sending to the Atlas:', err);
             setError('That did not go across. Nothing was added.');

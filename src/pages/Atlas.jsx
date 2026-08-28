@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { GiWorld, GiCompass, GiPin } from 'react-icons/gi';
 import InteractiveMap from '../components/InteractiveMap';
 import { Button, Card, ConfirmButton, Field, Modal, PageHeader, Tag } from '../components/ui';
@@ -32,7 +33,22 @@ const Atlas = () => {
 
     // The Atlas is an index (The Map Room) and a detail view (the Expedition
     // Log). That is navigation, not tabs — the view follows the selection.
-    const [selectedTripId, setSelectedTripId] = useState(null);
+    /* ?trip=<id> opens straight into an expedition. It is how an itinerary
+       links to the trip day it was sent to — she planned the day in one room
+       and wants to see it in the other, and until now that meant going to the
+       Atlas and remembering which trip it was. */
+    const [params, setParams] = useSearchParams();
+    const [selectedTripId, setSelectedTripIdRaw] = useState(() => params.get('trip') || null);
+
+    const setSelectedTripId = useCallback((id) => {
+        setSelectedTripIdRaw(id);
+        setParams((prev) => {
+            const next = new URLSearchParams(prev);
+            if (id) next.set('trip', id);
+            else next.delete('trip');
+            return next;
+        }, { replace: true });
+    }, [setParams]);
 
     const selectedTrip = trips.find(t => t.id === selectedTripId);
     const currentWaypoints = selectedTripId ? (waypoints[selectedTripId] || []) : [];

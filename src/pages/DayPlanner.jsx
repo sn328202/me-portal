@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiForkKnifeSpoon, GiOpenBook } from 'react-icons/gi';
+import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiForkKnifeSpoon, GiOpenBook, GiWorld } from 'react-icons/gi';
 import { useSearchParams } from 'react-router-dom';
 import { useJsApiLoader } from '@react-google-maps/api';
 import PlacesSearch from '../components/PlacesSearch';
@@ -155,6 +155,10 @@ const DayPlanner = () => {
     const [sharing, setSharing] = useState(false);
     /* What the last push to a linked trip day did. */
     const [synced, setSynced] = useState(null);
+    /* The trip this day was sent to, if it was. Looked up rather than stored:
+       the day knows its trip, and one query is cheaper than a column that can
+       drift out of step with atlas_day_id. */
+    const [linkedTrip, setLinkedTrip] = useState(null);
     /* Which shelf of the sidebar is showing. Upcoming by default, because a
        list that also holds every Saturday since March is not a list of what
        is next. */
@@ -474,6 +478,25 @@ const DayPlanner = () => {
         }
     };
 
+    useEffect(() => {
+        const dayId = editedPlan?.atlas_day_id;
+        if (!dayId) { setLinkedTrip(null); return undefined; }
+
+        let alive = true;
+        (async () => {
+            const { data } = await supabase
+                .from('atlas_days')
+                .select('id, date, trip_id, atlas_trips(destination)')
+                .eq('id', dayId)
+                .maybeSingle();
+            if (!alive) return;
+            setLinkedTrip(data
+                ? { tripId: data.trip_id, name: data.atlas_trips?.destination || 'the trip', date: data.date }
+                : null);
+        })();
+        return () => { alive = false; };
+    }, [editedPlan?.atlas_day_id]);
+
     /**
      * Push a linked itinerary onto its trip day.
      *
@@ -500,8 +523,13 @@ const DayPlanner = () => {
             }
             setSynced(describeSync(rows));
         } catch (err) {
+            /* This used to say so in the same quiet line a success uses, which
+               is how a sync that failed *every single time* — the column was
+               a bigint and the id is a uuid — went unnoticed for a day. A
+               thing that is not working says so where errors are said. */
             console.error('Error keeping the trip day in step:', err);
-            setSynced('The trip day could not be updated. The itinerary is saved.');
+            setSynced(null);
+            setSaveError(`The itinerary is saved, but the trip's copy of this day was not updated: ${err.message}`);
         }
     };
 
@@ -975,6 +1003,21 @@ const DayPlanner = () => {
                                     {/* One page to send to whoever is coming.
                                         The editor is a working surface; this
                                         is the document. */}
+                                    {/* Straight to the trip day this itinerary
+                                        was sent to. She planned the day in one
+                                        room and wants to see it in the other,
+                                        and that meant going to the Atlas and
+                                        remembering which trip it was. */}
+                                    {linkedTrip && (
+                                        <Button
+                                            as="a"
+                                            size="sm"
+                                            href={`/atlas?trip=${linkedTrip.tripId}`}
+                                            title={`Open ${linkedTrip.name} in the Atlas`}
+                                        >
+                                            <GiWorld /> In {linkedTrip.name}
+                                        </Button>
+                                    )}
                                     <Button size="sm" onClick={() => setSharing(true)}>
                                         📮 Share sheet
                                     </Button>
@@ -983,9 +1026,16 @@ const DayPlanner = () => {
                                     <SendToAtlas
                                         plan={editedPlan}
                                         items={items}
-                                        onSent={() => setSelectedPlan((p) => (
-                                            p ? { ...p, atlas_sent_at: new Date().toISOString() } : p
-                                        ))}
+                                        onSent={({ dayId }) => {
+                                            const patch = {
+                                                atlas_day_id: dayId,
+                                                atlas_sent_at: new Date().toISOString(),
+                                            };
+                                            setSelectedPlan((p) => (p ? { ...p, ...patch } : p));
+                                            setPlans((list) => list.map((p) => (
+                                                p.id === editedPlan.id ? { ...p, ...patch } : p
+                                            )));
+                                        }}
                                     />
                                     <Button
                                         size="sm"
