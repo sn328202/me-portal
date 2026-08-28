@@ -1225,7 +1225,24 @@ const DayPlanner = () => {
                                                                     </div>
 
                                                                     <div className="tl-item__main">
-                                                                        <h4 className="tl-item__title">{item.activity}</h4>
+                                                                        {/* Editable where it is read. A stop
+                                                                        named "dinner" when it was booked
+                                                                        needed deleting and re-adding to
+                                                                        become "dinner at Masque". */}
+                                                                    <input
+                                                                        className="tl-item__title"
+                                                                        aria-label={`Name of ${item.activity || 'this stop'}`}
+                                                                        placeholder="What is it?"
+                                                                        defaultValue={item.activity || ''}
+                                                                        key={`t-${item.id}`}
+                                                                        onBlur={(e) => {
+                                                                            const v = e.target.value.trim();
+                                                                            if (v !== (item.activity || '')) {
+                                                                                updateItem(item.id, { activity: v });
+                                                                            }
+                                                                        }}
+                                                                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                                    />
 
                                                                         {item.location && (
                                                                             <p className="tl-item__location">

@@ -610,13 +610,34 @@
    browser works out a box's minimum content width, so a flex item that uses
    it can be squeezed to a single character. Which is what happened — the
    title came out one letter per line. */
+/* An input that reads as a heading until you are in it. The name of a stop is
+   the field most likely to be wrong — it is typed before the place is chosen
+   — and it used to be the only one that could not be changed without deleting
+   the card and starting again. */
 .tl-item__title {
+    width: 100%;
     margin: 0;
+    padding: 1px var(--space-1);
+    margin-left: calc(var(--space-1) * -1);
+    border: 1px dashed transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
     font-family: var(--font-display);
     font-size: var(--text-base);
     line-height: var(--leading-tight);
     color: var(--text-main);
     overflow-wrap: break-word;
+}
+
+.tl-item__title::placeholder { color: var(--text-dim); }
+
+.tl-item__title:hover { border-color: var(--border-dim); }
+
+.tl-item__title:focus {
+    border-style: solid;
+    border-color: var(--border-gold);
+    background: var(--field-bg);
+    outline: none;
 }
 
 .tl-item__location {
