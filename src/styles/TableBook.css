@@ -494,3 +494,31 @@
     color: var(--text-gold);
     font-family: var(--font-mono);
 }
+
+
+/* What the Google sweep found, and what it could not be sure of. Both halves,
+   because a report that lists only its successes leaves the rest looking
+   done. */
+.tablebook__linked {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px dashed var(--border-gold);
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+    font-size: var(--text-sm);
+}
+
+.tablebook__linked button {
+    margin-left: auto;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: var(--text-base);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.tablebook__linked button:hover { color: var(--text-main); }

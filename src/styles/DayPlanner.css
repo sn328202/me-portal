@@ -15,6 +15,36 @@
    more than that needs, and it was coming out of the planner beside it — which
    is where the long place names and addresses live. Give it what it needs and
    hand the rest over. */
+/* The page around the three tabs. It had no rules at all, so `height: 100%`
+   on the board below it resolved to auto: nothing was ever bounded, the two
+   columns each grew to their full content, and the only scrollbar in the room
+   was the window's. Which is why the bottom of a long day was reached by
+   scrolling past the whole brainstorm side.
+
+   Bound the itinerary view to the window and the columns get their own
+   scrollbars back — which is what `overflow-y: auto` on them always meant to
+   do. Only above 1180, because below that the two columns stack, and two
+   stacked scrollers in half a screen each is worse than a long page. */
+.daydream-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-height: 100%;
+}
+
+@media (min-width: 1181px) {
+    .daydream-page--fixed {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .daydream-page--fixed > .daydream {
+        flex: 1;
+        min-height: 0;
+    }
+}
+
 .daydream {
     display: grid;
     grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr);
@@ -1008,4 +1038,193 @@
 .idea-form__actions > * {
     flex: 1;
     min-width: 0;
+}
+
+
+/* ---------- The grip, the face, the length ------------------ */
+
+/* A drag handle belongs on the leading edge of the thing it drags, running
+   its height. It used to be a jagged glyph stacked above the start time,
+   where it read as an ornament on the clock. */
+
+.tl-item__grip {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: 14px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: grab;
+    touch-action: none;
+    opacity: 0.45;
+    transition: opacity var(--dur-base) var(--ease), background var(--dur-base) var(--ease);
+}
+
+.tl-item__grip:hover,
+.tl-item__grip:focus-visible {
+    opacity: 1;
+    background: var(--bg-hover);
+    outline: none;
+}
+
+.tl-item__grip:active { cursor: grabbing; }
+
+/* Six dots. Nothing has to explain what this is. */
+.tl-item__grip-dots {
+    width: 6px;
+    height: 18px;
+    background-image: radial-gradient(currentColor 1px, transparent 1.2px);
+    background-size: 3px 4px;
+    color: var(--text-dim);
+}
+
+
+/* The kind of thing it is, where the photograph would have been. Most places
+   have no usable Google photo, so this is what the card actually shows. */
+
+.face {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.face__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-md);
+    background: var(--bg-hover);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color var(--dur-base) var(--ease);
+}
+
+.face__btn:hover,
+.face__btn:focus-visible {
+    border-style: solid;
+    border-color: var(--border-gold);
+    outline: none;
+}
+
+/* Covers the page so a click anywhere closes the menu — under the menu, over
+   everything else. */
+.face__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    border: none;
+    background: transparent;
+    cursor: default;
+}
+
+.face__menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 501;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    width: 16rem;
+    padding: var(--space-2);
+    background: var(--bg-panel);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+
+.face__option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-1);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-main);
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.face__option:hover,
+.face__option:focus-visible {
+    border-color: var(--border-gold);
+    background: var(--bg-hover);
+    outline: none;
+}
+
+.face__option.is-on {
+    border-color: var(--accent-gold);
+    background: var(--bg-hover);
+}
+
+.face__name {
+    font-size: 9px;
+    line-height: 1.1;
+    text-align: center;
+    color: var(--text-dim);
+}
+
+/* Spans the row: it is not one of the choices, it is the way out of choosing. */
+.face__option--clear {
+    grid-column: 1 / -1;
+    padding: var(--space-1) var(--space-2);
+    border-top: 1px dashed var(--border-dim);
+    border-radius: 0;
+}
+
+.face__option--clear .face__name { font-size: var(--text-xs); }
+
+
+/* How long a stop takes: two dropdowns, because a text box invited "a couple
+   of hours" — and, worse, invited "2", which the arithmetic read as two hours
+   and "20", which it read as twenty. Those guesses were then used to decide
+   whether she was going to be late. */
+
+.dur {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.dur__field {
+    padding: 1px 2px;
+    border: 1px dashed transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.dur__field:hover { border-color: var(--border-dim); }
+
+.dur__field:focus {
+    border-style: solid;
+    border-color: var(--border-gold);
+    background: var(--field-bg);
+    outline: none;
+}
+
+.dur__unit {
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+/* On the brainstorm board the face is the whole picture, so it takes the
+   width the photo would have had. */
+.idea__face { align-self: flex-start; }
+.idea__face .face__btn {
+    width: 100%;
+    height: 56px;
+    font-size: 28px;
 }

@@ -99,3 +99,21 @@ it('takes the last by time, not by position', () => {
 });
 
 console.log(`departAt: ${n} passed`);
+
+/* --- being late ------------------------------------------------------- */
+{
+    const lunch = { start_time: '12:00:00', duration: '2 hours' };
+    const table = { start_time: '19:00:00' };
+
+    const fine = departAt(lunch, table, '45 mins');
+    assert.equal(fine.late, 0, 'lunch is long over');
+
+    const over = departAt({ start_time: '12:00:00', duration: '7 hours' }, table, '45 mins');
+    assert.equal(over.late, 45, 'lunch runs to 7, you needed to leave at 6:15');
+    assert.equal(over.tight, true);
+
+    const exact = departAt({ start_time: '12:00:00', duration: '6:15' }, table, '45 mins');
+    assert.equal(exact.late, 0, 'finishing exactly when you leave is not late');
+
+    console.log('departAt: 3 more passed');
+}

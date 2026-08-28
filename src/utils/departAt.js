@@ -75,11 +75,19 @@ export const departAt = (item, next, travelText) => {
     const start = asMinutes(item?.start_time);
     const ends = start === null ? null : start + lengthOf(item);
 
+    // The card is still running when you were supposed to have left: you are
+    // going to be late, and by exactly this much. This is the whole point of
+    // showing the number — a drive time on its own never says "this does not
+    // work", and the arrangement that does not work is the one that needs
+    // saying out loud.
+    const late = ends !== null && ends > leave ? ends - leave : 0;
+
     return {
         time: asTime(leave),
         minutes: leave,
         // Only claimable when the card actually has a length to run past.
-        tight: ends !== null && ends > leave,
+        tight: late > 0,
+        late,
     };
 };
 

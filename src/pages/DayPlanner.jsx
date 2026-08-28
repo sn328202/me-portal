@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiRoughWound, GiForkKnifeSpoon, GiOpenBook } from 'react-icons/gi';
+import { GiCompass, GiTreasureMap, GiNotebook, GiSandsOfTime, GiPositionMarker, GiFeather, GiHourglass, GiCoins, GiCancel, GiForkKnifeSpoon, GiOpenBook } from 'react-icons/gi';
 import { useSearchParams } from 'react-router-dom';
 import { useJsApiLoader } from '@react-google-maps/api';
 import PlacesSearch from '../components/PlacesSearch';
@@ -9,9 +9,12 @@ import MentionInput from '../components/MentionInput';
 import TableBook from './TableBook';
 import Commonplace from './Commonplace';
 import SendToAtlas from '../components/SendToAtlas';
+import DayCard from '../components/DayCard';
 import { useTravelTimes } from '../hooks/useTravelTimes';
 import { departAt, nextSlot } from '../utils/departAt';
-import { compareItems, timeBetween } from '../utils/dayOrder';
+import DurationPicker from '../components/DurationPicker';
+import ActivityFace from '../components/ActivityFace';
+import { compareItems, timeBetween, asMinutes, asTime, lengthOf } from '../utils/dayOrder';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -71,7 +74,7 @@ const SortableItem = ({ item, children }) => {
  */
 const EXPIRING = /PhotoService\.GetPhoto/;
 
-const PlaceImage = ({ photo, className = '' }) => {
+const PlaceImage = ({ photo, className = '', fallback = null }) => {
     const [failed, setFailed] = React.useState(false);
     const [loaded, setLoaded] = React.useState(false);
 
@@ -87,7 +90,9 @@ const PlaceImage = ({ photo, className = '' }) => {
         return () => { alive = false; };
     }, [url]);
 
-    if (!url || failed) return null;
+    // No photo, or a URL that loaded a "no image" placeholder: show the
+    // fallback rather than a gap. Most cards land here.
+    if (!url || failed) return fallback;
     if (!loaded) return <div className={`place-image place-image--empty ${className}`} />;
 
     return (
@@ -144,6 +149,8 @@ const DayPlanner = () => {
     const [saving, setSaving] = useState(false);
     const savingRef = React.useRef(false);
     const [saveError, setSaveError] = useState(null);
+    /* The send-to-someone sheet. */
+    const [sharing, setSharing] = useState(false);
     const [savedAt, setSavedAt] = useState(null);
 
     // Local state for editing to avoid auto-save jitter
@@ -444,7 +451,8 @@ const DayPlanner = () => {
                     is_brainstorm: i.is_brainstorm,
                     place_id: i.place_id,
                     place_data: i.place_data,
-                    travel_note: i.travel_note ?? null
+                    travel_note: i.travel_note ?? null,
+                    icon: i.icon ?? null
                 })));
 
             if (updateError) {
@@ -472,7 +480,8 @@ const DayPlanner = () => {
                     is_brainstorm: i.is_brainstorm,
                     place_id: i.place_id,
                     place_data: i.place_data,
-                    travel_note: i.travel_note ?? null
+                    travel_note: i.travel_note ?? null,
+                    icon: i.icon ?? null
                 })))
                 .select();
 
@@ -618,7 +627,7 @@ const DayPlanner = () => {
 
 
     return (
-        <div className="daydream-page">
+        <div className={`daydream-page${view === 'itineraries' ? ' daydream-page--fixed' : ''}`}>
             <Tabs
                 label="Daydream sections"
                 active={view}
@@ -645,6 +654,17 @@ const DayPlanner = () => {
         <div className="daydream">
             {/* Hidden node the Google PlacesService attaches to */}
             <div ref={placesServiceRef} className="daydream__places-anchor" />
+
+            {editedPlan && (
+                <DayCard
+                    open={sharing}
+                    onClose={() => setSharing(false)}
+                    title={editedPlan.title}
+                    date={editedPlan.planned_date}
+                    items={items}
+                    travel={travelTimes}
+                />
+            )}
 
             {/* Sidebar: Plans List */}
             <aside className="daydream__sidebar">
@@ -760,6 +780,12 @@ const DayPlanner = () => {
                                         as a day of a trip, one scale down. It
                                         knows which day of the trip it is,
                                         because the itinerary has a date. */}
+                                    {/* One page to send to whoever is coming.
+                                        The editor is a working surface; this
+                                        is the document. */}
+                                    <Button onClick={() => setSharing(true)}>
+                                        📮 Share sheet
+                                    </Button>
                                     <SendToAtlas
                                         plan={editedPlan}
                                         items={items}
@@ -929,6 +955,13 @@ const DayPlanner = () => {
                                             <PlaceImage
                                                 photo={item.place_data?.photos?.[0]}
                                                 className="idea__photo"
+                                                fallback={
+                                                    <ActivityFace
+                                                        item={item}
+                                                        className="idea__face"
+                                                        onChange={(icon) => updateItem(item.id, { icon })}
+                                                    />
+                                                }
                                             />
 
                                             <p className="idea__title">{item.activity}</p>
@@ -995,17 +1028,23 @@ const DayPlanner = () => {
                                                                 {index !== arr.length - 1 && <span className="tl-row__thread" />}
 
                                                                 <Card variant="flat" className="tl-item">
-                                                                    {/* Time & Drag Column */}
+                                                                    {/* The grip: a full-height strip on the
+                                                                        leading edge, which is where every list
+                                                                        that can be reordered puts one. It used
+                                                                        to be a jagged glyph stacked on top of
+                                                                        the time, where it read as a decoration
+                                                                        of the clock rather than a thing to
+                                                                        take hold of. */}
+                                                                    <button
+                                                                        type="button"
+                                                                        className="tl-item__grip"
+                                                                        aria-label={`Reorder ${item.activity || 'this item'}`}
+                                                                        {...handleProps}
+                                                                    >
+                                                                        <span className="tl-item__grip-dots" aria-hidden="true" />
+                                                                    </button>
+
                                                                     <div className="tl-item__aside">
-                                                                        <Button
-                                                                            icon
-                                                                            size="sm"
-                                                                            className="tl-item__handle"
-                                                                            label="Reorder item"
-                                                                            {...handleProps}
-                                                                        >
-                                                                            <GiRoughWound size={20} />
-                                                                        </Button>
                                                                         <SmartTimeInput
                                                                             label={`Start time for ${item.activity || 'item'}`}
                                                                             value={item.start_time ? item.start_time.substring(0, 5) : ''}
@@ -1013,9 +1052,18 @@ const DayPlanner = () => {
                                                                         />
                                                                     </div>
 
+                                                                    {/* A photo when Google has one worth
+                                                                        showing, and a kind of thing when it
+                                                                        does not — which is most of the time. */}
                                                                     <PlaceImage
                                                                         photo={item.place_data?.photos?.[0]}
                                                                         className="tl-item__photo"
+                                                                        fallback={
+                                                                            <ActivityFace
+                                                                                item={item}
+                                                                                onChange={(icon) => updateItem(item.id, { icon })}
+                                                                            />
+                                                                        }
                                                                     />
 
                                                                     {/* Main Content */}
@@ -1081,21 +1129,11 @@ const DayPlanner = () => {
                                                                                 meant it usually was not set at
                                                                                 all. A dinner is two hours until
                                                                                 she says otherwise. */}
-                                                                            <span className="tl-item__duration">
-                                                                                <GiHourglass />
-                                                                                <input
-                                                                                    defaultValue={item.duration || ''}
-                                                                                    aria-label={`How long for ${item.activity || 'this'}`}
-                                                                                    placeholder="how long?"
-                                                                                    onBlur={(e) => {
-                                                                                        const v = e.target.value.trim();
-                                                                                        if (v !== (item.duration || '')) {
-                                                                                            updateItem(item.id, { duration: v || null });
-                                                                                        }
-                                                                                    }}
-                                                                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                                                                                />
-                                                                            </span>
+                                                                            <DurationPicker
+                                                                                value={item.duration}
+                                                                                label={item.activity}
+                                                                                onChange={(duration) => updateItem(item.id, { duration })}
+                                                                            />
                                                                         </div>
                                                                     </div>
                                                                 </Card>
@@ -1153,16 +1191,26 @@ const DayPlanner = () => {
                                                                     item.travel_note || travelTimes[item.id]
                                                                 );
                                                                 if (!leave) return null;
+                                                                if (!leave.late) {
+                                                                    return (
+                                                                        <span className="tl-travel__leave">
+                                                                            leave by {leave.time.substring(0, 5)}
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                /* The arrangement does not work: this
+                                                                   stop runs past the moment you had to
+                                                                   set off. Said as a number of minutes
+                                                                   late, because "tight" is a feeling
+                                                                   and "25 min late" is a decision. */
                                                                 return (
                                                                     <span
-                                                                        className={`tl-travel__leave${leave.tight ? ' is-tight' : ''}`}
-                                                                        title={
-                                                                            leave.tight
-                                                                                ? `${item.activity || 'This'} does not finish until after you need to leave`
-                                                                                : undefined
-                                                                        }
+                                                                        className="tl-travel__leave is-tight"
+                                                                        title={`${item.activity || 'This'} runs to ${
+                                                                            asTime(asMinutes(item.start_time) + lengthOf(item)).substring(0, 5)
+                                                                        }, but you need to leave at ${leave.time.substring(0, 5)}`}
                                                                     >
-                                                                        leave by {leave.time.substring(0, 5)}
+                                                                        ⚠️ {leave.late} min late — leave by {leave.time.substring(0, 5)}
                                                                     </span>
                                                                 );
                                                             })()}

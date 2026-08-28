@@ -1,0 +1,365 @@
+/**
+ * A day written out to send to someone.
+ *
+ * Two audiences and one document. On screen it is a retro card in whatever
+ * palette she is running; on paper it is ink on white, because a printer that
+ * fills a page with the dashboard's dark background is a printer nobody uses
+ * twice.
+ */
+
+.daycard__wrap {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--space-2);
+    background: var(--bg-hover);
+    border-radius: var(--radius-md);
+}
+
+.daycard {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: var(--space-5);
+    background: var(--bg-panel);
+    border: 2px solid var(--border-gold);
+    border-radius: var(--radius-md);
+    color: var(--text-main);
+}
+
+/* ---------- The head ---------------------------------------- */
+
+.daycard__head {
+    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
+    border-bottom: 2px solid var(--border-gold);
+    text-align: center;
+}
+
+.daycard__name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
+    color: var(--text-gold);
+    overflow-wrap: break-word;
+}
+
+.daycard__date {
+    margin: var(--space-1) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    letter-spacing: 0.08em;
+}
+
+.daycard__sub,
+.daycard__window {
+    margin: 2px 0 0;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+/* ---------- The run of the day ------------------------------ */
+
+.daycard__stops {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.daycard__stop {
+    display: grid;
+    grid-template-columns: 2rem 5.5rem minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+    border-bottom: 1px dashed var(--border-dim);
+}
+
+.daycard__face {
+    font-size: 22px;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.daycard__when {
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-mono);
+}
+
+.daycard__at {
+    font-size: var(--text-sm);
+    color: var(--text-gold);
+}
+
+.daycard__length {
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+.daycard__what {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.daycard__title {
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    overflow-wrap: break-word;
+}
+
+.daycard__place,
+.daycard__note {
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    overflow-wrap: break-word;
+}
+
+.daycard__place a { color: var(--text-gold); }
+
+.daycard__cost {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+/* The line between two stops, which is the one thing a list of bookings
+   never tells you. */
+.daycard__hop {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0 var(--space-1) 2.5rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+.daycard__hop em {
+    font-style: normal;
+    color: var(--text-gold);
+}
+
+/* ---------- The maybes and the tail ------------------------- */
+
+.daycard__maybe {
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--border-dim);
+}
+
+.daycard__maybe h2 {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
+    color: var(--text-gold);
+}
+
+.daycard__maybe ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    font-size: var(--text-xs);
+}
+
+.daycard__maybe em {
+    font-style: normal;
+    color: var(--text-dim);
+}
+
+.daycard__empty {
+    padding: var(--space-5) 0;
+    text-align: center;
+    color: var(--text-dim);
+}
+
+.daycard__foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding-top: var(--space-2);
+    border-top: 2px solid var(--border-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+.daycard__mark { letter-spacing: 0.1em; }
+
+/* ---------- The dialog around it ---------------------------- */
+
+.daycard__actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: flex-end;
+    margin-top: var(--space-4);
+}
+
+.daycard__hint {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    text-align: right;
+}
+
+
+/* ---------- On paper ---------------------------------------- */
+
+@media print {
+    @page {
+        size: auto;
+        margin: 14mm;
+    }
+
+    /* The app is a viewport-height flex layout with three nested scrollers.
+       Printed as-is that yields one page showing whatever happened to be in
+       view. Everything is flattened and the sheet is lifted out of it. */
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+        background: #fff !important;
+        color: #111 !important;
+    }
+
+    .app-shell,
+    .main-content,
+    .modal,
+    .modal__panel,
+    .modal__body,
+    .daycard__wrap {
+        display: block !important;
+        position: static !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+    }
+
+    .sidebar,
+    .nav-item,
+    .modal__head,
+    .no-print,
+    .daycard__actions,
+    .daycard__hint {
+        display: none !important;
+    }
+
+    .daycard {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: #fff;
+        color: #111;
+    }
+
+    .daycard__head,
+    .daycard__foot {
+        border-color: #111;
+    }
+
+    .daycard__name,
+    .daycard__at,
+    .daycard__hop em,
+    .daycard__maybe h2,
+    .daycard__place a {
+        color: #111;
+    }
+
+    .daycard__sub,
+    .daycard__window,
+    .daycard__length,
+    .daycard__place,
+    .daycard__note,
+    .daycard__cost,
+    .daycard__hop,
+    .daycard__maybe em,
+    .daycard__foot {
+        color: #555;
+    }
+
+    .daycard__stop,
+    .daycard__maybe {
+        border-color: #bbb;
+    }
+
+    /* A stop and the drive away from it are one thought; splitting them
+       across a page break is how printed itineraries go wrong. */
+    .daycard__stop,
+    .daycard__hop,
+    .daycard__maybe {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .daycard__head {
+        break-after: avoid;
+        page-break-after: avoid;
+    }
+
+    /* An underlined URL after every address doubles the length of the page.
+       The address is the useful half. */
+    .daycard__place a {
+        text-decoration: none;
+    }
+}
+
+
+/* ---------- A whole trip ------------------------------------ */
+
+.daycard__trip-head {
+    margin-bottom: var(--space-4);
+    text-align: center;
+}
+
+.daycard__trip-head h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
+    color: var(--text-gold);
+}
+
+.daycard__trip-head p {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-sm);
+    color: var(--text-dim);
+}
+
+.daycard__page + .daycard__page {
+    margin-top: var(--space-5);
+}
+
+@media print {
+    .daycard__trip-head {
+        color: #111;
+    }
+
+    .daycard__trip-head h1 {
+        color: #111;
+    }
+
+    /* One sheet per day, so it can be handed round rather than read off a
+       roll. The first day follows the trip's own heading. */
+    .daycard__page + .daycard__page {
+        margin-top: 0;
+        break-before: page;
+        page-break-before: always;
+    }
+}

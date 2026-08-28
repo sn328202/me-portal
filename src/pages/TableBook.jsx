@@ -10,6 +10,7 @@ import {
 import { useReservations } from '../hooks/useReservations';
 import { supabase } from '../lib/supabase';
 import { sweep } from '../utils/reservationSweep';
+import { looksLike, fillFrom } from '../utils/placeMatch';
 import AddBookingToDay from '../components/AddBookingToDay';
 import MentionInput from '../components/MentionInput';
 import '../styles/TableBook.css';
@@ -71,6 +72,7 @@ const TableBook = ({ embedded = false }) => {
     const {
         upcoming, past, reservations, loading, error,
         addReservation, markDined, cancelReservation, deleteReservation, refresh,
+        updateReservation,
     } = useReservations();
 
     const [tab, setTab] = useState('held');
@@ -88,6 +90,10 @@ const TableBook = ({ embedded = false }) => {
     /* Whether the sweep's findings are on screen. It costs nothing to compute,
        so it is always current — the button only decides whether to show it. */
     const [swept, setSwept] = useState(false);
+    /* Going back over the bookings made before the Table Book knew what a
+       place was, and finding each one on Google. */
+    const [linking, setLinking] = useState(false);
+    const [linked, setLinked] = useState(null);
 
     const kept = useMemo(() => reservations.filter((r) => r.status === 'dined').length, [reservations]);
     const letGo = useMemo(
@@ -208,6 +214,65 @@ const TableBook = ({ embedded = false }) => {
         }
     };
 
+    /* Bookings taken before the form learned about places: a restaurant name,
+       a time, and nothing to tap. There is no reason she should retype an
+       address the map already has. */
+    const unlinked = useMemo(
+        () => reservations.filter((r) => !r.place_id && !r.maps_url && String(r.restaurant || '').trim()),
+        [reservations]
+    );
+
+    /**
+     * Find the old bookings on Google, one at a time.
+     *
+     * Serial rather than parallel, because a burst of lookups is how you get
+     * rate-limited into a run of empty answers that look like failures.
+     *
+     * And only accepted when the name it found is defensibly the name she
+     * wrote — a booking confidently carrying the wrong address is worse than
+     * one carrying none, because she would drive to it. The rest are counted
+     * and reported so she knows what is still hers to do.
+     */
+    const linkUp = async () => {
+        if (linking || !unlinked.length) return;
+        setLinking(true);
+        setLinked(null);
+
+        const { data: { session } } = await supabase.auth.getSession();
+        let found = 0;
+        let unsure = 0;
+
+        for (const r of unlinked) {
+            try {
+                const res = await fetch('/api/place-search', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        Authorization: `Bearer ${session?.access_token || ''}`,
+                    },
+                    body: JSON.stringify({ q: r.restaurant, city: r.city || null, limit: 3 }),
+                });
+                const places = (await res.json())?.places || [];
+                const match = places.find((p) => looksLike(r.restaurant, p.name, r.city));
+
+                if (!match) { unsure += 1; continue; }
+
+                const patch = fillFrom(r, match);
+                if (Object.keys(patch).length) {
+                    await updateReservation(r.id, patch);
+                    found += 1;
+                } else {
+                    unsure += 1;
+                }
+            } catch {
+                unsure += 1;
+            }
+        }
+
+        setLinked({ found, unsure });
+        setLinking(false);
+    };
+
     const next = upcoming[0];
 
     const book = () => { setForm(EMPTY_FORM); setFormOpen(true); };
@@ -231,6 +296,16 @@ const TableBook = ({ embedded = false }) => {
                             <GiRecycle /> {swept ? 'Hide what changed' : 'Refresh statuses'}
                             {found.count > 0 && !swept ? ` (${found.count})` : ''}
                         </Button>
+                        {/* Only offered when there is something to do:
+                            once every booking carries a place, this is
+                            noise. */}
+                        {unlinked.length > 0 && (
+                            <Button onClick={linkUp} disabled={linking}>
+                                <GiPositionMarker /> {linking
+                                    ? 'Looking them up…'
+                                    : `Find ${unlinked.length} on Google`}
+                            </Button>
+                        )}
                         <Button variant="solid" onClick={book}><GiQuill /> Book a table</Button>
                     </div>
                 </header>
@@ -248,6 +323,16 @@ const TableBook = ({ embedded = false }) => {
                                 <GiRecycle /> {swept ? 'Hide what changed' : 'Refresh statuses'}
                                 {found.count > 0 && !swept ? ` (${found.count})` : ''}
                             </Button>
+                            {/* Only offered when there is something to do:
+                                once every booking carries a place, this is
+                                noise. */}
+                            {unlinked.length > 0 && (
+                                <Button onClick={linkUp} disabled={linking}>
+                                    <GiPositionMarker /> {linking
+                                        ? 'Looking them up…'
+                                        : `Find ${unlinked.length} on Google`}
+                                </Button>
+                            )}
                             <Button variant="solid" onClick={book}>
                                 <GiQuill /> Book a table
                             </Button>
@@ -257,6 +342,19 @@ const TableBook = ({ embedded = false }) => {
             )}
 
             {error && <p className="tablebook__error">{error}</p>}
+
+            {/* Said plainly, including the half that did not work: a sweep
+                that reports only its successes leaves her thinking the rest
+                are done. */}
+            {linked && (
+                <p className="tablebook__linked" role="status">
+                    {linked.found > 0
+                        ? `Linked ${linked.found} ${linked.found === 1 ? 'booking' : 'bookings'} to Google.`
+                        : 'Nothing could be matched with any confidence.'}
+                    {linked.unsure > 0 && ` ${linked.unsure} ${linked.unsure === 1 ? 'was' : 'were'} too close to call — open ${linked.unsure === 1 ? 'it' : 'them'} and use @ to pick the right one.`}
+                    <button type="button" onClick={() => setLinked(null)} aria-label="Dismiss">×</button>
+                </p>
+            )}
 
             <div className="tablebook__stats">
                 <Stat

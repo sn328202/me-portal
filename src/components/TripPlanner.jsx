@@ -5,6 +5,7 @@ import { Button, Card, Field } from './ui';
 import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
+import TripCard from './TripCard';
 import TripStays from './TripStays';
 import TripRoute from './TripRoute';
 import MentionInput from './MentionInput';
@@ -199,6 +200,10 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                     <Button onClick={refreshWeather} disabled={weatherBusy}>
                         <GiSunrise /> {weatherBusy ? 'Checking…' : 'Fill in weather'}
                     </Button>
+
+                    {/* One sheet per day, to send to whoever is coming. The
+                        planner is a working surface; this is the document. */}
+                    <TripCard trip={trip} days={days} itemsByDay={items} />
 
                     <div className="trip-planner__views" role="group" aria-label="View">
                         {VIEWS.filter((v) => v.value !== 'setup' || setup).map((v) => (
