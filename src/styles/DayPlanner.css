@@ -881,3 +881,44 @@
     line-height: 1;
     cursor: pointer;
 }
+
+
+/* --- The gap between two stops --------------------------------
+   A drive time Google worked out, one she typed because it could not
+   (a walk, a ferry, a stop with no address), or an empty box asking.
+   It used to be the first of those or nothing at all, which reads as
+   a feature that has stopped working rather than a question. */
+
+.tl-travel__input {
+    flex: 1;
+    min-width: 0;
+    max-width: 22rem;
+    padding: var(--space-1) var(--space-2);
+    border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}
+
+.tl-travel__input::placeholder {
+    color: var(--text-dim);
+}
+
+.tl-travel__input:focus {
+    border-style: solid;
+    border-color: var(--border-gold);
+    outline: none;
+}
+
+.tl-travel__clear {
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.tl-travel__clear:hover { color: var(--text-main); }

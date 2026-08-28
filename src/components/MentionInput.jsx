@@ -24,7 +24,10 @@ const MentionInput = ({
     near = null,
     inputRef,
     onKeyDown,
-    className = '',
+    /* Defaults to the portal's own input styling. Without it the field fell
+       back to the browser's default box — a dark rectangle sitting between
+       two properly dressed fields. */
+    className = 'input',
     ...rest
 }) => {
     const own = useRef(null);

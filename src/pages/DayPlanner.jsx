@@ -11,6 +11,7 @@ import MentionInput from '../components/MentionInput';
 import TableBook from './TableBook';
 import Commonplace from './Commonplace';
 import SendToAtlas from '../components/SendToAtlas';
+import { useTravelTimes } from '../hooks/useTravelTimes';
 import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
@@ -129,7 +130,6 @@ const DayPlanner = () => {
     const [items, setItems] = useState([]); // Items for selected plan
     const [deletedItemIds, setDeletedItemIds] = useState([]); // Track items to delete on save
     const [loading, setLoading] = useState(true);
-    const [travelTimes, setTravelTimes] = useState({});
 
     const [processingDelete, setProcessingDelete] = useState(false);
 
@@ -166,41 +166,6 @@ const DayPlanner = () => {
         }
     }, [selectedPlan]);
 
-    useEffect(() => {
-        if (isLoaded && items.length > 0) {
-            calculateTravelTimes();
-        }
-    }, [items, isLoaded]);
-
-    const calculateTravelTimes = async () => {
-        const timelineItems = items.filter(i => !i.is_brainstorm);
-        if (timelineItems.length < 2) return;
-
-        const service = new google.maps.DistanceMatrixService();
-        const newTravelTimes = {};
-
-        for (let i = 0; i < timelineItems.length - 1; i++) {
-            const origin = timelineItems[i].location; // Expecting address string
-            const dest = timelineItems[i + 1].location;
-
-            if (!origin || !dest) continue;
-
-            try {
-                const response = await service.getDistanceMatrix({
-                    origins: [origin],
-                    destinations: [dest],
-                    travelMode: 'DRIVING', // Default to driving
-                });
-
-                if (response.rows[0].elements[0].status === 'OK') {
-                    newTravelTimes[timelineItems[i].id] = response.rows[0].elements[0].duration.text;
-                }
-            } catch (error) {
-                console.error('Error calculating distance:', error);
-            }
-        }
-        setTravelTimes(newTravelTimes);
-    };
 
     const fetchPlans = async () => {
         setLoading(true);
@@ -498,7 +463,8 @@ const DayPlanner = () => {
                     sort_order: i.sort_order, // Save sort order
                     is_brainstorm: i.is_brainstorm,
                     place_id: i.place_id,
-                    place_data: i.place_data
+                    place_data: i.place_data,
+                    travel_note: i.travel_note ?? null
                 })));
 
             if (updateError) {
@@ -524,7 +490,8 @@ const DayPlanner = () => {
                     sort_order: i.sort_order, // Save sort order
                     is_brainstorm: i.is_brainstorm,
                     place_id: i.place_id,
-                    place_data: i.place_data
+                    place_data: i.place_data,
+                    travel_note: i.travel_note ?? null
                 })));
 
             if (insertError) {
@@ -634,6 +601,12 @@ const DayPlanner = () => {
 
     const timelineItems = items.filter(i => !i.is_brainstorm);
     const brainstormItems = items.filter(i => i.is_brainstorm);
+
+    /* Asked for once per pair of addresses, cached, and never blanked by a
+       failed lookup. `legs` also says which gaps cannot be worked out and
+       why, so the blank can be explained instead of just being blank. */
+    const { times: travelTimes, legs: travelLegs } = useTravelTimes(timelineItems, isLoaded);
+    const legFor = (id) => travelLegs.find((l) => l.id === id);
 
     /** Jump straight to a day the builder just made. */
     const handleOpenBuiltPlan = async (planId) => {
@@ -1109,14 +1082,45 @@ const DayPlanner = () => {
                                                     </SortableItem>
 
                                                     {/* Travel Time Connector */}
-                                                    {travelTimes[item.id] && index !== arr.length - 1 && (
+                                                    {index !== arr.length - 1 && (
                                                         <p className="tl-travel">
                                                             <span className="tl-travel__tick" />
-                                                            🚗 {travelTimes[item.id]} drive
+                                                            {item.travel_note ? (
+                                                                /* Hers wins: she typed it because Google
+                                                                   could not or should not answer — a walk,
+                                                                   a ferry, a place with no address. */
+                                                                <>
+                                                                    <span>🚶 {item.travel_note}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="tl-travel__clear"
+                                                                        aria-label="Clear this travel time"
+                                                                        onClick={() => updateItem(item.id, { travel_note: null })}
+                                                                    >
+                                                                        ×
+                                                                    </button>
+                                                                </>
+                                                            ) : travelTimes[item.id] ? (
+                                                                <span>🚗 {travelTimes[item.id]} drive</span>
+                                                            ) : (
+                                                                <input
+                                                                    className="tl-travel__input"
+                                                                    defaultValue=""
+                                                                    aria-label={`How long from ${item.activity || 'here'} to the next stop`}
+                                                                    placeholder={
+                                                                        legFor(item.id)?.missing
+                                                                            ? 'No address either side — how long?'
+                                                                            : 'How long to the next one?'
+                                                                    }
+                                                                    onBlur={(e) => {
+                                                                        const v = e.target.value.trim();
+                                                                        if (v) updateItem(item.id, { travel_note: v });
+                                                                    }}
+                                                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                                />
+                                                            )}
                                                         </p>
                                                     )}
-                                                    {/* Spacer if no travel time but not last */}
-                                                    {!travelTimes[item.id] && index !== arr.length - 1 && <span className="tl-gap" />}
                                                 </React.Fragment>
                                             ))}
                                         </SortableContext>

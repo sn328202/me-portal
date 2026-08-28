@@ -46,9 +46,9 @@ const Tabs = ({ tabs, active, onChange, variant = 'underline', label = 'Sections
                         ?.focus();
                 }}
             >
-                {tab.icon}
-                {tab.label}
-                {typeof tab.count === 'number' && <span className="muted"> ({tab.count})</span>}
+                {tab.icon && <span className="tab__icon" aria-hidden="true">{tab.icon}</span>}
+                <span className="tab__label">{tab.label}</span>
+                {typeof tab.count === 'number' && <span className="tab__count">{tab.count}</span>}
             </button>
         ))}
     </div>
