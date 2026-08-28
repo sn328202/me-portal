@@ -1348,3 +1348,27 @@
 
 .plan-card:hover .plan-card__shelve,
 .plan-card__shelve:focus-visible { opacity: 1; }
+
+
+/* Autosave: one quiet line rather than a button she has to notice. Half the
+   editor already saved at once — deleting a card, archiving an itinerary —
+   and half waited for a button, so whether a change had stuck depended on
+   which change it was. */
+.daydream__saved.is-working {
+    color: var(--text-gold);
+    opacity: 0.8;
+}
+
+.daydream__save-error button {
+    margin-left: var(--space-2);
+    padding: 0 var(--space-1);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.daydream__save-error button:hover { background: var(--bg-hover); }

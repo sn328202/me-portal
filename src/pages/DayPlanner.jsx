@@ -133,7 +133,6 @@ const DayPlanner = () => {
     const [plans, setPlans] = useState([]);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [items, setItems] = useState([]); // Items for selected plan
-    const [deletedItemIds, setDeletedItemIds] = useState([]); // Track items to delete on save
     const [loading, setLoading] = useState(true);
 
     const [processingDelete, setProcessingDelete] = useState(false);
@@ -172,15 +171,34 @@ const DayPlanner = () => {
         if (selectedPlan) {
             setEditedPlan({ ...selectedPlan });
             setIsDirty(false);
-            setDeletedItemIds([]); // Reset deleted items tracking
+            setSaveError(null);
             fetchItems(selectedPlan.id);
         } else {
             setItems([]);
-            setDeletedItemIds([]);
             setEditedPlan(null);
             setIsDirty(false);
+            setSaveError(null);
         }
     }, [selectedPlan]);
+
+    /**
+     * Save on its own, shortly after she stops.
+     *
+     * Half the editor already saved at once — deleting a card, archiving an
+     * itinerary — and half waited for a button, so whether a change had stuck
+     * depended on which change it was. That is not something anyone should
+     * have to hold in their head while dragging cards about.
+     *
+     * The timer restarts on every change, so typing a title is one save at
+     * the end rather than one per letter, and `saveChanges` refuses to start
+     * a second run while one is going.
+     */
+    useEffect(() => {
+        if (!isDirty || !editedPlan || saving) return undefined;
+        const timer = setTimeout(() => { saveChanges(); }, 900);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDirty, items, editedPlan, saving]);
 
 
     const fetchPlans = async () => {
@@ -302,15 +320,40 @@ const DayPlanner = () => {
         setIsDirty(true);
     };
 
+    /**
+     * Delete a card, now.
+     *
+     * This used to remove it from the screen and add its id to a list that
+     * the Save button would act on later. Two things went wrong with that,
+     * and both of them read as "deleting does not stick".
+     *
+     * The list was built from a stale closure — `[...deletedItemIds, id]`
+     * reads the array as it was at the last render, so deleting two cards
+     * before React caught up dropped the first id on the floor. It vanished
+     * from the screen, was never deleted, and reappeared on the next load.
+     *
+     * And the delete only happened if she pressed Save. Nobody presses Save
+     * after deleting something; deleting *is* the decision. Leaving without
+     * saving put it back.
+     *
+     * So it goes now, and if the database refuses, the card comes back and
+     * says so, rather than staying gone on screen and present in the table.
+     */
     const deleteItem = async (id) => {
-        // Just remove from local state
-        setItems(items.filter(i => i.id !== id));
+        const pending = typeof id === 'string' && id.startsWith('temp-');
+        // Off the screen at once: a delete that waits for the network reads
+        // as a click that did nothing.
+        setItems((list) => list.filter((i) => i.id !== id));
 
-        // If it's a real item (not a temp one), mark for deletion
-        if (typeof id === 'number' || (typeof id === 'string' && !id.startsWith('temp-'))) {
-            setDeletedItemIds([...deletedItemIds, id]);
+        // Never saved, so there is nothing to delete.
+        if (pending) { setIsDirty(true); return; }
+
+        const { error } = await supabase.from('plan_items').delete().eq('id', id);
+        if (error) {
+            console.error('Error deleting item:', error);
+            setSaveError('That would not delete — it is still there. Try again.');
+            if (selectedPlan) fetchItems(selectedPlan.id);
         }
-        setIsDirty(true);
     };
 
     /**
@@ -376,16 +419,16 @@ const DayPlanner = () => {
         setProcessingDelete(false);
     };
 
+    /* Functional, because `items` in this closure is the array as of the last
+       render. Changing a time and then a duration before React caught up used
+       to compute the second change from the pre-first-change list and throw
+       the first one away. */
     const updateItem = async (id, updates) => {
-        // Update local state ONLY
-        let updatedItems = items.map(i => i.id === id ? { ...i, ...updates } : i);
-
-        // If start_time changed, re-sort
-        if (updates.start_time) {
-            updatedItems = sortItems(updatedItems);
-        }
-
-        setItems(updatedItems);
+        setItems((list) => {
+            const next = list.map((i) => (i.id === id ? { ...i, ...updates } : i));
+            // A changed time changes where the card belongs.
+            return updates.start_time !== undefined ? sortItems(next) : next;
+        });
         setIsDirty(true);
     };
 
@@ -404,8 +447,11 @@ const DayPlanner = () => {
         setIsDirty(true);
     };
 
-    const selectPlan = (plan) => {
-        if (isDirty && !window.confirm('You have unsaved changes. Discard them?')) return;
+    /* No "you have unsaved changes, discard them?" — the answer is always no,
+       so it is not a question, it is an obstacle. Anything outstanding is
+       written on the way out. */
+    const selectPlan = async (plan) => {
+        if (isDirty && editedPlan) await saveChanges();
         setSelectedPlan(plan);
     };
 
@@ -450,19 +496,9 @@ const DayPlanner = () => {
         }
         setSaveError(null);
 
-        // 2. Process Deletions
-        if (deletedItemIds.length > 0) {
-            const { error: deleteError } = await supabase
-                .from('plan_items')
-                .delete()
-                .in('id', deletedItemIds);
-
-            if (deleteError) {
-                console.error('Error deleting items:', deleteError);
-            } else {
-                setDeletedItemIds([]);
-            }
-        }
+        /* Deletions used to be processed here, from a list the delete
+           button appended to. They happen at the moment she deletes now —
+           see deleteItem. Nobody presses Save after deleting something. */
 
         // 3. Process Upserts (New & Updated Items)
         // CRITICAL: Sort items by time BEFORE saving order to ensure consistency
@@ -654,7 +690,7 @@ const DayPlanner = () => {
         delete newItemObj.lng;
 
         // Add to local state
-        setItems(sortItems([...items, newItemObj]));
+        setItems((list) => sortItems([...list, newItemObj]));
         setNewItem({ activity: '', location: '', link: '', cost: '', duration: '', lat: null, lng: null, place_id: null });
         setIsDirty(true);
     };
@@ -875,17 +911,16 @@ const DayPlanner = () => {
                                     onChange={(e) => handlePlanChange('title', e.target.value)}
                                 />
                                 <div className="row daydream__head-actions">
-                                    {isDirty && (
-                                        <Button variant="primary" onClick={saveChanges} disabled={saving}>
-                                            {saving ? 'Saving…' : 'Save Changes'}
-                                        </Button>
-                                    )}
-                                    {/* Said here rather than in an alert box,
-                                        which interrupts and then tells you
-                                        nothing you can act on. */}
-                                    {!isDirty && savedAt && !saveError && (
-                                        <span className="daydream__saved">Saved</span>
-                                    )}
+                                    {/* One quiet line rather than a button she
+                                        has to notice. Said here rather than in
+                                        an alert box, which interrupts and then
+                                        tells you nothing you can act on. */}
+                                    <span
+                                        className={`daydream__saved${isDirty || saving ? ' is-working' : ''}`}
+                                        role="status"
+                                    >
+                                        {saving ? 'Saving…' : isDirty ? 'Unsaved' : savedAt ? 'Saved' : ''}
+                                    </span>
                                     {/* A day worked out here is the same thing
                                         as a day of a trip, one scale down. It
                                         knows which day of the trip it is,
@@ -920,7 +955,16 @@ const DayPlanner = () => {
                             </div>
 
                             {saveError && (
-                                <p className="daydream__save-error" role="status">{saveError}</p>
+                                <p className="daydream__save-error" role="status">
+                                    {saveError}
+                                    {/* Autosave does not keep retrying a save
+                                        that failed — a loop against a database
+                                        that is refusing is not help. This is
+                                        the way back in. */}
+                                    <button type="button" onClick={saveChanges} disabled={saving}>
+                                        {saving ? 'Trying…' : 'Try again'}
+                                    </button>
+                                </p>
                             )}
 
                             <div className="daydream__meta">
