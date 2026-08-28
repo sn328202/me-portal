@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "smoke": "node scripts/smoke.mjs",
-    "test": "node scripts/capture-test.mjs && node scripts/recipe-test.mjs && node scripts/link-test.mjs && node scripts/ics-test.mjs && node scripts/social-test.mjs && node scripts/place-test.mjs && node scripts/mapstyle-test.mjs && node scripts/theme-test.mjs && node scripts/ingredient-test.mjs && node scripts/trip-test.mjs && node scripts/sheet-test.mjs && node scripts/xlsx-test.mjs && node scripts/wardrobe-theme-test.mjs && node scripts/flags-test.mjs && node scripts/timeline-test.mjs && node scripts/blockcolour-test.mjs && node scripts/mention-test.mjs && node scripts/tripbounds-test.mjs && node scripts/sweep-test.mjs"
+    "test": "node scripts/capture-test.mjs && node scripts/recipe-test.mjs && node scripts/link-test.mjs && node scripts/ics-test.mjs && node scripts/social-test.mjs && node scripts/place-test.mjs && node scripts/mapstyle-test.mjs && node scripts/theme-test.mjs && node scripts/ingredient-test.mjs && node scripts/trip-test.mjs && node scripts/sheet-test.mjs && node scripts/xlsx-test.mjs && node scripts/wardrobe-theme-test.mjs && node scripts/flags-test.mjs && node scripts/timeline-test.mjs && node scripts/blockcolour-test.mjs && node scripts/mention-test.mjs && node scripts/tripbounds-test.mjs && node scripts/sweep-test.mjs && node scripts/plantoatlas-test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

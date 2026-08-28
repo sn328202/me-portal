@@ -10,6 +10,7 @@ import DayBuilder from '../components/DayBuilder';
 import MentionInput from '../components/MentionInput';
 import TableBook from './TableBook';
 import Commonplace from './Commonplace';
+import SendToAtlas from '../components/SendToAtlas';
 import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
@@ -791,6 +792,17 @@ const DayPlanner = () => {
                                             Save Changes
                                         </Button>
                                     )}
+                                    {/* A day worked out here is the same thing
+                                        as a day of a trip, one scale down. It
+                                        knows which day of the trip it is,
+                                        because the itinerary has a date. */}
+                                    <SendToAtlas
+                                        plan={editedPlan}
+                                        items={items}
+                                        onSent={() => setSelectedPlan((p) => (
+                                            p ? { ...p, atlas_sent_at: new Date().toISOString() } : p
+                                        ))}
+                                    />
                                     <Button
                                         onClick={() => {
                                             const icsContent = generateICS(editedPlan, items);
