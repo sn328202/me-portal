@@ -240,11 +240,35 @@ export async function resolvePlace(name, { city = null } = {}) {
  * a menu that throws while you are typing is worse than a menu with nothing
  * in it.
  */
-export async function searchPlaces(query, { city = null, limit = 6 } = {}) {
+export async function searchPlaces(query, {
+    city = null, lat = null, lng = null, radiusKm = 40, limit = 6,
+} = {}) {
     const text = String(query || '').trim();
     if (text.length < 2) return [];
 
-    const full = [text, city].filter(Boolean).join(' ');
+    const near = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+
+    /**
+     * Where the trip is belongs in the *bias*, not in the query.
+     *
+     * Appending it turned "@masque" into a search for "masque Kerala", and
+     * Google — reasonably — answered with mosques. A location bias changes
+     * only which of the matches for "masque" come first, which is the thing
+     * actually wanted. The city is glued on only when there are no
+     * coordinates to bias with, where a worse tool beats no tool.
+     */
+    const full = near ? text : [text, city].filter(Boolean).join(' ');
+    const bias = near
+        ? {
+            locationBias: {
+                circle: {
+                    center: { latitude: Number(lat), longitude: Number(lng) },
+                    radius: Math.min(50000, Math.max(1000, radiusKm * 1000)),
+                },
+            },
+        }
+        : {};
+
     const key = process.env.GOOGLE_PLACES_API_KEY;
     const want = Math.min(10, Math.max(1, limit));
 
@@ -264,7 +288,9 @@ export async function searchPlaces(query, { city = null, limit = 6 } = {}) {
                         'places.primaryTypeDisplayName', 'places.types',
                     ].join(','),
                 },
-                body: JSON.stringify({ textQuery: full, pageSize: want, languageCode: 'en' }),
+                body: JSON.stringify({
+                    textQuery: full, pageSize: want, languageCode: 'en', ...bias,
+                }),
                 signal: AbortSignal.timeout(8000),
             });
             if (res.ok) {
@@ -298,6 +324,15 @@ export async function searchPlaces(query, { city = null, limit = 6 } = {}) {
         url.searchParams.set('format', 'jsonv2');
         url.searchParams.set('addressdetails', '1');
         url.searchParams.set('limit', String(want));
+        if (near) {
+            // Nominatim has no soft bias, only a box. Preferred, not bounded:
+            // a place just outside it is still a real answer.
+            const d = Math.min(2, radiusKm / 100);
+            url.searchParams.set(
+                'viewbox',
+                [Number(lng) - d, Number(lat) + d, Number(lng) + d, Number(lat) - d].join(',')
+            );
+        }
         const res = await fetch(url, {
             headers: { 'User-Agent': NOMINATIM_UA, accept: 'application/json' },
             signal: AbortSignal.timeout(8000),

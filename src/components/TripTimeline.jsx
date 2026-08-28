@@ -4,7 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { HUES, blockPalette, blockStyle } from '../utils/blockColour';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
-import { legBands, legLabel, cityLabelOn } from '../utils/tripLegs';
+import { legBands, legLabel, cityLabelOn, isTravelLeg } from '../utils/tripLegs';
 import { HOURS, rowsFor, dragRange, timesFromDrag, movedTo, describeSpan } from '../utils/timeline';
 import MentionInput from './MentionInput';
 
@@ -30,6 +30,22 @@ const label = (hour) => {
 
 /* The hour rows begin on the fourth grid row: day heads, City, Lodging. */
 const FIRST_HOUR_ROW = 4;
+
+/* Where to look for a place mentioned on this day. A travel day has no
+   coordinates worth biasing towards, so it falls back to nothing. */
+const nearOn = (legs, day) => {
+    const date = String(day?.date || '').slice(0, 10);
+    const leg = (legs || []).find((l) => (
+        !isTravelLeg(l)
+        && String(l.start_date).slice(0, 10) <= date
+        && String(l.end_date).slice(0, 10) >= date
+    ));
+    if (leg?.lat != null && leg?.lng != null) {
+        return { city: leg.city, lat: leg.lat, lng: leg.lng, radiusKm: 30 };
+    }
+    const city = cityLabelOn(legs, day?.date) || day?.city;
+    return city ? { city } : null;
+};
 
 const TripTimeline = ({
     days, items, stays, legs = [], costs, currency = 'USD',
@@ -310,7 +326,7 @@ const TripTimeline = ({
                                         value={draft ?? item.title ?? ''}
                                         autoFocus
                                         aria-label="What is it"
-                                        city={cityLabelOn(legs, day.date) || day.city || null}
+                                        near={nearOn(legs, day)}
                                         onFocus={(e) => e.target.select()}
                                         onChange={setDraft}
                                         onPick={(place, text) => {

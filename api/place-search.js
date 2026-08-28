@@ -45,6 +45,9 @@ export default async function handler(req, res) {
 
     const places = await searchPlaces(q, {
         city: (body.city || '').toString().trim() || null,
+        lat: body.lat ?? null,
+        lng: body.lng ?? null,
+        radiusKm: Number(body.radiusKm) || 40,
         limit: Number(body.limit) || 6,
     });
 

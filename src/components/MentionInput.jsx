@@ -20,7 +20,7 @@ const MentionInput = ({
     value = '',
     onChange,
     onPick,
-    city = null,
+    near = null,
     inputRef,
     onKeyDown,
     className = '',
@@ -47,7 +47,7 @@ const MentionInput = ({
        body and is positioned by measurement. */
     const [box, setBox] = useState(null);
 
-    const { results, busy } = usePlaceSearch(token?.query, city);
+    const { results, busy } = usePlaceSearch(token?.query, near);
     const open = Boolean(token) && Boolean(box) && (results.length > 0 || busy);
     /* The list can come back shorter than the last one, so the highlight is
        clamped where it is used rather than trusted where it is stored. */

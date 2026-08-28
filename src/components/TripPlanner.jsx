@@ -60,7 +60,7 @@ const WeatherChip = ({ weather }) => {
     );
 };
 
-const DayItem = ({ item, currency, city, onChange, onDelete }) => (
+const DayItem = ({ item, currency, near, onChange, onDelete }) => (
     <li className="trip-item">
         <input
             type="time"
@@ -74,7 +74,7 @@ const DayItem = ({ item, currency, city, onChange, onDelete }) => (
             className="trip-item__title"
             value={item.title || ''}
             aria-label="What"
-            city={city}
+            near={near}
             onChange={(title) => onChange({ title })}
             onPick={(place, title) => onChange({
                 title,
@@ -303,7 +303,9 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                     /* Where the search should look. A travel day has no city
                        of its own worth biasing towards — you are in the air. */
                     const leg = legOnDate(day.date);
-                    const near = leg && !isTravelLeg(leg) ? leg.city : (day.city || null);
+                    const near = leg && !isTravelLeg(leg)
+                        ? { city: leg.city, lat: leg.lat, lng: leg.lng, radiusKm: 30 }
+                        : (day.city ? { city: day.city } : null);
 
                     return (
                         <Card key={day.id} className="trip-day">
@@ -360,7 +362,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                                         key={item.id}
                                         item={item}
                                         currency={currency}
-                                        city={near}
+                                        near={near}
                                         onChange={(patch) => updateItem(day.id, item.id, patch)}
                                         onDelete={() => deleteItem(day.id, item.id)}
                                     />
@@ -381,7 +383,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                                     placeholder="Add something to this day…"
                                     value={draft[key] || ''}
                                     aria-label="Add something to this day"
-                                    city={near}
+                                    near={near}
                                     onChange={(text) => setDraft((prev) => ({ ...prev, [key]: text }))}
                                     /* Picked from the menu, the plan is made
                                        there and then with its link, rather

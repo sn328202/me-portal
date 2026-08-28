@@ -4,7 +4,7 @@ import { GiTrashCan, GiLightBulb, GiHouse, GiPathDistance } from 'react-icons/gi
 import { Button, Card } from './ui';
 import MentionInput from './MentionInput';
 import { formatMoney } from '../utils/tripCosts';
-import { anchorCity } from '../utils/wardrobeHandoff';
+import { tripBounds } from '../utils/tripBounds';
 
 /**
  * Somewhere to put an idea before it has a date.
@@ -20,7 +20,7 @@ import { anchorCity } from '../utils/wardrobeHandoff';
  * Without that this is a notes app that happens to live next to a trip.
  */
 
-const IdeaRow = ({ idea, currency, city, onUpdate, onDelete, onPromote, canPromote }) => {
+const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromote }) => {
     const [open, setOpen] = useState(false);
 
     return (
@@ -42,7 +42,7 @@ const IdeaRow = ({ idea, currency, city, onUpdate, onDelete, onPromote, canPromo
                     className="idea__title"
                     value={idea.title}
                     aria-label="Idea"
-                    city={city}
+                    near={near}
                     onChange={(title) => onUpdate(idea.id, { title })}
                     onPick={(place, title) => onUpdate(idea.id, {
                         title,
@@ -135,7 +135,7 @@ const placeArea = (place) => {
     return parts.length > 2 ? parts[parts.length - 3] : (parts[0] || null);
 };
 
-const Column = ({ title, icon, kind, ideas, currency, city, hooks, placeholder, onPromote, canPromote }) => {
+const Column = ({ title, icon, kind, ideas, currency, near, hooks, placeholder, onPromote, canPromote }) => {
     const [draft, setDraft] = useState('');
 
     const submit = (e) => {
@@ -159,7 +159,7 @@ const Column = ({ title, icon, kind, ideas, currency, city, hooks, placeholder, 
                         key={idea.id}
                         idea={idea}
                         currency={currency}
-                        city={city}
+                        near={near}
                         onUpdate={hooks.updateIdea}
                         onDelete={hooks.deleteIdea}
                         onPromote={onPromote}
@@ -178,7 +178,7 @@ const Column = ({ title, icon, kind, ideas, currency, city, hooks, placeholder, 
                     value={draft}
                     placeholder={kind === 'stay' ? 'Somewhere to stay…' : 'Something to do…'}
                     aria-label={kind === 'stay' ? 'A place to stay' : 'A thing to do'}
-                    city={city}
+                    near={near}
                     onChange={setDraft}
                     onPick={(place, text) => {
                         hooks.addIdea({
@@ -197,9 +197,12 @@ const Column = ({ title, icon, kind, ideas, currency, city, hooks, placeholder, 
 
 const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) => {
     const currency = trip?.currency || 'USD';
-    /* Somewhere to bias a place search: the trip's anchor city, so "@masque"
-       finds the one in Mumbai rather than the one in London. */
-    const city = anchorCity(legs) || trip?.destination || null;
+    /* Somewhere to bias a place search. An idea has no date, so it belongs to
+       the whole trip rather than to one city of it: the middle of everywhere
+       it goes, and a radius wide enough to reach the ends. Biasing to the
+       anchor city alone would rank a Mumbai restaurant below every mosque in
+       Kerala, which is what it did. */
+    const near = tripBounds(legs) || (trip?.destination ? { city: trip.destination } : null);
     const [target, setTarget] = useState('');
 
     if (!trip) return null;
@@ -277,7 +280,7 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
                     kind="do"
                     ideas={hooks.toDo}
                     currency={currency}
-                    city={city}
+                    near={near}
                     hooks={hooks}
                     placeholder="Nothing yet. Type anything you might want to do."
                     onPromote={promoteToDay}
@@ -289,7 +292,7 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
                     kind="stay"
                     ideas={hooks.toStay}
                     currency={currency}
-                    city={city}
+                    near={near}
                     hooks={hooks}
                     placeholder="Nowhere yet. Hotels, rentals, a friend's spare room."
                     onPromote={promoteToStay}

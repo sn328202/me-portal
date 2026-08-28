@@ -13,7 +13,14 @@ import { supabase } from '../lib/supabase';
 
 const DEBOUNCE = 280;
 
-export const usePlaceSearch = (query, city) => {
+/**
+ * `near` says where to look: { city, lat, lng, radiusKm }. It is serialised
+ * for the dependency list because an object literal is a new object on every
+ * render, and a search that restarts on every render is a search that never
+ * finishes.
+ */
+export const usePlaceSearch = (query, near) => {
+    const where = JSON.stringify(near || null);
     const [results, setResults] = useState([]);
     const [busy, setBusy] = useState(false);
     /* The query the newest request was for. An older reply that arrives late
@@ -41,7 +48,7 @@ export const usePlaceSearch = (query, city) => {
                         'content-type': 'application/json',
                         Authorization: `Bearer ${session?.access_token || ''}`,
                     },
-                    body: JSON.stringify({ q: text, city: city || null }),
+                    body: JSON.stringify({ q: text, ...(JSON.parse(where) || {}) }),
                     signal: controller.signal,
                 });
                 const json = await res.json();
@@ -60,7 +67,7 @@ export const usePlaceSearch = (query, city) => {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [query, city]);
+    }, [query, where]);
 
     return { results, busy };
 };
