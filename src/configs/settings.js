@@ -17,6 +17,10 @@ export const DEFAULT_SETTINGS = {
     // Secret iCal addresses, one per calendar: { id, name, url, color }.
     // Replaces calendarIcalUrl, which was a single URL and never had a UI.
     calendarFeeds: [],
+    /* The portal's own days in the Chronometer. On by default: they are
+       already hers, they cost no request, and a calendar that does not show
+       the plan you made in the same app is a strange calendar. */
+    portalCalendar: { itineraries: true, trips: true },
     calendarIcalUrl: '',
     calendarDarkMode: false,
     statusUrl: '',

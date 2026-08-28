@@ -306,3 +306,19 @@
         align-items: stretch;
     }
 }
+
+
+/* The portal's own days, listed above the calendars she subscribes to. They
+   need no address, so they have no remove button — only a switch. */
+.feed-row--mine {
+    border-left: 2px solid var(--border-gold);
+    padding-left: var(--space-2);
+}
+
+.feed-row--mine .btn {
+    font-size: var(--text-2xs);
+}
+
+.feed-row--mine .btn[aria-pressed="false"] {
+    opacity: 0.6;
+}

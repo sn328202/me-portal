@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseCalendar, isFreeBusyOnly } from './_ics.js';
 import { isPrivateHost, UA } from './_html.js';
+import { itineraryEvents, tripEvents, within } from '../src/utils/portalEvents.js';
 
 /**
  * POST /api/calendar
@@ -124,7 +125,91 @@ export default async function handler(req, res) {
         ? config.settings.calendarFeeds.slice(0, MAX_FEEDS)
         : [];
 
-    if (!feeds.length) return res.status(200).json({ events: [], feeds: [], from, to });
+    /* The portal's own days, alongside whatever calendars she subscribes to.
+
+       This is the answer to "export the itinerary to my calendar", and it is
+       not an export. A file goes stale the moment the plan changes, and
+       writing into Google Calendar would mean asking for a write scope for
+       something that only ever needed to be read. The Chronometer already
+       merges sources; the portal is the one source that needs no address, no
+       fetch and no permission — same database, same user, one query. Change
+       an itinerary and this shows the change, because there is no copy. */
+    const mine = config?.settings?.portalCalendar || {};
+    const wantPlans = mine.itineraries !== false;
+    const wantTrips = mine.trips !== false;
+
+    const own = [];
+    const ownFeeds = [];
+
+    if (wantPlans) {
+        try {
+            const { data: plans } = await sb.from('day_plans')
+                .select('id, title, planned_date, archived_at')
+                .eq('user_id', auth.user.id)
+                .not('planned_date', 'is', null);
+
+            const ids = (plans || []).map((p) => p.id);
+            const { data: items } = ids.length
+                ? await sb.from('plan_items')
+                    .select('id, plan_id, activity, start_time, location, is_brainstorm')
+                    .in('plan_id', ids)
+                : { data: [] };
+
+            const byPlan = {};
+            for (const i of items || []) (byPlan[i.plan_id] ||= []).push(i);
+
+            const built = within(
+                itineraryEvents(plans || [], byPlan, { color: 'var(--accent-gold)' }),
+                from, to
+            );
+            own.push(...built);
+            ownFeeds.push({ id: 'portal-itineraries', name: 'Your itineraries', color: 'var(--accent-gold)', ok: true, count: built.length, builtIn: true });
+        } catch (err) {
+            ownFeeds.push({ id: 'portal-itineraries', name: 'Your itineraries', ok: false, error: err.message, builtIn: true });
+        }
+    }
+
+    if (wantTrips) {
+        try {
+            const { data: trips } = await sb.from('atlas_trips')
+                .select('id, destination, start_date, end_date')
+                .eq('user_id', auth.user.id);
+
+            const ids = (trips || []).map((t) => t.id);
+            const { data: days } = ids.length
+                ? await sb.from('atlas_days').select('id, trip_id, date, city').in('trip_id', ids)
+                : { data: [] };
+            const dayIds = (days || []).map((d) => d.id);
+            const { data: items } = dayIds.length
+                ? await sb.from('atlas_day_items')
+                    .select('id, day_id, title, start_time, end_time, location')
+                    .in('day_id', dayIds)
+                : { data: [] };
+
+            const byTrip = {};
+            for (const d of days || []) (byTrip[d.trip_id] ||= []).push(d);
+            const byDay = {};
+            for (const i of items || []) (byDay[i.day_id] ||= []).push(i);
+
+            const built = within(
+                tripEvents(trips || [], byTrip, byDay, { color: 'var(--accent-crimson)' }),
+                from, to
+            );
+            own.push(...built);
+            ownFeeds.push({ id: 'portal-trips', name: 'Your trips', color: 'var(--accent-crimson)', ok: true, count: built.length, builtIn: true });
+        } catch (err) {
+            ownFeeds.push({ id: 'portal-trips', name: 'Your trips', ok: false, error: err.message, builtIn: true });
+        }
+    }
+
+    if (!feeds.length) {
+        return res.status(200).json({
+            events: own.sort((a, b) => new Date(a.start) - new Date(b.start)),
+            feeds: ownFeeds,
+            from,
+            to,
+        });
+    }
 
     // One slow calendar should not hold up the rest.
     const results = await Promise.all(feeds.map(async (feed) => {
@@ -145,11 +230,14 @@ export default async function handler(req, res) {
         }
     }));
 
-    const events = results.flatMap((r) => r.events).sort((a, b) => new Date(a.start) - new Date(b.start));
+    const events = [...own, ...results.flatMap((r) => r.events)]
+        .sort((a, b) => new Date(a.start) - new Date(b.start));
 
     return res.status(200).json({
         events,
-        feeds: results.map((r) => r.feed),
+        // The portal's own sources first: they are always there and always
+        // work, so they are the stable part of the list.
+        feeds: [...ownFeeds, ...results.map((r) => r.feed)],
         from,
         to,
     });

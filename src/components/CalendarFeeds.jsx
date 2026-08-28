@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GiTrashCan, GiCheckMark, GiSundial } from 'react-icons/gi';
 import { Button, Field, Tag } from './ui';
 import { useCalendar } from '../hooks/useCalendar';
+import { useSettings } from '../hooks/useSettings';
 
 /**
  * Manage the calendars the Chronometer reads.
@@ -26,6 +27,10 @@ const hostOf = (url) => {
 
 const CalendarFeeds = () => {
     const { savedFeeds, feeds, probe, addFeed, removeFeed } = useCalendar();
+    const { settings, updateSetting } = useSettings();
+    const mine = settings.portalCalendar || {};
+    const showing = (key) => mine[key] !== false;
+    const toggle = (key) => updateSetting('portalCalendar', { ...mine, [key]: !showing(key) });
     const [name, setName] = useState('');
     const [url, setUrl] = useState('');
     const [checking, setChecking] = useState(false);
@@ -57,6 +62,42 @@ const CalendarFeeds = () => {
                 <em> Integrate calendar</em>, and copy the secret address — not the public one.
                 Nothing has to be made public, and it works on your phone.
             </p>
+
+            {/* The portal's own days, which need no address because they are
+                already here. This is what "export the itinerary to my
+                calendar" should have meant: not a file that goes stale and
+                not a write scope, just the agenda reading what the portal
+                already knows. */}
+            <ul className="feed-list">
+                {[
+                    ['itineraries', 'Your itineraries', 'Every timed thing on a day you have planned'],
+                    ['trips', 'Your trips', 'Each expedition across its dates, and its timed stops'],
+                ].map(([key, name, what]) => {
+                    const live = status(`portal-${key}`);
+                    return (
+                        <li key={key} className="feed-row feed-row--mine">
+                            <span
+                                className="feed-dot"
+                                style={{ background: key === 'trips' ? 'var(--accent-crimson)' : 'var(--accent-gold)' }}
+                                aria-hidden="true"
+                            />
+                            <div className="feed-meta">
+                                <strong>{name}</strong>
+                                <span className="muted"> — {what}</span>
+                            </div>
+                            {live?.ok && showing(key) && <Tag tone="green">{live.count} events</Tag>}
+                            <Button
+                                size="sm"
+                                aria-pressed={showing(key)}
+                                label={showing(key) ? `Hide ${name}` : `Show ${name}`}
+                                onClick={() => toggle(key)}
+                            >
+                                {showing(key) ? 'Showing' : 'Hidden'}
+                            </Button>
+                        </li>
+                    );
+                })}
+            </ul>
 
             {savedFeeds.length > 0 && (
                 <ul className="feed-list">
