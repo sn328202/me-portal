@@ -526,12 +526,37 @@
     list-style: none;
 }
 
+/* Two day cards sit side by side, so a row of six fixed columns is wider
+   than the card it lives in: the fixed tracks overflow and the title —
+   the only column that was flexible — gets crushed to a sliver. Which is
+   how a plan you just named reads as an empty box.
+
+   Wrapping instead. The time and the title keep the first line; the kind,
+   the cost and the buttons drop to a second one when there is no room,
+   and on a wide card nothing wraps at all. */
 .trip-item {
-    display: grid;
-    grid-template-columns: 4.6em 1fr 6em 4.5em auto auto;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-1) 0;
+}
+
+.trip-item__time {
+    flex: 0 0 auto;
+}
+
+/* Never narrower than a few words, and first in line for spare room. */
+.trip-item__title {
+    flex: 1 1 9em;
+}
+
+.trip-item__kind {
+    flex: 0 1 6em;
+}
+
+.trip-item__cost {
+    flex: 0 1 4.5em;
 }
 
 .trip-item input,
