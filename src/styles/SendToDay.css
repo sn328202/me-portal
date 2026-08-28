@@ -72,3 +72,54 @@
     display: flex;
     gap: var(--space-2);
 }
+
+
+/* A trip does not always exist before the days do. Hers usually starts as one
+   good Saturday, and the only way to say so was to make an empty expedition
+   and set its dates by hand to cover a day that was already worked out. */
+
+.send-atlas__modes {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+}
+
+.send-atlas__mode {
+    flex: 1;
+    min-width: 0;
+    padding: var(--space-2);
+    border: none;
+    border-radius: calc(var(--radius-sm) - 1px);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    cursor: pointer;
+    transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
+}
+
+.send-atlas__mode:hover { color: var(--text-main); }
+
+.send-atlas__mode.is-on {
+    background: var(--accent-gold);
+    color: var(--bg-main);
+}
+
+.send-atlas__field input {
+    width: 100%;
+    padding: var(--space-2);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+.send-atlas__field input:focus {
+    border-color: var(--border-gold);
+    outline: none;
+}
