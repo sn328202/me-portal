@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { format, parseISO } from 'date-fns';
-import { GiTrashCan, GiPathDistance, GiKnot } from 'react-icons/gi';
+import { GiTrashCan, GiPathDistance } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import { formatMoney } from '../utils/tripCosts';
-import { summariseLegs, routeGaps, isTravelLeg, legDestination } from '../utils/tripLegs';
+import { summariseLegs, isTravelLeg, legDestination } from '../utils/tripLegs';
 
 /**
  * The trip before it is days: five in Goa, then four in Kerala.
@@ -13,13 +12,14 @@ import { summariseLegs, routeGaps, isTravelLeg, legDestination } from '../utils/
  * as if it were an independent question. This is the view where the shape gets
  * decided, and then the days inherit it.
  *
- * The gaps panel is the point. "Which nights have I not booked anywhere?" is
- * answerable only by opening every day card in turn, which means in practice it
- * is not answered until something goes wrong.
+ * What is *not* here any more is the gaps panel. It used to sit under this
+ * list, where halfway up the page it read as the next step — a thing to fix
+ * before carrying on. It is a checklist you glance at once the planning is
+ * done, so it lives at the bottom now, as TripLooseEnds.
  */
 
 const TripRoute = ({
-    legs, stays, days, items, costs, currency, tripDates,
+    legs, stays, days, items, costs, currency,
     onAdd, onUpdate, onDelete,
 }) => {
     const [adding, setAdding] = useState(false);
@@ -36,9 +36,6 @@ const TripRoute = ({
     );
 
     const summary = summariseLegs(legs, { itemsByDate, costsByDate, weatherByDate, stays });
-    const gaps = routeGaps(tripDates, legs, stays);
-
-    const pretty = (d) => format(parseISO(String(d).slice(0, 10)), 'd MMM');
 
     const submit = (e) => {
         e.preventDefault();
@@ -48,10 +45,6 @@ const TripRoute = ({
         setDraft({ city: '', start_date: '', end_date: '' });
         setAdding(false);
     };
-
-    // Handovers are deliberately not counted: they are a fact about the trip,
-    // not something to go and fix.
-    const problems = gaps.unassigned.length + gaps.overlaps.length + gaps.unhoused.length;
 
     return (
         <div className="route">
@@ -150,48 +143,6 @@ const TripRoute = ({
                         />
                         <Button type="submit" variant="solid" size="sm">Add</Button>
                     </form>
-                )}
-            </Card>
-
-            {/* Three different failures, named separately, because the fix for
-                each is different. */}
-            <Card className={`route__gaps${problems ? '' : ' is-clear'}`}>
-                <h4><GiKnot /> {problems ? 'Loose ends' : 'Nothing loose'}</h4>
-
-                {!problems && (
-                    <p>Every day has a city, and every night has somewhere to sleep.</p>
-                )}
-
-                {gaps.unassigned.length > 0 && (
-                    <p>
-                        <strong>{gaps.unassigned.length}</strong>{' '}
-                        {gaps.unassigned.length === 1 ? 'day has' : 'days have'} no city yet —{' '}
-                        {gaps.unassigned.map(pretty).join(', ')}
-                    </p>
-                )}
-
-                {gaps.unhoused.length > 0 && (
-                    <p className="route__warn">
-                        <strong>{gaps.unhoused.length}</strong>{' '}
-                        {gaps.unhoused.length === 1 ? 'night has' : 'nights have'} nowhere booked —{' '}
-                        {gaps.unhoused.map(pretty).join(', ')}
-                    </p>
-                )}
-
-                {gaps.overlaps.length > 0 && (
-                    <p className="route__warn">
-                        Two cities claim {gaps.overlaps.map(pretty).join(', ')}. You can only be
-                        in one.
-                    </p>
-                )}
-
-                {/* Said plainly rather than warned about: a day that ends in one
-                    city and finishes in another is a normal way to travel. */}
-                {gaps.handovers.length > 0 && (
-                    <p className="route__note">
-                        {gaps.handovers.length} travel {gaps.handovers.length === 1 ? 'day' : 'days'}
-                        {' '}— {gaps.handovers.map(pretty).join(', ')} — where you change cities.
-                    </p>
                 )}
             </Card>
         </div>

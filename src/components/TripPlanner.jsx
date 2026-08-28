@@ -137,7 +137,7 @@ const VIEWS = [
 
 const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
     const {
-        days, items, stays, legs, strays, tripDates, costs, weatherBusy, weatherMessage,
+        days, items, stays, legs, strays, costs, weatherBusy, weatherMessage,
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
         legOnDate, cityLabelFor, addLeg, updateLeg, deleteLeg, moveItem,
         ensureDays, updateDay, addItem, updateItem, deleteItem, refreshWeather,
@@ -257,7 +257,6 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed, setup }) => {
                     items={items}
                     costs={costs}
                     currency={currency}
-                    tripDates={tripDates}
                     onAdd={addLeg}
                     onUpdate={updateLeg}
                     onDelete={deleteLeg}

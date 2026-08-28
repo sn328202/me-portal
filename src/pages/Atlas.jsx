@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
 import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
+import TripLooseEnds from '../components/TripLooseEnds';
 import { useTripDays } from '../hooks/useTripDays';
 import { useTripIdeas } from '../hooks/useTripIdeas';
 import { flagsForLegs } from '../utils/flags';
@@ -509,17 +510,17 @@ const Atlas = () => {
                             onBook={planner.addStay}
                         />
 
-                        {/* Loose ends: the pins dropped by hand and the map
-                            they live on. Neither decides anything about the
-                            trip — you can plan the whole thing without ever
-                            opening this — so it sits at the bottom, under its
-                            own heading, rather than trailing off the end of
-                            the planner as though it were the next step. */}
+                        {/* The bottom of the page: what is still unfinished,
+                            and the pins and the map. None of it decides
+                            anything — the trip can be planned start to finish
+                            without opening any of it — so none of it sits
+                            halfway up looking like the next step. */}
                         <section className="expedition__loose">
-                            <header className="expedition__loose-head">
-                                <h3 className="section-title">Loose ends</h3>
-                                <p>Pins and the map. Nice to have; nothing here is needed to plan.</p>
-                            </header>
+                            <TripLooseEnds
+                                tripDates={planner.tripDates}
+                                legs={planner.legs}
+                                stays={planner.stays}
+                            />
 
                             <div className="field">
                             <span className="field__label">WAYPOINTS (CLICK MAP TO ADD)</span>
