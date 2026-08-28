@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { mentionAt, replaceMention, placeSubtitle } from '../utils/mention';
 import { usePlaceSearch } from '../hooks/usePlaceSearch';
+import '../styles/Mention.css';
 
 /**
  * A text field where "@masque" looks the place up and brings its link with it.

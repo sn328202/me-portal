@@ -87,17 +87,6 @@ const PlaceImage = ({ photo, className = '' }) => {
     );
 };
 
-/** Stable per-item tilt for the brainstorm notes — Math.random() in render
- *  re-rolled the angle on every keystroke. */
-const noteTilt = (id) => {
-    const key = String(id);
-    let hash = 0;
-    for (let i = 0; i < key.length; i += 1) {
-        hash = (hash * 31 + key.charCodeAt(i)) % 401;
-    }
-    return `${(hash / 100 - 2).toFixed(2)}deg`;
-};
-
 const DayPlanner = () => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
@@ -945,7 +934,6 @@ const DayPlanner = () => {
                                         <li
                                             key={item.id}
                                             className="idea"
-                                            style={{ '--tilt': noteTilt(item.id) }}
                                             draggable
                                             onDragStart={(e) => e.dataTransfer.setData('text/plain', item.id)}
                                         >

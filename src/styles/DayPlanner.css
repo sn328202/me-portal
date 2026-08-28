@@ -11,9 +11,13 @@
    they are paper stickies, and stickies are yellow.
    ============================================================ */
 
+/* The rail holds a list of short titles and a date. A quarter of the page is
+   more than that needs, and it was coming out of the planner beside it — which
+   is where the long place names and addresses live. Give it what it needs and
+   hand the rest over. */
 .daydream {
     display: grid;
-    grid-template-columns: minmax(15rem, 24%) minmax(0, 1fr);
+    grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr);
     gap: var(--space-5);
     height: 100%;
     min-height: 0;
@@ -255,12 +259,34 @@
 
 /* ---------- Boards ----------------------------------------- */
 
+/* Not two equal halves. The brainstorm side is a list of short names; the
+   itinerary side carries a time, a photo, a title, an address and a row of
+   buttons, and at half the width of a cramped page all of that was landing
+   on top of itself. */
 .daydream__boards {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
     gap: var(--space-5);
     flex: 1;
     min-height: 0;
+}
+
+/* Below this there is not enough width for two columns of anything, so they
+   stack rather than each getting half of not enough. */
+@media (max-width: 1180px) {
+    .daydream__boards {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* The divider between them turns from a wall into a floor. Below 900 the
+       stacking block says this again for the narrower case; here it is only
+       the two columns becoming one. */
+    .board--ideas {
+        padding-right: 0;
+        padding-bottom: var(--space-5);
+        border-right: none;
+        border-bottom: 1px dashed var(--border-dim);
+    }
 }
 
 .board {
@@ -315,7 +341,9 @@
 
 .idea-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    /* 150px could not hold a restaurant's name, so every note clipped its own
+       title. This is the width of a short line of text. */
+    grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
     grid-auto-rows: max-content;
     gap: var(--space-4);
     flex: 1;
@@ -326,68 +354,104 @@
     list-style: none;
 }
 
-/* Paper stickies. Deliberately not themeable — they are paper. */
+/* An idea, as a card like every other card in the portal.
+
+   These were paper stickies: hardcoded #fff9c4 on #333, tilted a random few
+   degrees, `overflow: hidden`. Three things wrong with that. The colour
+   belonged to no theme, so in eleven of the thirteen vibes they were a patch
+   of someone else's app. The tilt made a grid of them look like a mistake
+   rather than a choice. And the clipping meant a note whose text did not fit
+   simply lost the end of it — silently, which is the worst way to lose text. */
 .idea {
     position: relative;
-    padding: var(--space-4);
-    background: #fff9c4;
-    color: #333;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    /* Room for the delete button, which sits in the corner. */
+    padding-right: var(--space-6);
+    border: var(--rule-hair);
+    border-left: 3px solid var(--border-gold);
     border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    color: var(--text-main);
     box-shadow: var(--shadow-sm);
-    transform: rotate(var(--tilt, 0deg));
     cursor: grab;
-    overflow: hidden;
+    transition: border-color var(--dur-base) var(--ease),
+        box-shadow var(--dur-base) var(--ease);
 }
+
+.idea:hover {
+    border-left-color: var(--text-gold);
+    box-shadow: var(--shadow-md);
+}
+
+.idea:active { cursor: grabbing; }
 
 .idea__photo {
-    height: 80px;
-    margin-bottom: var(--space-2);
+    height: 96px;
+    border-radius: var(--radius-sm);
 }
 
+/* Wraps rather than clips: a note that quietly loses the end of its own name
+   is worse than a note two lines tall. */
 .idea__title {
-    margin: 0 0 var(--space-2);
-    padding-right: var(--space-5);
-    font-weight: var(--weight-bold);
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-tight);
+    overflow-wrap: anywhere;
 }
 
 .idea__rating {
-    margin: 0 0 var(--space-1);
-    font-size: var(--text-xs);
-    color: #b26a00;
+    margin: 0;
+    font-size: var(--text-2xs);
+    color: var(--text-gold);
 }
 
-.idea__rating span {
-    color: #777;
-}
+.idea__rating span { color: var(--text-dim); }
 
 .idea__line {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: var(--space-1);
-    margin: 0 0 var(--space-1);
-    font-size: var(--text-xs);
-    color: #555;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+    overflow-wrap: anywhere;
 }
 
 .idea__link {
     display: block;
-    margin-bottom: var(--space-1);
-    font-size: var(--text-xs);
-    color: #1a4f9c;
+    color: var(--text-gold);
+    font-size: var(--text-2xs);
+    overflow-wrap: anywhere;
 }
 
 .idea .idea__delete.btn {
     position: absolute;
-    top: 0;
-    right: 0;
-    min-width: var(--tap-min);
-    min-height: var(--tap-min);
-    color: #555;
+    top: var(--space-1);
+    right: var(--space-1);
+    min-width: 0;
+    min-height: 0;
+    padding: var(--space-1);
+    color: var(--text-dim);
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease);
+}
+
+/* Shown on hover, and always where there is no hover to speak of. */
+.idea:hover .idea__delete.btn,
+.idea:focus-within .idea__delete.btn { opacity: 1; }
+
+@media (hover: none) {
+    .idea .idea__delete.btn { opacity: 1; }
 }
 
 .idea .idea__delete.btn:hover {
-    background: rgba(0, 0, 0, 0.08);
-    color: #333;
+    background: var(--bg-hover);
+    color: var(--text-main);
 }
 
 
@@ -430,7 +494,9 @@
 .card.tl-item .card__body {
     display: grid;
     grid-template-columns: auto auto minmax(0, 1fr);
-    gap: var(--space-4);
+    /* space-4 three times over, on a column that is already tight, was the
+       difference between an address on one line and an address on four. */
+    gap: var(--space-3);
     align-items: start;
 }
 
@@ -438,8 +504,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-2);
-    min-width: 60px;
+    gap: var(--space-1);
+    /* Whatever the time input needs and not a pixel more: this column was
+       reserving sixty pixels of nothing next to a title with none to spare. */
+    min-width: 0;
+    flex-shrink: 0;
 }
 
 .tl-item .tl-item__handle {
@@ -452,8 +521,9 @@
 }
 
 .tl-item__photo {
-    width: 80px;
-    height: 80px;
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
     border-radius: var(--radius-md);
 }
 
@@ -465,25 +535,35 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: var(--space-4);
+    gap: var(--space-2);
 }
 
+/* Every one of these wraps rather than pushing the card open. A place name
+   is as long as the place is called, and "Crossroads Bougie Box + Tasting"
+   was running out through the right-hand edge of its own card. */
 .tl-item__title {
     margin: 0 0 var(--space-1);
     font-family: var(--font-display);
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
     line-height: var(--leading-tight);
     color: var(--text-main);
+    overflow-wrap: anywhere;
 }
 
 .tl-item__location {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: var(--space-1);
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     color: var(--text-muted);
+    overflow-wrap: anywhere;
 }
+
+/* The icon is not text and must not be squeezed into a column of its own. */
+.tl-item__location > svg { flex-shrink: 0; }
+
+.tl-item__head > div { min-width: 0; }
 
 .tl-item__location a {
     color: inherit;
@@ -498,9 +578,10 @@
 
 .tl-item__meta {
     display: flex;
-    gap: var(--space-4);
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
     margin-top: var(--space-2);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     color: var(--text-muted);
 }
 
