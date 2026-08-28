@@ -746,3 +746,38 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* The place an @-mention pulled in. The Location field beside it is a search
+   box rather than a display of what is set, so without this a place arrives
+   in the item with nothing on screen saying it did. */
+.idea-form__pulled {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.idea-form__pulled > span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.idea-form__pulled a { color: var(--text-gold); }
+
+.idea-form__pulled button {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: var(--text-sm);
+    line-height: 1;
+    cursor: pointer;
+}

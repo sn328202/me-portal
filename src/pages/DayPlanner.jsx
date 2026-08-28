@@ -865,6 +865,32 @@ const DayPlanner = () => {
                                             })}
                                         />
                                     </Field>
+
+                                    {/* The Location box below is a search
+                                        widget, not a display of what is set —
+                                        so a place pulled in by @ would land in
+                                        the item with nothing on screen saying
+                                        so. This is that. */}
+                                    {(newItem.location || newItem.link) && (
+                                        <p className="idea-form__pulled">
+                                            <GiPositionMarker aria-hidden="true" />
+                                            <span>{newItem.location || newItem.link}</span>
+                                            {newItem.link && (
+                                                <a href={newItem.link} target="_blank" rel="noopener noreferrer">map</a>
+                                            )}
+                                            <button
+                                                type="button"
+                                                aria-label="Forget this place"
+                                                onClick={() => setNewItem({
+                                                    ...newItem,
+                                                    location: '', link: '', place_id: null, lat: null, lng: null,
+                                                })}
+                                            >
+                                                ×
+                                            </button>
+                                        </p>
+                                    )}
+
                                     <div className="idea-form__row">
                                         {isLoaded ? (
                                             <Field label="Location">
