@@ -30,8 +30,12 @@ const FIRST_HOUR_ROW = 4;
 
 const TripTimeline = ({
     days, items, stays, legs = [], costs, currency = 'USD',
-    onCreate, onMove, onDropIdea,
+    onCreate, onMove, onDropIdea, onRename, onDelete,
 }) => {
+    /* The block just dragged out, so it can be named without leaving the
+       timeline. A block called "New plan" that can only be renamed in another
+       view is a block you rename never. */
+    const [editing, setEditing] = useState(null);
     /* A drag in progress: which day, and the two rows it has touched. Held
        here rather than written per-cell so the highlight and the commit read
        the same selection. */
@@ -42,7 +46,10 @@ const TripTimeline = ({
         setDrag((current) => {
             if (current && onCreate) {
                 const { from, to } = dragRange(current.from, current.to);
-                if (to > from) onCreate(current.dayId, timesFromDrag(current.from, current.to));
+                if (to > from) {
+                    Promise.resolve(onCreate(current.dayId, timesFromDrag(current.from, current.to)))
+                        .then((made) => made?.id && setEditing(made.id));
+                }
             }
             return null;
         });
@@ -234,8 +241,39 @@ const TripTimeline = ({
                                     gridRow: `${box.start + 1} / span ${box.span}`,
                                 }}
                                 title={`${item.title} · ${describeSpan(item)}`}
+                                onDoubleClick={() => setEditing(item.id)}
                             >
-                                {item.title}
+                                {editing === item.id ? (
+                                    <input
+                                        className="timeline__rename"
+                                        defaultValue={item.title}
+                                        autoFocus
+                                        aria-label="What is it"
+                                        onFocus={(e) => e.target.select()}
+                                        onBlur={(e) => {
+                                            onRename?.(day.id, item.id, e.target.value.trim() || item.title);
+                                            setEditing(null);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') e.target.blur();
+                                            if (e.key === 'Escape') setEditing(null);
+                                        }}
+                                    />
+                                ) : (
+                                    <>
+                                        {item.title}
+                                        {onDelete && (
+                                            <button
+                                                type="button"
+                                                className="timeline__drop"
+                                                aria-label={`Remove ${item.title}`}
+                                                onClick={() => onDelete(day.id, item.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                    </>
+                                )}
                             </span>
                         );
                     }))}

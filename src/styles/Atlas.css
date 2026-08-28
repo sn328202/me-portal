@@ -1535,3 +1535,31 @@
 
 /* An idea being dragged out of the board. */
 .idea[draggable='true'] .idea__title { cursor: grab; }
+
+/* Naming a block where it was dragged, rather than in another view. */
+.timeline__rename {
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.timeline__rename:focus { outline: none; }
+
+.timeline__drop {
+    position: absolute;
+    top: 0;
+    right: 2px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: var(--text-xs);
+    line-height: 1;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.timeline__blocks .timeline__item { position: relative; }
+.timeline__blocks .timeline__item:hover .timeline__drop { opacity: 0.8; }

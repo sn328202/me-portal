@@ -239,6 +239,8 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                         onCreate={(dayId, times) => addItem(dayId, {
                             title: 'New plan', kind: 'todo', ...times,
                         })}
+                        onRename={(dayId, id, title) => updateItem(dayId, id, { title })}
+                        onDelete={deleteItem}
                         onMove={moveItem}
                         onDropIdea={async (dayId, times, idea) => {
                             await addItem(dayId, {

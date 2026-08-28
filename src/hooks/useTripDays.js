@@ -248,8 +248,10 @@ export const useTripDays = (trip) => {
         };
         const { data, error } = await supabase
             .from('atlas_day_items').insert([row]).select().single();
-        if (error) { console.error('Error adding item:', error); return; }
+        if (error) { console.error('Error adding item:', error); return null; }
         setItems((prev) => ({ ...prev, [dayId]: [...(prev[dayId] || []), data] }));
+        // Handed back so a caller that just made one can put the cursor in it.
+        return data;
     }, [user, items]);
 
     const updateItem = useCallback(async (dayId, id, patch) => {
