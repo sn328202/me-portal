@@ -326,9 +326,14 @@
     flex-shrink: 0;
 }
 
+/* Location beside Cost where there is room for both, stacked where there is
+   not. `1fr 7rem` gave Location 119 pixels in the narrow board — not enough
+   to show the word "Location", let alone anything typed into it — and no
+   media query would have known, because it depends on how wide the board is
+   rather than how wide the window is. auto-fit works it out. */
 .idea-form__row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 7rem;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
     gap: var(--space-2);
     align-items: end;
 }
