@@ -40,19 +40,21 @@ const pin = (label, { accent, ink, muted }) => L.divIcon({
 });
 
 /** Fit the view to everything on it, rather than opening on the Atlantic. */
-const FitTo = ({ points }) => {
+const FitTo = ({ points, solo }) => {
     const map = useMap();
 
     useEffect(() => {
         if (!points.length) return;
         if (points.length === 1) {
-            // A single point has no extent, and fitBounds on it zooms to the
-            // maximum — a street view of a city you have not been to yet.
-            map.setView(points[0], 9);
+            // A single point has no extent, so there is nothing to fit to and
+            // the zoom has to be chosen. Too close is worse than too far: a
+            // street map of a city you have not visited says nothing, while
+            // the region around it at least says *where*.
+            map.setView(points[0], solo);
             return;
         }
-        map.fitBounds(L.latLngBounds(points), { padding: [42, 42], maxZoom: 11 });
-    }, [map, points]);
+        map.fitBounds(L.latLngBounds(points), { padding: [42, 42], maxZoom: 10 });
+    }, [map, points, solo]);
 
     return null;
 };
@@ -100,7 +102,7 @@ const InteractiveMap = ({
         <div className="interactive-map">
             <MapContainer
                 center={points[0] || [20, 0]}
-                zoom={points.length ? 6 : 2}
+                zoom={points.length ? 5 : 2}
                 scrollWheelZoom={false}
                 className="interactive-map__canvas"
             >
@@ -114,7 +116,9 @@ const InteractiveMap = ({
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 />
 
-                <FitTo points={points} />
+                {/* One trip among several wants the region; one stop on a
+                    route wants the city it is in. */}
+                <FitTo points={points} solo={route ? 8 : 4} />
 
                 {route && points.length > 1 && (
                     <Polyline
