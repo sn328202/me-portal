@@ -88,14 +88,21 @@ const TripTimeline = ({
                 className="timeline__grid"
                 style={{ '--days': days.length }}
             >
-                {/* Corner */}
-                <div className="timeline__corner" />
+                {/* Every cell is placed explicitly. Auto-placement refuses to
+                    put an item where an explicitly-placed one already sits, so
+                    the moment the block layer claimed the hour rows the whole
+                    grid below it slid out of its columns. */}
+                <div className="timeline__corner" style={{ gridRow: 1, gridColumn: 1 }} />
 
-                {days.map((day) => {
+                {days.map((day, column) => {
                     const weather = day.weather;
                     const { icon } = weather ? describeCode(weather.code) : { icon: '' };
                     return (
-                        <div key={`h-${day.id}`} className="timeline__dayhead">
+                        <div
+                            key={`h-${day.id}`}
+                            className="timeline__dayhead"
+                            style={{ gridRow: 1, gridColumn: column + 2 }}
+                        >
                             <strong>{format(parseISO(String(day.date).slice(0, 10)), 'EEE d')}</strong>
                             {/* From the legs, not the day's own copy of them:
                                 one place decides where you are. */}
@@ -115,8 +122,8 @@ const TripTimeline = ({
                 {/* City, spanning — the merged cell the sheet had at the top,
                     and the row that tells you where you are before it tells you
                     what you are doing. */}
-                <div className="timeline__rowlabel timeline__rowlabel--stays">City</div>
-                <div className="timeline__stays" style={{ '--days': days.length }}>
+                <div className="timeline__rowlabel timeline__rowlabel--stays" style={{ gridRow: 2, gridColumn: 1 }}>City</div>
+                <div className="timeline__stays" style={{ '--days': days.length, gridRow: 2 }}>
                     {cityBars.map(({ leg, start, span }) => (
                         <span
                             key={leg.id}
@@ -131,8 +138,8 @@ const TripTimeline = ({
                 </div>
 
                 {/* Lodging, spanning. The merged cell from the sheet. */}
-                <div className="timeline__rowlabel timeline__rowlabel--stays">Lodging</div>
-                <div className="timeline__stays" style={{ '--days': days.length }}>
+                <div className="timeline__rowlabel timeline__rowlabel--stays" style={{ gridRow: 3, gridColumn: 1 }}>Lodging</div>
+                <div className="timeline__stays" style={{ '--days': days.length, gridRow: 3 }}>
                     {bars.map(({ stay, start, span }) => (
                         <span
                             key={stay.id}
@@ -149,10 +156,15 @@ const TripTimeline = ({
                 {/* The cells are the drag surface and nothing else; the things
                     planned are drawn over them, so a block can span hours
                     without the row it starts in having to contain it. */}
-                {HOURS.map((hour) => (
+                {HOURS.map((hour, row) => (
                     <React.Fragment key={hour}>
-                        <div className="timeline__rowlabel">{label(hour)}</div>
-                        {days.map((day) => {
+                        <div
+                            className="timeline__rowlabel"
+                            style={{ gridRow: FIRST_HOUR_ROW + row, gridColumn: 1 }}
+                        >
+                            {label(hour)}
+                        </div>
+                        {days.map((day, column) => {
                             const selected = drag && drag.dayId === day.id
                                 && hour >= Math.min(drag.from, drag.to)
                                 && hour <= Math.max(drag.from, drag.to);
@@ -161,6 +173,7 @@ const TripTimeline = ({
                                 <div
                                     key={`${day.id}-${hour}`}
                                     className={`timeline__cell${selected ? ' is-selecting' : ''}${hovered ? ' is-over' : ''}`}
+                                    style={{ gridRow: FIRST_HOUR_ROW + row, gridColumn: column + 2 }}
                                     onMouseDown={(e) => {
                                         if (e.button !== 0 || !onCreate) return;
                                         e.preventDefault();
@@ -195,7 +208,13 @@ const TripTimeline = ({
                 ))}
 
                 {/* Everything planned, drawn as blocks over the grid. */}
-                <div className="timeline__blocks" style={{ '--days': days.length }}>
+                <div
+                    className="timeline__blocks"
+                    style={{
+                        '--days': days.length,
+                        gridRow: `${FIRST_HOUR_ROW} / span ${HOURS.length}`,
+                    }}
+                >
                     {days.map((day, column) => (items[day.id] || []).map((item) => {
                         const box = rowsFor(item, HOURS);
                         if (!box) return null;
@@ -224,11 +243,20 @@ const TripTimeline = ({
 
                 {/* Anything without a time still has to go somewhere, or it
                     would vanish from this view entirely. */}
-                <div className="timeline__rowlabel">Unscheduled</div>
-                {days.map((day) => {
+                <div
+                    className="timeline__rowlabel"
+                    style={{ gridRow: FIRST_HOUR_ROW + HOURS.length, gridColumn: 1 }}
+                >
+                    Unscheduled
+                </div>
+                {days.map((day, column) => {
                     const loose = (items[day.id] || []).filter((i) => !i.start_time);
                     return (
-                        <div key={`${day.id}-loose`} className="timeline__cell">
+                        <div
+                            key={`${day.id}-loose`}
+                            className="timeline__cell"
+                            style={{ gridRow: FIRST_HOUR_ROW + HOURS.length, gridColumn: column + 2 }}
+                        >
                             {loose.map((item) => (
                                 <span key={item.id} className={`timeline__item is-${item.kind}`}>
                                     {item.title}
@@ -238,9 +266,18 @@ const TripTimeline = ({
                     );
                 })}
 
-                <div className="timeline__rowlabel timeline__rowlabel--total">Per person</div>
-                {days.map((day) => (
-                    <div key={`${day.id}-cost`} className="timeline__cost">
+                <div
+                    className="timeline__rowlabel timeline__rowlabel--total"
+                    style={{ gridRow: FIRST_HOUR_ROW + HOURS.length + 1, gridColumn: 1 }}
+                >
+                    Per person
+                </div>
+                {days.map((day, column) => (
+                    <div
+                        key={`${day.id}-cost`}
+                        className="timeline__cost"
+                        style={{ gridRow: FIRST_HOUR_ROW + HOURS.length + 1, gridColumn: column + 2 }}
+                    >
                         {formatMoney(byId[day.id]?.total || 0, currency)}
                         <em>{formatMoney(byId[day.id]?.runningTotal || 0, currency)}</em>
                     </div>
