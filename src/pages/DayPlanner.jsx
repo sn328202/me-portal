@@ -12,13 +12,13 @@ import TableBook from './TableBook';
 import Commonplace from './Commonplace';
 import SendToAtlas from '../components/SendToAtlas';
 import { useTravelTimes } from '../hooks/useTravelTimes';
+import { compareItems, timeBetween } from '../utils/dayOrder';
 import { addSpotToPlan } from '../hooks/useSpots';
 import { supabase } from '../lib/supabase';
 import { generateGoogleCalendarUrl, generateICS, downloadICS } from '../utils/calendarUtils';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { addHours, format, parse } from 'date-fns';
 import '../styles/DayPlanner.css';
 
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -143,6 +143,10 @@ const DayPlanner = () => {
        than having the city's name glued onto the query — which is how
        "@masque" once came back as a list of mosques. */
     const [planNear, setPlanNear] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const savingRef = React.useRef(false);
+    const [saveError, setSaveError] = useState(null);
+    const [savedAt, setSavedAt] = useState(null);
 
     // Local state for editing to avoid auto-save jitter
     const [editedPlan, setEditedPlan] = useState(null);
@@ -227,19 +231,11 @@ const DayPlanner = () => {
     };
 
     // Helper to sort items by start_time
-    const sortItems = (itemsList) => {
-        return [...itemsList].sort((a, b) => {
-            if (a.is_brainstorm && !b.is_brainstorm) return 1;
-            if (!a.is_brainstorm && b.is_brainstorm) return -1;
-            if (a.is_brainstorm && b.is_brainstorm) return 0; // Keep order for brainstorm
-
-            // For timeline items, sort by time
-            if (!a.start_time) return 1;
-            if (!b.start_time) return -1;
-            // Handle potentially different time formats (though we try to enforce HH:mm:ss)
-            return (a.start_time || '').localeCompare(b.start_time || '');
-        });
-    };
+    /* See utils/dayOrder: the old comparator returned 1 for both cmp(a, b)
+       and cmp(b, a) when neither card had a time, which is a comparator
+       saying each of two things comes after the other. Sort is allowed to do
+       anything with that, and did. */
+    const sortItems = (itemsList) => [...itemsList].sort(compareItems);
 
     // DND Sensors
     const sensors = useSensors(
@@ -267,56 +263,21 @@ const DayPlanner = () => {
             // 1. Move the item in the array
             const newItems = arrayMove(current, oldIndex, newIndex);
 
-            // 2. Smart Time Adjustment
-            // Get the item itself
-            const activeItem = newItems[newIndex];
-
-            // Get neighbors in the TIMELINE list (exclude brainstorm)
+            // 2. Put it where it was dropped.
+            //
+            // The old rule was "start when the previous one ends", and the
+            // list is then re-sorted by time — so dropping something between
+            // a 9am thing that runs two hours and a 10am thing gave it 11am,
+            // which is *after* the card it was dropped in front of, and the
+            // re-sort duly moved it there. The card did not go where it was
+            // dropped, which is the whole contract of dragging one.
             const timelineItems = newItems.filter(i => !i.is_brainstorm);
-            const activeTimelineIndex = timelineItems.findIndex(i => i.id === active.id);
-
-            const prevItem = activeTimelineIndex > 0 ? timelineItems[activeTimelineIndex - 1] : null;
-
-            let newStartTime = activeItem.start_time;
-
-            if (prevItem && prevItem.start_time) {
-                // Start after previous item ends
-                try {
-                    const prevStart = parse(prevItem.start_time, 'HH:mm:ss', new Date());
-                    let prevEnd;
-
-                    // Add duration or default 1 hour
-                    if (prevItem.duration) {
-                        // Format is likely "X hours" or just a number or HH:MM?
-                        // Let's assume HH:MM or simple string for now.
-                        // If it's just a string like "2 hours", this parsing might fail.
-                        // The duration input type was not specified strictly.
-                        // Let's safe guard.
-                        const durationMatch = prevItem.duration.match(/(\d+)/);
-                        if (prevItem.duration.includes(':')) {
-                            const [h, m] = prevItem.duration.split(':').map(Number);
-                            prevEnd = new Date(prevStart.getTime() + (h * 60 * 60 * 1000) + (m * 60 * 1000));
-                        } else if (durationMatch) {
-                            // Assume hours if just a number? Or minutes?
-                            // Let's assume hours for simplicity in itinerary context
-                            prevEnd = addHours(prevStart, parseInt(durationMatch[0]));
-                        } else {
-                            prevEnd = addHours(prevStart, 1);
-                        }
-                    } else {
-                        // Default gap: 1 hour
-                        prevEnd = addHours(prevStart, 1);
-                    }
-
-                    newStartTime = format(prevEnd, 'HH:mm:ss');
-
-                } catch (e) {
-                    console.error('Time calc error', e);
-                }
-            } else if (!prevItem) {
-                // First item: Default to 9am
-                newStartTime = '09:00:00';
-            }
+            const at = timelineItems.findIndex(i => i.id === active.id);
+            const activeItem = newItems[newIndex];
+            const newStartTime = timeBetween(
+                at > 0 ? timelineItems[at - 1] : null,
+                at >= 0 && at < timelineItems.length - 1 ? timelineItems[at + 1] : null
+            );
 
             // Update the moved item's time
             newItems[newIndex] = { ...activeItem, start_time: newStartTime };
@@ -393,8 +354,22 @@ const DayPlanner = () => {
     };
 
     const saveChanges = async () => {
-        if (!editedPlan) return;
+        /* Two saves at once inserts the pending cards twice — which is the
+           "some cards duplicate and show back up" of it. The button is
+           disabled while this runs, and this refuses to start a second one
+           whatever the button does. */
+        if (!editedPlan || savingRef.current) return;
+        savingRef.current = true;
+        setSaving(true);
+        try {
+            await runSave();
+        } finally {
+            savingRef.current = false;
+            setSaving(false);
+        }
+    };
 
+    const runSave = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -414,9 +389,10 @@ const DayPlanner = () => {
 
         if (planError) {
             console.error('Error saving plan details:', planError);
-            alert('Failed to save plan details.');
+            setSaveError(`Could not save the itinerary: ${planError.message}`);
             return;
         }
+        setSaveError(null);
 
         // 2. Process Deletions
         if (deletedItemIds.length > 0) {
@@ -469,14 +445,15 @@ const DayPlanner = () => {
 
             if (updateError) {
                 console.error('Error updating items:', updateError);
-                alert('Failed to save some items: ' + updateError.message);
+                setSaveError(`Could not save the changes: ${updateError.message}`);
                 return;
             }
         }
 
         // Inserts
+        let inserted = [];
         if (newItems.length > 0) {
-            const { error: insertError } = await supabase
+            const { data: madeRows, error: insertError } = await supabase
                 .from('plan_items')
                 .insert(newItems.map(i => ({
                     plan_id: selectedPlan.id,
@@ -492,22 +469,42 @@ const DayPlanner = () => {
                     place_id: i.place_id,
                     place_data: i.place_data,
                     travel_note: i.travel_note ?? null
-                })));
+                })))
+                .select();
 
             if (insertError) {
                 console.error('Error inserting items:', insertError);
-                alert('Failed to create some items: ' + insertError.message);
+                setSaveError(`Could not add ${newItems.length === 1 ? 'that card' : 'some cards'}: ${insertError.message}`);
                 return;
             }
+            inserted = madeRows || [];
         }
 
-        // Refresh Data
-        if (planData && planData[0]) {
-            const updated = planData[0];
-            setPlans(plans.map(p => p.id === id ? updated : p));
-            setSelectedPlan(updated); // This triggers fetchItems which will get authoritative state from DB
-            alert('Itinerary saved successfully!');
+        /* The cards that were just created now have real ids. Swapping them in
+           here — rather than only after a refetch that used to be skipped
+           whenever the plan row came back empty — is what stops the next save
+           inserting the same cards a second time. */
+        if (inserted.length) {
+            setItems((current) => {
+                const spare = [...inserted];
+                return current.map((i) => (
+                    typeof i.id === 'string' && i.id.startsWith('temp-')
+                        ? (spare.shift() || i)
+                        : i
+                ));
+            });
         }
+
+        setIsDirty(false);
+        setSavedAt(Date.now());
+
+        // The plan row, whether or not the update handed one back.
+        const updated = planData?.[0];
+        if (updated) {
+            setPlans(plans.map(p => p.id === id ? updated : p));
+        }
+        // Always re-read, so what is on screen is what is in the database.
+        fetchItems(selectedPlan.id);
     };
 
     const placesServiceRef = React.useRef(null);
@@ -762,9 +759,15 @@ const DayPlanner = () => {
                                 />
                                 <div className="row daydream__head-actions">
                                     {isDirty && (
-                                        <Button variant="primary" onClick={saveChanges}>
-                                            Save Changes
+                                        <Button variant="primary" onClick={saveChanges} disabled={saving}>
+                                            {saving ? 'Saving…' : 'Save Changes'}
                                         </Button>
+                                    )}
+                                    {/* Said here rather than in an alert box,
+                                        which interrupts and then tells you
+                                        nothing you can act on. */}
+                                    {!isDirty && savedAt && !saveError && (
+                                        <span className="daydream__saved">Saved</span>
                                     )}
                                     {/* A day worked out here is the same thing
                                         as a day of a trip, one scale down. It
@@ -792,6 +795,10 @@ const DayPlanner = () => {
                                     </Button>
                                 </div>
                             </div>
+
+                            {saveError && (
+                                <p className="daydream__save-error" role="status">{saveError}</p>
+                            )}
 
                             <div className="daydream__meta">
                                 <span className="daydream__meta-item">
