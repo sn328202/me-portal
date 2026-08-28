@@ -351,14 +351,14 @@ const TableBook = ({ embedded = false }) => {
                 <Stat value={letGo} label="Let go" icon={<GiWineGlass />} />
             </div>
 
-            /* "Refresh statuses" is gone. It promised the one thing it
-               could not do — no booking service offers a way to ask whether a
-               table you hold is still held — so it was a button that went
-               away and came back with arithmetic over her own book, which is
-               a strange thing to have to press. What it found that was worth
-               finding is on the bookings themselves: the cancellation
-               deadline is on the slip, and a table that has been and gone
-               still has Went and Cancelled it sitting on it. */
+            {/* "Refresh statuses" is gone. It promised the one thing it
+                could not do — no booking service offers a way to ask whether
+                a table you hold is still held — so it was a button that went
+                away and came back with arithmetic over her own book, which is
+                a strange thing to have to press. What it found that was worth
+                finding is on the bookings themselves: the cancellation
+                deadline is on the slip, and a table that has been and gone
+                still has Went and Cancelled it sitting on it. */}
 
             <Tabs
                 label="Table book"
