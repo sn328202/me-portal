@@ -15,7 +15,10 @@ import { searchPlaces } from './_place.js';
  * billed API.
  */
 
-export const config = { maxDuration: 15 };
+/* Comfortably more than the two backends' own budgets (6s + 4s) plus a cold
+   start. The function timing out is a 504 the browser cannot tell from a
+   broken feature; the backends timing out is a shorter list. */
+export const config = { maxDuration: 30 };
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 

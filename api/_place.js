@@ -310,8 +310,16 @@ export async function searchPlaces(query, {
                 body: JSON.stringify({
                     textQuery: full, pageSize: want, languageCode: 'en', ...where,
                 }),
-                signal: AbortSignal.timeout(8000),
+                // A menu is typed at, so the whole call has a budget. Six
+                // seconds for Google and four for the fallback fits inside a
+                // fifteen-second function with room for a cold start; eight
+                // and eight did not, and the pair of them timed the function
+                // out rather than returning the worse answer.
+                signal: AbortSignal.timeout(6000),
             });
+            if (!res.ok) {
+                console.error('place-search: Places', res.status, (await res.text()).slice(0, 300));
+            }
             if (res.ok) {
                 const hits = ((await res.json()).places || []).map((place) => {
                     const name = place.displayName?.text || text;
@@ -332,8 +340,9 @@ export async function searchPlaces(query, {
                 }).filter((p) => p.name);
                 if (hits.length) return hits;
             }
-        } catch {
+        } catch (err) {
             // Fall through: a quota problem should still leave her a menu.
+            console.error('place-search: Places threw', err?.name, err?.message);
         }
     }
 
@@ -358,8 +367,9 @@ export async function searchPlaces(query, {
         }
         const res = await fetch(url, {
             headers: { 'User-Agent': NOMINATIM_UA, accept: 'application/json' },
-            signal: AbortSignal.timeout(8000),
+            signal: AbortSignal.timeout(4000),
         });
+        if (!res.ok) console.error('place-search: OpenStreetMap', res.status);
         if (res.ok) {
             const hits = (await res.json()).map((hit) => {
                 const name = hit.name || (hit.display_name || '').split(',')[0] || text;
@@ -377,8 +387,9 @@ export async function searchPlaces(query, {
             }).filter((p) => p.name);
             if (hits.length) return hits;
         }
-    } catch {
+    } catch (err) {
         // Fall through to the last resort.
+        console.error('place-search: OpenStreetMap threw', err?.name, err?.message);
     }
 
     // Nothing knew it. A map search for the words she typed is still a link
