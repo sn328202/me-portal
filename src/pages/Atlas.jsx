@@ -4,6 +4,7 @@ import { GiWorld, GiCompass, GiPin } from 'react-icons/gi';
 import InteractiveMap from '../components/InteractiveMap';
 import { Button, Card, ConfirmButton, Field, Modal, PageHeader, Tag } from '../components/ui';
 import { useAtlas } from '../hooks/useAtlas';
+import TableBook from './TableBook';
 import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, describeShape } from '../utils/tripShape';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
@@ -38,6 +39,23 @@ const Atlas = () => {
        how you say which you are looking for without them being two rooms
        again. Read off the dates, never off a flag she has to maintain. */
     const [shelf, setShelf] = useState('all');
+
+    /* Two rooms at the top of the Atlas, because a booking is not a trip: it
+       exists before you know which day it belongs to, it arrives from a
+       confirmation email, and it goes held -> went. She asked for the Table
+       Book to live here and to hold every booking, not only restaurants.
+       ?tab=table is how the old /tablebook address arrives. */
+    const [room, setRoom] = useState(() => (params.get('tab') === 'table' ? 'table' : 'trips'));
+
+    const chooseRoom = useCallback((next) => {
+        setRoom(next);
+        setParams((prev) => {
+            const nextParams = new URLSearchParams(prev);
+            if (next === 'table') nextParams.set('tab', 'table');
+            else nextParams.delete('tab');
+            return nextParams;
+        }, { replace: true });
+    }, [setParams]);
     const shelfTally = useMemo(() => tripShelfCounts(trips), [trips]);
     const shelved = useMemo(() => onTripShelf(trips, shelf), [trips, shelf]);
 
@@ -493,8 +511,36 @@ const Atlas = () => {
                 )}
             />
 
-            {/* VIEW: MAP ROOM (Index) */}
             {!selectedTrip && (
+                <div className="atlas__rooms" role="tablist" aria-label="The Atlas">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={room === 'trips'}
+                        className={`atlas__roomtab${room === 'trips' ? ' is-on' : ''}`}
+                        onClick={() => chooseRoom('trips')}
+                    >
+                        🗺️ Expeditions
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={room === 'table'}
+                        className={`atlas__roomtab${room === 'table' ? ' is-on' : ''}`}
+                        onClick={() => chooseRoom('table')}
+                    >
+                        📖 The Table Book
+                    </button>
+                </div>
+            )}
+
+            {/* Every booking, held and historic — a table, a tasting, a show,
+                a train. It lives here because it is a thing you do with a
+                trip, and because it existed before the trip did. */}
+            {!selectedTrip && room === 'table' && <TableBook embedded />}
+
+            {/* VIEW: MAP ROOM (Index) */}
+            {!selectedTrip && room === 'trips' && (
                 <div className="atlas__room">
                     {/* The shelf, taken together. The map below answers "where
                         have I been" and nothing else; these are the other

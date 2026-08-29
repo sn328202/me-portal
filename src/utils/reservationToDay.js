@@ -72,7 +72,7 @@ export const plus = (time, minutes) => {
 
 /** A reservation as a row of `atlas_day_items`. */
 export const asAtlasItem = (r) => ({
-    title: String(r?.restaurant || '').trim() || 'Reservation',
+    title: String(r?.name || r?.restaurant || '').trim() || 'Reservation',
     // A booked table is food, and belongs in the trip's food total.
     kind: 'food',
     start_time: localTime(r?.starts_at),
@@ -87,7 +87,7 @@ export const asAtlasItem = (r) => ({
 
 /** A reservation as a row of `plan_items`. */
 export const asPlanItem = (r) => ({
-    activity: String(r?.restaurant || '').trim() || 'Reservation',
+    activity: String(r?.name || r?.restaurant || '').trim() || 'Reservation',
     start_time: localTime(r?.starts_at),
     duration: '2 hours',
     location: r?.address || r?.city || null,

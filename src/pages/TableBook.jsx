@@ -12,12 +12,13 @@ import { supabase } from '../lib/supabase';
 import { looksLike, fillFrom } from '../utils/placeMatch';
 import AddBookingToDay from '../components/AddBookingToDay';
 import MentionInput from '../components/MentionInput';
+import { KINDS, faceOf, labelOf, guessKind } from '../utils/bookingKinds';
 import '../styles/TableBook.css';
 
 const PLATFORMS = ['OpenTable', 'Resy', 'Tock', 'Yelp', 'Google', 'SevenRooms', 'Direct', 'Other'];
 
 const EMPTY_FORM = {
-    restaurant: '', date: '', time: '19:00', party_size: '2',
+    name: '', kind: 'table', date: '', time: '19:00', party_size: '2',
     platform: 'OpenTable', confirmation: '', seating: '', city: '', notes: '',
     /* Filled in when the restaurant is picked from Google rather than typed.
        A booking that knows which restaurant it is can link to it — and so can
@@ -56,7 +57,7 @@ const countdown = (iso) => {
 };
 
 /**
- * The Table Book — every restaurant reservation, held and historic.
+ * The Table Book — every booking, held and historic.
  *
  * There used to be a third tab, "Worth chasing", built on the Spots library:
  * places booked and let go without rebooking, and saved spots that never
@@ -102,11 +103,12 @@ const TableBook = ({ embedded = false }) => {
 
     const submit = async (e) => {
         e.preventDefault();
-        if (!form.restaurant.trim() || !form.date || saving) return;
+        if (!form.name.trim() || !form.date || saving) return;
         setSaving(true);
         try {
             await addReservation({
-                restaurant: form.restaurant.trim(),
+                name: form.name.trim(),
+                kind: form.kind || 'table',
                 starts_at: new Date(`${form.date}T${form.time || '19:00'}`).toISOString(),
                 party_size: form.party_size,
                 platform: form.platform,
@@ -154,7 +156,10 @@ const TableBook = ({ embedded = false }) => {
             const d = json.draft;
             setForm({
                 ...EMPTY_FORM,
-                restaurant: d.restaurant || '',
+                name: d.restaurant || d.name || '',
+                /* The sender knows what it sold her; the shape of the email
+                   does not say. A wrong guess is one click to fix. */
+                kind: guessKind(`${d.restaurant || d.name || ''} ${d.notes || ''}`),
                 date: d.date || '',
                 time: d.time || '19:00',
                 party_size: d.party_size ? String(d.party_size) : '2',
@@ -183,7 +188,7 @@ const TableBook = ({ embedded = false }) => {
                         Authorization: `Bearer ${session?.access_token || ''}`,
                     },
                     body: JSON.stringify({
-                        q: d.restaurant,
+                        q: d.restaurant || d.name,
                         city: d.city || null,
                         limit: 1,
                     }),
@@ -213,7 +218,7 @@ const TableBook = ({ embedded = false }) => {
        a time, and nothing to tap. There is no reason she should retype an
        address the map already has. */
     const unlinked = useMemo(
-        () => reservations.filter((r) => !r.place_id && !r.maps_url && String(r.restaurant || '').trim()),
+        () => reservations.filter((r) => !r.place_id && !r.maps_url && String(r.name || r.restaurant || '').trim()),
         [reservations]
     );
 
@@ -245,10 +250,10 @@ const TableBook = ({ embedded = false }) => {
                         'content-type': 'application/json',
                         Authorization: `Bearer ${session?.access_token || ''}`,
                     },
-                    body: JSON.stringify({ q: r.restaurant, city: r.city || null, limit: 3 }),
+                    body: JSON.stringify({ q: r.name || r.restaurant, city: r.city || null, limit: 3 }),
                 });
                 const places = (await res.json())?.places || [];
-                const match = places.find((p) => looksLike(r.restaurant, p.name, r.city));
+                const match = places.find((p) => looksLike(r.name || r.restaurant, p.name, r.city));
 
                 if (!match) { unsure += 1; continue; }
 
@@ -343,7 +348,7 @@ const TableBook = ({ embedded = false }) => {
             <div className="tablebook__stats">
                 <Stat
                     value={next ? countdown(next.starts_at) : '—'}
-                    label={next ? next.restaurant : 'Nothing booked'}
+                    label={next ? (next.name || next.restaurant) : 'Nothing booked'}
                     icon={<GiClockwork />}
                 />
                 <Stat value={upcoming.length} label="On the books" icon={<GiForkKnifeSpoon />} />
@@ -398,7 +403,10 @@ const TableBook = ({ embedded = false }) => {
                                                 </div>
 
                                                 <div className="slip__body">
-                                                    <h3 className="slip__name">{r.restaurant}</h3>
+                                                    <h3 className="slip__name">
+                                                        <span className="slip__face" title={labelOf(r)} aria-hidden="true">{faceOf(r)}</span>
+                                                        {r.name || r.restaurant}
+                                                    </h3>
                                                     <p className="slip__where">
                                                         <span aria-hidden="true"><GiPositionMarker /></span>
                                                         {r.maps_url ? (
@@ -453,7 +461,7 @@ const TableBook = ({ embedded = false }) => {
                                                 <ConfirmButton
                                                     className="slip__drop"
                                                     size="sm" icon
-                                                    label={`Delete the ${r.restaurant} booking`}
+                                                    label={`Delete the ${r.name || r.restaurant} booking`}
                                                     onConfirm={() => deleteReservation(r.id)}
                                                 >
                                                     <GiTrashCan />
@@ -486,7 +494,7 @@ const TableBook = ({ embedded = false }) => {
                                             <tr key={r.id}>
                                                 <td className="ledger__date">{fmtShort(r.starts_at)}</td>
                                                 <td>
-                                                    <strong>{r.restaurant}</strong>
+                                                    <strong>{r.name || r.restaurant}</strong>
                                                     {(r.city || r.seating) && (
                                                         <span className="ledger__sub">
                                                             {[r.city, r.seating].filter(Boolean).join(' · ')}
@@ -539,20 +547,20 @@ const TableBook = ({ embedded = false }) => {
                 </div>
             </Modal>
 
-            <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Book a table">
+            <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Book something">
                 <form className="tablebook__form" onSubmit={submit}>
                     {/* Type a name, or "@" it and pick the real place — which
                         brings its address, phone, map link and rating with it. */}
-                    <Field label="Restaurant">
+                    <Field label="What is booked">
                         <MentionInput
                             placeholder="Bosco   @ to find it"
-                            aria-label="Restaurant"
-                            value={form.restaurant}
+                            aria-label="What is booked"
+                            value={form.name}
                             near={form.city ? { city: form.city } : null}
-                            onChange={(restaurant) => setForm({ ...form, restaurant })}
+                            onChange={(name) => setForm({ ...form, name })}
                             onPick={(place, text) => setForm({
                                 ...form,
-                                restaurant: text.trim() || place.name,
+                                name: text.trim() || place.name,
                                 address: place.address || '',
                                 maps_url: place.maps_url || '',
                                 place_id: place.place_id || '',
@@ -561,6 +569,24 @@ const TableBook = ({ embedded = false }) => {
                             })}
                         />
                     </Field>
+                    {/* Seven kinds, not seventy. A picker, not a taxonomy —
+                        its only job is to let her find the thing later and
+                        know at a glance what it is. */}
+                    <div className="tablebook__kinds" role="radiogroup" aria-label="What kind of booking">
+                        {KINDS.map((k) => (
+                            <button
+                                key={k.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={form.kind === k.id}
+                                className={`tablebook__kind${form.kind === k.id ? ' is-on' : ''}`}
+                                onClick={() => setForm({ ...form, kind: k.id })}
+                            >
+                                <span aria-hidden="true">{k.face}</span> {k.label}
+                            </button>
+                        ))}
+                    </div>
+
                     {form.maps_url && (
                         <p className="tablebook__found">
                             <GiPositionMarker /> {form.address || 'Found on Google'}
@@ -626,7 +652,7 @@ const TableBook = ({ embedded = false }) => {
                         <Button
                             type="submit"
                             variant="solid"
-                            disabled={!form.restaurant.trim() || !form.date || saving}
+                            disabled={!form.name.trim() || !form.date || saving}
                         >
                             {saving ? 'Writing it down…' : 'Hold the table'}
                         </Button>

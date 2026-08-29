@@ -70,12 +70,14 @@ function App() {
                                 page is what froze the timeline last week. */}
                             <Route path="/atlas/:tripId/day/:date" element={<DayBuilder />} />
                             <Route path="/daydream" element={<DayPlanner />} />
-                            {/* The Table Book is a tab of the Daydream now.
-                                The old address still works, because a
-                                bookmark is a promise. */}
+                            {/* The Table Book lives in the Atlas now — a
+                                booking is a thing you do with a trip, and it
+                                exists before the trip does. The old address
+                                still works, because a bookmark is a promise,
+                                and so does the Daydream's spelling of it. */}
                             <Route
                                 path="/tablebook"
-                                element={<Navigate to="/daydream?tab=table" replace />}
+                                element={<Navigate to="/atlas?tab=table" replace />}
                             />
                             {/* A tab of the Daydream now, like the Table
                                 Book. The old address still works. */}

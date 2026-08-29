@@ -500,3 +500,42 @@
 }
 
 .tablebook__linked button:hover { color: var(--text-main); }
+
+/* What kind of thing is booked.
+   The Table Book was restaurant-shaped — one column called `restaurant`, one
+   list of booking sites, one assumption that a booking is a table. A tasting,
+   a show and a train are the same shape and were being typed into itineraries
+   by hand instead. */
+.tablebook__kinds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.tablebook__kind {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-pill, 999px);
+    cursor: pointer;
+}
+
+.tablebook__kind:hover {
+    color: var(--text-main);
+    border-color: var(--border-gold);
+}
+
+.tablebook__kind.is-on {
+    color: var(--text-gold);
+    border-color: var(--border-gold);
+}
+
+.slip__face {
+    margin-right: var(--space-2);
+}

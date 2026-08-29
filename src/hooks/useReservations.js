@@ -59,7 +59,12 @@ export const useReservations = () => {
     const addReservation = async (fields) => {
         if (!user) throw new Error('Not authenticated');
         const row = {
-            restaurant: fields.restaurant,
+            /* `name`, not `restaurant`. The Table Book holds every booking now
+               — a tasting, a show, a museum slot — and only the column name
+               was still insisting otherwise. The old column is kept in step by
+               a trigger until Stage 5 drops it. */
+            name: fields.name,
+            kind: fields.kind || 'table',
             starts_at: fields.starts_at,
             party_size: fields.party_size ? Number(fields.party_size) : null,
             seating: fields.seating || null,
@@ -83,10 +88,10 @@ export const useReservations = () => {
         return data;
     };
 
-    /** Book a table at somewhere already in the spots library, keeping the link. */
+    /** Book something at a place already in the spots library, keeping the link. */
     const bookSpot = (spot, fields) => addReservation({
         ...fields,
-        restaurant: spot.name,
+        name: spot.name,
         city: fields.city || spot.city || null,
         address: fields.address || spot.address || null,
         phone: fields.phone || spot.phone || null,

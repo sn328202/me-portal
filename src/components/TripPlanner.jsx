@@ -73,12 +73,33 @@ const WeatherChip = ({ weather }) => {
  * itinerary. Locking it says so, and the link goes to the place where the
  * edit will actually stick.
  */
-const LockedItem = ({ item, currency }) => (
-    <li className="trip-item trip-item--locked">
-        <span className="trip-item__time trip-item__time--fixed">
-            {item.start_time ? String(item.start_time).slice(0, 5) : '--:--'}
-        </span>
-        <span className="trip-item__title trip-item__title--fixed">{item.title}</span>
+/**
+ * A stop, as the overview shows it.
+ *
+ * This used to be a row of six live form controls — a time input, a name box,
+ * a kind select, a cost field, a split toggle and a delete — repeated for
+ * every stop of every day. Which meant the Atlas was a second editing surface
+ * for the same rows the Day Builder edits, with its own set of things that
+ * could be half-saved, and a day card that was mostly chrome.
+ *
+ * It reads now. Clicking it opens the one stop, which is the small job;
+ * "Build this day" at the top of the card opens the whole day, which is the
+ * large one. Two surfaces, not three.
+ */
+const DayItem = ({ item, currency, onOpen, onDelete }) => (
+    <li className="trip-item trip-item--read">
+        <button
+            type="button"
+            className="trip-item__row"
+            onClick={onOpen}
+            aria-label={`Edit ${item.title || 'this stop'}`}
+        >
+            <span className="trip-item__time trip-item__time--fixed">
+                {item.start_time ? String(item.start_time).slice(0, 5) : '--:--'}
+            </span>
+            <span className="trip-item__title trip-item__title--fixed">{item.title}</span>
+        </button>
+
         {item.link && (
             <a
                 className="trip-item__link"
@@ -86,6 +107,7 @@ const LockedItem = ({ item, currency }) => (
                 target="_blank"
                 rel="noopener noreferrer"
                 title={item.location || 'Open the map'}
+                aria-label={`Open ${item.title || 'this'} on the map`}
             >
                 ↗
             </a>
@@ -99,81 +121,22 @@ const LockedItem = ({ item, currency }) => (
         <span className={`trip-item__split${item.cost_shared === false ? '' : ' is-shared'}`}>
             {item.cost_shared === false ? 'each' : 'split'}
         </span>
-        <a
-            className="trip-item__source"
-            href={`/daydream?plan=${item.from_plan_id}`}
-            title="This came from an itinerary — edit it there"
-        >
-            ✎ itinerary
-        </a>
-    </li>
-);
-
-const DayItem = ({ item, currency, near, onChange, onDelete }) => (
-    item.from_plan_id ? <LockedItem item={item} currency={currency} /> : (
-    <li className="trip-item">
-        <input
-            type="time"
-            className="trip-item__time"
-            value={item.start_time ? String(item.start_time).slice(0, 5) : ''}
-            aria-label="Time"
-            onChange={(e) => onChange({ start_time: e.target.value || null })}
-        />
-        {/* Type "@masque" and the restaurant arrives with its map link. */}
-        <MentionInput
-            className="trip-item__title"
-            value={item.title || ''}
-            aria-label="What"
-            near={near}
-            onChange={(title) => onChange({ title })}
-            onPick={(place, title) => onChange({
-                title,
-                link: place.maps_url || null,
-                location: place.address || null,
-            })}
-        />
-        {item.link && (
+        {/* Until Stage 5 retires the Daydream, a stop that came from an
+            itinerary still says where it came from. */}
+        {item.from_plan_id && (
             <a
-                className="trip-item__link"
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={item.location || 'Open the map'}
-                aria-label={`Open ${item.title || 'this'} on the map`}
+                className="trip-item__source"
+                href={`/daydream?plan=${item.from_plan_id}`}
+                title="This came from an itinerary — edit it there"
+                onClick={(e) => e.stopPropagation()}
             >
-                ↗
+                ✎ itinerary
             </a>
         )}
-        <select
-            className="trip-item__kind"
-            value={item.kind}
-            aria-label="Kind"
-            onChange={(e) => onChange({ kind: e.target.value })}
-        >
-            {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
-        </select>
-        <input
-            type="number"
-            inputMode="decimal"
-            className="trip-item__cost"
-            placeholder={currency === 'USD' ? '$' : currency}
-            value={item.cost ?? ''}
-            aria-label="Cost"
-            onChange={(e) => onChange({ cost: e.target.value === '' ? null : e.target.value })}
-        />
-        <button
-            type="button"
-            className={`trip-item__split${item.cost_shared === false ? '' : ' is-shared'}`}
-            title={item.cost_shared === false ? 'Each person pays this' : 'Split across the party'}
-            onClick={() => onChange({ cost_shared: item.cost_shared === false })}
-        >
-            {item.cost_shared === false ? 'each' : 'split'}
-        </button>
         <button type="button" className="trip-item__drop" aria-label="Remove" onClick={onDelete}>
             <GiTrashCan />
         </button>
     </li>
-    )
 );
 
 /* Two ways of looking at the same days, and that is all this is.
@@ -375,18 +338,6 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                         }}
                     />
 
-                    {editing && (
-                        <StopPopover
-                            item={(items[editing.dayId] || []).find((i) => i.id === editing.id)}
-                            dayId={editing.dayId}
-                            date={days.find((d) => d.id === editing.dayId)?.date}
-                            tripId={trip?.id}
-                            near={editing.near}
-                            onChange={updateItem}
-                            onDelete={deleteItem}
-                            onClose={() => setEditing(null)}
-                        />
-                    )}
                 </>
             ) : (
             <div className="trip-planner__days">
@@ -465,8 +416,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                                         key={item.id}
                                         item={item}
                                         currency={currency}
-                                        near={near}
-                                        onChange={(patch) => updateItem(day.id, item.id, patch)}
+                                        onOpen={() => setEditing({ dayId: day.id, id: item.id, near })}
                                         onDelete={() => deleteItem(day.id, item.id)}
                                     />
                                 ))}
@@ -544,6 +494,21 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                     );
                 })}
             </div>
+            )}
+
+            {/* One stop, edited where you found it — from either view, because
+                both views are now overviews of the same rows. */}
+            {editing && (
+                <StopPopover
+                    item={(items[editing.dayId] || []).find((i) => i.id === editing.id)}
+                    dayId={editing.dayId}
+                    date={days.find((d) => d.id === editing.dayId)?.date}
+                    tripId={trip?.id}
+                    near={editing.near}
+                    onChange={updateItem}
+                    onDelete={deleteItem}
+                    onClose={() => setEditing(null)}
+                />
             )}
         </div>
     );

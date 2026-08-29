@@ -2525,3 +2525,70 @@ textarea.expedition__notes:focus {
     font-style: normal;
     color: var(--text-dim);
 }
+
+/* Two rooms at the top of the Atlas.
+   A booking is not a trip: it exists before you know which day it belongs to,
+   it arrives from a confirmation email, and it goes held → went. That
+   lifecycle is why it keeps its own table, and why it gets its own room
+   rather than being buried inside one expedition. */
+.atlas__rooms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.atlas__roomtab {
+    padding: var(--space-2) var(--space-4);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.atlas__roomtab:hover {
+    color: var(--text-main);
+    border-color: var(--border-gold);
+}
+
+.atlas__roomtab.is-on {
+    color: var(--text-gold);
+    background: var(--bg-hover);
+    border-color: var(--border-gold);
+}
+
+/* A stop, as the overview shows it.
+   Six live form controls per stop, repeated down every day of a trip, made
+   the Atlas a second editing surface for rows the Day Builder already edits.
+   It reads now, and a click opens the one stop. */
+.trip-item--read .trip-item__row {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    background: none;
+    border: 0;
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+}
+
+.trip-item--read .trip-item__row:hover .trip-item__title,
+.trip-item--read .trip-item__row:focus-visible .trip-item__title {
+    color: var(--text-gold);
+}
+
+.trip-item--read .trip-item__title--fixed {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

@@ -119,7 +119,7 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
             <Modal open={open} onClose={close} title="Put this booking on a day">
                 {done ? (
                     <div className="send-atlas">
-                        <p><strong>{reservation.restaurant}</strong> is on {done}.</p>
+                        <p><strong>{reservation.name || reservation.restaurant}</strong> is on {done}.</p>
                         <div className="send-atlas__acts">
                             <Button variant="solid" onClick={close}>Done</Button>
                         </div>
@@ -134,7 +134,7 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
                         )}
 
                         <p className="send-atlas__count">
-                            {reservation.restaurant}
+                            {reservation.name || reservation.restaurant}
                             {on ? ` · ${pretty(on)}` : ''}
                             {bookingNote(reservation) ? ` · ${bookingNote(reservation)}` : ''}
                         </p>
