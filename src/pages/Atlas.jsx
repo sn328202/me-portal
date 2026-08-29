@@ -5,14 +5,6 @@ import InteractiveMap from '../components/InteractiveMap';
 import { Button, Card, ConfirmButton, Field, Modal, PageHeader, Tag } from '../components/ui';
 import { useAtlas } from '../hooks/useAtlas';
 
-/* Lazily, and deliberately.
-   Imported statically, the Table Book is pulled in by both this page and the
-   Daydream, so Rollup hoists it into whichever chunk it reaches first and the
-   two chunks end up referring to each other. The page then dies on load with
-   "Cannot access 'T' before initialization" — a temporal dead zone between
-   chunks, not a bug in either file. A dynamic import gives it a chunk of its
-   own and the question stops existing. */
-const TableBook = lazy(() => import('./TableBook'));
 import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, describeShape } from '../utils/tripShape';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
@@ -28,6 +20,11 @@ import { useTripIdeas } from '../hooks/useTripIdeas';
 import { flagsForLegs } from '../utils/flags';
 import { atlasStats, costOfTrip } from '../utils/atlasStats';
 import { formatMoney } from '../utils/tripCosts';
+
+/* Lazily, because the Table Book is also a room of the Daydream and a chunk
+   both pages pull in statically is a chunk they can end up waiting on each
+   other for. Its own chunk, and the question does not arise. */
+const TableBook = lazy(() => import('./TableBook'));
 import { todayLocal } from '../utils/planShelf';
 import { legDestination, isTravelLeg } from '../utils/tripLegs';
 import '../styles/Atlas.css';
@@ -48,22 +45,6 @@ const Atlas = () => {
        again. Read off the dates, never off a flag she has to maintain. */
     const [shelf, setShelf] = useState('all');
 
-    /* Two rooms at the top of the Atlas, because a booking is not a trip: it
-       exists before you know which day it belongs to, it arrives from a
-       confirmation email, and it goes held -> went. She asked for the Table
-       Book to live here and to hold every booking, not only restaurants.
-       ?tab=table is how the old /tablebook address arrives. */
-    const [room, setRoom] = useState(() => (params.get('tab') === 'table' ? 'table' : 'trips'));
-
-    const chooseRoom = useCallback((next) => {
-        setRoom(next);
-        setParams((prev) => {
-            const nextParams = new URLSearchParams(prev);
-            if (next === 'table') nextParams.set('tab', 'table');
-            else nextParams.delete('tab');
-            return nextParams;
-        }, { replace: true });
-    }, [setParams]);
     const shelfTally = useMemo(() => tripShelfCounts(trips), [trips]);
     const shelved = useMemo(() => onTripShelf(trips, shelf), [trips, shelf]);
 
@@ -83,6 +64,27 @@ const Atlas = () => {
         const n = raw === null ? NaN : Number(raw);
         return Number.isFinite(n) ? n : null;
     });
+
+    /* Two rooms at the top of the Atlas, because a booking is not a trip: it
+       exists before you know which day it belongs to, it arrives from a
+       confirmation email, and it goes held -> went. She asked for the Table
+       Book to live here and to hold every booking, not only restaurants.
+       ?tab=table is how the old /tablebook address arrives.
+
+       Declared here, below `params`, and not up with the other view state:
+       reading a `const` from above its own declaration is a temporal dead
+       zone, and it took the whole Atlas down rather than just this. */
+    const [room, setRoom] = useState(() => (params.get('tab') === 'table' ? 'table' : 'trips'));
+
+    const chooseRoom = useCallback((next) => {
+        setRoom(next);
+        setParams((prev) => {
+            const nextParams = new URLSearchParams(prev);
+            if (next === 'table') nextParams.set('tab', 'table');
+            else nextParams.delete('tab');
+            return nextParams;
+        }, { replace: true });
+    }, [setParams]);
 
     const setSelectedTripId = useCallback((id) => {
         setSelectedTripIdRaw(id);
