@@ -48,7 +48,15 @@ const Atlas = () => {
        and wants to see it in the other, and until now that meant going to the
        Atlas and remembering which trip it was. */
     const [params, setParams] = useSearchParams();
-    const [selectedTripId, setSelectedTripIdRaw] = useState(() => params.get('trip') || null);
+    /* A trip id is a bigint, so `trips` holds numbers. A URL holds text.
+       Reading `?trip=9` straight into state gave the string "9", which never
+       matched any `t.id`, so following a link back into a trip quietly landed
+       on the Atlas index instead — the deep link looked like it did nothing. */
+    const [selectedTripId, setSelectedTripIdRaw] = useState(() => {
+        const raw = params.get('trip');
+        const n = raw === null ? NaN : Number(raw);
+        return Number.isFinite(n) ? n : null;
+    });
 
     const setSelectedTripId = useCallback((id) => {
         setSelectedTripIdRaw(id);
@@ -60,7 +68,7 @@ const Atlas = () => {
         }, { replace: true });
     }, [setParams]);
 
-    const selectedTrip = trips.find(t => t.id === selectedTripId);
+    const selectedTrip = trips.find((t) => String(t.id) === String(selectedTripId));
     const currentWaypoints = selectedTripId ? (waypoints[selectedTripId] || []) : [];
 
     // The trip's days live here rather than inside the planner, because three

@@ -109,12 +109,24 @@ export const useTripDays = (trip) => {
 
            One query, only for the days that are candidates, and only when
            there are any. */
-        const looksBare = (d) => !d.city && !d.lodging && !d.notes
+        /* What counts as "nothing on it".
+        
+           `city` used to be in this list, and it is why shortening a trip
+           did nothing: every day gets a city written to it by `syncCities`
+           the moment a leg covers it, so no day was ever bare and no day was
+           ever removed. She could add dates and never take them away.
+
+           A city is a cache of the legs — it says so twenty lines below —
+           and a cache is not work anyone would miss. Lodging, notes, money
+           and the things planned on the day are hers; those still protect
+           it. */
+        const looksBare = (d) => !d.lodging && !d.notes
             && ['lodging', 'food', 'excursions', 'transport', 'points']
                 .every((b) => !Number(d[`cost_${b}`]));
 
         const bare = orphans.filter(looksBare);
         let disposable = [];
+
         if (bare.length) {
             const { data: held, error: readError } = await supabase
                 .from('atlas_day_items').select('day_id')
@@ -324,6 +336,27 @@ export const useTripDays = (trip) => {
         if (error) { console.error('Error moving item:', error); load(); }
     }, [user, items, load]);
 
+    /**
+     * Remove a day and everything on it, because she said so.
+     *
+     * `ensureDays` will not do this on its own — a day with plans on it is
+     * someone's evening and is never deleted by a date field losing focus.
+     * This is the other half of that: an explicit answer to an explicit
+     * question.
+     */
+    const dropDay = useCallback(async (dayId) => {
+        if (!user) return;
+        setDays((prev) => prev.filter((d) => d.id !== dayId));
+        setItems((prev) => {
+            const out = { ...prev };
+            delete out[dayId];
+            return out;
+        });
+        const { error } = await supabase.from('atlas_days')
+            .delete().eq('id', dayId).eq('user_id', user.id);
+        if (error) { console.error('Error removing day:', error); load(); }
+    }, [user, load]);
+
     const deleteItem = useCallback(async (dayId, id) => {
         if (!user) return;
         setItems((prev) => ({ ...prev, [dayId]: (prev[dayId] || []).filter((i) => i.id !== id) }));
@@ -516,5 +549,6 @@ export const useTripDays = (trip) => {
         weatherBusy: weatherState.busy,
         weatherMessage: weatherState.message,
         ensureDays, updateDay, addItem, updateItem, moveItem, deleteItem, refreshWeather, reload: load,
+        dropDay,
     };
 };

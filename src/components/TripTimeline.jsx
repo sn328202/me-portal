@@ -7,7 +7,6 @@ import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
 import { legBands, legLabel, cityLabelOn, isTravelLeg } from '../utils/tripLegs';
 import { HOURS, rowsFor, dragRange, timesFromDrag, movedTo, describeSpan } from '../utils/timeline';
-import MentionInput from './MentionInput';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -50,7 +49,7 @@ const nearOn = (legs, day) => {
 
 const TripTimeline = ({
     days, items, stays, legs = [], costs, currency = 'USD', tripId = null,
-    onCreate, onMove, onDropIdea, onRename, onDelete, onRecolour, onAttach,
+    onCreate, onMove, onDropIdea, onOpen, onDelete, onRecolour,
 }) => {
     /* The whole window, for a trip too wide for a column. Fifteen days at a
        readable width is wider than any page that also has a sidebar, and the
@@ -62,10 +61,8 @@ const TripTimeline = ({
     /* The block just dragged out, so it can be named without leaving the
        timeline. A block called "New plan" that can only be renamed in another
        view is a block you rename never. */
-    const [editing, setEditing] = useState(null);
     /* What is in the rename box. Held here rather than left uncontrolled
        because picking from the mention menu has to write into it. */
-    const [draft, setDraft] = useState(null);
     /* A drag in progress: which day, and the two rows it has touched. Held
        here rather than written per-cell so the highlight and the commit read
        the same selection. */
@@ -88,13 +85,16 @@ const TripTimeline = ({
             if (current && onCreate) {
                 const { from, to } = dragRange(current.from, current.to);
                 if (to > from) {
+                    /* Dragging a block out is a statement about when it starts
+                       and how long it runs, so what opens already knows both
+                       and asks only for the rest. */
                     Promise.resolve(onCreate(current.dayId, timesFromDrag(current.from, current.to)))
-                        .then((made) => made?.id && setEditing(made.id));
+                        .then((made) => made?.id && onOpen?.(current.dayId, made));
                 }
             }
             return null;
         });
-    }, [onCreate]);
+    }, [onCreate, onOpen]);
 
     /* The mouse leaves the grid mid-drag more often than it does not, so the
        release is listened for on the window rather than on a cell. */
@@ -329,39 +329,11 @@ const TripTimeline = ({
                                     ...(blockStyle(item, palette) || {}),
                                 }}
                                 title={`${item.title} · ${describeSpan(item)}`}
-                                onDoubleClick={() => setEditing(item.id)}
+                                /* One click, because this is a thing you can
+                                   see and want to change — not a thing you
+                                   have to discover a gesture for. */
+                                onClick={() => onOpen?.(day.id, item, nearOn(legs, day))}
                             >
-                                {editing === item.id ? (
-                                    /* Naming it is also where you say what it
-                                       is: "@masque" here fetches the place and
-                                       hangs its map link on the block. */
-                                    <MentionInput
-                                        className="timeline__rename"
-                                        value={draft ?? item.title ?? ''}
-                                        autoFocus
-                                        aria-label="What is it"
-                                        near={nearOn(legs, day)}
-                                        onFocus={(e) => e.target.select()}
-                                        onChange={setDraft}
-                                        onPick={(place, text) => {
-                                            setDraft(text);
-                                            onAttach?.(day.id, item.id, {
-                                                title: text.trim() || place.name,
-                                                link: place.maps_url || null,
-                                                location: place.address || null,
-                                            });
-                                        }}
-                                        onBlur={() => {
-                                            onRename?.(day.id, item.id, (draft ?? '').trim() || item.title);
-                                            setEditing(null);
-                                            setDraft(null);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') e.target.blur();
-                                            if (e.key === 'Escape') { setEditing(null); setDraft(null); }
-                                        }}
-                                    />
-                                ) : (
                                     <>
                                         {item.title}
                                         <span className="timeline__tools">
@@ -384,7 +356,10 @@ const TripTimeline = ({
                                                     className="timeline__paint"
                                                     aria-label={`Colour ${item.title}`}
                                                     aria-expanded={open}
-                                                    onClick={() => setPainting(open ? null : item.id)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPainting(open ? null : item.id);
+                                                    }}
                                                 >
                                                     ◑
                                                 </button>
@@ -394,14 +369,16 @@ const TripTimeline = ({
                                                     type="button"
                                                     className="timeline__drop"
                                                     aria-label={`Remove ${item.title}`}
-                                                    onClick={() => onDelete(day.id, item.id)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onDelete(day.id, item.id);
+                                                    }}
                                                 >
                                                     ×
                                                 </button>
                                             )}
                                         </span>
                                     </>
-                                )}
 
                                 {open && (
                                     <span className="timeline__palette" role="group" aria-label="Colour">
@@ -412,7 +389,8 @@ const TripTimeline = ({
                                                 className={`timeline__swatch${Number(item.colour) === n ? ' is-on' : ''}`}
                                                 style={{ background: palette[n - 1]?.fill }}
                                                 aria-label={`Colour ${n}`}
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     onRecolour(day.id, item.id, n);
                                                     setPainting(null);
                                                 }}
@@ -424,7 +402,8 @@ const TripTimeline = ({
                                             type="button"
                                             className="timeline__swatch timeline__swatch--none"
                                             aria-label="By kind"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 onRecolour(day.id, item.id, null);
                                                 setPainting(null);
                                             }}

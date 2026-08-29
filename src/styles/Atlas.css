@@ -492,10 +492,37 @@
     font-size: var(--text-base);
 }
 
+/* One day per row, full width.
+   Side by side, a day card was a 320px column trying to hold a time, a name,
+   a kind, a price, a split toggle and a delete — so "Ad Hoc Fried Chicken
+   Lunch + Yountville Exploration" came out five words tall and the columns
+   to its right fell off the screen. A day is a wide thing. It gets the page. */
 .trip-planner__days {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: var(--space-4);
+}
+
+/* The card is wide now, so the two halves of a day sit beside each other:
+   where you are and what it costs on the left, what you are doing on the
+   right. Stacked, the list of stops was pushed below a budget she opens
+   twice a trip. */
+@media (min-width: 900px) {
+    .trip-day > .card__body {
+        display: grid;
+        grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
+        gap: var(--space-3) var(--space-5);
+        align-items: start;
+    }
+
+    /* The date names the whole card, so it spans it. */
+    .trip-day__head { grid-column: 1 / -1; grid-row: 1; }
+
+    .trip-day__where { grid-column: 1; grid-row: 2; }
+    .trip-day__costs { grid-column: 1; grid-row: 3; margin-top: 0; }
+
+    .trip-day__items { grid-column: 2; grid-row: 2; margin-top: 0; }
+    .trip-day__add { grid-column: 2; grid-row: 3; }
 }
 
 .trip-day__head {
@@ -2467,4 +2494,34 @@ textarea.expedition__notes:focus {
 .trip-card__shape {
     font-style: normal;
     opacity: 0.7;
+}
+
+/* Days left over from an earlier set of dates.
+   Empty ones clear themselves; these hold something, so they are shown with
+   a way to say "yes, that too" rather than left sitting there looking like
+   the date field did not work. */
+.trip-planner__strays ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.trip-planner__strays li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+}
+
+.trip-planner__strays li em {
+    font-style: normal;
+    color: var(--text-dim);
 }

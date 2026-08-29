@@ -1,0 +1,82 @@
+/**
+ * One stop, edited where you found it. Small on purpose: this is the quick
+ * job, and the whole-day job has its own page.
+ */
+
+.stop-pop {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.stop-pop__top {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-end;
+}
+
+.stop-pop__top .field {
+    flex: 1;
+    min-width: 0;
+}
+
+.stop-pop__face .face__btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.4rem;
+}
+
+.stop-pop__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.stop-pop__row > .field {
+    flex: 1;
+    min-width: 9rem;
+}
+
+.stop-pop__cost,
+.stop-pop__where {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.stop-pop__cost input {
+    width: 6em;
+}
+
+.stop-pop__where input {
+    flex: 1;
+    min-width: 0;
+}
+
+.stop-pop__note {
+    resize: vertical;
+}
+
+.stop-pop__foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--border-dim);
+}
+
+.stop-pop__more {
+    margin-right: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-gold);
+    text-decoration: none;
+    border-bottom: 1px dashed transparent;
+}
+
+.stop-pop__more:hover,
+.stop-pop__more:focus-visible {
+    border-bottom-color: var(--text-gold);
+}

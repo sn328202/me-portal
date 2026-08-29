@@ -207,13 +207,27 @@ const DayBuilder = () => {
 
     return (
         <div className="daydream-page daydream-page--fixed daybuild">
+            {/* Where you are, and both ways back out of it. A single "back"
+                button had to guess which of the two you meant, and guessed
+                the index — so leaving a day dropped you at the top of the
+                Atlas instead of in the trip you were working on. */}
+            <nav className="daybuild__crumbs" aria-label="Breadcrumb">
+                <Link to="/atlas">The Atlas</Link>
+                <span aria-hidden="true">/</span>
+                <Link to={`/atlas?trip=${tripId}`}>{trip?.destination || 'This trip'}</Link>
+                <span aria-hidden="true">/</span>
+                <span aria-current="page">{longDate(date) || date}</span>
+            </nav>
+
             <PageHeader
                 title={longDate(date) || date}
                 icon={<GiHourglass />}
-                subtitle={[trip?.destination, day.city].filter(Boolean).join(' · ') || null}
+                subtitle={day.city || null}
                 actions={(
                     <>
-                        <Button as={Link} to={`/atlas?trip=${tripId}`} variant="ghost">← The trip</Button>
+                        <Button as={Link} to={`/atlas?trip=${tripId}`} variant="ghost">
+                            ← {trip?.destination || 'The trip'}
+                        </Button>
                         <Button onClick={() => setSharing(true)}>📮 Share sheet</Button>
                         <span className="daybuild__state" role="status">
                             {saving ? 'Saving…' : savedAt ? 'Saved' : ''}

@@ -1,11 +1,12 @@
-import { Link } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { GiTrashCan, GiPlainCircle } from 'react-icons/gi';
-import { Button, Card, Field } from './ui';
+import { Button, Card, ConfirmButton, Field } from './ui';
 import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
+import StopPopover from './StopPopover';
 import TripStays from './TripStays';
 import MentionInput from './MentionInput';
 import { isTravelLeg } from '../utils/tripLegs';
@@ -194,11 +195,16 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
         lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
         legOnDate, cityLabelFor, moveItem,
         ensureDays, updateDay, addItem, updateItem, deleteItem,
+        dropDay,
     // Lifted to the page so the spreadsheet export and the Wardrobe handoff
     // read the same trip this is showing, rather than fetching a second copy.
     } = planner;
 
     const [draft, setDraft] = useState({});
+    /* Which stop is open for a quick edit, and where its @-search should look.
+       One stop is a small job and gets a small surface; the whole day is a
+       different job and has its own page. */
+    const [editing, setEditing] = useState(null);
     // Four views, because they answer four different questions. Route is the
     // default: you decide the shape of a trip before you decide what to do on
     // its Tuesday, and until now there was nowhere to do that.
@@ -285,11 +291,33 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                 something. Empty ones are cleared automatically; these are not,
                 because they are evidence of a plan. */}
             {strays.length > 0 && (
-                <p className="trip-planner__strays">
-                    {strays.length} {strays.length === 1 ? 'day sits' : 'days sit'} outside
-                    the trip’s dates but still {strays.length === 1 ? 'has' : 'have'} things in
-                    {strays.length === 1 ? ' it' : ' them'}: {strays.map((d) => String(d.date).slice(0, 10)).join(', ')}.
-                </p>
+                <div className="trip-planner__strays">
+                    <p>
+                        {strays.length} {strays.length === 1 ? 'day sits' : 'days sit'} outside
+                        the trip’s dates but still {strays.length === 1 ? 'has' : 'have'} things in
+                        {strays.length === 1 ? ' it' : ' them'}. Shortening the dates will not
+                        throw away a plan — say so here and it goes.
+                    </p>
+                    <ul>
+                        {strays.map((d) => (
+                            <li key={d.id}>
+                                <span>{format(parseISO(String(d.date).slice(0, 10)), 'EEE d MMM')}</span>
+                                <em>
+                                    {(items[d.id] || []).length}
+                                    {(items[d.id] || []).length === 1 ? ' thing' : ' things'}
+                                </em>
+                                <ConfirmButton
+                                    size="sm"
+                                    label={`Remove ${String(d.date).slice(0, 10)}`}
+                                    confirmLabel="Delete it and everything on it?"
+                                    onConfirm={() => dropDay(d.id)}
+                                >
+                                    Remove
+                                </ConfirmButton>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             )}
 
             {/* Directly on top of what it switches. Setup used to sit here
@@ -325,9 +353,8 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                         onCreate={(dayId, times) => addItem(dayId, {
                             title: 'New plan', kind: 'todo', ...times,
                         })}
-                        onRename={(dayId, id, title) => updateItem(dayId, id, { title })}
+                        onOpen={(dayId, item, near) => setEditing({ dayId, id: item.id, near })}
                         onRecolour={(dayId, id, colour) => updateItem(dayId, id, { colour })}
-                        onAttach={(dayId, id, patch) => updateItem(dayId, id, patch)}
                         onDelete={deleteItem}
                         onMove={moveItem}
                         onDropIdea={async (dayId, times, idea) => {
@@ -347,6 +374,19 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                             await onIdeaUsed?.(idea.id);
                         }}
                     />
+
+                    {editing && (
+                        <StopPopover
+                            item={(items[editing.dayId] || []).find((i) => i.id === editing.id)}
+                            dayId={editing.dayId}
+                            date={days.find((d) => d.id === editing.dayId)?.date}
+                            tripId={trip?.id}
+                            near={editing.near}
+                            onChange={updateItem}
+                            onDelete={deleteItem}
+                            onClose={() => setEditing(null)}
+                        />
+                    )}
                 </>
             ) : (
             <div className="trip-planner__days">
