@@ -600,9 +600,23 @@
 }
 
 /* The name is what you read the line for: it gets the room, and it is the
-   only thing here allowed to take it. */
+   only thing here allowed to take it.
+
+   The sizing has to go on the wrapper, not the input. MentionInput renders
+   `<span class="mention"><input class=…>`, so the flex item in this row is
+   the span — and `flex` on the input inside it does nothing at all. With
+   every other cell a fixed width and the row set to nowrap, the span was the
+   only thing that could give, so it gave everything: the titles vanished
+   completely rather than truncating. */
+.trip-item > .mention {
+    flex: 1 1 10em;
+    /* Never nothing. A row that cannot fit the name should wrap, not delete
+       it — see the media query below. */
+    min-width: 7em;
+}
+
 .trip-item__title {
-    flex: 1 1 6em;
+    width: 100%;
     min-width: 0;
 }
 
@@ -644,16 +658,24 @@
 /* iOS zooms a focused field under 16px. It only does that on a touch screen,
    so the full size is kept for narrow widths and nowhere else — which is also
    where the row is allowed to wrap. */
-@media (max-width: 640px) {
+/* The Cards view sits in a column, not across the page, so it runs out of
+   width long before the viewport does. Wrap early: the name on its own line
+   is legible, the name squeezed to nothing is not. */
+@media (max-width: 1100px) {
     .trip-item {
         flex-wrap: wrap;
-        gap: var(--space-1);
+        gap: var(--space-1) var(--space-2);
     }
 
+    .trip-item > .mention {
+        flex: 1 1 100%;
+        order: -1;
+    }
+}
+
+@media (max-width: 640px) {
     .trip-item input,
     .trip-item select { font-size: 16px; }
-
-    .trip-item__title { flex: 1 1 100%; }
 }
 
 .trip-item__link {
@@ -2286,3 +2308,79 @@ textarea.expedition__notes:focus {
 }
 
 .card.trip-planner__empty strong { color: var(--text-gold); }
+
+
+/* A stop that came from an itinerary is shown, not edited.
+
+   That was already true and silent: an edit made here was overwritten the
+   next time she touched the itinerary. Saying so — and pointing at the place
+   where an edit will actually stick — is the whole of the fix. */
+
+.trip-item--locked {
+    align-items: baseline;
+    padding: 2px 0 2px var(--space-2);
+    border-left: 2px solid var(--border-gold);
+    border-bottom: 1px dashed transparent;
+}
+
+.trip-item--locked:hover { border-bottom-color: var(--border-dim); }
+
+.trip-item__time--fixed {
+    flex: 0 0 auto;
+    width: 3.6em;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-gold);
+}
+
+.trip-item__title--fixed {
+    flex: 1 1 8em;
+    min-width: 6em;
+    font-size: var(--text-sm);
+    color: var(--text-main);
+    overflow-wrap: break-word;
+}
+
+.trip-item__kind--fixed,
+.trip-item__cost--fixed {
+    flex: 0 0 auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+.trip-item__split {
+    flex-shrink: 0;
+    padding: 0 var(--space-1);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-pill);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+}
+
+.trip-item__split.is-shared {
+    border-color: var(--border-gold);
+    color: var(--text-gold);
+}
+
+/* Where it can be changed. Quiet until the row is under the cursor — it is a
+   way out, not the point of the row. */
+.trip-item__source {
+    flex-shrink: 0;
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-decoration: none;
+    opacity: 0.6;
+}
+
+.trip-item--locked:hover .trip-item__source { opacity: 1; color: var(--text-gold); }
+
+@media (max-width: 1100px) {
+    .trip-item--locked { flex-wrap: wrap; }
+    .trip-item__title--fixed { flex: 1 1 100%; order: -1; }
+}

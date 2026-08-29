@@ -102,6 +102,14 @@ export const atlasItemsFrom = (planItems = []) => {
             start_time: scheduled ? String(i.start_time).slice(0, 8) : null,
             end_time: scheduled ? endTime(i.start_time, i.duration) : null,
             cost: i.cost === '' || i.cost == null ? null : Number(i.cost),
+            // The description crosses too. It was the one field she could
+            // write and not send.
+            notes: String(i.notes || '').trim() || null,
+            /* And whether the price is split or each. The Atlas has always had
+               this and the Daydream had nowhere to say it, so a dinner for
+               four arrived as "split" whatever she meant. Null is true, which
+               is what the Atlas already assumes. */
+            cost_shared: i.cost_shared === false ? false : true,
             // The Atlas has both, and the Daydream fills whichever it managed
             // to get — a link from a place, a location from a search.
             link: i.link || null,

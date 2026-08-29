@@ -128,3 +128,53 @@ console.log(`rooms: ${n} passed`);
 
     console.log(`matchRoom: ${m + 1} passed`);
 }
+
+/* --- one scrollable board --------------------------------------------- */
+{
+    const { board } = await import('../src/utils/rooms.js');
+    let m = 0;
+    const t = (fn) => { fn(); m += 1; };
+
+    const chores = [
+        { id: 1, room: 'Kitchen', completed: false },
+        { id: 2, room: 'Kitchen', completed: true },
+        { id: 3, room: 'Attic', completed: true },
+        { id: 4, room: 'Guest Room', completed: false },
+        { id: 5, room: '', completed: false },
+    ];
+
+    t(() => {
+        const b = board(chores);
+        assert.equal(b.open, 3);
+        assert.equal(b.done, 2);
+        assert.equal(b.clean, false);
+        assert.equal(b.empty, false);
+    });
+
+    t(() => {
+        // Rooms with work first, Misc last among them, finished rooms after.
+        assert.deepEqual(board(chores).rooms.map((r) => r.name),
+            ['Guest Room', 'Kitchen', 'Misc', 'Attic']);
+    });
+
+    t(() => {
+        // Undone before done inside a room.
+        const kitchen = board(chores).rooms.find((r) => r.name === 'Kitchen');
+        assert.deepEqual(kitchen.chores.map((c) => c.id), [1, 2]);
+    });
+
+    t(() => {
+        const b = board([{ room: 'Kitchen', completed: true }]);
+        assert.equal(b.clean, true, 'everything ticked off');
+        assert.equal(b.open, 0);
+    });
+
+    t(() => {
+        const b = board([]);
+        assert.equal(b.empty, true);
+        assert.equal(b.clean, false, 'nothing at all is not the same as nothing left');
+        assert.equal(b.rooms.length, 5, 'the five suggestions');
+    });
+
+    console.log(`board: ${m} passed`);
+}

@@ -1520,3 +1520,93 @@ input.idea__title:focus {
    draggable, and selecting text inside one otherwise flings it. */
 .idea input,
 .idea textarea { cursor: text; }
+
+
+/* Cost, editable where it is read — like the title, the length and the notes
+   beside it. It was the one number that could only be set on the way in. */
+
+.tl-item__cost,
+.idea__field {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.tl-item__cost input,
+.idea__field input {
+    width: 4.5em;
+    padding: 1px var(--space-1);
+    border: 1px dashed transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}
+
+.tl-item__cost input::placeholder,
+.idea__field input::placeholder { color: var(--text-dim); }
+
+.tl-item__cost input:hover,
+.idea__field input:hover { border-color: var(--border-dim); }
+
+.tl-item__cost input:focus,
+.idea__field input:focus {
+    border-style: solid;
+    border-color: var(--border-gold);
+    background: var(--field-bg);
+    outline: none;
+}
+
+/* A maybe is still a thing with a price and a length, so the board's cards
+   carry the same fields the day's do. */
+.idea__fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+    margin-top: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+/* Giving a maybe a time is deciding to do it, so this moves it rather than
+   putting an hour on a card nothing reads. */
+.idea__schedule {
+    align-self: flex-start;
+    margin-top: var(--space-1);
+    padding: 2px var(--space-2);
+    border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    cursor: pointer;
+    opacity: 0.75;
+}
+
+.idea__schedule:hover { opacity: 1; border-style: solid; border-color: var(--border-gold); }
+
+
+/* Split or each, beside the price. The Atlas has always known the difference
+   and the Daydream — where the price is usually first typed — had nowhere to
+   say it, so a dinner for four crossed as "split" whatever she meant. */
+.tl-item__share {
+    padding: 0 var(--space-1);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: var(--tracking-label);
+    cursor: pointer;
+}
+
+.tl-item__share.is-split {
+    border-color: var(--border-gold);
+    color: var(--text-gold);
+}

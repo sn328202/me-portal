@@ -124,7 +124,7 @@ export const itineraryEvents = (plans = [], itemsByPlan = {}, { source, color, z
  * fortnight is the thing you want to see when someone asks if you are free
  * in December, and no individual stop tells you that.
  */
-export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { source, color, zone } = {}) => {
+export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { source, color, zone, skipFromPlans = false } = {}) => {
     const out = [];
 
     for (const trip of trips) {
@@ -153,6 +153,10 @@ export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { sourc
             for (const item of itemsByDay[day.id] || []) {
                 const title = String(item?.title || '').trim();
                 if (!title || !item?.start_time) continue;
+                /* This stop is a copy of an itinerary card, and the
+                   itineraries source is showing that card already. One thing
+                   in two places is one thing. */
+                if (skipFromPlans && item.from_plan_id) continue;
 
                 const start = zonedInstant(day.date, item.start_time, zone);
                 out.push({
@@ -171,6 +175,28 @@ export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { sourc
     }
 
     return out;
+};
+
+/**
+ * One of each.
+ *
+ * The structural rule above catches the case that actually happens — a day
+ * sent to a trip appearing under both sources. This is the net under it: the
+ * same title starting at the same instant is the same thing however it got
+ * here, including a calendar she subscribes to that also holds something the
+ * portal knows about.
+ *
+ * First one wins, and the portal's own sources are built first, so the copy
+ * that survives is the one that can be edited.
+ */
+export const distinct = (events = []) => {
+    const seen = new Set();
+    return events.filter((e) => {
+        const key = `${String(e.title || '').trim().toLowerCase()}@${e.start}@${e.allDay ? 'd' : 't'}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 };
 
 /** Only what falls in the window the agenda is showing. */

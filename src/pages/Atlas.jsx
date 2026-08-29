@@ -455,7 +455,11 @@ const Atlas = () => {
                             render until the trip has dates — so on a brand new
                             expedition, the one thing that could fill it in was
                             behind the thing it was meant to fill in. */}
-                        <Button size="sm" onClick={() => setSetupOpen(true)}>
+                        {/* Same size as the two beside it: they are three
+                            things you do with the whole expedition, and one of
+                            them looking like a lesser control was only an
+                            accident of where it used to live. */}
+                        <Button onClick={() => setSetupOpen(true)}>
                             <GiGears /> Setup
                         </Button>
                         {/* Things you do with the whole expedition, together. */}

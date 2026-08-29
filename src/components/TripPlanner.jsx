@@ -62,7 +62,53 @@ const WeatherChip = ({ weather }) => {
     );
 };
 
+/**
+ * One stop on a day.
+ *
+ * A stop that came from an itinerary is shown, not edited. The itinerary is
+ * where it is decided — that is what "linked" means, and it was already true
+ * silently: editing one here got overwritten the next time she touched the
+ * itinerary. Locking it says so, and the link goes to the place where the
+ * edit will actually stick.
+ */
+const LockedItem = ({ item, currency }) => (
+    <li className="trip-item trip-item--locked">
+        <span className="trip-item__time trip-item__time--fixed">
+            {item.start_time ? String(item.start_time).slice(0, 5) : '--:--'}
+        </span>
+        <span className="trip-item__title trip-item__title--fixed">{item.title}</span>
+        {item.link && (
+            <a
+                className="trip-item__link"
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={item.location || 'Open the map'}
+            >
+                ↗
+            </a>
+        )}
+        <span className="trip-item__kind trip-item__kind--fixed">
+            {KINDS.find((k) => k.value === item.kind)?.label || item.kind}
+        </span>
+        <span className="trip-item__cost trip-item__cost--fixed">
+            {item.cost == null || item.cost === '' ? '' : formatMoney(item.cost, currency)}
+        </span>
+        <span className={`trip-item__split${item.cost_shared === false ? '' : ' is-shared'}`}>
+            {item.cost_shared === false ? 'each' : 'split'}
+        </span>
+        <a
+            className="trip-item__source"
+            href={`/daydream?plan=${item.from_plan_id}`}
+            title="This came from an itinerary — edit it there"
+        >
+            ✎ itinerary
+        </a>
+    </li>
+);
+
 const DayItem = ({ item, currency, near, onChange, onDelete }) => (
+    item.from_plan_id ? <LockedItem item={item} currency={currency} /> : (
     <li className="trip-item">
         <input
             type="time"
@@ -125,6 +171,7 @@ const DayItem = ({ item, currency, near, onChange, onDelete }) => (
             <GiTrashCan />
         </button>
     </li>
+    )
 );
 
 /* Two ways of looking at the same days, and that is all this is.

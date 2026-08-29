@@ -113,13 +113,40 @@ it('never says spend when nothing costs anything', () => {
 
 it('makes a trip out of its days, skipping the empty ones', () => {
     const card = tripCard({
-        trip: { name: 'Kerala', destination: 'India' },
+        // `destination` is the field the Atlas puts her own words in, so it
+        // wins. This used to assert the opposite and was wrong.
+        trip: { destination: 'India (Goa / Kerala)' },
         days: [{ id: 1, date: '2026-09-12' }, { id: 2, date: '2026-09-13' }],
         itemsByDay: { 1: [{ title: 'Backwaters', start_time: '08:00:00' }], 2: [] },
     });
-    assert.equal(card.title, 'Kerala');
+    assert.equal(card.title, 'India (Goa / Kerala)');
     assert.equal(card.days.length, 1);
     assert.equal(card.days[0].title, 'Saturday, 12 September');
 });
 
 console.log(`dayCard: ${n} passed`);
+
+/* --- a trip is called what she called it ------------------------------ */
+{
+    const { tripCard } = await import('../src/utils/dayCard.js');
+    let m = 0;
+    const t = (fn) => { fn(); m += 1; };
+
+    const days = [{ id: 1, date: '2026-08-29' }];
+    const items = { 1: [{ title: 'Lunch', start_time: '12:00:00' }] };
+
+    t(() => {
+        // `destination` is where the Atlas keeps her own words. Reading
+        // `name`/`title` — which no trip has — headed every sheet "A trip".
+        const card = tripCard({ trip: { destination: 'Will in SF!' }, days, itemsByDay: items });
+        assert.equal(card.title, 'Will in SF!');
+        assert.equal(card.subtitle, null, 'no second line repeating it');
+    });
+
+    t(() => {
+        assert.equal(tripCard({ trip: {}, days, itemsByDay: items }).title, 'A trip');
+        assert.equal(tripCard({ trip: { destination: '   ' }, days, itemsByDay: items }).title, 'A trip');
+    });
+
+    console.log(`tripCard name: ${m} passed`);
+}

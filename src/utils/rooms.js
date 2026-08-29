@@ -108,3 +108,43 @@ export const pickRoom = (rooms = [], current = '') => {
     if (key && rooms.some((r) => r.key === key)) return key;
     return (rooms.find((r) => r.open > 0) || rooms[0])?.key || '';
 };
+
+
+/**
+ * Everything still to do, in one list, grouped by room.
+ *
+ * The tabs were the right fix for "chores are invisible" and the wrong shape
+ * for using the board: one room at a time means checking four tabs to find
+ * out whether the flat is in order, and the answer to that question is a
+ * single number.
+ *
+ * Rooms with nothing outstanding fall to the bottom rather than out, because
+ * "the kitchen is done" is worth seeing once and worth nothing after that.
+ */
+export const board = (chores = [], extra = []) => {
+    const rooms = roomsFrom(chores, extra).map((room) => ({
+        ...room,
+        // Undone first inside a room: ticking something off should move it out
+        // of the way, not leave it holding its place.
+        chores: [...room.chores].sort((a, b) => Number(Boolean(a.completed)) - Number(Boolean(b.completed))),
+    }));
+
+    const misc = roomKey(MISC);
+    const withWork = rooms.filter((r) => r.open > 0);
+    const done = rooms.filter((r) => r.open === 0);
+
+    const order = (list) => [...list].sort((a, b) => {
+        if ((a.key === misc) !== (b.key === misc)) return a.key === misc ? 1 : -1;
+        return a.name.localeCompare(b.name);
+    });
+
+    return {
+        rooms: [...order(withWork), ...order(done)],
+        open: chores.filter((c) => !c?.completed).length,
+        done: chores.filter((c) => c?.completed).length,
+        // Nothing at all is not the same as nothing left, and they deserve
+        // different words.
+        clean: chores.length > 0 && chores.every((c) => c?.completed),
+        empty: chores.length === 0,
+    };
+};

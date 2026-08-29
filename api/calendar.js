@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseCalendar, isFreeBusyOnly } from './_ics.js';
 import { isPrivateHost, UA } from './_html.js';
-import { itineraryEvents, tripEvents, within } from '../src/utils/portalEvents.js';
+import { itineraryEvents, tripEvents, within, distinct } from '../src/utils/portalEvents.js';
 
 /**
  * POST /api/calendar
@@ -187,7 +187,7 @@ export default async function handler(req, res) {
             const dayIds = (days || []).map((d) => d.id);
             const { data: items } = dayIds.length
                 ? await sb.from('atlas_day_items')
-                    .select('id, day_id, title, start_time, end_time, location')
+                    .select('id, day_id, title, start_time, end_time, location, from_plan_id')
                     .in('day_id', dayIds)
                 : { data: [] };
 
@@ -197,7 +197,7 @@ export default async function handler(req, res) {
             for (const i of items || []) (byDay[i.day_id] ||= []).push(i);
 
             const built = within(
-                tripEvents(trips || [], byTrip, byDay, { color: 'var(--accent-crimson)', zone }),
+                tripEvents(trips || [], byTrip, byDay, { color: 'var(--accent-crimson)', zone, skipFromPlans: wantPlans }),
                 from, to
             );
             own.push(...built);
@@ -209,7 +209,7 @@ export default async function handler(req, res) {
 
     if (!feeds.length) {
         return res.status(200).json({
-            events: own.sort((a, b) => new Date(a.start) - new Date(b.start)),
+            events: distinct(own.sort((a, b) => new Date(a.start) - new Date(b.start))),
             feeds: ownFeeds,
             from,
             to,
@@ -235,8 +235,12 @@ export default async function handler(req, res) {
         }
     }));
 
-    const events = [...own, ...results.flatMap((r) => r.events)]
-        .sort((a, b) => new Date(a.start) - new Date(b.start));
+    /* The portal's own events first, so when something appears twice the
+       copy that survives is the one she can edit. */
+    const events = distinct(
+        [...own, ...results.flatMap((r) => r.events)]
+            .sort((a, b) => new Date(a.start) - new Date(b.start))
+    );
 
     return res.status(200).json({
         events,

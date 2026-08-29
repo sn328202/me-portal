@@ -154,3 +154,47 @@ console.log(`portalEvents: ${n} passed`);
 
     console.log(`zonedInstant: ${m} passed`);
 }
+
+/* --- no duplicates ---------------------------------------------------- */
+{
+    const { distinct, tripEvents } = await import('../src/utils/portalEvents.js');
+    let m = 0;
+    const t = (fn) => { fn(); m += 1; };
+
+    t(() => {
+        // A day sent to a trip is in both sources. Skipped on the trip side.
+        const days = { 7: [{ id: 70, date: '2026-12-24' }] };
+        const items = {
+            70: [
+                { id: 1, title: 'From the itinerary', start_time: '13:00:00', from_plan_id: 'abc' },
+                { id: 2, title: 'Added in the Atlas', start_time: '15:00:00', from_plan_id: null },
+            ],
+        };
+        const trips = [{ id: 7, destination: 'Goa', start_date: '2026-12-24', end_date: '2026-12-24' }];
+
+        const both = tripEvents(trips, days, items, { skipFromPlans: true }).filter((e) => !e.allDay);
+        assert.deepEqual(both.map((e) => e.title), ['Added in the Atlas']);
+
+        const alone = tripEvents(trips, days, items, { skipFromPlans: false }).filter((e) => !e.allDay);
+        assert.equal(alone.length, 2, 'kept when the itineraries source is off');
+    });
+
+    t(() => {
+        const list = [
+            { title: 'Dinner', start: '2026-08-30T18:00:00.000Z', allDay: false },
+            { title: 'dinner', start: '2026-08-30T18:00:00.000Z', allDay: false },
+            { title: 'Dinner', start: '2026-08-30T19:00:00.000Z', allDay: false },
+            { title: 'Dinner', start: '2026-08-30T18:00:00.000Z', allDay: true },
+        ];
+        assert.equal(distinct(list).length, 3, 'case-insensitive on title, but a different time or kind is a different thing');
+    });
+
+    t(() => {
+        const list = [{ title: 'A', start: 'x' }, { title: 'B', start: 'x' }];
+        assert.equal(distinct(list)[0].title, 'A', 'first one wins');
+        assert.deepEqual(distinct([]), []);
+        assert.deepEqual(distinct(), []);
+    });
+
+    console.log(`distinct: ${m} passed`);
+}

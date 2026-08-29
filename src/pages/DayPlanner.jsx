@@ -177,6 +177,21 @@ const DayPlanner = () => {
         fetchPlans();
     }, []);
 
+    /* ?plan=<id> opens that itinerary. It is the other half of the Atlas
+       lock: a stop that came from here links back, and this is what makes the
+       link land somewhere useful rather than on the list. */
+    useEffect(() => {
+        const wanted = params.get('plan');
+        if (!wanted || !plans.length) return;
+        if (selectedPlan?.id === wanted) return;
+        const found = plans.find((p) => String(p.id) === wanted);
+        if (found) {
+            setSelectedPlan(found);
+            setView('itineraries');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [plans, params]);
+
     useEffect(() => {
         if (selectedPlan) {
             setEditedPlan({ ...selectedPlan });
@@ -363,7 +378,15 @@ const DayPlanner = () => {
             console.error('Error deleting item:', error);
             setSaveError('That would not delete — it is still there. Try again.');
             if (selectedPlan) fetchItems(selectedPlan.id);
+            return;
         }
+
+        /* A delete is a change to the day, and a linked day has a copy of
+           itself in a trip. Without this the card went from the itinerary and
+           stayed in the Atlas for ever: deleting is the one edit that did not
+           mark the plan dirty, so autosave never ran and the sync never
+           followed. */
+        setIsDirty(true);
     };
 
     /**
@@ -598,7 +621,8 @@ const DayPlanner = () => {
                     place_id: i.place_id,
                     place_data: i.place_data,
                     travel_note: i.travel_note ?? null,
-                    icon: i.icon ?? null
+                    icon: i.icon ?? null,
+                    cost_shared: i.cost_shared ?? null
                 })));
 
             if (updateError) {
@@ -627,7 +651,8 @@ const DayPlanner = () => {
                     place_id: i.place_id,
                     place_data: i.place_data,
                     travel_note: i.travel_note ?? null,
-                    icon: i.icon ?? null
+                    icon: i.icon ?? null,
+                    cost_shared: i.cost_shared ?? null
                 })))
                 .select();
 
@@ -1294,7 +1319,57 @@ const DayPlanner = () => {
 
                                             {item.location && <p className="idea__line"><GiPositionMarker /> {item.location}</p>}
                                             {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="idea__link">Map ↗</a>}
-                                            {item.cost && <p className="idea__line"><GiCoins /> {item.cost}</p>}
+                                            {/* Everything the card on the day can
+                                                do, the card on the board can do too:
+                                                a maybe is still a thing with a price
+                                                and a length. */}
+                                            <div className="idea__fields">
+                                                <span className="idea__field">
+                                                    <GiCoins aria-hidden="true" />
+                                                    <input
+                                                        key={`ic-${item.id}`}
+                                                        inputMode="decimal"
+                                                        aria-label={`Cost of ${item.activity || 'this idea'}`}
+                                                        placeholder="cost"
+                                                        defaultValue={item.cost ?? ''}
+                                                        onBlur={(e) => {
+                                                            const v = e.target.value.trim();
+                                                            if (v !== String(item.cost ?? '')) {
+                                                                updateItem(item.id, { cost: v || null });
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className={`tl-item__share${item.cost_shared === false ? '' : ' is-split'}`}
+                                                        title={item.cost_shared === false
+                                                            ? 'Each person pays this'
+                                                            : 'Split across the party'}
+                                                        onClick={() => updateItem(item.id, { cost_shared: item.cost_shared === false })}
+                                                    >
+                                                        {item.cost_shared === false ? 'each' : 'split'}
+                                                    </button>
+                                                </span>
+
+                                                <DurationPicker
+                                                    value={item.duration}
+                                                    label={item.activity}
+                                                    onChange={(duration) => updateItem(item.id, { duration })}
+                                                />
+                                            </div>
+
+                                            {/* Giving a maybe a time is deciding to do
+                                                it, so it moves to the day rather than
+                                                sitting on the board with an hour on it
+                                                that nothing reads. */}
+                                            <button
+                                                type="button"
+                                                className="idea__schedule"
+                                                onClick={() => moveItemToTimeline(item.id)}
+                                            >
+                                                Put it on the day →
+                                            </button>
 
                                             <ConfirmButton
                                                 className="idea__delete"
@@ -1431,9 +1506,36 @@ const DayPlanner = () => {
                                                                                     {item.place_data.user_ratings_total ? <em>({item.place_data.user_ratings_total})</em> : null}
                                                                                 </span>
                                                                             )}
-                                                                            {item.cost && (
-                                                                                <span><GiCoins aria-hidden="true" /> {item.cost}</span>
-                                                                            )}
+                                                                            {/* Editable, like the rest of the card. It
+                                                                                was the one number you could set only
+                                                                                on the way in. */}
+                                                                            <span className="tl-item__cost">
+                                                                                <GiCoins aria-hidden="true" />
+                                                                                <input
+                                                                                    key={`c-${item.id}`}
+                                                                                    inputMode="decimal"
+                                                                                    aria-label={`Cost of ${item.activity || 'this'}`}
+                                                                                    placeholder="cost"
+                                                                                    defaultValue={item.cost ?? ''}
+                                                                                    onBlur={(e) => {
+                                                                                        const v = e.target.value.trim();
+                                                                                        if (v !== String(item.cost ?? '')) {
+                                                                                            updateItem(item.id, { cost: v || null });
+                                                                                        }
+                                                                                    }}
+                                                                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                                                />
+                                                                            <button
+                                                                                type="button"
+                                                                                className={`tl-item__share${item.cost_shared === false ? '' : ' is-split'}`}
+                                                                                title={item.cost_shared === false
+                                                                                    ? 'Each person pays this'
+                                                                                    : 'Split across the party'}
+                                                                                onClick={() => updateItem(item.id, { cost_shared: item.cost_shared === false })}
+                                                                            >
+                                                                                {item.cost_shared === false ? 'each' : 'split'}
+                                                                            </button>
+                                                                            </span>
                                                                             {/* How long it takes was shown but never editable
                                                                                 here, so it could only be set on the way in —
                                                                                 which meant it usually was not set at all. */}

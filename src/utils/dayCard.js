@@ -205,10 +205,19 @@ export const dayCard = ({ title, date, subtitle, items = [], travel = {} }) => {
     };
 };
 
-/** A whole Atlas trip: one card per day that has anything on it. */
+/**
+ * A whole Atlas trip: one card per day that has anything on it.
+ *
+ * The name of a trip is its `destination` — that is the field the Atlas puts
+ * her own words in. This read `name` and `title`, which no trip has ever had,
+ * so every share sheet was headed "A trip" with the real name demoted to a
+ * subtitle underneath it.
+ */
 export const tripCard = ({ trip, days = [], itemsByDay = {} }) => ({
-    title: String(trip?.name || trip?.title || '').trim() || 'A trip',
-    subtitle: String(trip?.destination || '').trim() || null,
+    title: String(trip?.destination || trip?.name || trip?.title || '').trim() || 'A trip',
+    // Nothing: the name is the name. A second line repeating it, or captioning
+    // it with a category, is furniture.
+    subtitle: null,
     days: days
         .map((d) => dayCard({
             title: d.label || d.title || longDate(d.date) || 'A day',

@@ -2,9 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import WidgetCard from '../components/WidgetCard';
 import Button from '../components/ui/Button';
-import EmptyState from '../components/EmptyState';
 import { useChores } from '../hooks/useChores';
-import { roomsFrom, pickRoom, tidyRoom, roomKey, MISC } from '../utils/rooms';
+import { board, tidyRoom, roomKey, MISC } from '../utils/rooms';
 import '../styles/ChoresWidget.css';
 
 /**
@@ -36,16 +35,18 @@ const ChoresWidget = () => {
     const [naming, setNaming] = useState(false);
     const [name, setName] = useState('');
 
-    const rooms = useMemo(() => roomsFrom(chores, made), [chores, made]);
-    // Never a tab that is not there: a room emptied or renamed elsewhere
-    // would otherwise leave the board showing nothing with no way back.
-    const activeKey = pickRoom(rooms, current);
-    const active = rooms.find((r) => r.key === activeKey);
+    const view = useMemo(() => board(chores, made), [chores, made]);
+    // Where a new chore goes: whatever she last touched, else the first room
+    // with something outstanding, else the first room there is.
+    const target = view.rooms.find((r) => r.key === roomKey(current))
+        || view.rooms.find((r) => r.open > 0)
+        || view.rooms[0]
+        || null;
 
     const handleAdd = (e) => {
         e.preventDefault();
-        if (!newItem.trim() || !active) return;
-        addChore(newItem.trim(), active.name);
+        if (!newItem.trim() || !target) return;
+        addChore(newItem.trim(), target.name);
         setNewItem('');
     };
 
@@ -59,24 +60,96 @@ const ChoresWidget = () => {
         setNaming(false);
     };
 
-    const visible = active?.chores || [];
-
     return (
         <WidgetCard title={getLabel('chores')} icon={getIcon('chores')} scroll>
-            <div className="chores-room-tabs">
-                {rooms.map((room) => (
-                    <button
+            {/* The count, first. Tabs meant checking four rooms to answer
+                "is the flat in order", and that question has a one-number
+                answer. */}
+            <p className="chores-count" role="status">
+                {view.empty
+                    ? 'Nothing on the list yet.'
+                    : view.clean
+                        ? '✨ All clean — nothing left to do.'
+                        : `${view.open} ${view.open === 1 ? 'thing' : 'things'} to do`}
+                {!view.empty && !view.clean && view.done > 0 && (
+                    <span className="chores-count__done"> · {view.done} done</span>
+                )}
+            </p>
+
+            <form onSubmit={handleAdd} className="chores-form">
+                <input
+                    type="text"
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    placeholder={target ? `Something to do in the ${target.name}…` : 'Make a room first…'}
+                    disabled={loading || !target}
+                    className="chores-input"
+                    aria-label={`New task for ${target?.name || 'a room'}`}
+                />
+                <Button
+                    icon
+                    size="sm"
+                    type="submit"
+                    className="chores-add-btn"
+                    disabled={!target}
+                    label={`Add ${getLabel('chores').toLowerCase()} to ${target?.name || 'a room'}`}
+                >
+                    +
+                </Button>
+            </form>
+
+            {/* One list, every room, scrolling. A room with nothing left falls
+                to the bottom rather than out — "the kitchen is done" is worth
+                seeing once. */}
+            <div className="chores-board">
+                {view.rooms.map((room) => (
+                    <section
                         key={room.key}
-                        type="button"
-                        onClick={() => setCurrent(room.name)}
-                        className={`chores-room-btn${room.key === activeKey ? ' active' : ''}${room.name === MISC ? ' is-misc' : ''}`}
-                        aria-pressed={room.key === activeKey}
+                        className={`chores-room${room.open === 0 ? ' is-done' : ''}${room.name === MISC ? ' is-misc' : ''}`}
                     >
-                        {room.name}
-                        {/* What is left to do there. A tab with nothing open
-                            reads as done rather than as empty. */}
-                        {room.open > 0 && <span className="chores-room-count">{room.open}</span>}
-                    </button>
+                        <h4 className="chores-room__name">
+                            <button
+                                type="button"
+                                onClick={() => setCurrent(room.name)}
+                                aria-label={`Add the next chore to ${room.name}`}
+                                className={roomKey(room.name) === roomKey(target?.name) ? 'is-target' : ''}
+                            >
+                                {room.name}
+                            </button>
+                            {room.open > 0
+                                ? <span className="chores-room__left">{room.open}</span>
+                                : room.total > 0 && <span className="chores-room__clear">clear</span>}
+                        </h4>
+
+                        {room.chores.length === 0 ? (
+                            <p className="chores-room__empty">Nothing here.</p>
+                        ) : room.chores.map((chore) => (
+                            <div key={chore.id} className="chores-item">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleChore(chore.id)}
+                                    className="chores-toggle"
+                                    aria-pressed={!!chore.completed}
+                                >
+                                    <span className={`chores-checkbox ${chore.completed ? 'completed' : ''}`}>
+                                        {chore.completed && <span className="chores-check-icon">✓</span>}
+                                    </span>
+                                    <span className={`chores-text ${chore.completed ? 'completed' : ''}`}>
+                                        {chore.text}
+                                    </span>
+                                </button>
+                                <Button
+                                    icon
+                                    size="sm"
+                                    className="chores-delete-btn"
+                                    onClick={() => deleteChore(chore.id)}
+                                    label={`Delete ${getLabel('chores').toLowerCase()} "${chore.text}"`}
+                                >
+                                    ×
+                                </Button>
+                            </div>
+                        ))}
+                    </section>
                 ))}
 
                 {naming ? (
@@ -92,73 +165,10 @@ const ChoresWidget = () => {
                         />
                     </form>
                 ) : (
-                    <button
-                        type="button"
-                        className="chores-room-btn chores-room-add"
-                        onClick={() => setNaming(true)}
-                        aria-label="Add a room"
-                    >
+                    <button type="button" className="chores-room-add" onClick={() => setNaming(true)}>
                         + room
                     </button>
                 )}
-            </div>
-
-            <form onSubmit={handleAdd} className="chores-form">
-                <input
-                    type="text"
-                    value={newItem}
-                    onChange={(e) => setNewItem(e.target.value)}
-                    placeholder={active ? `Task for ${active.name}…` : 'Make a room first…'}
-                    disabled={loading || !active}
-                    className="chores-input"
-                    aria-label={`New task for ${active?.name || 'a room'}`}
-                />
-                <Button
-                    icon
-                    size="sm"
-                    type="submit"
-                    className="chores-add-btn"
-                    disabled={!active}
-                    label={`Add ${getLabel('chores').toLowerCase()} to ${active?.name || 'a room'}`}
-                >
-                    +
-                </Button>
-            </form>
-
-            <div className="chores-list">
-                {visible.length === 0 && !loading && (
-                    <EmptyState
-                        message="No maintenance required in this sector."
-                        icon={getIcon('chores')}
-                        inline
-                    />
-                )}
-                {visible.map((chore) => (
-                    <div key={chore.id} className="chores-item">
-                        <button
-                            type="button"
-                            onClick={() => toggleChore(chore.id)}
-                            className="chores-toggle"
-                            aria-pressed={!!chore.completed}
-                        >
-                            <span className={`chores-checkbox ${chore.completed ? 'completed' : ''}`}>
-                                {chore.completed && <span className="chores-check-icon">✓</span>}
-                            </span>
-                            <span className={`chores-text ${chore.completed ? 'completed' : ''}`}>
-                                {chore.text}
-                            </span>
-                        </button>
-                        <Button
-                            icon
-                            size="sm"
-                            className="chores-delete-btn"
-                            onClick={() => deleteChore(chore.id)}
-                            label={`Delete ${getLabel('chores').toLowerCase()} "${chore.text}"`}
-                        >
-                            ×
-                        </Button>
-                    </div>
-                ))}
             </div>
         </WidgetCard>
     );
