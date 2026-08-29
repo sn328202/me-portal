@@ -283,7 +283,7 @@ const TableBook = ({ embedded = false }) => {
                 <header className="tablebook__head">
                     <div>
                         <h2 className="section-title"><GiForkKnifeSpoon /> The Table Book</h2>
-                        <p>Tables held, tables kept, and the ones still worth chasing.</p>
+                        <p>Everything booked — tables, tastings, tickets and trains. Held, kept, and still worth chasing.</p>
                     </div>
                     <div className="tablebook__acts">
                         <Button onClick={() => { setReadError(null); setPasting(true); }}>
@@ -299,14 +299,14 @@ const TableBook = ({ embedded = false }) => {
                                     : `Find ${unlinked.length} on Google`}
                             </Button>
                         )}
-                        <Button variant="solid" onClick={book}><GiQuill /> Book a table</Button>
+                        <Button variant="solid" onClick={book}><GiQuill /> Book something</Button>
                     </div>
                 </header>
             ) : (
                 <PageHeader
                     title="The Table Book"
                     icon={<GiForkKnifeSpoon />}
-                    subtitle="Tables held, tables kept, and the ones still worth chasing."
+                    subtitle="Everything booked — tables, tastings, tickets and trains. Held, kept, and still worth chasing."
                     actions={
                         <div className="tablebook__acts">
                             <Button onClick={() => { setReadError(null); setPasting(true); }}>
@@ -323,7 +323,7 @@ const TableBook = ({ embedded = false }) => {
                                 </Button>
                             )}
                             <Button variant="solid" onClick={book}>
-                                <GiQuill /> Book a table
+                                <GiQuill /> Book something
                             </Button>
                         </div>
                     }
