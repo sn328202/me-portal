@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Button, Modal } from './ui';
 import { dayCard } from '../utils/dayCard';
+import { saveSheetImage, shotName } from '../utils/sheetImage';
 import '../styles/DayCard.css';
 
 /**
@@ -12,12 +13,10 @@ import '../styles/DayCard.css';
  * address to find it, and enough of a picture to look forward to it.
  *
  * So this is not the editor with its chrome hidden. It is a different
- * document built from the same rows, and it prints. "Save as PDF" is in every
- * print dialog on every platform, which is a better PDF than any library
- * bundled into the page would produce and costs nothing to ship.
- *
- * The whole page is `position: fixed` while printing, so the app's own
- * scrolled, viewport-height layout cannot clip it at one page.
+ * document built from the same rows, and what she sees is what she sends:
+ * the sheet is photographed off the screen, colour and all, into one tall
+ * image. Printing is still there for anyone who wants paper, but it is no
+ * longer the way the pretty version leaves the building.
  */
 
 const Stop = ({ stop, hop }) => (
@@ -101,6 +100,71 @@ export const DayCardSheet = ({ card, footer }) => (
 );
 
 /**
+ * Take the picture, or fall back to paper.
+ *
+ * The photograph is the headline because it is the thing she asked for: the
+ * preview, as it looks, in a file she can drop into a message. Printing is
+ * kept because a four-day trip reads better as four sheets of paper than as
+ * one very tall picture, and because paper does not need a battery.
+ */
+export const SheetActions = ({ node, name, title, onClose }) => {
+    const [busy, setBusy] = useState(false);
+    const [said, setSaid] = useState(null);
+
+    const take = async () => {
+        setBusy(true);
+        setSaid(null);
+        try {
+            const how = await saveSheetImage(node?.current, {
+                name,
+                title,
+                background: readBackground(node?.current),
+            });
+            if (how === 'saved') setSaid('Saved to your downloads.');
+            else if (how === 'shared') setSaid('Sent.');
+            else setSaid(null);
+        } catch (err) {
+            setSaid(`That did not come out: ${err?.message || 'unknown error'}`);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <>
+            <div className="daycard__actions no-print">
+                <Button variant="primary" onClick={take} disabled={busy}>
+                    {busy ? 'Taking the picture…' : '🖼 Save as image'}
+                </Button>
+                <Button variant="ghost" onClick={() => window.print()}>🖨 Print</Button>
+                <Button variant="ghost" onClick={onClose}>Close</Button>
+            </div>
+
+            <p className="daycard__hint no-print">
+                {said || 'The image is exactly what you see above — colour and all.'}
+            </p>
+        </>
+    );
+};
+
+/**
+ * The colour behind the sheet.
+ *
+ * A photograph of a transparent thing is a photograph of nothing, so the
+ * ground the sheet is standing on is read off the page and painted in. It is
+ * whatever theme she is running, which is the point.
+ */
+const readBackground = (el) => {
+    let at = el;
+    while (at && at !== document.documentElement) {
+        const paint = getComputedStyle(at).backgroundColor;
+        if (paint && paint !== 'transparent' && !/rgba\(0,\s*0,\s*0,\s*0\)/.test(paint)) return paint;
+        at = at.parentElement;
+    }
+    return '#ffffff';
+};
+
+/**
  * The button, the preview and the print.
  *
  * Shown before it is printed because a printed page that turns out wrong is
@@ -113,22 +177,17 @@ const DayCard = ({ title, date, subtitle, items = [], travel = {}, open, onClose
         [title, date, subtitle, items, travel]
     );
 
+    const shot = useRef(null);
+
     return (
         <Modal open={open} onClose={onClose} title="Send this day to someone" size="wide">
             <div className="daycard__wrap">
-                <DayCardSheet card={card} footer="made in the Me Portal" />
+                <div className="daycard__shot" ref={shot}>
+                    <DayCardSheet card={card} footer="made in the Me Portal" />
+                </div>
             </div>
 
-            <div className="daycard__actions no-print">
-                <Button variant="primary" onClick={() => window.print()}>
-                    Print / Save as PDF
-                </Button>
-                <Button variant="ghost" onClick={onClose}>Close</Button>
-            </div>
-
-            <p className="daycard__hint no-print">
-                In the print dialog, choose <strong>Save as PDF</strong> as the destination.
-            </p>
+            <SheetActions node={shot} name={shotName(card.title, date)} title={card.title} onClose={onClose} />
         </Modal>
     );
 };

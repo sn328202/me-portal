@@ -188,9 +188,14 @@ export const dayCard = ({ title, date, subtitle, items = [], travel = {} }) => {
 
     const spend = stops.reduce((sum, s) => sum + (s.cost || 0), 0);
 
+    const name = String(title || '').trim() || 'A day';
+    const spelled = longDate(date);
+
     return {
-        title: String(title || '').trim() || 'A day',
-        date: longDate(date),
+        title: name,
+        // A day with no name of its own is titled by its date. Printing the
+        // date underneath it as well says the same thing twice in two fonts.
+        date: spelled && spelled.toLowerCase() === name.toLowerCase() ? null : spelled,
         subtitle: String(subtitle || '').trim() || null,
         stops: timed,
         hops,

@@ -150,3 +150,18 @@ console.log(`dayCard: ${n} passed`);
 
     console.log(`tripCard name: ${m} passed`);
 }
+
+// A day whose only name is its date should not print the date twice.
+{
+    const c = dayCard({ title: 'Saturday, 29 August', date: '2026-08-29', items: [{ id: 1, title: 'Lunch', start_time: '11:00' }] });
+    assert.equal(c.title, 'Saturday, 29 August');
+    assert.equal(c.date, null, 'the date line is dropped when it repeats the title');
+}
+
+// A day with a real name of its own keeps both.
+{
+    const c = dayCard({ title: 'Napa Valley', date: '2026-08-30', items: [{ id: 1, title: 'Lunch', start_time: '11:00' }] });
+    assert.equal(c.title, 'Napa Valley');
+    assert.ok(c.date && c.date.length > 0, 'a named day still says which day it is');
+}
+console.log('date line: 2 passed');

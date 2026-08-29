@@ -10,9 +10,17 @@
 .daycard__wrap {
     max-height: 60vh;
     overflow-y: auto;
-    padding: var(--space-2);
     background: var(--bg-hover);
     border-radius: var(--radius-md);
+}
+
+/* The photographed rectangle.
+   The scroller above it is capped at part of the viewport; this is the whole
+   document at its real height, which is what the camera is pointed at. Its
+   padding becomes the margin around the card in the saved picture. */
+.daycard__shot {
+    padding: var(--space-3);
+    background: var(--bg-hover);
 }
 
 .daycard {
@@ -231,12 +239,18 @@
         color: #111 !important;
     }
 
+    /* `position: fixed` is how a modal floats. It is also how a browser prints
+       the same box on every single page, which is why this sheet came out four
+       times over. Everything between the page and the card is flattened. */
     .app-shell,
     .main-content,
     .modal,
+    .modal__backdrop,
     .modal__panel,
+    .modal__panel--wide,
     .modal__body,
-    .daycard__wrap {
+    .daycard__wrap,
+    .daycard__shot {
         display: block !important;
         position: static !important;
         height: auto !important;
@@ -253,6 +267,8 @@
     .sidebar,
     .nav-item,
     .modal__head,
+    .modal__header,
+    .modal__footer,
     .no-print,
     .daycard__actions,
     .daycard__hint {

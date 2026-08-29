@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Button, Modal } from './ui';
-import { DayCardSheet } from './DayCard';
+import { DayCardSheet, SheetActions } from './DayCard';
 import { tripCard } from '../utils/dayCard';
+import { shotName } from '../utils/sheetImage';
 import '../styles/DayCard.css';
 
 /**
@@ -22,39 +23,39 @@ const TripCard = ({ trip, days = [], itemsByDay = {} }) => {
         [trip, days, itemsByDay]
     );
 
+    const shot = useRef(null);
+
     return (
         <>
             <Button onClick={() => setOpen(true)}>📮 Share sheet</Button>
 
             <Modal open={open} onClose={() => setOpen(false)} title="Send this trip to someone" size="wide">
                 <div className="daycard__wrap">
-                    <div className="daycard__trip-head">
-                        <h1>{card.title}</h1>
-                        {card.subtitle && <p>{card.subtitle}</p>}
-                    </div>
-
-                    {card.days.length === 0 ? (
-                        <p className="daycard__empty">Nothing is planned on any day yet.</p>
-                    ) : card.days.map((day, i) => (
-                        <div key={day.title + i} className="daycard__page">
-                            <DayCardSheet
-                                card={day}
-                                footer={i === card.days.length - 1 ? 'made in the Me Portal' : null}
-                            />
+                    <div className="daycard__shot" ref={shot}>
+                        <div className="daycard__trip-head">
+                            <h1>{card.title}</h1>
+                            {card.subtitle && <p>{card.subtitle}</p>}
                         </div>
-                    ))}
+
+                        {card.days.length === 0 ? (
+                            <p className="daycard__empty">Nothing is planned on any day yet.</p>
+                        ) : card.days.map((day, i) => (
+                            <div key={day.title + i} className="daycard__page">
+                                <DayCardSheet
+                                    card={day}
+                                    footer={i === card.days.length - 1 ? 'made in the Me Portal' : null}
+                                />
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                <div className="daycard__actions no-print">
-                    <Button variant="primary" onClick={() => window.print()}>
-                        Print / Save as PDF
-                    </Button>
-                    <Button variant="ghost" onClick={() => setOpen(false)}>Close</Button>
-                </div>
-
-                <p className="daycard__hint no-print">
-                    In the print dialog, choose <strong>Save as PDF</strong> as the destination.
-                </p>
+                <SheetActions
+                    node={shot}
+                    name={shotName(card.title, trip?.start_date)}
+                    title={card.title}
+                    onClose={() => setOpen(false)}
+                />
             </Modal>
         </>
     );
