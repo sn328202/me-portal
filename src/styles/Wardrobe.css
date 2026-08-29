@@ -1,0 +1,58 @@
+/**
+ * The planner fills the room, so the portal's own word about it has to sit on
+ * top of it — small, out of the way, and gone in a few seconds unless it is
+ * telling her something is wrong.
+ */
+
+.wardrobe__waiting {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-dim);
+}
+
+.wardrobe__note {
+    position: absolute;
+    right: var(--space-3);
+    bottom: var(--space-3);
+    z-index: 2;
+    max-width: min(28rem, calc(100% - var(--space-6)));
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    color: var(--text-dim);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-gold);
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 25%);
+    pointer-events: none;
+}
+
+.wardrobe__note--bad {
+    color: var(--text-main);
+    border-color: var(--text-warn, #c0642f);
+}
+
+/* Said once, then out of the way. It stays in the DOM so a screen reader that
+   was mid-sentence is not cut off, but it stops being something to look at. */
+.wardrobe__note--fades {
+    animation: wardrobe-said 4s ease-in forwards;
+}
+
+@keyframes wardrobe-said {
+    0%, 70% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wardrobe__note--fades {
+        animation-duration: 4s;
+        animation-timing-function: steps(1, end);
+    }
+}
