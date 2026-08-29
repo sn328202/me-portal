@@ -15,6 +15,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 // Atlas -> leaflet, Daydream -> google-maps + dnd-kit.
 const Atlas = lazy(() => import('./pages/Atlas'));
 const DayPlanner = lazy(() => import('./pages/DayPlanner'));
+const DayBuilder = lazy(() => import('./pages/DayBuilder'));
 const Larder = lazy(() => import('./pages/Larder'));
 const Treasury = lazy(() => import('./pages/Treasury'));
 const Library = lazy(() => import('./pages/Library'));
@@ -62,6 +63,12 @@ function App() {
                             <Route path="/treasury" element={<Treasury />} />
                             <Route path="/library" element={<Library />} />
                             <Route path="/atlas" element={<Atlas />} />
+                            {/* A day is built on its own page, with its own
+                                address. Not a modal: this is where ten minutes
+                                go at a stretch, and a drag-and-drop board
+                                inside a scrolling dialog inside a scrolling
+                                page is what froze the timeline last week. */}
+                            <Route path="/atlas/:tripId/day/:date" element={<DayBuilder />} />
                             <Route path="/daydream" element={<DayPlanner />} />
                             {/* The Table Book is a tab of the Daydream now.
                                 The old address still works, because a

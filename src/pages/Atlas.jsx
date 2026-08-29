@@ -4,6 +4,7 @@ import { GiWorld, GiCompass, GiPin } from 'react-icons/gi';
 import InteractiveMap from '../components/InteractiveMap';
 import { Button, Card, ConfirmButton, Field, Modal, PageHeader, Tag } from '../components/ui';
 import { useAtlas } from '../hooks/useAtlas';
+import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, describeShape } from '../utils/tripShape';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
 import TripSheet from '../components/TripSheet';
@@ -30,6 +31,15 @@ const STATUS_TONE = {
 
 const Atlas = () => {
     const { trips, waypoints, addTrip, updateTrip, deleteTrip, addWaypoint, updateWaypoint, deleteWaypoint } = useAtlas();
+
+    /* Which shelf of the Atlas is showing. Since the Daydream merged in, this
+       list holds a week in Switzerland and a Saturday with Will side by side.
+       They are the same record — a day IS a trip one day long — and this is
+       how you say which you are looking for without them being two rooms
+       again. Read off the dates, never off a flag she has to maintain. */
+    const [shelf, setShelf] = useState('all');
+    const shelfTally = useMemo(() => tripShelfCounts(trips), [trips]);
+    const shelved = useMemo(() => onTripShelf(trips, shelf), [trips, shelf]);
 
     // The Atlas is an index (The Map Room) and a detail view (the Expedition
     // Log). That is navigation, not tabs — the view follows the selection.
@@ -546,6 +556,23 @@ const Atlas = () => {
                         />
                     </div>
 
+                    <div className="atlas__shelves" role="tablist" aria-label="What to show">
+                        {SHELVES.map((s2) => (
+                            <button
+                                key={s2.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={shelf === s2.id}
+                                className={`atlas__shelf${shelf === s2.id ? ' is-on' : ''}`}
+                                onClick={() => setShelf(s2.id)}
+                                disabled={s2.id !== 'all' && !shelfTally[s2.id]}
+                            >
+                                {s2.label}
+                                <em>{shelfTally[s2.id]}</em>
+                            </button>
+                        ))}
+                    </div>
+
                     <ul className="atlas__grid">
                         {/* New Trip Card */}
                         <li>
@@ -556,7 +583,7 @@ const Atlas = () => {
                         </li>
 
                         {/* Existing Trips */}
-                        {trips.map(trip => (
+                        {shelved.map(trip => (
                             <li key={trip.id}>
                                 {/* A poster only when there is a photo to
                                     make one out of. Without one the card was
@@ -593,6 +620,9 @@ const Atlas = () => {
                                     <span className="trip-card__meta">
                                         <Tag tone={STATUS_TONE[trip.status] || 'default'}>{trip.status}</Tag>
                                         <span>{trip.start_date || 'Date TBD'}</span>
+                                        {/* How long it is, which is also what
+                                            kind of thing it is. */}
+                                        <em className="trip-card__shape">{describeShape(trip)}</em>
                                     </span>
                                 </Card>
                             </li>

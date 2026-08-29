@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useTheme } from '../contexts/ThemeContext';
@@ -48,7 +49,7 @@ const nearOn = (legs, day) => {
 };
 
 const TripTimeline = ({
-    days, items, stays, legs = [], costs, currency = 'USD',
+    days, items, stays, legs = [], costs, currency = 'USD', tripId = null,
     onCreate, onMove, onDropIdea, onRename, onDelete, onRecolour, onAttach,
 }) => {
     /* The whole window, for a trip too wide for a column. Fifteen days at a
@@ -179,7 +180,20 @@ const TripTimeline = ({
                             className="timeline__dayhead"
                             style={{ gridRow: 1, gridColumn: column + 2 }}
                         >
-                            <strong>{format(parseISO(String(day.date).slice(0, 10)), 'EEE d')}</strong>
+                            {/* The date is the way in. This view is an
+                                overview of what was built; the building
+                                happens on the day's own page. */}
+                            {tripId ? (
+                                <Link
+                                    className="timeline__open"
+                                    to={`/atlas/${tripId}/day/${String(day.date).slice(0, 10)}`}
+                                    title="Build this day"
+                                >
+                                    <strong>{format(parseISO(String(day.date).slice(0, 10)), 'EEE d')}</strong>
+                                </Link>
+                            ) : (
+                                <strong>{format(parseISO(String(day.date).slice(0, 10)), 'EEE d')}</strong>
+                            )}
                             {/* From the legs, not the day's own copy of them:
                                 one place decides where you are. */}
                             <span className="timeline__city">

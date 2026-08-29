@@ -2384,3 +2384,87 @@ textarea.expedition__notes:focus {
     .trip-item--locked { flex-wrap: wrap; }
     .trip-item__title--fixed { flex: 1 1 100%; order: -1; }
 }
+
+/* The way into a day.
+   Both overview views point at the same page, so there is one place to learn
+   and the Atlas itself stays a thing you read rather than a thing you fight. */
+.trip-day__build {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-gold);
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 1px dashed transparent;
+}
+
+.trip-day__build:hover,
+.trip-day__build:focus-visible {
+    border-bottom-color: var(--text-gold);
+}
+
+.timeline__open {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dashed transparent;
+}
+
+.timeline__open:hover,
+.timeline__open:focus-visible {
+    color: var(--text-gold);
+    border-bottom-color: var(--text-gold);
+}
+
+/* Which shelf of the Atlas is showing.
+   A week in Switzerland and a Saturday with Will are the same record now, so
+   the list needs a way to say which you are looking for — without them being
+   two rooms again. */
+.atlas__shelves {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.atlas__shelf {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-pill, 999px);
+    cursor: pointer;
+}
+
+.atlas__shelf em {
+    font-style: normal;
+    opacity: 0.65;
+}
+
+.atlas__shelf:hover:not(:disabled) {
+    color: var(--text-main);
+    border-color: var(--border-gold);
+}
+
+.atlas__shelf.is-on {
+    color: var(--text-gold);
+    border-color: var(--border-gold);
+}
+
+/* An empty shelf is not worth clicking, and saying so is kinder than
+   letting her find out. */
+.atlas__shelf:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.trip-card__shape {
+    font-style: normal;
+    opacity: 0.7;
+}

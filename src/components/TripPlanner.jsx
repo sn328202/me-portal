@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { GiTrashCan, GiPlainCircle } from 'react-icons/gi';
@@ -314,6 +315,7 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
             {view === 'timeline' ? (
                 <>
                     <TripTimeline
+                        tripId={trip?.id}
                         days={days}
                         items={items}
                         stays={stays}
@@ -364,6 +366,15 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                             <header className="trip-day__head">
                                 <h3>{format(parseISO(String(day.date).slice(0, 10)), 'EEE d MMM')}</h3>
                                 <WeatherChip weather={day.weather} />
+                                {/* This view is an overview of what was
+                                    built. The building happens on the day's
+                                    own page, which has room for it. */}
+                                <Link
+                                    className="trip-day__build"
+                                    to={`/atlas/${trip.id}/day/${String(day.date).slice(0, 10)}`}
+                                >
+                                    Build this day →
+                                </Link>
                             </header>
 
                             <div className="trip-day__where">
