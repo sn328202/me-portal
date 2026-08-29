@@ -2592,3 +2592,10 @@ textarea.expedition__notes:focus {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.atlas__waiting {
+    padding: var(--space-6);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-dim);
+}

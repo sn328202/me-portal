@@ -1,10 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { GiWorld, GiCompass, GiPin } from 'react-icons/gi';
 import InteractiveMap from '../components/InteractiveMap';
 import { Button, Card, ConfirmButton, Field, Modal, PageHeader, Tag } from '../components/ui';
 import { useAtlas } from '../hooks/useAtlas';
-import TableBook from './TableBook';
+
+/* Lazily, and deliberately.
+   Imported statically, the Table Book is pulled in by both this page and the
+   Daydream, so Rollup hoists it into whichever chunk it reaches first and the
+   two chunks end up referring to each other. The page then dies on load with
+   "Cannot access 'T' before initialization" — a temporal dead zone between
+   chunks, not a bug in either file. A dynamic import gives it a chunk of its
+   own and the question stops existing. */
+const TableBook = lazy(() => import('./TableBook'));
 import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, describeShape } from '../utils/tripShape';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
@@ -537,7 +545,11 @@ const Atlas = () => {
             {/* Every booking, held and historic — a table, a tasting, a show,
                 a train. It lives here because it is a thing you do with a
                 trip, and because it existed before the trip did. */}
-            {!selectedTrip && room === 'table' && <TableBook embedded />}
+            {!selectedTrip && room === 'table' && (
+                <Suspense fallback={<p className="atlas__waiting">Opening the Table Book…</p>}>
+                    <TableBook embedded />
+                </Suspense>
+            )}
 
             {/* VIEW: MAP ROOM (Index) */}
             {!selectedTrip && room === 'trips' && (
