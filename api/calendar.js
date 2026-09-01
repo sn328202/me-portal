@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseCalendar, isFreeBusyOnly } from './_ics.js';
 import { isPrivateHost, UA } from './_html.js';
-import { itineraryEvents, tripEvents, within, distinct } from '../src/utils/portalEvents.js';
+import { tripEvents, within, distinct } from '../src/utils/portalEvents.js';
 
 /**
  * POST /api/calendar
@@ -133,46 +133,17 @@ export default async function handler(req, res) {
        something that only ever needed to be read. The Chronometer already
        merges sources; the portal is the one source that needs no address, no
        fetch and no permission — same database, same user, one query. Change
-       an itinerary and this shows the change, because there is no copy. */
+       a day and this shows the change, because there is no copy. */
     const mine = config?.settings?.portalCalendar || {};
     /* Her zone, sent by the browser. The portal stores wall-clock times with
        no zone — "lunch at eleven" is eleven wherever you are standing — and
        this function runs on Vercel, which is UTC. Without this an eleven
        o'clock lunch arrived in the agenda at four in the morning. */
     const zone = typeof body.zone === 'string' && body.zone.length < 64 ? body.zone : null;
-    const wantPlans = mine.itineraries !== false;
     const wantTrips = mine.trips !== false;
 
     const own = [];
     const ownFeeds = [];
-
-    if (wantPlans) {
-        try {
-            const { data: plans } = await sb.from('day_plans')
-                .select('id, title, planned_date, archived_at')
-                .eq('user_id', auth.user.id)
-                .not('planned_date', 'is', null);
-
-            const ids = (plans || []).map((p) => p.id);
-            const { data: items } = ids.length
-                ? await sb.from('plan_items')
-                    .select('id, plan_id, activity, start_time, location, is_brainstorm')
-                    .in('plan_id', ids)
-                : { data: [] };
-
-            const byPlan = {};
-            for (const i of items || []) (byPlan[i.plan_id] ||= []).push(i);
-
-            const built = within(
-                itineraryEvents(plans || [], byPlan, { color: 'var(--accent-gold)', zone }),
-                from, to
-            );
-            own.push(...built);
-            ownFeeds.push({ id: 'portal-itineraries', name: 'Your itineraries', color: 'var(--accent-gold)', ok: true, count: built.length, builtIn: true });
-        } catch (err) {
-            ownFeeds.push({ id: 'portal-itineraries', name: 'Your itineraries', ok: false, error: err.message, builtIn: true });
-        }
-    }
 
     if (wantTrips) {
         try {
@@ -187,7 +158,7 @@ export default async function handler(req, res) {
             const dayIds = (days || []).map((d) => d.id);
             const { data: items } = dayIds.length
                 ? await sb.from('atlas_day_items')
-                    .select('id, day_id, title, start_time, end_time, location, from_plan_id')
+                    .select('id, day_id, title, start_time, end_time, location')
                     .in('day_id', dayIds)
                 : { data: [] };
 
@@ -197,7 +168,7 @@ export default async function handler(req, res) {
             for (const i of items || []) (byDay[i.day_id] ||= []).push(i);
 
             const built = within(
-                tripEvents(trips || [], byTrip, byDay, { color: 'var(--accent-crimson)', zone, skipFromPlans: wantPlans }),
+                tripEvents(trips || [], byTrip, byDay, { color: 'var(--accent-crimson)', zone }),
                 from, to
             );
             own.push(...built);

@@ -19,6 +19,9 @@ import { useAuth } from '../contexts/AuthContext';
  * Three piles, not two. Where to eat was going in with things to do, where a
  * restaurant someone mentioned sat between a houseboat and a shopping trip and
  * could not be found again when the question was "where shall we eat".
+ *
+ * An idea does not need a trip either. One dictated into the portal has none —
+ * there is no trip yet — and it shows on every board until it is used.
  */
 
 const KINDS = ['do', 'eat', 'stay'];
@@ -32,9 +35,18 @@ export const useTripIdeas = (tripId) => {
         if (!user || !tripId) { setIdeas([]); return; }
         setLoading(true);
         try {
+            /* This trip's ideas, plus every idea that has no trip at all.
+               A place dictated into the portal — "I want to try that ramen
+               place" — arrives long before there is a trip to hang it on, and
+               a pile of them filed somewhere she has to remember to open is a
+               pile she never reads. Showing them on every board means the
+               thought surfaces while she is planning a day near it, which is
+               the only moment it is worth anything. The Day Builder's board
+               already works this way; this is the trip page catching up. */
             const { data, error } = await supabase
                 .from('atlas_ideas').select('*')
-                .eq('trip_id', tripId).eq('user_id', user.id)
+                .or(`trip_id.eq.${tripId},trip_id.is.null`)
+                .eq('user_id', user.id)
                 .order('sort_order').order('created_at');
             if (error) throw error;
             setIdeas(data || []);

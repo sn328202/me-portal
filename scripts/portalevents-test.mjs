@@ -1,56 +1,8 @@
 import assert from 'node:assert/strict';
-import { itineraryEvents, tripEvents, within } from '../src/utils/portalEvents.js';
+import { tripEvents, within } from '../src/utils/portalEvents.js';
 
 let n = 0;
 const it = (name, fn) => { fn(); n += 1; };
-
-/* --- itineraries ------------------------------------------------------ */
-
-const plans = [
-    { id: 1, title: 'Napa Day w/ Will', planned_date: '2026-08-30' },
-    { id: 2, title: 'Someday', planned_date: null },
-    { id: 3, title: 'Filed away', planned_date: '2026-08-30', archived_at: '2026-08-01T00:00:00Z' },
-];
-const planItems = {
-    1: [
-        { id: 11, activity: 'Lunette Lunch', start_time: '11:00:00', location: 'Napa' },
-        { id: 12, activity: 'Maybe a winery', is_brainstorm: true, start_time: '14:00:00' },
-        { id: 13, activity: 'Undecided thing', start_time: null },
-        { id: 14, activity: '   ', start_time: '16:00:00' },
-    ],
-    2: [{ id: 21, activity: 'Nowhere', start_time: '09:00:00' }],
-    3: [{ id: 31, activity: 'Old lunch', start_time: '12:00:00' }],
-};
-
-it('brings across what is actually scheduled', () => {
-    const events = itineraryEvents(plans, planItems);
-    assert.deepEqual(events.map((e) => e.title), ['Lunette Lunch']);
-});
-
-it('leaves out the maybes, the undecided and the unnamed', () => {
-    const titles = itineraryEvents(plans, planItems).map((e) => e.title);
-    assert.equal(titles.includes('Maybe a winery'), false, 'brainstorm');
-    assert.equal(titles.includes('Undecided thing'), false, 'no time');
-    assert.equal(titles.length, 1, 'the blank one too');
-});
-
-it('ignores a plan with no date and one that is archived', () => {
-    const events = itineraryEvents(plans, planItems);
-    assert.equal(events.some((e) => e.title === 'Nowhere'), false);
-    assert.equal(events.some((e) => e.title === 'Old lunch'), false);
-});
-
-it('names the day it came from', () => {
-    assert.equal(itineraryEvents(plans, planItems)[0].source, 'Napa Day w/ Will');
-    assert.equal(itineraryEvents(plans, planItems, { source: 'Your days' })[0].source, 'Your days');
-});
-
-it('runs an hour by default and carries its place', () => {
-    const [e] = itineraryEvents(plans, planItems);
-    assert.equal((new Date(e.end) - new Date(e.start)) / 60000, 60);
-    assert.equal(e.location, 'Napa');
-    assert.equal(e.allDay, false);
-});
 
 /* --- trips ------------------------------------------------------------ */
 
@@ -110,15 +62,16 @@ it('falls back to the day city when a stop has no place', () => {
 /* --- the window ------------------------------------------------------- */
 
 it('keeps only what the agenda is showing', () => {
-    const from = Date.UTC(2026, 7, 1);
-    const to = Date.UTC(2026, 8, 1);
-    const kept = within(itineraryEvents(plans, planItems), from, to);
-    assert.equal(kept.length, 1);
-    assert.equal(within(itineraryEvents(plans, planItems), Date.UTC(2027, 0, 1), Date.UTC(2027, 1, 1)).length, 0);
+    const stops = tripEvents(trips, daysByTrip, itemsByDay).filter((e) => !e.allDay);
+    const from = Date.UTC(2026, 11, 24);
+    const to = Date.UTC(2026, 11, 25);
+    assert.equal(within(stops, from, to).length, stops.filter(
+        (e) => new Date(e.start) >= from && new Date(e.start) < to
+    ).length);
+    assert.equal(within(stops, Date.UTC(2020, 0, 1), Date.UTC(2020, 1, 1)).length, 0);
 });
 
 it('copes with nothing at all', () => {
-    assert.deepEqual(itineraryEvents(), []);
     assert.deepEqual(tripEvents(), []);
     assert.deepEqual(within(), []);
 });
@@ -162,21 +115,19 @@ console.log(`portalEvents: ${n} passed`);
     const t = (fn) => { fn(); m += 1; };
 
     t(() => {
-        // A day sent to a trip is in both sources. Skipped on the trip side.
+        // There is one source of days now, so nothing has to be suppressed to
+        // stop a stop appearing twice. Every timed stop comes across.
         const days = { 7: [{ id: 70, date: '2026-12-24' }] };
         const items = {
             70: [
-                { id: 1, title: 'From the itinerary', start_time: '13:00:00', from_plan_id: 'abc' },
+                { id: 1, title: 'Was an itinerary card once', start_time: '13:00:00', from_plan_id: 'abc' },
                 { id: 2, title: 'Added in the Atlas', start_time: '15:00:00', from_plan_id: null },
             ],
         };
         const trips = [{ id: 7, destination: 'Goa', start_date: '2026-12-24', end_date: '2026-12-24' }];
 
-        const both = tripEvents(trips, days, items, { skipFromPlans: true }).filter((e) => !e.allDay);
-        assert.deepEqual(both.map((e) => e.title), ['Added in the Atlas']);
-
-        const alone = tripEvents(trips, days, items, { skipFromPlans: false }).filter((e) => !e.allDay);
-        assert.equal(alone.length, 2, 'kept when the itineraries source is off');
+        const stops = tripEvents(trips, days, items).filter((e) => !e.allDay);
+        assert.deepEqual(stops.map((e) => e.title), ['Was an itinerary card once', 'Added in the Atlas']);
     });
 
     t(() => {

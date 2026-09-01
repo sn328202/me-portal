@@ -24,7 +24,7 @@ import { timeBetween, asMinutes, asTime, lengthOf } from '../utils/dayOrder';
 import { departAt, nextSlot } from '../utils/departAt';
 import { longDate } from '../utils/dayCard';
 import { generateGoogleCalendarUrl } from '../utils/calendarUtils';
-import '../styles/DayPlanner.css';
+import '../styles/Boards.css';
 import '../styles/DayBuilder.css';
 
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;

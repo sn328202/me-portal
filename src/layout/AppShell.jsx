@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { GiSecretBook, GiScrollUnfurled, GiCardRandom, GiClockwork, GiGears, GiCookingPot, GiOpenTreasureChest, GiBookshelf, GiWorld, GiCompass, GiDesk, GiDress } from 'react-icons/gi';
+import { GiSecretBook, GiScrollUnfurled, GiCardRandom, GiClockwork, GiGears, GiCookingPot, GiOpenTreasureChest, GiBookshelf, GiWorld, GiDesk, GiDress } from 'react-icons/gi';
 import QuickCapture from '../components/QuickCapture';
 import './AppShell.css';
 
@@ -9,14 +9,13 @@ const AppShell = ({ children }) => {
   // destinations were literally the same glyph in a collapsed rail.
   // The Study gets the desk.
   //
-  // The Table Book and the Commonplace are not here any more: both are tabs
-  // of the Daydream. Booking a table, keeping the thing that made you want to
-  // go, and planning the day it happens on were three rooms — which meant
-  // choosing which to walk into before you knew which one you wanted.
+  // The Table Book, the Commonplace and the Daydream are not here any more.
+  // Booking a table, keeping the thing that made you want to go, and planning
+  // the day it happens on were four rooms — which meant choosing which to walk
+  // into before you knew which one you wanted. They are all the Atlas now.
   const navItems = [
     { path: '/', icon: GiSecretBook, label: 'Dashboard' },
     { path: '/atlas', icon: GiWorld, label: 'The Atlas' },
-    { path: '/daydream', icon: GiCompass, label: 'The Daydream' },
     { path: '/larder', icon: GiCookingPot, label: 'The Larder' },
     { path: '/treasury', icon: GiOpenTreasureChest, label: 'The Treasury' },
     { path: '/wardrobe', icon: GiDress, label: 'The Wardrobe' },

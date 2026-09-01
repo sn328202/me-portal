@@ -28,7 +28,16 @@ export const useToBook = () => {
             setItems(toBookList(data || []));
             setError(null);
         } catch (err) {
-            setError(err.message || 'Could not read what is still to book');
+            /* "TypeError: Failed to fetch" is what a dropped connection looks
+               like from inside the client, and putting it on the dashboard
+               tells her nothing she can act on. Say what happened in words,
+               and keep the real message in the console for me. */
+            console.error('Could not read what is still to book:', err);
+            setError(
+                /failed to fetch|networkerror|load failed/i.test(err?.message || '')
+                    ? 'Could not reach the portal just now.'
+                    : (err.message || 'Could not read what is still to book')
+            );
         } finally {
             setLoading(false);
         }

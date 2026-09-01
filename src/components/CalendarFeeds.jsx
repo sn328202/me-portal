@@ -70,8 +70,7 @@ const CalendarFeeds = () => {
                 already knows. */}
             <ul className="feed-list">
                 {[
-                    ['itineraries', 'Your itineraries', 'Every timed thing on a day you have planned'],
-                    ['trips', 'Your trips', 'Each expedition across its dates, and its timed stops'],
+                    ['trips', 'Your trips', 'Each expedition and day out across its dates, and its timed stops'],
                 ].map(([key, name, what]) => {
                     const live = status(`portal-${key}`);
                     return (

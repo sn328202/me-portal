@@ -3,7 +3,7 @@ const day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 
 export const DATA = {
     captures: [
-        { id: 'cap1', user_id: USER, transcript: 'oh i want to check out that ramen place in hayes valley sometime', summary: 'Added "Ramen in Hayes Valley" to a new itinerary, A Hayes Valley Day.', actions: [{ tool: 'add_to_itinerary', table: 'day_plans', id: 'x1', label: 'A Hayes Valley Day' }, { tool: 'add_to_itinerary', table: 'plan_items', id: 'x2', label: 'Ramen in Hayes Valley' }], undone: false, created_at: new Date(Date.now() - 22 * 6e4).toISOString() },
+        { id: 'cap1', user_id: USER, transcript: 'oh i want to check out that ramen place in hayes valley sometime', summary: 'Added "Ramen in Hayes Valley" to the Atlas.', actions: [{ tool: 'save_spot', table: 'atlas_ideas', id: 'x1', label: 'Ramen in Hayes Valley' }], undone: false, created_at: new Date(Date.now() - 22 * 6e4).toISOString() },
         { id: 'cap2', user_id: USER, transcript: "we're out of oat milk and gochujang, and i keep thinking about that stamp choker", summary: 'Added 2 to the grocery list, and "Stamp Choker" to the Treasury.', actions: [{ tool: 'add_groceries', table: 'provisions', id: 'x3', label: 'oat milk' }, { tool: 'add_groceries', table: 'provisions', id: 'x4', label: 'gochujang' }, { tool: 'add_desire', table: 'treasury_items', id: 'x5', label: 'Stamp Choker' }], undone: false, created_at: new Date(Date.now() - 3 * 36e5).toISOString() },
         { id: 'cap3', user_id: USER, transcript: 'remind me to descale the kettle', summary: 'Added "descale the kettle" to Kitchen.', actions: [{ tool: 'add_chore', table: 'chores', id: 'x6', label: 'descale the kettle' }], undone: true, created_at: new Date(Date.now() - 26 * 36e5).toISOString() },
     ],
@@ -98,14 +98,15 @@ export const DATA = {
         { id: 'pi9', user_id: USER, name: 'ginger', label: 'ginger', category: 'Produce', in_stock: true, icon: '🫚', aliases: [] },
     ],
     meal_plans: [{ id: 'mp1', user_id: USER, day_of_week: 'Monday', recipe_id: 'r1' }],
-    day_plans: [
-        { id: 'dp1', user_id: USER, title: 'Zeyi + Qing Day Trip!', location: 'Napa Valley, CA', plan_date: day(5) },
-        { id: 'dp2', user_id: USER, title: 'Stained Glass Workshop', location: 'San Francisco, CA', plan_date: null },
-        { id: 'dp3', user_id: USER, title: 'Curious Scents Day', location: 'Berkeley, California', plan_date: null },
+    atlas_days: [
+        { id: 'ad1', user_id: USER, trip_id: 'a2', date: day(21), city: 'Napa Valley, CA' },
     ],
-    plan_items: [
-        { id: 'pit1', plan_id: 'dp1', title: 'Drive up', start_time: '09:00:00', duration: '01:30', position: 0, category: 'travel' },
-        { id: 'pit2', plan_id: 'dp1', title: 'Tasting at Ashes & Diamonds', start_time: '11:00:00', duration: '02:00', position: 1, category: 'food' },
+    atlas_day_items: [
+        { id: 'adi1', user_id: USER, day_id: 'ad1', title: 'Drive up', start_time: '09:00:00', end_time: '10:30:00', sort_order: 0, kind: 'travel' },
+        { id: 'adi2', user_id: USER, day_id: 'ad1', title: 'Tasting at Ashes & Diamonds', start_time: '11:00:00', end_time: '13:00:00', sort_order: 1, kind: 'food' },
+    ],
+    atlas_ideas: [
+        { id: 'ai1', user_id: USER, trip_id: null, kind: 'eat', title: 'Ramen in Hayes Valley', area: 'Hayes Valley', sort_order: 0, promoted_at: null },
     ],
     projects: [{ id: 'pr1', name: 'me.portal', color: 'var(--accent-gold)' }],
     project_tasks: [

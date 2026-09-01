@@ -6,8 +6,8 @@ import usePlacesAutocomplete, {
 import { GiPositionMarker } from 'react-icons/gi';
 
 /**
- * Google Places autocomplete. Used only by The Daydream, so its styling
- * lives in styles/DayPlanner.css. `id` is forwarded to the input so a
+ * Google Places autocomplete. Used by the Day Builder and by PlaceField, so
+ * its styling lives in styles/Boards.css. `id` is forwarded to the input so a
  * <Field> label can point at it.
  */
 const PlacesSearch = ({ onSelect, placeholder = 'Search for locations...', id, className = '', ...rest }) => {

@@ -61,11 +61,11 @@ const countdown = (iso) => {
  *
  * There used to be a third tab, "Worth chasing", built on the Spots library:
  * places booked and let go without rebooking, and saved spots that never
- * became a table. Spots is gone — a place she wants to check out goes to the
- * Commonplace now — and this is the tables, held and kept, which is what it
+ * became a table. Spots is gone — a place she wants to check out is an idea on
+ * the Atlas board now — and this is the tables, held and kept, which is what it
  * was always for.
  *
- * It is a tab of the Daydream rather than a room of its own now. Booking a
+ * It is a tab of the Atlas rather than a room of its own now. Booking a
  * table is not a different activity from planning the day the table is in,
  * and two rooms meant deciding which one to walk into before you knew.
  * `embedded` drops the page furniture — the whole-page heading and the room's

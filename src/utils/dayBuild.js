@@ -17,7 +17,7 @@
  * and an end time is the better of the two — it survives the start moving.
  */
 
-import { minutesOf } from './planToAtlas.js';
+import { minutesOf } from './minutes.js';
 import { asMinutes, asTime } from './dayOrder.js';
 
 const DAY = 1440;

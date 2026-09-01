@@ -14,7 +14,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 // carry dependencies nothing else needs: Larder -> emoji-picker-react,
 // Atlas -> leaflet, Daydream -> google-maps + dnd-kit.
 const Atlas = lazy(() => import('./pages/Atlas'));
-const DayPlanner = lazy(() => import('./pages/DayPlanner'));
 const DayBuilder = lazy(() => import('./pages/DayBuilder'));
 const Larder = lazy(() => import('./pages/Larder'));
 const Treasury = lazy(() => import('./pages/Treasury'));
@@ -69,21 +68,16 @@ function App() {
                                 inside a scrolling dialog inside a scrolling
                                 page is what froze the timeline last week. */}
                             <Route path="/atlas/:tripId/day/:date" element={<DayBuilder />} />
-                            <Route path="/daydream" element={<DayPlanner />} />
-                            {/* The Table Book lives in the Atlas now — a
-                                booking is a thing you do with a trip, and it
-                                exists before the trip does. The old address
-                                still works, because a bookmark is a promise,
-                                and so does the Daydream's spelling of it. */}
+                            {/* The Daydream is gone — a day is a one-day trip
+                                and the Atlas is the only room. Every address
+                                it used to answer still resolves, because a
+                                bookmark is a promise even when the thing it
+                                pointed at has been retired. */}
+                            <Route path="/daydream" element={<Navigate to="/atlas" replace />} />
+                            <Route path="/commonplace" element={<Navigate to="/atlas" replace />} />
                             <Route
                                 path="/tablebook"
                                 element={<Navigate to="/atlas?tab=table" replace />}
-                            />
-                            {/* A tab of the Daydream now, like the Table
-                                Book. The old address still works. */}
-                            <Route
-                                path="/commonplace"
-                                element={<Navigate to="/daydream?tab=keeping" replace />}
                             />
                             <Route path="/study" element={<Studio />} />
                             <Route path="/learning" element={<Learning />} />

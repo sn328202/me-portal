@@ -15,7 +15,7 @@
  * Everything here is pure. The component that prints it does no thinking.
  */
 
-import { minutesOf } from './planToAtlas.js';
+import { minutesOf } from './minutes.js';
 import { asMinutes } from './dayOrder.js';
 import { driveMinutes } from './departAt.js';
 

@@ -81,50 +81,13 @@ const spanOf = (start, end) => {
 };
 
 /**
- * Itinerary items as events.
- *
- * Only what is actually scheduled: an item with no time is a thing she has
- * not decided when to do, and a calendar is the wrong place to argue about
- * it. Brainstorm cards never come across at all — they are maybes.
- */
-export const itineraryEvents = (plans = [], itemsByPlan = {}, { source, color, zone } = {}) => {
-    const out = [];
-    for (const plan of plans) {
-        if (!isDate(plan?.planned_date)) continue;
-        if (plan?.archived_at) continue;
-
-        for (const item of itemsByPlan[plan.id] || []) {
-            if (item?.is_brainstorm || !item?.start_time) continue;
-            const title = String(item.activity || '').trim();
-            if (!title) continue;
-
-            const start = zonedInstant(plan.planned_date, item.start_time, zone);
-            out.push({
-                id: `plan-item-${item.id}`,
-                title,
-                start,
-                end: plus(start, 60),
-                allDay: false,
-                location: item.location || null,
-                status: null,
-                // The day it belongs to, so the agenda can say where it came
-                // from without her having to remember.
-                source: source || plan.title || 'Itinerary',
-                color: color || null,
-            });
-        }
-    }
-    return out;
-};
-
-/**
  * Trips as events: the trip itself across its dates, and each timed stop.
  *
  * The banner is the useful half — "India (Goa / Kerala)" lying across a
  * fortnight is the thing you want to see when someone asks if you are free
  * in December, and no individual stop tells you that.
  */
-export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { source, color, zone, skipFromPlans = false } = {}) => {
+export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { source, color, zone } = {}) => {
     const out = [];
 
     for (const trip of trips) {
@@ -153,11 +116,6 @@ export const tripEvents = (trips = [], daysByTrip = {}, itemsByDay = {}, { sourc
             for (const item of itemsByDay[day.id] || []) {
                 const title = String(item?.title || '').trim();
                 if (!title || !item?.start_time) continue;
-                /* This stop is a copy of an itinerary card, and the
-                   itineraries source is showing that card already. One thing
-                   in two places is one thing. */
-                if (skipFromPlans && item.from_plan_id) continue;
-
                 const start = zonedInstant(day.date, item.start_time, zone);
                 out.push({
                     id: `trip-item-${item.id}`,

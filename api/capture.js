@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { extractRecipe, parseIngredient } from './_recipe.js';
 import { extractProduct } from './_link.js';
 import { resolvePlace } from './_place.js';
-import { readPost, shorten, platformOf, firstUrl, expand } from './_social.js';
+import { readPost, platformOf, firstUrl, expand } from './_social.js';
 
 /**
  * POST /api/capture   { text: "..." }
@@ -204,7 +204,7 @@ const TOOLS = [
     {
         name: 'save_spot',
         description:
-            'Save a place she wants to check out — a restaurant, bar, cafe, museum, park, hike, shop or venue. This is the default for any "I want to go to..." or "I want to try..." thought. It goes to the Commonplace, beside the links she saves, and the real place is looked up automatically, so pass the name as she said it and let the lookup supply the address, map link, rating and hours. Do NOT use add_to_itinerary for this: a place she wants to go does not belong to any particular day yet.',
+            'Save a place she wants to check out — a restaurant, bar, cafe, museum, park, hike, shop or venue. This is the default for any "I want to go to..." or "I want to try..." thought. It becomes an idea on the Atlas board with no trip attached, so it shows up on every trip she plans until she puts it on a day. The real place is looked up automatically, so pass the name as she said it and let the lookup supply the address, map link, rating and hours. Do NOT use add_to_day for this: a place she wants to go does not belong to any particular day yet.',
         input_schema: {
             type: 'object',
             properties: {
@@ -222,16 +222,16 @@ const TOOLS = [
         },
     },
     {
-        name: 'add_to_itinerary',
+        name: 'add_to_day',
         description:
-            'Put something on a specific day itinerary. Use ONLY when she is planning an actual day — she named a date, said "for Saturday", or referred to an itinerary that already exists. A place she merely wants to visit someday belongs in the Commonplace, not on a day: use save_spot instead. Items with no fixed time go in as brainstorm entries.',
+            'Put something on a specific day in the Atlas. Use ONLY when she is planning an actual day — she named a date, said "for Saturday", or referred to a day that already exists in the list above. A place she merely wants to visit someday does not belong on a day: use save_spot instead. Pass day_id when the day is already listed; otherwise pass a date and a title and a new one-day trip is made for it.',
         input_schema: {
             type: 'object',
             properties: {
-                plan_id: { type: 'string', description: 'Existing itinerary id to add to. Omit to create a new one.' },
-                new_plan_title: { type: 'string', description: 'Title for a new itinerary, if plan_id is omitted.' },
-                new_plan_location: { type: 'string' },
-                new_plan_date: { type: 'string', description: 'YYYY-MM-DD, only if she named a date.' },
+                day_id: { type: 'string', description: 'Existing day id from the list above. Omit to make a new day.' },
+                new_day_title: { type: 'string', description: 'Name for the new one-day trip, if day_id is omitted.' },
+                new_day_city: { type: 'string' },
+                new_day_date: { type: 'string', description: 'YYYY-MM-DD. Required when day_id is omitted.' },
                 activity: { type: 'string' },
                 location: { type: 'string' },
                 notes: { type: 'string' },
@@ -362,34 +362,6 @@ const TOOLS = [
         },
     },
     {
-        name: 'save_plan',
-        description:
-            'Save something to the Commonplace as a plan she can work through and then tick off. Use for anything whose useful part is a sequence: a technique from a video, a how-to, a list of tips, a routine, a set of things to see somewhere. If it is a recipe with real quantities, prefer import_recipe or add_recipe; if it is a single place, prefer save_spot, which also files to the Commonplace but looks the place up first. Use save_plan when neither fits, or alongside them for the doing part.',
-        input_schema: {
-            type: 'object',
-            properties: {
-                title: { type: 'string', description: 'Short and recognisable — not the whole caption.' },
-                intent: {
-                    type: 'string',
-                    enum: ['make it', 'go there', 'read it', 'watch it', 'listen to it', 'buy it', 'try it', 'do it'],
-                    description: 'What she would actually do with this. Decides where it surfaces.',
-                },
-                category: {
-                    type: 'string',
-                    enum: ['recipe', 'place', 'read', 'watch', 'listen', 'buy', 'make', 'try', 'other'],
-                },
-                steps: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'The actionable sequence, in order, in plain language. Only steps genuinely present in the source — never invent a method that was not described.',
-                },
-                source_url: { type: 'string' },
-                excerpt: { type: 'string', description: 'The original words, kept verbatim.' },
-            },
-            required: ['title'],
-        },
-    },
-    {
         name: 'nothing_to_file',
         description:
             'Use when the text contains nothing worth filing — a false start, a stray recording, or something with no home in the portal. Say why in one short clause.',
@@ -459,12 +431,12 @@ async function loadContext(sb, userId) {
     };
 
     const [
-        plans, planItems, trips, treasury, library,
-        chores, pantry, provisions, todos, goals, habits, social, recipes, spots, commonplace,
+        days, dayItems, trips, treasury, library,
+        chores, pantry, provisions, todos, goals, habits, social, recipes, ideas,
     ] = await Promise.all([
-        q('day_plans', 'id, title, location, planned_date', { limit: 25 }),
-        q('plan_items', 'plan_id, activity', { limit: 150 }),
-        q('atlas_trips', 'id, destination, status', { limit: 30 }),
+        q('atlas_days', 'id, date, city, trip_id', { limit: 120 }),
+        q('atlas_day_items', 'day_id, title', { limit: 200 }),
+        q('atlas_trips', 'id, destination, status, start_date, end_date', { limit: 30 }),
         q('treasury_items', 'id, title, category', { limit: 60 }),
         q('library_items', 'id, title, type, status', { limit: 80 }),
         q('chores', 'room', { limit: 60 }),
@@ -475,8 +447,13 @@ async function loadContext(sb, userId) {
         q('habits', 'text', { limit: 40 }),
         q('social_plans', 'who, what, when_date', { limit: 30 }),
         q('recipes', 'title, source_url', { limit: 80 }),
-        q('spots', 'name, city, category, status, place_id', { limit: 120 }),
-        q('plans', 'title, status, intent, source_url, place', { limit: 80 }),
+        // Ideas with no trip: the pile of places she means to get to someday.
+        // Told to the model so it attaches rather than saving the same
+        // restaurant a second time, and read by the guard below so that it
+        // cannot anyway.
+        sb.from('atlas_ideas').select('id, title, kind, area, trip_id, place_id')
+            .eq('user_id', userId).is('trip_id', null).is('promoted_at', null)
+            .order('created_at', { ascending: false }).limit(120),
     ]);
 
     // A single failed sub-query must not take the whole capture down; the
@@ -484,20 +461,31 @@ async function loadContext(sb, userId) {
     const rows = (r) => (r && !r.error && Array.isArray(r.data) ? r.data : []);
     const uniq = (r, key) => [...new Set(rows(r).map((x) => x[key]).filter(Boolean))];
 
-    const itemsByPlan = {};
-    rows(planItems).forEach((it) => {
-        if (!it.plan_id) return;
-        (itemsByPlan[it.plan_id] = itemsByPlan[it.plan_id] || []).push(it.activity);
+    /* What is already on each day, so the model can attach rather than
+       duplicate — and so the guard below can refuse when it does not. */
+    const itemsByDay = {};
+    rows(dayItems).forEach((it) => {
+        if (!it.day_id) return;
+        (itemsByDay[it.day_id] = itemsByDay[it.day_id] || []).push(it.title);
     });
 
+    const tripById = Object.fromEntries(rows(trips).map((t) => [String(t.id), t]));
+
     const ctx = {
-        itineraries: rows(plans).map((p) => ({
-            id: p.id,
-            title: p.title,
-            location: p.location,
-            date: p.planned_date,
-            items: (itemsByPlan[p.id] || []).slice(0, 8),
-        })),
+        /* Days, not itineraries. A day is a one-day trip now, so the thing
+           to attach a spoken plan to is a dated day of some trip — and the
+           trip's name is what makes it recognisable when she hears it back. */
+        days: rows(days)
+            .filter((d) => d.date)
+            .map((d) => ({
+                id: d.id,
+                date: String(d.date).slice(0, 10),
+                city: d.city,
+                tripId: d.trip_id,
+                trip: tripById[String(d.trip_id)]?.destination || 'a trip',
+                items: (itemsByDay[d.id] || []).slice(0, 8),
+            }))
+            .sort((a, b) => (a.date < b.date ? -1 : 1)),
         trips: rows(trips).map((t) => ({ id: t.id, destination: t.destination, status: t.status })),
         treasury: rows(treasury).map((t) => ({ title: t.title, category: t.category })),
         treasuryCategories: uniq(treasury, 'category'),
@@ -510,10 +498,7 @@ async function loadContext(sb, userId) {
         habits: uniq(habits, 'text'),
         social: rows(social).map((s) => `${s.what} with ${s.who}`),
         recipes: uniq(recipes, 'title'),
-        spots: rows(spots).map((sp) => ({
-            name: sp.name, city: sp.city, category: sp.category, status: sp.status,
-        })),
-        plans: rows(commonplace).map((pl) => ({ title: pl.title, status: pl.status, intent: pl.intent })),
+        ideas: rows(ideas).map((i) => ({ title: i.title, kind: i.kind, area: i.area })),
     };
 
     // The enforceable half. Keyed by table name so the writer can look up
@@ -529,25 +514,16 @@ async function loadContext(sb, userId) {
         pantry_ingredients: setOf(rows(pantry).map((p) => p.name)),
         social_plans: setOf(ctx.social),
         recipes: setOf(ctx.recipes),
-        spots: setOf(ctx.spots.map((sp) => sp.name)),
-        plans: setOf(ctx.plans.map((pl) => pl.title)),
-        // The same post saved twice is the commonest duplicate of all.
-        planUrls: new Set(rows(commonplace).map((pl) => pl.source_url).filter(Boolean)),
+        atlas_ideas: setOf(ctx.ideas.map((i) => i.title)),
         // Google's identifier survives her calling the same place three
-        // different things. Kept for the Commonplace, which is where places
-        // are saved now; `spots` is read only so that a place already in the
-        // old library is not offered back as new.
-        spotPlaceIds: new Set(rows(spots).map((sp) => sp.place_id).filter(Boolean)),
-        commonplacePlaceIds: new Set([
-            ...rows(commonplace).map((pl) => pl.place?.place_id),
-            ...rows(spots).map((sp) => sp.place_id),
-        ].filter(Boolean)),
-        commonplace: setOf(rows(commonplace).map((pl) => pl.title)),
+        // different things, which a title match never does: "Rintaro",
+        // "that izakaya" and "Rintaro SF" are one restaurant.
+        ideaPlaceIds: new Set(rows(ideas).map((i) => i.place_id).filter(Boolean)),
         // Same dish saved twice from the same page is the likeliest repeat,
         // and titles drift between imports where the URL does not.
         recipeUrls: new Set(rows(recipes).map((r) => r.source_url).filter(Boolean)),
-        planItems: Object.fromEntries(
-            Object.entries(itemsByPlan).map(([id, list]) => [id, setOf(list)])
+        dayItems: Object.fromEntries(
+            Object.entries(itemsByDay).map(([id, list]) => [id, setOf(list)])
         ),
     };
 
@@ -585,10 +561,10 @@ function systemPrompt(ctx, now) {
     const dateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
     const dayStr = now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/Los_Angeles' });
 
-    const itineraryLines = ctx.itineraries.map((i) => {
-        const bits = [i.location, i.date].filter(Boolean).join(', ');
-        const has = i.items.length ? ` — already has: ${i.items.join('; ')}` : '';
-        return `"${i.title}"${bits ? ` (${bits})` : ''} id=${i.id}${has}`;
+    const dayLines = ctx.days.map((d) => {
+        const bits = [d.city].filter(Boolean).join(', ');
+        const has = d.items.length ? ` — already has: ${d.items.join('; ')}` : '';
+        return `${d.date} on "${d.trip}"${bits ? ` (${bits})` : ''} id=${d.id}${has}`;
     });
 
     return `You route spoken thoughts into a personal dashboard called Me Portal. The speaker is talking to herself, quickly, often mid-thought. Your job is to file it where she would have filed it.
@@ -599,7 +575,7 @@ Today is ${dateStr} (${dayStr}), timezone America/Los_Angeles.
 
 This is the current state. Read it before you write anything. Prefer attaching to what exists over creating something new, and never re-add something that is already listed here.
 
-Itineraries (The Daydream):${bullets(itineraryLines)}
+Days already planned (The Atlas):${bullets(dayLines)}
 Trips (The Atlas):${bullets(ctx.trips.map((t) => `${t.destination}${t.status ? ` — ${t.status}` : ''}`))}
 Grocery list, still unbought:${bullets(ctx.groceries)}
 Open tasks:${bullets(ctx.todos)}
@@ -610,38 +586,36 @@ Aspirations:${bullets(ctx.goals)}
 Daily rituals:${bullets(ctx.habits)}
 Social plans:${bullets(ctx.social)}
 Recipes in the Larder:${bullets(ctx.recipes)}
-Places she has already been or already means to go (the old Spots library, kept only so the same place is not saved twice):${bullets(ctx.spots.map((sp) => `${sp.name}${sp.city ? ` (${sp.city})` : ''}${sp.category ? ` — ${sp.category}` : ''}${sp.status === 'been' ? ' [been]' : ''}`))}
-In the Commonplace — saved plans:${bullets(ctx.plans.map((pl) => `${pl.title}${pl.intent ? ` — ${pl.intent}` : ''}${pl.status === 'done' ? ' [done]' : ''}`))}
+Places she already means to get to, waiting for a trip (Atlas ideas):${bullets(ctx.ideas.map((i) => `${i.title}${i.area ? ` (${i.area})` : ''}${i.kind === 'eat' ? ' — somewhere to eat' : ''}${i.kind === 'stay' ? ' — somewhere to stay' : ''}`))}
 Chore rooms in use: ${ctx.rooms.join(', ') || 'none yet'} (plus Misc, the catch-all)
 In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
 
 # The rooms, and what she may call them
 
-This arrives as phone dictation, so words come through mangled. Map near-misses onto the right room rather than taking the transcription literally — "larger", "lauder" and "ladder" all mean **Larder**; "day dream" means the Daydream; "treasure" means the Treasury.
+This arrives as phone dictation, so words come through mangled. Map near-misses onto the right room rather than taking the transcription literally — "larger", "lauder" and "ladder" all mean **Larder**; "atlas" may arrive as "atlantis"; "treasure" means the Treasury.
 
-- **Commonplace** — things saved from elsewhere that she means to *do*: a technique from a video, a how-to, a list of tips. The verb is the point, and it keeps a record of whether she ever did it.
 - **Larder** — recipes and the pantry. A recipe ALWAYS belongs here, never the Library.
 - **Library** — books, films, TV, albums, games. Things consumed, not cooked.
 - **Provisions** — the grocery list.
 - **Treasury** — things she wants to buy.
-- **Daydream** — day itineraries. **Atlas** — travel to other cities.
+- **Atlas** — every plan that happens somewhere: a fortnight abroad, a Saturday across town, and the pile of places she has not dated yet. A single day out is a one-day trip, not a lesser thing.
 - **Register** — plans with other people. **Duty** — chores. **Aspirations** — goals. **Rituals** — daily habits.
 
 # How to file
 
 - Call one or more tools. A single sentence often contains two separate things ("we're out of oat milk and I want to try that ramen place") — file both.
 - **Already there?** If she names something that appears above, do not add it again. If everything she said is already filed, call nothing_to_file and say what she already has. Adding it anyway will be rejected before it is written, so you gain nothing by trying.
-- **Attach, don't duplicate.** A restaurant in a city where an itinerary already exists belongs on that itinerary — pass its id. Only pass an id that appears in the list above; a made-up id is discarded and a stray new itinerary is created instead.
+- **Attach, don't duplicate.** A restaurant in a city where a day already exists belongs on that day — pass its id. Only pass an id that appears in the list above; a made-up id is discarded and a new day is created instead.
 - Distinguish needing from wanting. Groceries are needs; the Treasury is for wants.
 - **Treasury items need a link.** If she gives one, pass it and stop — the page is read for you. If she only describes the thing ("that matte black Hario kettle", "the ribbed tank from Everlane"), use web_search to find it, then pass the URL as the link parameter.
   - Prefer **the brand's own product page** over Amazon, a marketplace, a reseller or a review article. Brand pages have accurate prices, real photography and stable URLs.
   - Search at most once or twice per item. If nothing convincing turns up, file it without a link rather than attaching a page you are unsure about — a wrong product is worse than a missing one.
   - Do not use web_search for anything except finding a Treasury product page.
-- **A place she wants to check out goes to the Commonplace, not a todo and not an itinerary.** "I want to try that ramen place", "we should check out the new wine bar", "someone told me about a garden in Berkeley" — all save_spot, which files it in the Commonplace beside the links she saves. The address, neighbourhood, map link and hours are looked up for you, so pass the name as she said it plus any city, and keep her reason verbatim in the why field.
-- Use add_to_itinerary only when she is planning an actual day: a date, "for Saturday", or an itinerary that already exists. If she is planning a day around places she has already saved, add them to the itinerary by name.
-- Travel to another city or country is a trip, not a spot and not an itinerary.
+- **A place she wants to check out is an Atlas idea, not a todo and not a day.** "I want to try that ramen place", "we should check out the new wine bar", "someone told me about a garden in Berkeley" — all save_spot, which parks it on the Atlas board with no date and no trip, where it waits until she plans a day near it. The address, neighbourhood, map link and hours are looked up for you, so pass the name as she said it plus any city, and keep her reason verbatim in the why field.
+- Use add_to_day only when she is planning an actual day: a date, "for Saturday", or a day that already exists. If she is planning a day around places she has already saved, add them to the day by name.
+- Travel to another city or country is a trip, not a spot and not a day.
 - **A chore's room is a guess, and a wrong guess is fine.** Reuse a room above when one clearly fits; name a new one when she names a new one — the board makes it. When there is no room in what she said, leave the room out entirely rather than picking the likeliest: an unset room files the chore under **Misc**, which is a visible tab she works through, whereas a chore filed into a plausible-sounding room she never opens is a chore she has lost.
-- **A shared post is usually two things at once.** A TikTok of a pasta dish is a recipe in the Larder *and* a plan in the Commonplace; a video about a bakery is a spot *and* a plan. File both when both are true — the room holds the structured data, the Commonplace holds the doing. Do not create a plan when the post is only a fact with nothing to act on.
+- **A shared post is usually one thing, filed properly.** A TikTok of a pasta dish is a recipe in the Larder; a video about a bakery is a spot on the Atlas board. Pick the room that will hold the structured data — the ingredients, the address — rather than filing a second loose copy of the same thought somewhere else.
 - When a post could not be read, save what you can from the link itself and say plainly that the text was unavailable. Never invent steps or ingredients that were not in the source.
 - Do not invent dates, prices or times she did not say.
 - If a thought is genuinely just a note with no home, add it as a todo.
@@ -653,6 +627,19 @@ After the tool calls, reply with one short sentence in plain language describing
 /* ---------- executors -------------------------------------------------- */
 
 const label = (s, n = 60) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s || '');
+
+/**
+ * Which of the board's three piles a saved place belongs in.
+ *
+ * The board splits do / eat / stay because "where shall we eat" is a question
+ * you ask at a particular hour, and a restaurant sitting between a houseboat
+ * and a shopping trip cannot be found when you ask it. Anything unrecognised
+ * falls to `do`, which is the pile you read all of anyway.
+ */
+const KIND_OF_PLACE = {
+    restaurant: 'eat', bar: 'eat', cafe: 'eat',
+    lodging: 'stay',
+};
 
 /**
  * Executes one tool call. `ctx` carries the duplicate index, `dupes` collects
@@ -797,109 +784,128 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             return `"${title}" to the Treasury at ${meta.price_currency === 'USD' ? '$' : ''}${amount}`;
         }
         case 'save_spot': {
-            /* A place she wants to check out goes to the Commonplace, beside
-               the links. It used to go to a Spots library of its own, which
-               meant a place had to be visited on purpose to be seen again —
-               and thirty of them later, twenty-nine were marked "been" and it
-               had quietly become a diary rather than a list of intentions.
-               The whole resolved place rides along in one column. */
-            const place = await resolvePlace(input.name, { city: input.city });
+            /* A place she wants to check out becomes an idea on the Atlas
+               board with no trip attached.
 
-            if (place.place_id && ctx.index.commonplacePlaceIds.has(place.place_id)) {
-                dupes.push({ item: place.name, where: 'in your commonplace' });
+               It has lived in two rooms of its own before now — a Spots
+               library, then the Commonplace — and both had the same flaw: a
+               place filed into a room you have to remember to open is a place
+               you never see again at the moment it would be useful. An idea
+               with no trip shows on the board of every trip she plans, so
+               "that ramen place" surfaces while she is building a Saturday
+               near it, which is the only moment it is worth anything.
+
+               The whole resolved place rides along in one column, so
+               promoting it onto a day gives back the address, the map link
+               and the photo rather than a bare name. */
+            const place = await resolvePlace(input.name, { city: input.city });
+            const category = input.category || place.category || null;
+
+            if (place.place_id && ctx.index.ideaPlaceIds.has(place.place_id)) {
+                dupes.push({ item: place.name, where: 'on your Atlas board' });
                 return null;
             }
 
-            const spotName = once('commonplace', place.name, 'in your commonplace');
+            const spotName = once('atlas_ideas', place.name, 'on your Atlas board');
             if (!spotName) return null;
-            if (place.place_id) ctx.index.commonplacePlaceIds.add(place.place_id);
+            if (place.place_id) ctx.index.ideaPlaceIds.add(place.place_id);
 
-            const where = place.neighborhood || place.city;
-            const [r] = await ins('plans', [{
+            const where = place.neighborhood || place.city || null;
+            const [r] = await ins('atlas_ideas', [{
+                trip_id: null,
+                kind: KIND_OF_PLACE[category] || 'do',
                 title: spotName,
-                category: 'place',
-                intent: input.category || place.category || 'visit',
                 // The link is the map link: it is the one that answers "where
                 // is it and is it open", which is what you want at the door.
-                source_url: place.maps_url || place.website || null,
-                platform: 'place',
-                excerpt: [where, place.address].filter(Boolean).join(' — ') || null,
-                thumbnail_url: place.image_url || null,
+                url: place.maps_url || place.website || null,
+                area: where,
                 notes: input.why || null,
-                steps: [],
-                linked: {},
-                status: 'to do',
-                place: {
+                place_id: place.place_id || null,
+                place_data: {
                     ...place,
                     tags: input.tags && input.tags.length ? input.tags : [],
                 },
+                sort_order: 0,
                 user_id: userId,
             }]);
-            push('plans', r.id, spotName);
+            push('atlas_ideas', r.id, spotName);
+            ctx.ideas.push({ title: spotName, kind: KIND_OF_PLACE[category] || 'do', area: where });
 
             if (place.source === 'unresolved') {
-                return `"${spotName}" to your commonplace — could not find it on a map, so it is just the name for now`;
+                return `"${spotName}" to the Atlas — could not find it on a map, so it is just the name for now`;
             }
-            return `"${spotName}"${where ? ` in ${where}` : ''} to your commonplace`;
+            return `"${spotName}"${where ? ` in ${where}` : ''} to the Atlas`;
         }
-        case 'add_to_itinerary': {
-            let planId = input.plan_id;
-            let planTitle = null;
+        case 'add_to_day': {
+            let dayId = input.day_id;
+            let madeFor = null;
 
             // Only honour an id we actually handed the model. A hallucinated
-            // one would otherwise become an orphaned plan_item pointing at
-            // nothing, or fail the foreign key and lose the thought entirely.
-            if (planId && !ctx.itineraries.some((p) => String(p.id) === String(planId))) {
-                planId = null;
+            // one would fail the foreign key and lose the thought entirely.
+            if (dayId && !ctx.days.some((d) => String(d.id) === String(dayId))) {
+                dayId = null;
             }
 
-            if (planId) {
-                // Same activity, same itinerary — she is repeating herself.
-                const seen = ctx.index.planItems[planId] || (ctx.index.planItems[planId] = new Set());
+            if (dayId) {
+                // Same thing, same day — she is repeating herself.
+                const seen = ctx.index.dayItems[dayId] || (ctx.index.dayItems[dayId] = new Set());
                 const n = norm(input.activity);
                 if (seen.has(n)) {
-                    const plan = ctx.itineraries.find((p) => String(p.id) === String(planId));
-                    dupes.push({ item: input.activity, where: `on "${plan ? plan.title : 'that itinerary'}"` });
+                    const day = ctx.days.find((d) => String(d.id) === String(dayId));
+                    dupes.push({ item: input.activity, where: `on ${day ? day.date : 'that day'}` });
                     return null;
                 }
                 seen.add(n);
             } else {
-                planTitle = input.new_plan_title || input.activity;
-                const [p] = await ins('day_plans', [{
-                    title: planTitle,
-                    location: input.new_plan_location || input.location || null,
-                    planned_date: input.new_plan_date || null,
+                /* A day with no date is not a day. Without one there is
+                   nothing to hang it on and nothing to remind her with, so
+                   the thought goes somewhere it will be seen instead of onto
+                   a day that does not exist. */
+                const date = String(input.new_day_date || '').slice(0, 10);
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+
+                const title = input.new_day_title || input.activity;
+                /* A day IS a one-day trip. That is the whole shape of the
+                   Atlas now, so a spoken plan for a Saturday makes exactly
+                   the same record as a fortnight in Japan, one day long. */
+                const [trip] = await ins('atlas_trips', [{
+                    destination: title,
+                    start_date: date,
+                    end_date: date,
+                    status: 'Planned',
                     user_id: userId,
                 }]);
-                planId = p.id;
-                push('day_plans', p.id, planTitle);
-                // Register it so a second call in the same utterance attaches
+                const [day] = await ins('atlas_days', [{
+                    trip_id: trip.id,
+                    date,
+                    city: input.new_day_city || input.location || null,
+                    user_id: userId,
+                }]);
+                dayId = day.id;
+                madeFor = title;
+                push('atlas_trips', trip.id, title);
+
+                // Registered so a second call in the same utterance attaches
                 // rather than creating a twin.
-                ctx.itineraries.push({
-                    id: p.id,
-                    title: planTitle,
-                    location: input.new_plan_location || input.location || null,
-                    date: input.new_plan_date || null,
-                    items: [],
-                });
-                ctx.index.planItems[p.id] = setOf([input.activity]);
+                ctx.days.push({ id: day.id, date, city: input.new_day_city || null, tripId: trip.id, trip: title, items: [] });
+                ctx.index.dayItems[day.id] = setOf([input.activity]);
             }
 
-            const [item] = await ins('plan_items', [{
-                plan_id: planId,
-                activity: input.activity,
+            const [item] = await ins('atlas_day_items', [{
+                day_id: dayId,
+                title: input.activity,
                 location: input.location || null,
                 notes: input.notes || null,
                 start_time: input.start_time || null,
-                is_brainstorm: !input.start_time,
+                kind: 'todo',
                 user_id: userId,
             }]);
-            push('plan_items', item.id, input.activity);
+            push('atlas_day_items', item.id, input.activity);
 
-            const plan = ctx.itineraries.find((p) => String(p.id) === String(planId));
-            return planTitle
-                ? `"${input.activity}" to a new itinerary, ${planTitle}`
-                : `"${input.activity}" to ${plan ? `"${plan.title}"` : 'an itinerary'}`;
+            const day = ctx.days.find((d) => String(d.id) === String(dayId));
+            return madeFor
+                ? `"${input.activity}" to a new day, ${madeFor}`
+                : `"${input.activity}" to ${day ? `${day.date} on "${day.trip}"` : 'a day'}`;
         }
         case 'add_trip': {
             const destination = once('atlas_trips', input.destination, 'in the Atlas');
@@ -983,8 +989,7 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             // be found and deleted later.
             if (!recipe.problem && !recipe.ingredients.length && !recipe.instructions) {
                 throw new Error(
-                    'that page carried no recipe data at all. If you have the text, use add_recipe; '
-                    + 'otherwise save it with save_plan so the link is not lost.'
+                    'that page carried no recipe data at all. If you have the text, use add_recipe.'
                 );
             }
 
@@ -1018,39 +1023,6 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
                 return `"${title}" to the Larder — no ingredients yet, share the link to fill it in`;
             }
             return `"${title}" to the Larder with ${ingredientCount} ingredients`;
-        }
-        case 'save_plan': {
-            if (input.source_url && ctx.index.planUrls.has(input.source_url)) {
-                dupes.push({ item: input.title, where: 'in the Commonplace' });
-                return null;
-            }
-            const title = once('plans', shorten(input.title, 120), 'in the Commonplace');
-            if (!title) return null;
-            if (input.source_url) ctx.index.planUrls.add(input.source_url);
-
-            const steps = (input.steps || [])
-                .map((t) => String(t).trim())
-                .filter(Boolean)
-                .map((text) => ({ text, done: false }));
-
-            const [r] = await ins('plans', [{
-                title,
-                category: input.category || null,
-                intent: input.intent || null,
-                source_url: input.source_url || null,
-                platform: input.source_url ? platformOf(input.source_url) : 'capture',
-                author: ctx.sharedPost?.author || null,
-                thumbnail_url: ctx.sharedPost?.thumbnail || null,
-                excerpt: input.excerpt || null,
-                steps,
-                status: 'saved',
-                user_id: userId,
-            }]);
-            push('plans', r.id, title);
-            ctx.plans.push({ title, status: 'saved', intent: input.intent });
-
-            if (steps.length) return `"${title}" to the Commonplace as ${steps.length} steps`;
-            return `"${title}" to the Commonplace`;
         }
         case 'add_chore': {
             // Chores repeat by nature — the same room needs sweeping weekly —

@@ -33,7 +33,11 @@ const session = {
 };
 
 const ROUTES = [
-    '/', '/larder', '/treasury', '/library', '/atlas', '/daydream',
+    '/', '/larder', '/treasury', '/library', '/atlas',
+    // Retired rooms. Kept in the list because a bookmark is a promise: these
+    // must still land somewhere, and a redirect that has quietly stopped
+    // redirecting looks exactly like a working page until you follow it.
+    '/daydream', '/commonplace', '/tablebook',
     '/study', '/learning', '/play', '/systems', '/settings', '/no-such-page',
 ];
 
@@ -76,7 +80,8 @@ for (const path of ROUTES) {
 
     const body = (await page.locator('body').innerText()).trim();
     const rootHtml = await page.locator('#root').innerHTML();
-    const boundaryHit = await page.locator('[role="alert"]').count();
+    // A component that gave up — not merely a page showing a notice.
+    const boundaryHit = await page.locator('[data-error-boundary]').count();
     const blank = rootHtml.length < 200;
 
     const status = errors.length || blank || boundaryHit ? 'FAIL' : 'ok';

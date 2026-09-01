@@ -21,11 +21,11 @@ import { flagsForLegs } from '../utils/flags';
 import { atlasStats, costOfTrip } from '../utils/atlasStats';
 import { formatMoney } from '../utils/tripCosts';
 
-/* Lazily, because the Table Book is also a room of the Daydream and a chunk
-   both pages pull in statically is a chunk they can end up waiting on each
-   other for. Its own chunk, and the question does not arise. */
+/* Lazily: a chunk both this page and the Table Book pull in statically is a
+   chunk they can end up waiting on each other for. Its own chunk, and the
+   question does not arise. */
 const TableBook = lazy(() => import('./TableBook'));
-import { todayLocal } from '../utils/planShelf';
+import { todayLocal } from '../utils/today';
 import { legDestination, isTravelLeg } from '../utils/tripLegs';
 import '../styles/Atlas.css';
 

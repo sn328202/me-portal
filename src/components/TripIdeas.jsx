@@ -25,7 +25,7 @@ import { tripRect } from '../utils/tripBounds';
  * Without that this is a notes app that happens to live next to a trip.
  */
 
-const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromote }) => {
+const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onAdopt, onPromote, canPromote }) => {
     const [open, setOpen] = useState(false);
 
     return (
@@ -102,6 +102,22 @@ const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromo
                         on the plan · {format(parseISO(idea.promoted_at.slice(0, 10)), 'd MMM')}
                     </em>
                 )}
+                {/* An idea with no trip is one she dictated before there was
+                    a trip to put it on, so it shows on every board. Saying so
+                    is the difference between "I planned this for Goa" and
+                    "this has been sitting in the pile since March" — and the
+                    label is the button that ends it, because the moment she
+                    notices it belongs here is the moment to say so. */}
+                {idea.trip_id == null && (
+                    <button
+                        type="button"
+                        className="idea__loose"
+                        title={`Keep ${idea.title} on this trip`}
+                        onClick={() => onAdopt(idea.id)}
+                    >
+                        someday · keep here
+                    </button>
+                )}
             </div>
 
             {open && (
@@ -175,7 +191,7 @@ const LABEL = {
     stay: 'A place to stay',
 };
 
-const Column = ({ title, icon, kind, ideas, currency, near, hooks, placeholder, onPromote, canPromote }) => {
+const Column = ({ title, icon, kind, ideas, currency, near, hooks, placeholder, onAdopt, onPromote, canPromote }) => {
     const [draft, setDraft] = useState('');
 
     const submit = (e) => {
@@ -202,6 +218,7 @@ const Column = ({ title, icon, kind, ideas, currency, near, hooks, placeholder, 
                         near={near}
                         onUpdate={hooks.updateIdea}
                         onDelete={hooks.deleteIdea}
+                        onAdopt={onAdopt}
                         onPromote={onPromote}
                         canPromote={canPromote}
                     />
@@ -253,6 +270,12 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
     if (!trip) return null;
 
     const dated = days.filter((d) => d.date);
+
+    /* "This one is for this trip." A dictated idea has no trip and shows on
+       every board; saying it belongs here takes it off the others. It is not
+       promotion — nothing has a date yet — it is only narrowing where it
+       shows, which is why it is a label and not a button in the promote row. */
+    const adopt = (id) => hooks.updateIdea(id, { trip_id: trip.id });
 
     const promoteToDay = (idea, kind = 'todo') => (
         <>
@@ -334,6 +357,7 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
                     near={near}
                     hooks={hooks}
                     placeholder="Nothing yet. Type anything you might want to do."
+                    onAdopt={adopt}
                     onPromote={promoteToDay}
                     canPromote={dated.length > 0 && Boolean(onAddToDay)}
                 />
@@ -348,6 +372,7 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
                     placeholder="Nowhere yet. Restaurants, a bakery, the place with the good coffee."
                     /* Put on a day it becomes a meal, not a to-do: it lands in
                        the food bucket, where the trip's food budget adds up. */
+                    onAdopt={adopt}
                     onPromote={(idea) => promoteToDay(idea, 'food')}
                     canPromote={dated.length > 0 && Boolean(onAddToDay)}
                 />
@@ -360,6 +385,7 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
                     near={near}
                     hooks={hooks}
                     placeholder="Nowhere yet. Hotels, rentals, a friend's spare room."
+                    onAdopt={adopt}
                     onPromote={promoteToStay}
                     canPromote={Boolean(onBook)}
                 />

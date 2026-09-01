@@ -12,7 +12,7 @@ export const generateGoogleCalendarUrl = (item, date) => {
 
     const title = encodeURIComponent(item.activity);
     const location = encodeURIComponent(item.location || '');
-    const details = encodeURIComponent(`From Daydream Itinerary: ${item.notes || ''}\n${item.link || ''}`);
+    const details = encodeURIComponent(`From the Atlas: ${item.notes || ''}\n${item.link || ''}`);
 
     let startTime, endTime;
 
@@ -56,7 +56,7 @@ export const generateICS = (plan, items) => {
     let icsContent = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//Daydream//MePortal//EN',
+        'PRODID:-//Atlas//MePortal//EN',
         'CALSCALE:GREGORIAN',
         'METHOD:PUBLISH' // Useful for importing as a separate calendar
     ];
@@ -79,9 +79,9 @@ export const generateICS = (plan, items) => {
             const dtStart = format(startDateTime, "yyyyMMdd'T'HHmmss");
             const dtEnd = format(endDateTime, "yyyyMMdd'T'HHmmss");
             const title = item.activity; // Escape special chars?
-            const description = `From Daydream: ${item.notes || ''}\\n${item.link || ''}`;
+            const description = `From the Atlas: ${item.notes || ''}\\n${item.link || ''}`;
             const location = item.location || '';
-            const uid = `${item.id}@daydream.me`;
+            const uid = `${item.id}@atlas.me`;
 
             icsContent.push('BEGIN:VEVENT');
             icsContent.push(`UID:${uid}`);

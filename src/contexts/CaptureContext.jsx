@@ -17,10 +17,12 @@ import { useAuth } from './AuthContext';
 
 const CaptureContext = createContext(null);
 
-// Children before parents, so a plan_item is gone before the day_plan that
-// owns it. Recipe ingredients and plan items cascade, but the order costs
-// nothing and protects anything added later that does not.
-const CHILD_TABLES = ['plan_items', 'ingredients'];
+// How deep in a chain of rows each table sits, so undo deletes a day's item
+// before the day that holds it, and the day before the trip that holds it.
+// One dictation can make all three, which a flat children-before-parents
+// split could not order. Anything unlisted stands alone.
+const DEPTHS = { atlas_day_items: 0, ingredients: 0, atlas_days: 1, atlas_trips: 2 };
+const DEPTH = (table) => DEPTHS[table] ?? 0;
 
 export const CaptureProvider = ({ children }) => {
     const { user } = useAuth();
@@ -83,9 +85,7 @@ export const CaptureProvider = ({ children }) => {
     const undo = useCallback(async () => {
         if (!result || !user || !result.actions?.length) return;
 
-        const ordered = [...result.actions].sort(
-            (a, b) => (CHILD_TABLES.includes(b.table) ? 1 : 0) - (CHILD_TABLES.includes(a.table) ? 1 : 0)
-        );
+        const ordered = [...result.actions].sort((a, b) => DEPTH(a.table) - DEPTH(b.table));
 
         for (const action of ordered) {
             if (!action.table || !action.id) continue;

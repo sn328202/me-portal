@@ -125,18 +125,6 @@ const DayItem = ({ item, currency, onOpen, onDelete }) => (
         </span>
         {/* What is still only an intention, visible without opening it. */}
         <BookedChip stop={item} label={item.title} />
-        {/* Until Stage 5 retires the Daydream, a stop that came from an
-            itinerary still says where it came from. */}
-        {item.from_plan_id && (
-            <a
-                className="trip-item__source"
-                href={`/daydream?plan=${item.from_plan_id}`}
-                title="This came from an itinerary — edit it there"
-                onClick={(e) => e.stopPropagation()}
-            >
-                ✎ itinerary
-            </a>
-        )}
         <button type="button" className="trip-item__drop" aria-label="Remove" onClick={onDelete}>
             <GiTrashCan />
         </button>

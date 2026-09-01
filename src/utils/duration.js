@@ -13,7 +13,7 @@
  * written as "H:MM", which is the one form nothing has ever had to guess at.
  */
 
-import { minutesOf } from './planToAtlas.js';
+import { minutesOf } from './minutes.js';
 
 /** The hours and minutes behind whatever is in the field. */
 export const splitDuration = (duration) => {

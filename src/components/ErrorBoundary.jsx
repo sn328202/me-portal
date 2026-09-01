@@ -37,6 +37,12 @@ class ErrorBoundary extends React.Component {
         return (
             <div
                 role="alert"
+                /* The smoke test looks for exactly this: a component that gave
+                   up. Every other role="alert" on a page is a notice doing its
+                   job — "could not reach the portal just now" is not a crash —
+                   and counting those as failures taught the harness to cry
+                   wolf on every offline run. */
+                data-error-boundary="true"
                 style={{
                     padding: isWidget ? '1.25rem' : '3rem 2rem',
                     margin: isWidget ? 0 : '2rem auto',

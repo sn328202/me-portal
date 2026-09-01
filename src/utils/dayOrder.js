@@ -20,7 +20,7 @@
  *    said so, and on a long day it reads as the card vanishing.
  */
 
-import { minutesOf } from './planToAtlas.js';
+import { minutesOf } from './minutes.js';
 
 const two = (n) => String(n).padStart(2, '0');
 

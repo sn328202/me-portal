@@ -1588,6 +1588,24 @@
 .idea__facts a { color: var(--text-gold); }
 .idea__done { color: var(--text-gold); font-style: normal; }
 
+/* An idea that belongs to no trip yet. Quiet — it is a fact about the idea,
+   not a warning — and it is the control that changes the fact, so it lifts
+   under the cursor rather than sitting there as dead text. */
+.idea__loose {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    letter-spacing: var(--tracking-label);
+    text-transform: lowercase;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color var(--transition-fast);
+}
+
+.idea__loose:hover,
+.idea__loose:focus-visible { color: var(--text-gold); }
+
 .idea__detail {
     display: flex;
     flex-direction: column;

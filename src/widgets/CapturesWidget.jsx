@@ -15,11 +15,17 @@ const ROOM = {
     provisions: 'Provisions',
     todos: 'Tasks',
     treasury_items: 'Treasury',
-    day_plans: 'Daydream',
-    spots: 'Spots',
-    plans: 'Commonplace',
-    plan_items: 'Daydream',
     atlas_trips: 'Atlas',
+    atlas_days: 'Atlas',
+    atlas_day_items: 'Atlas',
+    atlas_ideas: 'Atlas',
+    // Retired rooms, still named here because dictations from before the
+    // merge are in the feed and a capture with no room reads as a capture
+    // that did nothing. Everything they held is in the Atlas now.
+    day_plans: 'Atlas',
+    plan_items: 'Atlas',
+    spots: 'Atlas',
+    plans: 'Atlas',
     library_items: 'Library',
     social_plans: 'Register',
     chores: 'Duty',

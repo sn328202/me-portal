@@ -91,19 +91,7 @@ export const asAtlasItem = (r) => ({
     cost: null,
 });
 
-/** A reservation as a row of `plan_items`. */
-export const asPlanItem = (r) => ({
-    activity: String(r?.name || r?.restaurant || '').trim() || 'Reservation',
-    start_time: localTime(r?.starts_at),
-    duration: '2 hours',
-    location: r?.address || r?.city || null,
-    link: r?.maps_url || r?.website || null,
-    notes: bookingNote(r) || null,
-    cost: null,
-    is_brainstorm: false,
-});
-
-/** The day of a trip, or the itinerary, that this booking falls on. */
+/** The day of a trip that this booking falls on. */
 export const dayOn = (starts_at, days = [], field = 'date') => {
     const want = localDate(starts_at);
     if (!want) return null;
