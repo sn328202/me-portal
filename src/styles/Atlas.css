@@ -2599,3 +2599,8 @@ textarea.expedition__notes:focus {
     font-size: var(--text-sm);
     color: var(--text-dim);
 }
+
+/* The place on an idea card, in the detail panel under the fields. */
+.idea__place {
+    margin-top: var(--space-2);
+}

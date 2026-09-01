@@ -4,6 +4,8 @@ import { GiTrashCan, GiLightBulb, GiHouse, GiPathDistance, GiForkKnifeSpoon } fr
 import { Button, Card } from './ui';
 import MentionInput from './MentionInput';
 import { formatMoney } from '../utils/tripCosts';
+import { mapFor, pageFor } from '../utils/mapsLink';
+import PlaceField from './PlaceField';
 import { tripRect } from '../utils/tripBounds';
 
 /**
@@ -37,7 +39,11 @@ const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromo
                 e.dataTransfer.effectAllowed = 'copy';
                 e.dataTransfer.setData('application/x-idea', JSON.stringify({
                     id: idea.id, title: idea.title, cost: idea.cost, kind: idea.kind,
-                    url: idea.url, area: idea.area,
+                    /* The map, so the stop it becomes can be found; the
+                       address, so the drive time to the next one can be
+                       worked out at all. */
+                    url: mapFor(idea) || idea.url, area: idea.area,
+                    place_id: idea.place_id || null,
                 }));
             }}
         >
@@ -50,8 +56,13 @@ const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromo
                     onChange={(title) => onUpdate(idea.id, { title })}
                     onPick={(place, title) => onUpdate(idea.id, {
                         title,
-                        url: place.maps_url || idea.url || null,
-                        area: place.address ? placeArea(place) : idea.area,
+                        /* The place id, not the map url: `url` is the page she
+                           saved, and a place picked here used to overwrite
+                           it. The full address rather than the neighbourhood,
+                           because that is what a day item needs to work out a
+                           drive time from. */
+                        place_id: place.place_id || idea.place_id || null,
+                        area: place.address || idea.area,
                     })}
                 />
                 <button
@@ -76,8 +87,15 @@ const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromo
             <div className="idea__facts">
                 {idea.cost != null && <span>{formatMoney(idea.cost, currency)}</span>}
                 {idea.area && <span>{idea.area}</span>}
-                {idea.url && (
-                    <a href={idea.url} target="_blank" rel="noopener noreferrer">link</a>
+                {/* Two different links wanted the one `url` column: the map,
+                    and whatever page she actually saved. The map is worked
+                    out from the place id when it is drawn, so saving a menu
+                    no longer overwrites the map — and vice versa. */}
+                {mapFor(idea) && (
+                    <a href={mapFor(idea)} target="_blank" rel="noopener noreferrer">map</a>
+                )}
+                {pageFor(idea) && (
+                    <a href={pageFor(idea)} target="_blank" rel="noopener noreferrer">link</a>
                 )}
                 {idea.promoted_at && (
                     <em className="idea__done">
@@ -113,14 +131,27 @@ const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromo
                                 cost: e.target.value === '' ? null : Number(e.target.value),
                             })}
                         />
-                        <input
-                            type="text"
-                            placeholder={idea.kind === 'stay' ? 'Where' : 'Neighbourhood'}
-                            value={idea.area || ''}
-                            aria-label="Area"
-                            onChange={(e) => onUpdate(idea.id, { area: e.target.value })}
-                        />
                     </div>
+
+                    {/* Naming it with an @ was the only way an idea ever got
+                        a real place, and only at the moment of typing. This
+                        is the other way in — and it matters more here than
+                        anywhere, because dragging an idea onto a day carries
+                        its address across, and an address is what the drive
+                        times are worked out from. */}
+                    <PlaceField
+                        className="idea__place"
+                        location={idea.area}
+                        link={mapFor(idea)}
+                        label={idea.title || 'this idea'}
+                        onPick={(patch) => onUpdate(idea.id, {
+                            area: patch.location,
+                            place_id: patch.place_id,
+                        })}
+                        onClear={idea.area
+                            ? () => onUpdate(idea.id, { area: null, place_id: null })
+                            : undefined}
+                    />
                 </div>
             )}
 
@@ -130,13 +161,6 @@ const IdeaRow = ({ idea, currency, near, onUpdate, onDelete, onPromote, canPromo
             )}
         </li>
     );
-};
-
-/* The neighbourhood, which is the part of an address worth keeping on a
-   one-line idea. The street number is not a reason to go somewhere. */
-const placeArea = (place) => {
-    const parts = String(place.address || '').split(',').map((p) => p.trim()).filter(Boolean);
-    return parts.length > 2 ? parts[parts.length - 3] : (parts[0] || null);
 };
 
 const PROMPT = {
@@ -200,8 +224,12 @@ const Column = ({ title, icon, kind, ideas, currency, near, hooks, placeholder, 
                         hooks.addIdea({
                             kind,
                             title: text.trim() || place.name,
-                            url: place.maps_url || null,
-                            area: placeArea(place),
+                            /* The id, so the map can be worked out and `url`
+                               stays free for a page she saves. The full
+                               address, not just the neighbourhood, because a
+                               drive time cannot be worked out from "Rutherford". */
+                            place_id: place.place_id || null,
+                            area: place.address || null,
                         });
                         setDraft('');
                     }}
@@ -251,10 +279,12 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
                         title: idea.title,
                         kind,
                         cost: idea.cost ?? null,
-                        // The link it was found with goes across too: the
-                        // whole point of "@masque" was not typing it twice.
-                        link: idea.url || null,
+                        // The place it was found at goes across too: the whole
+                        // point of "@masque" was not typing it twice — and the
+                        // stop cannot have a drive time without an address.
+                        link: mapFor(idea) || idea.url || null,
                         location: idea.area || null,
+                        place_id: idea.place_id || null,
                     });
                     await hooks.markPromoted(idea.id);
                     setTarget((prev) => ({ ...prev, [idea.id]: '' }));
