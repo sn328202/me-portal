@@ -344,24 +344,30 @@ const DayBuilder = () => {
                                 onFocusCapture={(e) => { if (e.target.matches('input, textarea')) setEditingIdea(true); }}
                                 onBlurCapture={() => setEditingIdea(false)}
                             >
-                                <ActivityFace
-                                    item={item}
-                                    className="idea__face"
-                                    onChange={(icon) => updateIdea(item.id, { icon })}
-                                />
+                                {/* The face and the name share a line. Stacked,
+                                    a card with four short facts on it stood
+                                    twice as tall as any of them, and a board is
+                                    for seeing several at once. */}
+                                <div className="idea__head">
+                                    <ActivityFace
+                                        item={item}
+                                        className="idea__face"
+                                        onChange={(icon) => updateIdea(item.id, { icon })}
+                                    />
 
-                                <input
-                                    className="idea__title"
-                                    key={`it-${item.id}`}
-                                    aria-label={`Name of ${item.activity || 'this idea'}`}
-                                    placeholder="What is it?"
-                                    defaultValue={item.activity || ''}
-                                    onBlur={(e) => {
-                                        const v = e.target.value.trim();
-                                        if (v !== (item.activity || '')) updateIdea(item.id, { activity: v });
-                                    }}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                                />
+                                    <input
+                                        className="idea__title"
+                                        key={`it-${item.id}`}
+                                        aria-label={`Name of ${item.activity || 'this idea'}`}
+                                        placeholder="What is it?"
+                                        defaultValue={item.activity || ''}
+                                        onBlur={(e) => {
+                                            const v = e.target.value.trim();
+                                            if (v !== (item.activity || '')) updateIdea(item.id, { activity: v });
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                    />
+                                </div>
 
                                 <textarea
                                     className="idea__note"
@@ -376,14 +382,19 @@ const DayBuilder = () => {
                                     }}
                                 />
 
-                                {item.location && (
-                                    <p className="idea__line">
-                                        <GiPositionMarker aria-hidden="true" /> {item.location}
-                                    </p>
-                                )}
-                                {item.link && (
-                                    <a className="idea__link" href={item.link} target="_blank" rel="noopener noreferrer">Map ↗</a>
-                                )}
+                                {/* Where it is, addable here rather than only
+                                    at the moment of typing its name. */}
+                                <PlaceField
+                                    className="idea__line"
+                                    location={item.location}
+                                    link={item.link}
+                                    ready={isLoaded}
+                                    label={item.activity || 'this idea'}
+                                    onPick={(patch) => updateIdea(item.id, { location: patch.location, link: patch.link })}
+                                    onClear={item.location
+                                        ? () => updateIdea(item.id, { location: null, link: null })
+                                        : undefined}
+                                />
 
                                 <div className="idea__fields">
                                     <span className="idea__field">

@@ -1651,3 +1651,53 @@ input.idea__title:focus {
     overflow-wrap: anywhere;
     word-break: break-word;
 }
+
+
+/* ---------- A board card is for seeing several at once --------------- */
+
+/* The face on its own row, then the name, then the notes, then the address,
+   then the map link, then the cost, then the button — seven rows for a thing
+   with four facts on it. Two of those rows were the same fact told twice, and
+   the tallest of them was a 56px emoji doing nothing but taking the width.
+
+   The face and the name share a line now, and the emoji is the size of the
+   text beside it rather than the size of a photograph. */
+.idea__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.idea__head .idea__face {
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.idea__head .idea__face .face__btn {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+}
+
+.idea__head .idea__title {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Tighter, now that nothing in here is 56px tall. */
+.idea:has(.idea__head) {
+    gap: var(--space-1);
+}
+
+/* An empty note is a placeholder taking a whole row on every card. It says
+   what it is when there is something to say, and gets out of the way when
+   there is not. */
+.idea:has(.idea__head) .idea__note {
+    opacity: 0.55;
+}
+
+.idea:has(.idea__head) .idea__note:hover,
+.idea:has(.idea__head) .idea__note:focus {
+    opacity: 1;
+}
