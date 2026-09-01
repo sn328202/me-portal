@@ -78,6 +78,7 @@ export const asAtlasItem = (r) => ({
     /* It came from the Table Book, so it is booked — that is the whole
        claim a reservation makes. And it points at the booking rather than
        copying it, so changing the booking changes what the day shows. */
+    booking: 'booked',
     booked: true,
     booked_id: r?.id || null,
     start_time: localTime(r?.starts_at),

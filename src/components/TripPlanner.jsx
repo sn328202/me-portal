@@ -8,6 +8,7 @@ import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
 import StopPopover from './StopPopover';
 import BookedChip from './BookedChip';
+import { needsBooking } from '../utils/bookingState';
 import TripStays from './TripStays';
 import MentionInput from './MentionInput';
 import { isTravelLeg } from '../utils/tripLegs';
@@ -88,7 +89,7 @@ const WeatherChip = ({ weather }) => {
  * large one. Two surfaces, not three.
  */
 const DayItem = ({ item, currency, onOpen, onDelete }) => (
-    <li className="trip-item trip-item--read">
+    <li className={`trip-item trip-item--read${needsBooking(item) ? ' needs-booking' : ''}`}>
         <button
             type="button"
             className="trip-item__row"
@@ -123,12 +124,7 @@ const DayItem = ({ item, currency, onOpen, onDelete }) => (
             {item.cost_shared === false ? 'each' : 'split'}
         </span>
         {/* What is still only an intention, visible without opening it. */}
-        <BookedChip
-            booked={item.booked}
-            fromBooking={Boolean(item.booked_id)}
-            label={item.title}
-            onChange={undefined}
-        />
+        <BookedChip stop={item} label={item.title} />
         {/* Until Stage 5 retires the Daydream, a stop that came from an
             itinerary still says where it came from. */}
         {item.from_plan_id && (

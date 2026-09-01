@@ -172,21 +172,29 @@ t('and carries them onto the day when it is promoted', () => {
 });
 
 
-t('a stop knows whether it still has to be booked', () => {
-    assert.equal(toStop({ id: 'a', title: 'Walk' }).booked, false);
-    assert.equal(toStop({ id: 'a', title: 'Dinner', booked: true }).booked, true);
+t('a stop knows which of the three it is', () => {
+    assert.equal(toStop({ id: 'a', title: 'Walk' }).booking, 'none');
+    assert.equal(toStop({ id: 'a', title: 'Bosco', booking: 'todo' }).booking, 'todo');
+    assert.equal(toStop({ id: 'a', title: 'Dinner', booking: 'booked' }).booking, 'booked');
+});
+
+t('a row from before the third state existed still reads right', () => {
+    assert.equal(toStop({ id: 'a', title: 'Dinner', booked: true }).booking, 'booked');
+    assert.equal(toStop({ id: 'a', title: 'Walk', booked: false }).booking, 'none');
 });
 
 t('a stop that came from the Table Book is booked by definition', () => {
-    // It IS a reservation. The pointer settles it whatever the flag says.
-    const s2 = toStop({ id: 'a', title: 'Che Fico', booked: false, booked_id: 'r1' });
-    assert.equal(s2.booked, true);
-    assert.equal(toRow(s2, {}).booked, true);
+    // It IS a reservation. The pointer settles it whatever the field says.
+    const s2 = toStop({ id: 'a', title: 'Che Fico', booking: 'todo', booked_id: 'r1' });
+    assert.equal(s2.booking, 'booked');
+    assert.equal(toRow(s2, {}).booking, 'booked');
 });
 
-t('and the flag survives the round trip', () => {
-    assert.equal(toRow({ activity: 'x', booked: true }, {}).booked, true);
-    assert.equal(toRow({ activity: 'x' }, {}).booked, false);
+t('and the state survives the round trip', () => {
+    assert.equal(toRow({ activity: 'x', booking: 'todo' }, {}).booking, 'todo');
+    assert.equal(toRow({ activity: 'x' }, {}).booking, 'none');
+    // The old boolean is kept in step so nothing reading it goes wrong.
+    assert.equal(toRow({ activity: 'x', booking: 'booked' }, {}).booked, true);
 });
 
 console.log(`\n${n} passed`);

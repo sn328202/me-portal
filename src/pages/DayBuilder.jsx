@@ -15,6 +15,7 @@ import SortableItem from '../components/SortableItem';
 import PlaceImage from '../components/PlaceImage';
 import PlaceField from '../components/PlaceField';
 import BookedChip from '../components/BookedChip';
+import { needsBooking } from '../utils/bookingState';
 import DayCard from '../components/DayCard';
 
 import { useDayStops } from '../hooks/useDayStops';
@@ -462,7 +463,10 @@ const DayBuilder = () => {
                                                 <div className="tl-row">
                                                     {index !== arr.length - 1 && <span className="tl-row__thread" />}
 
-                                                    <Card variant="flat" className="tl-item">
+                                                    <Card
+                                                        variant="flat"
+                                                        className={`tl-item${needsBooking(item) ? ' needs-booking' : ''}`}
+                                                    >
                                                         <button
                                                             type="button"
                                                             className="tl-item__grip"
@@ -563,10 +567,9 @@ const DayBuilder = () => {
                                                                 />
 
                                                                 <BookedChip
-                                                                    booked={item.booked}
-                                                                    fromBooking={Boolean(item.booked_id)}
+                                                                    stop={item}
                                                                     label={item.activity}
-                                                                    onChange={(booked) => updateStop(item.id, { booked })}
+                                                                    onChange={(booking) => updateStop(item.id, { booking })}
                                                                 />
                                                             </div>
 

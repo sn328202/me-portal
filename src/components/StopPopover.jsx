@@ -108,12 +108,11 @@ const StopPopover = ({ item, dayId, date, tripId, near = null, onChange, onDelet
                         </span>
                     </Field>
 
-                    <Field label="Held yet">
+                    <Field label="Booking">
                         <BookedChip
-                            booked={item.booked}
-                            fromBooking={Boolean(item.booked_id)}
+                            stop={item}
                             label={item.title}
-                            onChange={(booked) => patch({ booked })}
+                            onChange={(booking) => patch({ booking })}
                         />
                     </Field>
                 </div>

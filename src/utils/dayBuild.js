@@ -93,9 +93,10 @@ export const toStop = (row) => ({
     place_data: row.place_data || null,
     spot_id: row.spot_id || null,
     booked_id: row.booked_id || null,
-    /* Something you still have to ring up, or something already held. A stop
-       that came from the Table Book is booked by definition — it is a
-       reservation — so the pointer settles the question either way. */
+    /* Three states, not two: nothing to book, still to book, booked. The
+       boolean this replaces could not tell a walk in the park from a
+       restaurant she has not rung yet. */
+    booking: row.booked_id ? 'booked' : (row.booking || (row.booked ? 'booked' : 'none')),
     booked: Boolean(row.booked || row.booked_id),
     kind: row.kind || 'other',
     colour: row.colour ?? null,
@@ -125,7 +126,8 @@ export const toRow = (stop, { dayId, userId, order } = {}) => ({
     place_data: stop.place_data || null,
     spot_id: stop.spot_id || null,
     booked_id: stop.booked_id || null,
-    booked: Boolean(stop.booked || stop.booked_id),
+    booking: stop.booked_id ? 'booked' : (stop.booking || 'none'),
+    booked: Boolean(stop.booked || stop.booked_id || stop.booking === 'booked'),
     kind: stop.kind || 'other',
     colour: stop.colour ?? null,
     sort_order: order ?? stop.sort_order ?? 0,

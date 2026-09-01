@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useTheme } from '../contexts/ThemeContext';
+import { needsBooking } from '../utils/bookingState';
 import { HUES, blockPalette, blockStyle } from '../utils/blockColour';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
@@ -312,7 +313,7 @@ const TripTimeline = ({
                         return (
                             <span
                                 key={item.id}
-                                className={`timeline__item is-${item.kind}${open ? ' is-painting' : ''}`}
+                                className={`timeline__item is-${item.kind}${open ? ' is-painting' : ''}${needsBooking(item) ? ' needs-booking' : ''}`}
                                 draggable
                                 onDragStart={(e) => {
                                     e.dataTransfer.effectAllowed = 'move';

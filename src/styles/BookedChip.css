@@ -1,10 +1,10 @@
 /**
- * Held, or still only an intention.
+ * Three states, and only one of them is a task.
  *
- * "to book" is quiet on purpose: most stops on most days are intentions, and
- * a column of cards each shouting NEED TO BOOK would be a column of alarms.
- * Booked is the state worth seeing from across the card, so it is the one
- * that gets the colour.
+ * "no booking" is the default and stays almost invisible — most stops on most
+ * days need nothing rung up, and a card announcing that is noise. "to book"
+ * is the one worth seeing from across the room, so it gets the red. Booked is
+ * settled, so it gets the gold and then gets out of the way.
  */
 
 .booked {
@@ -16,31 +16,68 @@
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     line-height: 1.6;
-    color: var(--text-dim);
     background: none;
-    border: 1px dashed var(--border-dim);
+    border: 1px dashed transparent;
     border-radius: var(--radius-pill, 999px);
     cursor: pointer;
     white-space: nowrap;
 }
 
-.booked:hover,
-.booked:focus-visible {
-    color: var(--text-main);
-    border-color: var(--border-gold);
+/* Nothing to book: there, findable, and not asking for anything. */
+.booked--none {
+    color: var(--text-dim);
+    border-color: var(--border-dim);
+    opacity: 0.5;
 }
 
-.booked--held {
+.booked--none:hover,
+.booked--none:focus-visible {
+    opacity: 1;
+}
+
+/* Still to ring up. The one thing on the card that is a job. */
+.booked--todo {
+    color: var(--accent-crimson, #b8433a);
+    border-style: solid;
+    border-color: var(--accent-crimson, #b8433a);
+    font-weight: var(--weight-medium);
+}
+
+/* Held. */
+.booked--booked {
     color: var(--text-gold);
     border-style: solid;
     border-color: var(--border-gold);
 }
 
-/* Its booking is the fact; this is only the label on it. */
 .booked--fixed {
     cursor: default;
 }
 
-.booked--fixed:hover {
-    color: var(--text-gold);
+
+/* ---------- And the card it sits on --------------------------------- */
+
+/* Red on the outside, so "what have I not booked" is answered by looking
+   rather than by reading every card. One rule, three places: the Day
+   Builder's stops, the Atlas timeline's blocks, and the overview's rows. */
+.card.tl-item.needs-booking,
+.timeline__item.needs-booking,
+.trip-item.needs-booking {
+    outline: 1px solid var(--accent-crimson, #b8433a);
+    outline-offset: -1px;
+}
+
+/* The timeline's blocks are small and coloured by kind, so an outline alone
+   is easy to miss among them. */
+.timeline__item.needs-booking {
+    outline-width: 2px;
+    outline-offset: -2px;
+}
+
+/* In the overview the rows have no border of their own to outline, so the
+   red arrives as a rule down the left of the line. */
+.trip-item.needs-booking {
+    outline: none;
+    padding-left: var(--space-2);
+    border-left: 2px solid var(--accent-crimson, #b8433a);
 }

@@ -1,42 +1,37 @@
 import React from 'react';
+import { stateOf, nextState, labelOf, titleOf } from '../utils/bookingState';
 import '../styles/BookedChip.css';
 
 /**
- * Whether the thing is actually held yet.
+ * Whether a thing needs booking, and whether it has been.
  *
- * A day of plans is two different lists wearing the same clothes: the parts
- * that exist because someone rang up and held them, and the parts that are
- * still only intentions. The card looked identical either way, so the
- * question "what have I not booked yet" could only be answered by
- * remembering.
+ * A day of plans is three lists wearing the same clothes: the parts nobody
+ * has to ring up, the parts that still need ringing up, and the parts already
+ * held. Only the middle one is a task, and it is the only one that shouts —
+ * everything else stays quiet, because a column of cards each announcing its
+ * state is a column of alarms.
  *
- * Not booked is the default, because most things start as an intention. A
- * stop that came from the Table Book is booked and says so without being
- * asked — it *is* a reservation — and cannot be toggled off here, because the
- * booking is the fact and this is only the label on it.
+ * A stop that came from the Table Book is booked without being asked and
+ * cannot be cycled: it *is* a reservation. The booking is the fact and this
+ * is only the label on it.
  */
-const BookedChip = ({ booked, fromBooking = false, label = 'this', onChange }) => {
-    /* Nothing to change it with — an overview showing the state rather than
-       offering it. A button that does nothing when pressed is worse than a
-       word. */
-    if (!onChange) {
-        return (
-            <span
-                className={`booked booked--fixed${booked ? ' booked--held' : ''}`}
-                title={booked ? 'Booked' : 'Still needs booking'}
-            >
-                {booked ? '✓ booked' : 'to book'}
-            </span>
-        );
-    }
+const BookedChip = ({ stop, label = 'this', onChange }) => {
+    const state = stateOf(stop);
+    const fixed = Boolean(stop?.booked_id);
+    const classes = `booked booked--${state}${fixed ? ' booked--fixed' : ''}`;
 
-    if (fromBooking) {
+    // Nothing to change it with — an overview showing the state rather than
+    // offering it. A button that does nothing when pressed is worse than a
+    // word.
+    if (!onChange || fixed) {
         return (
             <span
-                className="booked booked--held booked--fixed"
-                title="This came from the Table Book — it is a real booking"
+                className={`${classes} booked--fixed`}
+                title={fixed
+                    ? `${label || 'This'} came from the Table Book — it is a real booking`
+                    : titleOf(state)}
             >
-                ✓ booked
+                {labelOf(state)}
             </span>
         );
     }
@@ -44,14 +39,12 @@ const BookedChip = ({ booked, fromBooking = false, label = 'this', onChange }) =
     return (
         <button
             type="button"
-            className={`booked${booked ? ' booked--held' : ''}`}
-            aria-pressed={Boolean(booked)}
-            title={booked
-                ? `${label || 'This'} is booked — click if it is not after all`
-                : `${label || 'This'} still needs booking — click when it is held`}
-            onClick={() => onChange?.(!booked)}
+            className={classes}
+            title={`${label || 'This'}: ${titleOf(state)}`}
+            aria-label={`${label || 'This'} — ${labelOf(state)}`}
+            onClick={() => onChange(nextState(state))}
         >
-            {booked ? '✓ booked' : 'to book'}
+            {labelOf(state)}
         </button>
     );
 };
