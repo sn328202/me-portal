@@ -1,0 +1,136 @@
+/**
+ * A queue of phone calls. Date order, because that is the order they have to
+ * happen in, and the ones that have already been are still shown — an
+ * unbooked thing whose day has passed is a loose end, not a non-event.
+ */
+
+.tobook__count {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+.tobook__list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tobook__row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-2);
+    border-left: 2px solid transparent;
+    border-radius: var(--radius-sm);
+}
+
+.tobook__row:hover {
+    background: var(--bg-hover);
+}
+
+/* When, in words, so no arithmetic is done to read the list. */
+.tobook__when {
+    flex: 0 0 auto;
+    width: 7.5em;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+.tobook__what {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.tobook__what strong {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tobook__what em {
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs, var(--text-xs));
+    color: var(--text-dim);
+}
+
+.tobook__what:hover strong,
+.tobook__what:focus-visible strong {
+    color: var(--text-gold);
+}
+
+/* Crossed off from here, because a list of calls you cannot tick is a list
+   you stop using. */
+.tobook__done {
+    flex: 0 0 auto;
+    padding: 0 var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-dim);
+    background: none;
+    border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-pill, 999px);
+    cursor: pointer;
+    opacity: 0;
+}
+
+.tobook__row:hover .tobook__done,
+.tobook__row:focus-within .tobook__done {
+    opacity: 1;
+}
+
+.tobook__done:hover,
+.tobook__done:focus-visible {
+    color: var(--text-gold);
+    border-color: var(--border-gold);
+    border-style: solid;
+    opacity: 1;
+}
+
+/* How much it matters. Two days away is a different feeling from two months,
+   and something already past is a loose end rather than an emergency —
+   pretending otherwise makes the urgent things harder to see. */
+.tobook__row.is-now {
+    border-left-color: var(--accent-crimson);
+}
+
+.tobook__row.is-now .tobook__when {
+    color: var(--accent-crimson);
+}
+
+.tobook__row.is-gone {
+    opacity: 0.55;
+}
+
+.tobook__row.is-gone .tobook__when {
+    font-style: italic;
+}
+
+.tobook__error {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--accent-crimson);
+}
+
+@media (max-width: 640px) {
+    .tobook__row {
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-2);
+    }
+
+    .tobook__when {
+        width: auto;
+    }
+}

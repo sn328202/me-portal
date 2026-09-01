@@ -3,6 +3,7 @@ import { useSettings } from './useSettings';
 
 export const ALL_WIDGETS = [
     { id: 'today', label: 'Today', description: 'Everything with a checkbox — rituals, tasks and the grocery list in one card' },
+    { id: 'tobook', label: 'Still to Book', description: 'Every stop marked "to book", across all trips, in date order' },
     { id: 'greeting', label: 'Traveler Welcome', description: 'Personalized greeting and date' },
     { id: 'status', label: 'Status Console', description: 'System health and performance' },
     { id: 'habits', label: 'Daily Rituals', description: 'Habit tracking and streaks' },

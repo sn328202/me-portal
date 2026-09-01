@@ -16,6 +16,7 @@ import QuickLinksWidget from '../widgets/QuickLinksWidget';
 import GameLauncher from '../widgets/GameLauncher';
 import WorkoutWidget from '../widgets/WorkoutWidget';
 import TodayWidget from '../widgets/TodayWidget';
+import ToBookWidget from '../widgets/ToBookWidget';
 import CapturesWidget from '../widgets/CapturesWidget';
 import { useRecipes } from '../hooks/useRecipes';
 import { useHabits } from '../hooks/useHabits';
@@ -84,6 +85,9 @@ const Dashboard = () => {
                 list. Order is unchanged. */}
             <div className="widget-masonry">
                 {isEnabled('today') && <TodayWidget />}
+                {/* High up on purpose: it is the only card here that is a
+                    queue of things with deadlines attached to other people. */}
+                {isEnabled('tobook') && <ToBookWidget />}
                 {isEnabled('captures') && <CapturesWidget />}
                 {isEnabled('habits') && <HabitTracker />}
                 {isEnabled('todos') && <TodoWidget />}
