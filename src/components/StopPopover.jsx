@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { GiCoins, GiPositionMarker } from 'react-icons/gi';
+import { GiCoins } from 'react-icons/gi';
 import { Button, ConfirmButton, Field, Modal } from './ui';
 import SmartTimeInput from './SmartTimeInput';
 import DurationPicker from './DurationPicker';
 import ActivityFace from './ActivityFace';
 import MentionInput from './MentionInput';
+import PlaceField from './PlaceField';
+import BookedChip from './BookedChip';
 import { moveStart, setLength, lengthOfRow, setCost, headingFor } from '../utils/stopEdit';
 import { showCost } from '../utils/dayBuild';
 import '../styles/StopPopover.css';
@@ -105,23 +107,30 @@ const StopPopover = ({ item, dayId, date, tripId, near = null, onChange, onDelet
                             </button>
                         </span>
                     </Field>
+
+                    <Field label="Held yet">
+                        <BookedChip
+                            booked={item.booked}
+                            fromBooking={Boolean(item.booked_id)}
+                            label={item.title}
+                            onChange={(booked) => patch({ booked })}
+                        />
+                    </Field>
                 </div>
 
                 <Field label="Where">
-                    <span className="stop-pop__where">
-                        <GiPositionMarker aria-hidden="true" />
-                        <input
-                            key={`sw-${item.id}`}
-                            className="input"
-                            placeholder="An address, or a place"
-                            aria-label="Where"
-                            defaultValue={item.location || ''}
-                            onBlur={(e) => {
-                                const v = e.target.value.trim();
-                                if (v !== (item.location || '')) patch({ location: v || null });
-                            }}
-                        />
-                    </span>
+                    {/* A real place, not a typed string: the map link is what
+                        makes the drive times work and what the share sheet
+                        hands to whoever you send it to. */}
+                    <PlaceField
+                        location={item.location}
+                        link={item.link}
+                        label={item.title || 'this stop'}
+                        onPick={(p) => patch(p)}
+                        onClear={item.location
+                            ? () => patch({ location: null, link: null, place_id: null })
+                            : undefined}
+                    />
                 </Field>
 
                 <Field label="Notes">

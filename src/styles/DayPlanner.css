@@ -1610,3 +1610,44 @@ input.idea__title:focus {
     border-color: var(--border-gold);
     color: var(--text-gold);
 }
+
+
+/* ---------- A picker cannot escape the card it opens in -------------- */
+
+/* `.card.tl-item` sets `z-index: 1`, which makes it a stacking context — so
+   the emoji menu's own `z-index: 501` is only 501 *within that card*, and the
+   next card down, also `z-index: 1` and later in the DOM, paints straight
+   over it. Half the menu went under the following stop.
+
+   The card holding an open picker is lifted instead, along with every wrapper
+   between it and the scroller, because a stacking context anywhere in the
+   chain is enough to trap the menu. */
+.sortable:has(.face__menu),
+.tl-row:has(.face__menu),
+.card.tl-item:has(.face__menu),
+.idea:has(.face__menu) {
+    position: relative;
+    z-index: 600;
+}
+
+/* And it must not be taller than the room it opens in. Twenty faces in four
+   columns is five rows plus a footer, which on a short window ran off the
+   bottom with no way to reach the last of them. */
+.face__menu {
+    max-height: min(60vh, 22rem);
+    overflow-y: auto;
+}
+
+/* ---------- A pasted link is one very long word ---------------------- */
+
+/* A note holding "https://alcatrazislandguide.com/checkout?..." has nowhere
+   to break, so it ran off the side of the card and took the layout with it.
+   Anywhere is the right answer for a URL: there is no good break point, and
+   a bad one beats a scrollbar. */
+.tl-item__note,
+.idea__note,
+.tl-item__location,
+.idea__line {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}

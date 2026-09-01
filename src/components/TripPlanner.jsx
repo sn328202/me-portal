@@ -7,6 +7,7 @@ import { COST_BUCKETS, formatMoney } from '../utils/tripCosts';
 import { describeCode, dressFor, sourceLabel } from '../utils/weather';
 import TripTimeline from './TripTimeline';
 import StopPopover from './StopPopover';
+import BookedChip from './BookedChip';
 import TripStays from './TripStays';
 import MentionInput from './MentionInput';
 import { isTravelLeg } from '../utils/tripLegs';
@@ -121,6 +122,13 @@ const DayItem = ({ item, currency, onOpen, onDelete }) => (
         <span className={`trip-item__split${item.cost_shared === false ? '' : ' is-shared'}`}>
             {item.cost_shared === false ? 'each' : 'split'}
         </span>
+        {/* What is still only an intention, visible without opening it. */}
+        <BookedChip
+            booked={item.booked}
+            fromBooking={Boolean(item.booked_id)}
+            label={item.title}
+            onChange={undefined}
+        />
         {/* Until Stage 5 retires the Daydream, a stop that came from an
             itinerary still says where it came from. */}
         {item.from_plan_id && (

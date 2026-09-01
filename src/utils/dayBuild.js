@@ -93,6 +93,10 @@ export const toStop = (row) => ({
     place_data: row.place_data || null,
     spot_id: row.spot_id || null,
     booked_id: row.booked_id || null,
+    /* Something you still have to ring up, or something already held. A stop
+       that came from the Table Book is booked by definition — it is a
+       reservation — so the pointer settles the question either way. */
+    booked: Boolean(row.booked || row.booked_id),
     kind: row.kind || 'other',
     colour: row.colour ?? null,
     sort_order: row.sort_order ?? 0,
@@ -121,6 +125,7 @@ export const toRow = (stop, { dayId, userId, order } = {}) => ({
     place_data: stop.place_data || null,
     spot_id: stop.spot_id || null,
     booked_id: stop.booked_id || null,
+    booked: Boolean(stop.booked || stop.booked_id),
     kind: stop.kind || 'other',
     colour: stop.colour ?? null,
     sort_order: order ?? stop.sort_order ?? 0,

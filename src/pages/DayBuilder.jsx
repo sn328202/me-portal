@@ -13,6 +13,8 @@ import DurationPicker from '../components/DurationPicker';
 import ActivityFace from '../components/ActivityFace';
 import SortableItem from '../components/SortableItem';
 import PlaceImage from '../components/PlaceImage';
+import PlaceField from '../components/PlaceField';
+import BookedChip from '../components/BookedChip';
 import DayCard from '../components/DayCard';
 
 import { useDayStops } from '../hooks/useDayStops';
@@ -492,14 +494,24 @@ const DayBuilder = () => {
                                                                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                                                             />
 
-                                                            {item.location && (
-                                                                <p className="tl-item__location">
-                                                                    <GiPositionMarker aria-hidden="true" />
-                                                                    {item.link ? (
-                                                                        <a href={item.link} target="_blank" rel="noopener noreferrer">{item.location}</a>
-                                                                    ) : item.location}
-                                                                </p>
-                                                            )}
+                                                            {/* Addable after the fact. A card only ever
+                                                                got an address if she picked the place at
+                                                                the one moment she was typing its name;
+                                                                anything typed straight onto the day showed
+                                                                the address it did not have, read-only, for
+                                                                ever — and the drive times could not be
+                                                                worked out without one. */}
+                                                            <PlaceField
+                                                                className="tl-item__location"
+                                                                location={item.location}
+                                                                link={item.link}
+                                                                ready={isLoaded}
+                                                                label={item.activity || 'this stop'}
+                                                                onPick={(patch) => updateStop(item.id, patch)}
+                                                                onClear={item.location
+                                                                    ? () => updateStop(item.id, { location: '', link: '', place_id: null })
+                                                                    : undefined}
+                                                            />
 
                                                             <div className="tl-item__meta">
                                                                 {item.place_data?.rating && (
@@ -537,6 +549,13 @@ const DayBuilder = () => {
                                                                     value={item.duration}
                                                                     label={item.activity}
                                                                     onChange={(duration) => updateStop(item.id, { duration })}
+                                                                />
+
+                                                                <BookedChip
+                                                                    booked={item.booked}
+                                                                    fromBooking={Boolean(item.booked_id)}
+                                                                    label={item.activity}
+                                                                    onChange={(booked) => updateStop(item.id, { booked })}
                                                                 />
                                                             </div>
 

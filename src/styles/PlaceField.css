@@ -1,0 +1,103 @@
+/**
+ * Where a thing is, and the two words that let her change it.
+ *
+ * Quiet by default — an address is context, not a control — and the verbs
+ * only come forward on hover or focus, so a column of stops does not read as
+ * a column of buttons.
+ */
+
+.placefield {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    margin: 0;
+    font-size: var(--text-xs);
+    line-height: var(--leading-tight);
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.placefield > svg {
+    flex-shrink: 0;
+}
+
+.placefield a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+/* Two lines of address is context; six is the card shouting the street name
+   at you. */
+.placefield > a,
+.placefield > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+.placefield__act {
+    flex-shrink: 0;
+    padding: 0 2px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    background: none;
+    border: 0;
+    border-bottom: 1px dashed transparent;
+    cursor: pointer;
+    opacity: 0;
+}
+
+.placefield:hover .placefield__act,
+.placefield:focus-within .placefield__act {
+    opacity: 1;
+}
+
+.placefield__act:hover,
+.placefield__act:focus-visible {
+    color: var(--text-gold);
+    border-bottom-color: var(--text-gold);
+    opacity: 1;
+}
+
+/* Empty, it is an offer rather than a gap. */
+.placefield__add {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    background: none;
+    border: 0;
+    border-bottom: 1px dashed var(--border-dim);
+    cursor: pointer;
+}
+
+.placefield__add:hover:not(:disabled),
+.placefield__add:focus-visible {
+    color: var(--text-gold);
+    border-bottom-color: var(--text-gold);
+}
+
+.placefield__add:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.placefield--searching {
+    align-items: center;
+}
+
+.placefield--searching .places-search {
+    flex: 1;
+    min-width: 0;
+}
+
+.placefield__search {
+    font-size: var(--text-xs);
+    padding: 2px var(--space-1);
+}

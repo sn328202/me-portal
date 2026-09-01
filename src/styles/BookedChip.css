@@ -1,0 +1,46 @@
+/**
+ * Held, or still only an intention.
+ *
+ * "to book" is quiet on purpose: most stops on most days are intentions, and
+ * a column of cards each shouting NEED TO BOOK would be a column of alarms.
+ * Booked is the state worth seeing from across the card, so it is the one
+ * that gets the colour.
+ */
+
+.booked {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    padding: 0 var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.6;
+    color: var(--text-dim);
+    background: none;
+    border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-pill, 999px);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.booked:hover,
+.booked:focus-visible {
+    color: var(--text-main);
+    border-color: var(--border-gold);
+}
+
+.booked--held {
+    color: var(--text-gold);
+    border-style: solid;
+    border-color: var(--border-gold);
+}
+
+/* Its booking is the fact; this is only the label on it. */
+.booked--fixed {
+    cursor: default;
+}
+
+.booked--fixed:hover {
+    color: var(--text-gold);
+}
