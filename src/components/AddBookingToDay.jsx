@@ -1,32 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { GiCalendar } from 'react-icons/gi';
 import { Button, Modal } from './ui';
 import { supabase } from '../lib/supabase';
-import { localDate, asAtlasItem, asPlanItem, dayOn, bookingNote } from '../utils/reservationToDay';
+import { localDate, asAtlasItem, bookingNote } from '../utils/reservationToDay';
+import { dayChoices, daysOn, labelDay, nearestDays } from '../utils/bookingDay';
 import '../styles/SendToDay.css';
 
 /**
- * Put a booked table on a day — a trip in the Atlas, or an itinerary in the
- * Daydream.
+ * Put a booking on a day.
  *
- * A reservation already knows where, when, how many and the confirmation code
- * you will want at the door. Typing it again into the day it belongs to is the
- * duplication that makes people keep the real plan somewhere else.
+ * This used to ask two questions before it could look for anything: "a trip or
+ * an itinerary?", then "which trip?". Both made sense when the Daydream and
+ * the Atlas were separate rooms. They stopped making sense when a day became a
+ * one-day trip — a day plan added to the Atlas now *is* a trip, so choosing
+ * "An itinerary" searched the old room and found nothing, which is exactly
+ * what it looks like when a feature is broken.
  *
- * Which day is not a question: the booking knows when it is. The picker below
- * appears only when the date is not one the trip or itinerary covers.
+ * One question now, and usually it answers itself: a booking knows its date,
+ * so the day it lands on is the day with that date. Every day of every trip is
+ * in one list, so nothing has to be found twice.
  */
 
 const pretty = (d) => format(parseISO(String(d).slice(0, 10)), 'EEE d MMM');
 
 const AddBookingToDay = ({ reservation, onPlaced }) => {
     const [open, setOpen] = useState(false);
-    const [where, setWhere] = useState('atlas');
-    const [trips, setTrips] = useState([]);
-    const [plans, setPlans] = useState([]);
-    const [tripId, setTripId] = useState('');
-    const [days, setDays] = useState([]);
+    const [rows, setRows] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [chosen, setChosen] = useState('');
     const [busy, setBusy] = useState(false);
     const [done, setDone] = useState(null);
@@ -37,63 +38,43 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
     useEffect(() => {
         if (!open) return undefined;
         let alive = true;
-        Promise.all([
-            supabase.from('atlas_trips').select('id, destination, start_date').order('start_date', { ascending: false }),
-            supabase.from('day_plans').select('id, title, planned_date').order('planned_date', { ascending: false }),
-        ]).then(([t, p]) => {
-            if (!alive) return;
-            setTrips(t.data || []);
-            setPlans(p.data || []);
-        });
+        setLoading(true);
+        supabase
+            .from('atlas_days')
+            .select('id, date, city, trip_id, atlas_trips(id, destination)')
+            .order('date')
+            .then(({ data, error: err }) => {
+                if (!alive) return;
+                if (err) setError('Could not read your trips.');
+                setRows(data || []);
+                setLoading(false);
+            });
         return () => { alive = false; };
     }, [open]);
 
-    useEffect(() => {
-        if (where !== 'atlas' || !tripId) { setDays([]); return undefined; }
-        let alive = true;
-        supabase.from('atlas_days').select('id, date').eq('trip_id', tripId).order('date')
-            .then(({ data }) => { if (alive) setDays(data || []); });
-        return () => { alive = false; };
-    }, [where, tripId]);
+    const choices = useMemo(() => dayChoices(rows), [rows]);
+    const matches = useMemo(() => daysOn(choices, on), [choices, on]);
+    const near = useMemo(() => nearestDays(choices, on), [choices, on]);
 
-    /* An itinerary is one day, so the matching is against the plans
-       themselves; a trip is many, so it is against that trip's days. */
-    const matchedPlan = dayOn(reservation?.starts_at, plans, 'planned_date');
-    const matchedDay = dayOn(reservation?.starts_at, days);
-
-    const target = where === 'atlas'
-        ? (matchedDay || days.find((d) => d.id === chosen) || null)
-        : (matchedPlan || plans.find((p) => p.id === chosen) || null);
-
-    const ready = Boolean(target) && (where !== 'atlas' || Boolean(tripId));
+    /* One match is the answer. Two trips can cover the same date — a weekend
+       inside a longer trip — and then she has to say which, rather than the
+       first one silently winning. */
+    const settled = matches.length === 1 ? matches[0] : null;
+    const target = settled || choices.find((d) => String(d.id) === String(chosen)) || null;
 
     const place = async () => {
-        if (!ready || busy) return;
+        if (!target || busy) return;
         setBusy(true);
         setError(null);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not signed in.');
 
-            let label;
-            if (where === 'atlas') {
-                const { error: e } = await supabase.from('atlas_day_items')
-                    .insert([{ ...asAtlasItem(reservation), day_id: target.id, user_id: user.id }]);
-                if (e) throw e;
-                const trip = trips.find((t) => t.id === tripId);
-                label = `${trip?.destination || 'a trip'} — ${pretty(target.date)}`;
-            } else {
-                const { error: e } = await supabase.from('plan_items')
-                    .insert([{
-                        ...asPlanItem(reservation),
-                        plan_id: target.id,
-                        user_id: user.id,
-                        spot_id: reservation.spot_id || null,
-                    }]);
-                if (e) throw e;
-                label = target.title || 'an itinerary';
-            }
+            const { error: e } = await supabase.from('atlas_day_items')
+                .insert([{ ...asAtlasItem(reservation), day_id: target.id, user_id: user.id }]);
+            if (e) throw e;
 
+            const label = labelDay(target, pretty);
             await supabase.from('reservations')
                 .update({ placed_at: new Date().toISOString(), placed_where: label })
                 .eq('id', reservation.id);
@@ -108,7 +89,7 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
         }
     };
 
-    const close = () => { setOpen(false); setDone(null); setError(null); };
+    const close = () => { setOpen(false); setDone(null); setError(null); setChosen(''); };
 
     return (
         <>
@@ -139,89 +120,50 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
                             {bookingNote(reservation) ? ` · ${bookingNote(reservation)}` : ''}
                         </p>
 
-                        <div className="send-atlas__where" role="group" aria-label="Where to put it">
-                            <Button
-                                variant={where === 'atlas' ? 'solid' : undefined}
-                                onClick={() => { setWhere('atlas'); setChosen(''); }}
-                            >
-                                A trip
-                            </Button>
-                            <Button
-                                variant={where === 'plan' ? 'solid' : undefined}
-                                onClick={() => { setWhere('plan'); setChosen(''); }}
-                            >
-                                An itinerary
-                            </Button>
-                        </div>
+                        {loading && <p className="send-atlas__why">Looking through your trips…</p>}
 
-                        {where === 'atlas' ? (
+                        {!loading && settled && (
+                            <p className="send-atlas__matched">
+                                Lands on <strong>{labelDay(settled, pretty)}</strong>, matched from the
+                                booking’s own date.
+                            </p>
+                        )}
+
+                        {!loading && !settled && (
                             <>
+                                <p className="send-atlas__why">
+                                    {matches.length > 1
+                                        ? `Two trips cover ${pretty(on)} — which one?`
+                                        : on
+                                            ? `Nothing in the Atlas covers ${pretty(on)} yet.`
+                                            : 'This booking has no date, so pick the day yourself.'}
+                                </p>
+
+                                {/* What is near it, when nothing is on it. "No day
+                                    matches" is true and useless; which trips are
+                                    close is what lets her decide whether to
+                                    stretch a trip's dates instead. */}
+                                {matches.length === 0 && near.length > 0 && (
+                                    <p className="send-atlas__why">
+                                        Closest: {near.slice(0, 2).map((d) => labelDay(d, pretty)).join(', ')}.
+                                    </p>
+                                )}
+
                                 <label className="send-atlas__field">
-                                    <span>Which trip</span>
-                                    <select value={tripId} onChange={(e) => { setTripId(e.target.value); setChosen(''); }}>
-                                        <option value="">Choose a trip…</option>
-                                        {trips.map((t) => (
-                                            <option key={t.id} value={t.id}>
-                                                {t.destination}{t.start_date ? ` — ${pretty(t.start_date)}` : ''}
-                                            </option>
+                                    <span>Which day</span>
+                                    <select value={chosen} onChange={(e) => setChosen(e.target.value)}>
+                                        <option value="">Choose a day…</option>
+                                        {(matches.length > 1 ? matches : choices).map((d) => (
+                                            <option key={d.id} value={d.id}>{labelDay(d, pretty)}</option>
                                         ))}
                                     </select>
                                 </label>
 
-                                {tripId && matchedDay && (
-                                    <p className="send-atlas__matched">
-                                        Lands on <strong>{pretty(matchedDay.date)}</strong>, matched from the
-                                        booking’s own date.
-                                    </p>
-                                )}
-
-                                {tripId && !matchedDay && days.length > 0 && (
-                                    <>
-                                        <p className="send-atlas__why">
-                                            {on ? `${pretty(on)} is not one of this trip’s days.` : 'This booking has no date.'}
-                                        </p>
-                                        <label className="send-atlas__field">
-                                            <span>Which day</span>
-                                            <select value={chosen} onChange={(e) => setChosen(e.target.value)}>
-                                                <option value="">Choose a day…</option>
-                                                {days.map((d) => (
-                                                    <option key={d.id} value={d.id}>{pretty(d.date)}</option>
-                                                ))}
-                                            </select>
-                                        </label>
-                                    </>
-                                )}
-
-                                {tripId && !days.length && (
+                                {!choices.length && !loading && (
                                     <p className="send-atlas__why">
-                                        That trip has no days yet — give it dates in the Atlas first.
+                                        No trip in the Atlas has any dates yet. Give one a start and end
+                                        date and its days appear here.
                                     </p>
-                                )}
-                            </>
-                        ) : (
-                            <>
-                                {matchedPlan ? (
-                                    <p className="send-atlas__matched">
-                                        Lands on <strong>{matchedPlan.title}</strong>, the itinerary for
-                                        {' '}{pretty(matchedPlan.planned_date)}.
-                                    </p>
-                                ) : (
-                                    <>
-                                        <p className="send-atlas__why">
-                                            No itinerary is dated {on ? pretty(on) : 'that day'}.
-                                        </p>
-                                        <label className="send-atlas__field">
-                                            <span>Which itinerary</span>
-                                            <select value={chosen} onChange={(e) => setChosen(e.target.value)}>
-                                                <option value="">Choose an itinerary…</option>
-                                                {plans.map((p) => (
-                                                    <option key={p.id} value={p.id}>
-                                                        {p.title}{p.planned_date ? ` — ${pretty(p.planned_date)}` : ''}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </label>
-                                    </>
                                 )}
                             </>
                         )}
@@ -230,7 +172,7 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
 
                         <div className="send-atlas__acts">
                             <Button onClick={close}>Cancel</Button>
-                            <Button variant="solid" disabled={!ready || busy} onClick={place}>
+                            <Button variant="solid" disabled={!target || busy} onClick={place}>
                                 {busy ? 'Adding…' : 'Add it'}
                             </Button>
                         </div>
