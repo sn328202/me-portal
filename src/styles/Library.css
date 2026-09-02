@@ -50,20 +50,27 @@
     color: var(--text-dim);
 }
 
+/* Tracks with a ceiling, not fractions of the page.
+   A 2:3 poster stretched to half a column is 400px tall, which turns a row of
+   four favourites into four billboards and pushes everything else below the
+   fold. Covers want to be looked at, not climbed. */
 .picks__slots {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(104px, 132px));
+    justify-content: start;
     gap: var(--space-3);
 }
 
-/* The four favourites get the room. They are the hardest question on the
-   page and the first thing anyone looks at. */
+/* The four favourites get the room — a little larger, and always four across.
+   Two big ones and two below reads as an accident; four in a row reads as the
+   answer to a question. */
 .picks__slots--four {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 156px));
 }
 
-@media (max-width: 720px) {
-    .picks__slots--four { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 560px) {
+    .picks__slots { grid-template-columns: repeat(auto-fill, minmax(88px, 108px)); }
+    .picks__slots--four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* ---------- one pick ----------------------------------------------------- */
