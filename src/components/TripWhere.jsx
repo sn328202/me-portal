@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { GiTrashCan, GiPathDistance, GiHouse, GiCommercialAirplane } from 'react-icons/gi';
+import { GiTrashCan, GiPathDistance, GiHouse, GiCommercialAirplane, GiPositionMarker } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import { formatMoney, nightsOf, perPerson } from '../utils/tripCosts';
 import { summariseLegs, isTravelLeg, legDestination } from '../utils/tripLegs';
 import { whereRows, unhousedNights, legFromStay, describeNewLeg } from '../utils/tripWhere';
 import { cityFrom } from '../utils/placeCity';
-import DateField from './DateField';
+import DateRange from './DateRange';
 import PlaceField from './PlaceField';
 
 /**
@@ -46,79 +46,97 @@ const Bed = ({ stay, currency, partySize, onUpdate, onDelete, onPin }) => {
     const each = nights.length
         ? perPerson(stay.cost, stay.cost_shared !== false, partySize) / nights.length / 100
         : 0;
+    /* The booking link is a field on maybe one stay in three. Empty, it is an
+       offer you can ignore rather than a line of placeholder text under every
+       single booking. */
+    const [linking, setLinking] = useState(false);
 
     return (
         <li className="bed">
-            <input
-                type="text"
-                className="bed__name"
-                value={stay.name}
-                aria-label="Where you are sleeping"
-                onChange={(e) => onUpdate(stay.id, { name: e.target.value })}
-            />
-            <DateField
-                value={stay.check_in}
-                aria-label="Check in"
-                onCommit={(v) => onUpdate(stay.id, { check_in: v || null })}
-            />
-            <DateField
-                value={stay.check_out}
-                aria-label="Check out"
-                onCommit={(v) => onUpdate(stay.id, { check_out: v || null })}
-            />
-            <button
-                type="button"
-                className="bed__drop"
-                aria-label={`Remove ${stay.name}`}
-                onClick={() => onDelete(stay.id)}
-            >
-                <GiTrashCan />
-            </button>
+            <div className="bed__top">
+                <GiHouse className="bed__icon" aria-hidden="true" />
+                <input
+                    type="text"
+                    className="bed__name"
+                    value={stay.name}
+                    aria-label="Where you are sleeping"
+                    onChange={(e) => onUpdate(stay.id, { name: e.target.value })}
+                />
+                <DateRange
+                    from={stay.check_in}
+                    to={stay.check_out}
+                    fromLabel="Check in"
+                    toLabel="Check out"
+                    empty="Which nights?"
+                    onFrom={(v) => onUpdate(stay.id, { check_in: v })}
+                    onTo={(v) => onUpdate(stay.id, { check_out: v })}
+                />
+                <span className="bed__nights">
+                    {nights.length} {nights.length === 1 ? 'night' : 'nights'}
+                </span>
+                <input
+                    type="number"
+                    inputMode="decimal"
+                    className="bed__cost"
+                    placeholder="0"
+                    value={stay.cost ?? ''}
+                    aria-label="Total cost"
+                    onChange={(e) => onUpdate(stay.id, { cost: e.target.value === '' ? 0 : e.target.value })}
+                />
+                <span className="bed__rate">{formatMoney(each, currency)} pp/night</span>
+                <button
+                    type="button"
+                    className="bed__drop"
+                    aria-label={`Remove ${stay.name}`}
+                    onClick={() => onDelete(stay.id)}
+                >
+                    <GiTrashCan />
+                </button>
+            </div>
 
-            <input
-                type="number"
-                inputMode="decimal"
-                className="bed__cost"
-                value={stay.cost ?? ''}
-                aria-label="Total cost"
-                onChange={(e) => onUpdate(stay.id, { cost: e.target.value === '' ? 0 : e.target.value })}
-            />
-            <span className="bed__each">
-                {nights.length} {nights.length === 1 ? 'night' : 'nights'}
-                <em>{formatMoney(each, currency)} pp / night</em>
-                {/* The city, as a feature of the booking rather than a second
-                    thing to type: Google told us when the place was picked. */}
-                {stay.city && <em className="bed__city">{stay.city}</em>}
-            </span>
+            <div className="bed__under">
+                {/* A hotel has an address; an Airbnb has a link and no address
+                    until the week before. Both offered, neither required. */}
+                <PlaceField
+                    className="bed__place"
+                    location={stay.address}
+                    link={stay.place_id
+                        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address || stay.name)}&query_place_id=${stay.place_id}`
+                        : null}
+                    label={stay.name || 'this stay'}
+                    onPick={onPin}
+                    onClear={stay.address
+                        ? () => onUpdate(stay.id, { address: null, place_id: null })
+                        : undefined}
+                />
 
-            {/* A hotel has an address; an Airbnb has a link and no address
-                until the week before. Both offered, neither required. */}
-            <PlaceField
-                className="bed__place"
-                location={stay.address}
-                link={stay.place_id
-                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address || stay.name)}&query_place_id=${stay.place_id}`
-                    : null}
-                label={stay.name || 'this stay'}
-                onPick={onPin}
-                onClear={stay.address
-                    ? () => onUpdate(stay.id, { address: null, place_id: null })
-                    : undefined}
-            />
+                {/* Which city, as a feature of the booking: Google told us
+                    when the place was picked, so it is not a field. */}
+                {stay.city && <span className="bed__city">{stay.city}</span>}
 
-            <input
-                type="url"
-                className="bed__link"
-                placeholder="Booking link (Airbnb, hotel…)"
-                aria-label={`Link for ${stay.name || 'this stay'}`}
-                value={stay.link || ''}
-                onChange={(e) => onUpdate(stay.id, { link: e.target.value.trim() || null })}
-            />
-            {stay.link && (
-                <a className="bed__open" href={stay.link} target="_blank" rel="noopener noreferrer">
-                    Open the booking ↗
-                </a>
-            )}
+                {stay.link && (
+                    <a className="bed__open" href={stay.link} target="_blank" rel="noopener noreferrer">
+                        Open the booking ↗
+                    </a>
+                )}
+
+                {(linking || stay.link) ? (
+                    <input
+                        type="url"
+                        className="bed__link"
+                        placeholder="Paste the Airbnb or hotel page…"
+                        aria-label={`Link for ${stay.name || 'this stay'}`}
+                        autoFocus={linking && !stay.link}
+                        value={stay.link || ''}
+                        onChange={(e) => onUpdate(stay.id, { link: e.target.value.trim() || null })}
+                        onBlur={() => setLinking(false)}
+                    />
+                ) : (
+                    <button type="button" className="bed__addlink" onClick={() => setLinking(true)}>
+                        Add a booking link
+                    </button>
+                )}
+            </div>
         </li>
     );
 };
@@ -232,70 +250,77 @@ const TripWhere = ({
                 {rows.map((row) => {
                     const open = unhousedNights(row);
                     return (
-                        <li key={row.leg.id} className={`stretch${row.travel ? ' stretch--travel' : ''}`}>
-                            <input
-                                type="text"
-                                className="stretch__city"
-                                value={row.leg.city}
-                                aria-label="City"
-                                onChange={(e) => onUpdateLeg(row.leg.id, { city: e.target.value })}
-                            />
-                            <DateField
-                                value={row.leg.start_date}
-                                aria-label="Arrive"
-                                onCommit={(v) => onUpdateLeg(row.leg.id, { start_date: v || null })}
-                            />
-                            <DateField
-                                value={row.leg.end_date}
-                                aria-label="Leave"
-                                onCommit={(v) => onUpdateLeg(row.leg.id, { end_date: v || null })}
-                            />
-                            <button
-                                type="button"
-                                className="stretch__drop"
-                                aria-label={`Remove ${row.leg.city}`}
-                                onClick={() => onDeleteLeg(row.leg.id)}
-                            >
-                                <GiTrashCan />
-                            </button>
+                        <li key={row.leg.id} className={`stretch${row.travel ? ' is-travel' : ''}`}>
+                            {/* The city is the heading of its own section, so
+                                it is drawn as one — a line of type rather than
+                                a filled box the same size as everything under
+                                it. It is still a field; it just does not shout
+                                about it until you go near it. */}
+                            <div className="stretch__top">
+                                {row.travel
+                                    ? <GiCommercialAirplane className="stretch__icon" aria-hidden="true" />
+                                    : <GiPositionMarker className="stretch__icon" aria-hidden="true" />}
+                                <input
+                                    type="text"
+                                    className="stretch__city"
+                                    value={row.leg.city}
+                                    placeholder="Where?"
+                                    aria-label="City"
+                                    onChange={(e) => onUpdateLeg(row.leg.id, { city: e.target.value })}
+                                />
+                                <DateRange
+                                    from={row.leg.start_date}
+                                    to={row.leg.end_date}
+                                    fromLabel="Arrive"
+                                    toLabel="Leave"
+                                    empty="When?"
+                                    onFrom={(v) => onUpdateLeg(row.leg.id, { start_date: v })}
+                                    onTo={(v) => onUpdateLeg(row.leg.id, { end_date: v })}
+                                />
+                                <strong className="stretch__cost">{formatMoney(row.cost, currency)}</strong>
+                                <button
+                                    type="button"
+                                    className="stretch__drop"
+                                    aria-label={`Remove ${row.leg.city}`}
+                                    onClick={() => onDeleteLeg(row.leg.id)}
+                                >
+                                    <GiTrashCan />
+                                </button>
+                            </div>
 
-                            <span className="stretch__facts">
-                                <span>
-                                    {row.days} {row.days === 1 ? 'day' : 'days'} · {row.nights} {row.nights === 1 ? 'night' : 'nights'}
-                                    {isTravelLeg(row.leg) && (
-                                        <em className="stretch__travel">
-                                            <GiCommercialAirplane aria-hidden="true" />
-                                            {legDestination(row.leg, legs) ? ` to ${legDestination(row.leg, legs)}` : ' in the air'}
-                                        </em>
-                                    )}
-                                </span>
+                            <p className="stretch__facts">
+                                <span>{row.days} {row.days === 1 ? 'day' : 'days'} · {row.nights} {row.nights === 1 ? 'night' : 'nights'}</span>
                                 {row.high != null && <span className="stretch__temp">avg {row.high}° / {row.low}°</span>}
                                 <span>{row.planned} planned</span>
-                            </span>
+                                {isTravelLeg(row.leg) && (
+                                    <em className="stretch__to">
+                                        {legDestination(row.leg, legs) ? `heading to ${legDestination(row.leg, legs)}` : 'in the air'}
+                                    </em>
+                                )}
 
-                            <strong className="stretch__cost">{formatMoney(row.cost, currency)}</strong>
-
-                            {/* Where this actually is. A stretch always had a
-                                coordinate, geocoded from whatever string was in
-                                the city box — fine until "Kerala" resolves to the
-                                middle of a state and the pin lands in a field. */}
-                            <PlaceField
-                                className="stretch__place"
-                                location={row.leg.address}
-                                link={row.leg.place_id
-                                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.leg.address || row.leg.city)}&query_place_id=${row.leg.place_id}`
-                                    : null}
-                                label={row.leg.city || 'this leg'}
-                                onPick={(place) => onUpdateLeg(row.leg.id, {
-                                    address: place.location,
-                                    place_id: place.place_id,
-                                    lat: place.lat ?? null,
-                                    lng: place.lng ?? null,
-                                })}
-                                onClear={row.leg.address
-                                    ? () => onUpdateLeg(row.leg.id, { address: null, place_id: null })
-                                    : undefined}
-                            />
+                                {/* Where this actually is. A stretch always had
+                                    a coordinate, geocoded from whatever string
+                                    was in the city box — fine until "Kerala"
+                                    resolves to the middle of a state and the
+                                    pin lands in a field. */}
+                                <PlaceField
+                                    className="stretch__place"
+                                    location={row.leg.address}
+                                    link={row.leg.place_id
+                                        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.leg.address || row.leg.city)}&query_place_id=${row.leg.place_id}`
+                                        : null}
+                                    label={row.leg.city || 'this leg'}
+                                    onPick={(place) => onUpdateLeg(row.leg.id, {
+                                        address: place.location,
+                                        place_id: place.place_id,
+                                        lat: place.lat ?? null,
+                                        lng: place.lng ?? null,
+                                    })}
+                                    onClear={row.leg.address
+                                        ? () => onUpdateLeg(row.leg.id, { address: null, place_id: null })
+                                        : undefined}
+                                />
+                            </p>
 
                             {/* What is booked for these nights. A flight is not
                                 asked — a red-eye is not a night she forgot. */}

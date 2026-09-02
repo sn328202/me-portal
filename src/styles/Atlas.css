@@ -1101,169 +1101,280 @@
     list-style: none;
 }
 
-/* A stretch: name across the top, dates and the bin under it, then what it
-   comes to, then the address, then the beds. Narrow enough to live in half a
-   page and wide enough to read in a whole one. */
+/* A city reads as a heading; a booking reads as a line under it.
+
+   Everything in here used to be the same object — a filled box the same size
+   whether it held a city, a hotel, or a number — so the card had no hierarchy
+   at all and two thirds of it was the chrome on native date inputs. Now the
+   fields are quiet until you go near them, the dates are four words until you
+   click them, and the two kinds of row are told apart by weight rather than
+   by reading them. */
+
 .stretch {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-2);
     padding: var(--space-3) 0;
     border-bottom: var(--rule-hair);
 }
 
 .where__list .stretch:last-child { border-bottom: none; }
 
-.stretch__city {
-    grid-column: 1 / -1;
-    font-family: var(--font-display);
+.stretch__top {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
 }
 
-.stretch input {
-    padding: var(--space-1) var(--space-2);
-    border: var(--rule-hair);
-    border-radius: var(--radius-sm);
-    background: var(--field-bg);
-    color: var(--text-main);
-    font-family: inherit;
+.stretch__icon {
+    flex-shrink: 0;
+    color: var(--text-dim);
     font-size: var(--text-sm);
-    min-width: 0;
+    align-self: center;
 }
+
+/* A field that does not look like one until you go near it. */
+.stretch__city {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 2px 0;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    line-height: var(--leading-tight);
+    color: var(--text-main);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid transparent;
+}
+
+.stretch__city::placeholder { color: var(--text-dim); font-style: italic; }
+
+.stretch__city:hover { border-bottom-color: var(--border-dim); }
+
+.stretch__city:focus {
+    outline: none;
+    border-bottom-color: var(--text-gold);
+}
+
+.is-travel .stretch__city {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.stretch__cost {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-gold);
+}
+
+.stretch__drop,
+.bed__drop {
+    flex-shrink: 0;
+    align-self: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: transparent;
+    cursor: pointer;
+}
+
+/* The bin appears when you are in the row it would empty. */
+.stretch:hover .stretch__drop,
+.stretch__drop:focus-visible,
+.bed:hover .bed__drop,
+.bed__drop:focus-visible { color: var(--text-dim); }
+
+.stretch__drop:hover,
+.bed__drop:hover { color: var(--accent-crimson); }
 
 .stretch__facts {
-    grid-column: 1 / 3;
     display: flex;
-    flex-direction: column;
-    gap: 1px;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    margin: var(--space-1) 0 0 var(--space-4);
     color: var(--text-muted);
     font-size: var(--text-2xs);
 }
 
 .stretch__temp { font-family: var(--font-mono); }
 
-/* A travel leg is a leg, not a warning — said quietly, in its own words. */
-.stretch__travel {
-    margin-left: var(--space-2);
-    color: var(--text-dim);
-    font-style: normal;
-}
+.stretch__to { color: var(--text-dim); font-style: normal; }
 
-.stretch__cost {
-    grid-column: 3;
-    align-self: end;
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    color: var(--text-gold);
-    text-align: right;
-}
+.stretch__place { margin: 0; }
 
-.stretch__drop {
-    grid-column: 3;
-    justify-self: end;
-    border: none;
-    background: transparent;
-    color: var(--text-dim);
-    cursor: pointer;
-}
-
-.stretch__drop:hover { color: var(--accent-crimson); }
-
-.stretch__place { grid-column: 1 / -1; }
-
-/* Indented under its stretch, because it is a fact about that stretch rather
-   than the next one down. */
+/* Indented under its stretch: a fact about that stretch, not the next one. */
 .stretch__beds {
-    grid-column: 1 / -1;
-    margin-left: var(--space-3);
+    margin: var(--space-2) 0 0 var(--space-4);
     padding-left: var(--space-3);
     border-left: 2px solid var(--border-dim);
 }
 
-.stretch--travel .stretch__facts { color: var(--text-dim); }
-
 .beds { margin: 0; padding: 0; list-style: none; }
 
-.bed {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-    align-items: center;
+.bed { padding: var(--space-1) 0; }
+
+.bed__top {
+    display: flex;
+    align-items: baseline;
     gap: var(--space-2);
-    padding: var(--space-2) 0;
 }
 
-.bed + .bed { border-top: var(--rule-hair); }
+.bed__icon {
+    flex-shrink: 0;
+    align-self: center;
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
 
-.bed input {
-    padding: var(--space-1) var(--space-2);
-    border: var(--rule-hair);
-    border-radius: var(--radius-sm);
-    background: var(--field-bg);
-    color: var(--text-main);
+.bed__name {
+    flex: 1 1 8em;
+    min-width: 0;
+    padding: 2px 0;
     font-family: inherit;
     font-size: var(--text-sm);
-    min-width: 0;
+    color: var(--text-main);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid transparent;
 }
 
-.bed__name { grid-column: 1 / -1; }
+.bed__name:hover { border-bottom-color: var(--border-dim); }
 
-.bed__drop {
-    grid-column: 3;
-    justify-self: end;
-    border: none;
-    background: transparent;
+.bed__name:focus { outline: none; border-bottom-color: var(--text-gold); }
+
+.bed__nights {
+    flex-shrink: 0;
     color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+}
+
+.bed__cost {
+    flex: 0 0 4.5em;
+    width: 4.5em;
+    padding: 2px var(--space-1);
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-main);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid transparent;
+}
+
+.bed__cost:hover { border-bottom-color: var(--border-dim); }
+.bed__cost:focus { outline: none; border-bottom-color: var(--text-gold); }
+
+.bed__rate {
+    flex-shrink: 0;
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+}
+
+/* The second line of a booking: where it is, which city, and its page. All
+   optional, all quiet, none of them a labelled empty box. */
+.bed__under {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    margin-left: calc(var(--space-3) + 2px);
+}
+
+.bed__under .placefield { margin: 0; font-size: var(--text-2xs); }
+
+.bed__city {
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+}
+
+.bed__addlink,
+.bed__open {
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-dim);
+    background: none;
+    border: 0;
+    border-bottom: 1px dashed transparent;
+    text-decoration: none;
     cursor: pointer;
 }
 
-.bed__drop:hover { color: var(--accent-crimson); }
+.bed:hover .bed__addlink { border-bottom-color: var(--border-dim); }
 
-.bed__each {
-    grid-column: 2 / -1;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    color: var(--text-muted);
-    font-size: var(--text-2xs);
-    text-align: right;
-}
-
-.bed__each em {
+.bed__addlink:hover,
+.bed__addlink:focus-visible,
+.bed__open:hover {
     color: var(--text-gold);
-    font-family: var(--font-mono);
-    font-style: normal;
+    border-bottom-color: var(--text-gold);
 }
-
-.bed__place { grid-column: 1 / -1; }
 
 input.bed__link {
-    grid-column: 1 / -1;
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    border-color: transparent;
-    background: transparent;
-}
-
-input.bed__link:hover { border-color: var(--border-dim); }
-
-input.bed__link:focus {
-    border-color: var(--text-gold);
-    background: var(--field-bg);
-    color: var(--text-main);
-    outline: none;
-}
-
-.bed__open {
-    grid-column: 1 / -1;
-    justify-self: start;
+    flex: 1 1 14em;
+    min-width: 0;
+    padding: 2px 0;
     font-size: var(--text-2xs);
-    letter-spacing: var(--tracking-label);
-    color: var(--text-dim);
-    text-decoration: none;
+    color: var(--text-muted);
+    background: none;
+    border: 0;
     border-bottom: 1px dashed var(--border-dim);
 }
 
-.bed__open:hover { color: var(--text-gold); border-bottom-color: var(--text-gold); }
+input.bed__link:focus {
+    outline: none;
+    color: var(--text-main);
+    border-bottom-color: var(--text-gold);
+}
+
+/* --- Dates, said rather than boxed ---------------------------------------
+   Two native date inputs were taking a third of every row to render slashes.
+   Almost always the dates are being read, not changed, so almost always they
+   are four words. */
+
+.daterange__said {
+    flex-shrink: 0;
+    padding: 2px var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid transparent;
+    cursor: pointer;
+}
+
+.daterange__said:hover,
+.daterange__said:focus-visible {
+    color: var(--text-gold);
+    border-bottom-color: var(--text-gold);
+}
+
+.daterange__said--empty { color: var(--text-dim); font-style: italic; }
+
+.daterange {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-shrink: 0;
+}
+
+.daterange__dash { color: var(--text-dim); }
+
+.daterange__field {
+    width: 9.5em;
+    padding: 2px var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-main);
+    background: var(--field-bg);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+}
 
 /* The offer to book. It states the hole rather than naming itself: "4 nights
    with nowhere booked" is the thing she wants to know and the button she
@@ -2836,13 +2947,4 @@ textarea.expedition__notes:focus {
     align-items: center;
     flex-wrap: wrap;
     margin-top: var(--space-2);
-}
-
-/* The city, as a feature of the booking. Google told us when the place was
-   picked, so it is a fact about the hotel rather than a second field. */
-.bed__city {
-    color: var(--text-muted);
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
-    font-size: var(--text-2xs);
 }

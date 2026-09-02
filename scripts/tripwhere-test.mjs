@@ -139,4 +139,36 @@ t('it says what it is about to do before doing it', () => {
     assert.equal(describeNewLeg(null), '');
 });
 
+
+/* --- dates, said rather than boxed ------------------------------------- */
+const { rangeLabel } = await import('../src/utils/dateRange.js');
+
+console.log('\ndates as a phrase:');
+
+t('the same month says the month once', () => {
+    assert.equal(rangeLabel('2026-09-04', '2026-09-13'), '4 – 13 Sep');
+});
+
+t('across months, both are named', () => {
+    assert.equal(rangeLabel('2026-10-29', '2026-11-02'), '29 Oct – 2 Nov');
+});
+
+t('and the year appears only when the range crosses one', () => {
+    // Inside a trip whose own dates are at the top of the page, a year on
+    // every row is the same fact wearing a uniform.
+    assert.equal(rangeLabel('2026-12-27', '2027-01-02'), '27 Dec 2026 – 2 Jan 2027');
+    assert.equal(rangeLabel('2026-12-27', '2026-12-30').includes('2026'), false);
+});
+
+t('half a range is still worth saying', () => {
+    assert.equal(rangeLabel('2026-09-04', null), 'from 4 Sep');
+    assert.equal(rangeLabel(null, '2026-09-13'), 'until 13 Sep');
+    assert.equal(rangeLabel(null, null), '');
+});
+
+t('and a timestamp is a date with extra on the end', () => {
+    assert.equal(rangeLabel('2026-09-04T00:00:00Z', '2026-09-13T12:00:00Z'), '4 – 13 Sep');
+    assert.equal(rangeLabel('not a date', '2026-09-13'), 'until 13 Sep');
+});
+
 console.log(`\ntripWhere: ${n} passed`);
