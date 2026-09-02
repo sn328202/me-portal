@@ -48,6 +48,9 @@ const Picker = ({ label, className, onPick, onCancel }) => {
                             // route is a dot on the map and does.
                             lat: place.lat ?? null,
                             lng: place.lng ?? null,
+                            // And for the ones that want to know which city
+                            // they have just been told about.
+                            city: place.city || '',
                         });
                         onCancel();
                     }}

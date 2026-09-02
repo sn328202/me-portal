@@ -8,14 +8,13 @@ import { useAtlas } from '../hooks/useAtlas';
 import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, describeShape } from '../utils/tripShape';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
-import TripStays from '../components/TripStays';
 import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
 import TripWardrobe from '../components/TripWardrobe';
 import TripLooseEnds from '../components/TripLooseEnds';
 import DateField from '../components/DateField';
 import TripCard from '../components/TripCard';
-import TripRoute from '../components/TripRoute';
+import TripWhere from '../components/TripWhere';
 import { GiSunrise, GiGears } from 'react-icons/gi';
 import { useTripDays } from '../hooks/useTripDays';
 import { useTripIdeas } from '../hooks/useTripIdeas';
@@ -805,40 +804,31 @@ const Atlas = () => {
                                 <p className="expedition__weather-note" role="status">{planner.weatherMessage}</p>
                             )}
 
-                            {/* The cities and the beds, side by side. They are
-                                two halves of one question and each was a
-                                full-width stack, so between them they were the
-                                whole of the first screen before the plan
-                                started. Named by their own cards, so the
-                                section keeps one heading rather than three. */}
-                            <div className="expedition__pair">
-                              <div className="expedition__pair-half">
-                            <TripRoute
+                            {/* One list, not two. A booking already says which
+                                city you are in and which nights it covers, so
+                                a row asserting the same city over the same
+                                nights was the same fact typed twice. The
+                                timeline keeps both of its bars — City and
+                                Lodging are still two questions once you are
+                                looking at a calendar — it is only the editing
+                                surface that stops being two of them. */}
+                            <TripWhere
                                 legs={planner.legs}
                                 stays={planner.stays}
                                 days={planner.days}
                                 items={planner.items}
                                 costs={planner.costs}
                                 currency={selectedTrip.currency || 'USD'}
-                                onAdd={planner.addLeg}
-                                onUpdate={planner.updateLeg}
-                                onDelete={planner.deleteLeg}
-                            />
-                              </div>
-
-                              <div className="expedition__pair-half">
-                            <TripStays
-                                stays={planner.stays}
-                                currency={selectedTrip.currency || 'USD'}
                                 partySize={selectedTrip.party_size || 1}
                                 tripStart={selectedTrip.start_date}
                                 tripEnd={selectedTrip.end_date}
-                                onAdd={planner.addStay}
-                                onUpdate={planner.updateStay}
-                                onDelete={planner.deleteStay}
+                                onAddLeg={planner.addLeg}
+                                onUpdateLeg={planner.updateLeg}
+                                onDeleteLeg={planner.deleteLeg}
+                                onAddStay={planner.addStay}
+                                onUpdateStay={planner.updateStay}
+                                onDeleteStay={planner.deleteStay}
                             />
-                              </div>
-                            </div>
                         </section>
 
                         {/* Open when there is something in it, folded away

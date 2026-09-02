@@ -4,6 +4,7 @@ import usePlacesAutocomplete, {
     getLatLng,
 } from 'use-places-autocomplete';
 import { GiPositionMarker } from 'react-icons/gi';
+import { cityOf } from '../utils/placeCity';
 
 /**
  * Google Places autocomplete. Used by the Day Builder and by PlaceField, so
@@ -46,7 +47,13 @@ const PlacesSearch = ({ onSelect, placeholder = 'Search for locations...', id, c
                 lat,
                 lng,
                 link,
-                place_id
+                place_id,
+                /* Which city this is in. Google has already broken the place
+                   into its administrative pieces, so the city can be read
+                   rather than guessed out of a formatted address — see
+                   utils/placeCity. */
+                components: results[0]?.address_components || [],
+                city: cityOf(results[0]?.address_components || []),
             });
         } catch (error) {
             console.error('Error: ', error);
