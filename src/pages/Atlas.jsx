@@ -6,6 +6,7 @@ import { Button, Card, ConfirmButton, Field, Modal, PageHeader, Tag } from '../c
 import { useAtlas } from '../hooks/useAtlas';
 
 import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, describeShape } from '../utils/tripShape';
+import { searchTrips, sortTrips, emptyBecause, SORTS } from '../utils/tripShelf';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
 import TripSheet from '../components/TripSheet';
@@ -45,9 +46,14 @@ const Atlas = () => {
        how you say which you are looking for without them being two rooms
        again. Read off the dates, never off a flag she has to maintain. */
     const [shelf, setShelf] = useState('all');
+    const [query, setQuery] = useState('');
+    const [order, setOrder] = useState('soonest');
 
     const shelfTally = useMemo(() => tripShelfCounts(trips), [trips]);
-    const shelved = useMemo(() => onTripShelf(trips, shelf), [trips, shelf]);
+    const shelved = useMemo(
+        () => sortTrips(searchTrips(onTripShelf(trips, shelf), query), order),
+        [trips, shelf, query, order]
+    );
 
     // The Atlas is an index (The Map Room) and a detail view (the Expedition
     // Log). That is navigation, not tabs — the view follows the selection.
@@ -625,33 +631,64 @@ const Atlas = () => {
                         />
                     </div>
 
-                    <div className="atlas__shelves" role="tablist" aria-label="What to show">
-                        {SHELVES.map((s2) => (
-                            <button
-                                key={s2.id}
-                                type="button"
-                                role="tab"
-                                aria-selected={shelf === s2.id}
-                                className={`atlas__shelf${shelf === s2.id ? ' is-on' : ''}`}
-                                onClick={() => setShelf(s2.id)}
-                                disabled={s2.id !== 'all' && !shelfTally[s2.id]}
+                    {/* One bar: which shelf, what you are looking for, what
+                        order, and the one button that makes a new one. Chart
+                        New Course used to be the first card in the grid, at
+                        full card size, which made the biggest thing on the
+                        page the thing she presses least often. */}
+                    <div className="atlas__bar">
+                        <div className="atlas__shelves" role="tablist" aria-label="What to show">
+                            {SHELVES.map((s2) => (
+                                <button
+                                    key={s2.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={shelf === s2.id}
+                                    className={`atlas__shelf${shelf === s2.id ? ' is-on' : ''}`}
+                                    onClick={() => setShelf(s2.id)}
+                                    disabled={s2.id !== 'all' && !shelfTally[s2.id]}
+                                >
+                                    {s2.label}
+                                    <em>{shelfTally[s2.id]}</em>
+                                </button>
+                            ))}
+                        </div>
+
+                        <input
+                            type="search"
+                            className="input atlas__search"
+                            value={query}
+                            placeholder="Find a trip…"
+                            aria-label="Find a trip by name"
+                            onChange={(e) => setQuery(e.target.value)}
+                        />
+
+                        <label className="atlas__sort">
+                            <span className="visually-hidden">Order</span>
+                            <select
+                                className="select"
+                                value={order}
+                                aria-label="Order"
+                                onChange={(e) => setOrder(e.target.value)}
                             >
-                                {s2.label}
-                                <em>{shelfTally[s2.id]}</em>
-                            </button>
-                        ))}
+                                {SORTS.map((o) => (
+                                    <option key={o.id} value={o.id}>{o.label}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <Button size="sm" variant="solid" className="atlas__new" onClick={handleAddTrip}>
+                            <GiCompass /> Chart new course
+                        </Button>
                     </div>
 
-                    <ul className="atlas__grid">
-                        {/* New Trip Card */}
-                        <li>
-                            <button type="button" className="atlas-new" onClick={handleAddTrip}>
-                                <GiCompass size={40} />
-                                <span className="atlas-new__label">Chart New Course</span>
-                            </button>
-                        </li>
+                    {shelved.length === 0 && (
+                        <p className="atlas__nothing">
+                            {emptyBecause({ query, shelf, total: trips.length })}
+                        </p>
+                    )}
 
-                        {/* Existing Trips */}
+                    <ul className="atlas__grid">
                         {shelved.map(trip => (
                             <li key={trip.id}>
                                 {/* A poster only when there is a photo to

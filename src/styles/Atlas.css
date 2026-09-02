@@ -54,45 +54,59 @@
     font-size: var(--text-xs);
 }
 
+/* Cards of one height.
+
+   They were sizing to their own contents, so a two-line name made a card
+   half again as tall as its neighbours and the grid looked like a bar chart
+   of how long her trip names are. `1fr` rows plus a card that fills its cell
+   makes the row height the tallest card in it, which is the only height they
+   can all agree on. */
 .atlas__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: var(--space-4);
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
+.atlas__grid > li { display: flex; }
 
-/* Chart New Course — the one aspirational tile in the grid. */
-.atlas-new {
+.atlas__grid > li > .card { width: 100%; }
+
+/* One bar over the grid: shelf, search, order, and the one button that makes
+   a new trip. That button used to be the first card in the grid at full card
+   size, which made the biggest object on the page the thing she presses
+   least often. */
+.atlas__bar {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    gap: var(--space-4);
-    width: 100%;
-    min-height: 200px;
-    padding: var(--space-5);
-    background: transparent;
-    border: 2px dashed var(--border-dim);
-    border-radius: var(--radius-md);
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: color var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-4);
 }
 
-.atlas-new:hover,
-.atlas-new:focus-visible {
-    border-color: var(--border-bright);
-    color: var(--text-gold);
+.atlas__search {
+    flex: 1 1 12em;
+    min-width: 0;
+    max-width: 20em;
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
 }
 
-.atlas-new__label {
-    font-family: var(--font-display);
-    font-size: var(--text-base);
-    letter-spacing: var(--tracking-heading);
-    text-transform: var(--case-heading);
+.atlas__sort .select {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    padding: var(--space-1) var(--space-2);
+}
+
+.btn.atlas__new { margin-left: auto; white-space: nowrap; }
+
+.atlas__nothing {
+    margin: 0 0 var(--space-4);
+    color: var(--text-dim);
+    font-size: var(--text-sm);
 }
 
 
@@ -134,6 +148,23 @@
     gap: var(--space-2);
     padding: var(--space-4);
 }
+
+/* The name takes what it needs up to two lines and reserves that much either
+   way, so the status line sits at the same height on every card whether the
+   name wrapped or not. */
+.trip-card__title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+/* And the status line is the foot of the card, wherever the foot is. */
+.trip-card__meta { margin-top: auto; }
+
+/* No flags is not a reason for the name to start higher. */
+.trip-card__flags { min-height: 1.2em; }
 
 .card.trip-card--bare .trip-card__open { color: var(--text-main); }
 
@@ -2744,7 +2775,6 @@ textarea.expedition__notes:focus {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-    margin-bottom: var(--space-4);
 }
 
 .atlas__shelf {
