@@ -121,8 +121,12 @@ const ChoresWidget = () => {
                                 : room.total > 0 && <span className="chores-room__clear">clear</span>}
                         </h4>
 
+                        {/* With nothing filed anywhere, the five rooms are
+                            suggestions of where to type — so they are names to
+                            aim at, not five separate announcements that they
+                            are empty. */}
                         {room.chores.length === 0 ? (
-                            <p className="chores-room__empty">Nothing here.</p>
+                            view.empty ? null : <p className="chores-room__empty">Nothing here.</p>
                         ) : room.chores.map((chore) => (
                             <div key={chore.id} className="chores-item">
                                 <button

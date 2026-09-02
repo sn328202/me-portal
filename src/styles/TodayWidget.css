@@ -110,3 +110,51 @@
 .today__all-clear {
     padding: var(--space-4) 0;
 }
+
+/* The line that writes the next one. Quiet: a group with nothing in it should
+   read as an empty list, not as a form waiting to be filled in. */
+.today__add { margin-top: var(--space-1); }
+
+.today__add input {
+    width: 100%;
+    padding: 2px 0;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    color: var(--text-main);
+    background: none;
+    border: 0;
+    border-bottom: 1px dashed transparent;
+}
+
+.today__add input::placeholder { color: var(--text-dim); }
+
+.today__group:hover .today__add input { border-bottom-color: var(--border-dim); }
+
+.today__add input:focus {
+    outline: none;
+    border-bottom-style: solid;
+    border-bottom-color: var(--text-gold);
+}
+
+/* Only in the row you are pointing at: a column of × down the side of a
+   to-do list is an invitation to lose something. */
+.today__row { display: flex; align-items: center; gap: var(--space-1); }
+
+.today__row .today__check { flex: 1; min-width: 0; }
+
+.today__remove {
+    flex-shrink: 0;
+    padding: 0 var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1;
+    color: transparent;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.today__row:hover .today__remove,
+.today__remove:focus-visible { color: var(--text-dim); }
+
+.today__remove:hover { color: var(--accent-crimson); }

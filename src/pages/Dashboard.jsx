@@ -1,18 +1,14 @@
 import React from 'react';
 import GreetingWidget from '../widgets/GreetingWidget';
 import { useAuth } from '../contexts/AuthContext';
-import HabitTracker from '../widgets/HabitTracker';
 import LibraryStats from '../widgets/LibraryStats';
 import ProvisionsWidget from '../widgets/ProvisionsWidget';
-import TodoWidget from '../widgets/TodoWidget';
 import CalendarWidget from '../widgets/CalendarWidget';
 import ChoresWidget from '../widgets/ChoresWidget';
 import SocialWidget from '../widgets/SocialWidget';
 import GoalsWidget from '../widgets/GoalsWidget';
 import HobbiesWidget from '../widgets/HobbiesWidget';
 import TravelWidget from '../widgets/TravelWidget';
-import StatusConsole from '../widgets/StatusConsole';
-import QuickLinksWidget from '../widgets/QuickLinksWidget';
 import GameLauncher from '../widgets/GameLauncher';
 import WorkoutWidget from '../widgets/WorkoutWidget';
 import TodayWidget from '../widgets/TodayWidget';
@@ -64,15 +60,19 @@ const Dashboard = () => {
                     </div>
                 )}
 
+                {/* The theme's labels already read as names — "The Streak",
+                    "Pastimes" — so appending the word produced "THE STREAK
+                    STREAK" on the mantelpiece. The badge is a number under a
+                    name; it does not need to say what kind of number. */}
                 <div className="trophy-case">
                     <StreakBadge
-                        label={`${getLabel('habits')} Streak`}
+                        label={getLabel('habits')}
                         count={ritualStreak}
                         icon={getIcon('habits')}
                         color="var(--text-gold)"
                     />
                     <StreakBadge
-                        label={`${getLabel('hobbies')} Streak`}
+                        label={getLabel('hobbies')}
                         count={pursuitStreak}
                         icon={getIcon('hobbies')}
                         color="var(--text-muted)"
@@ -82,15 +82,25 @@ const Dashboard = () => {
 
             {/* One grid. Widgets opt into a wider cell via span, so the cards
                 carrying today's signal are not the same size as a bookmark
-                list. Order is unchanged. */}
+                list.
+
+                Four cards left after an audit of what each was actually
+                showing. Three of them — the rituals, the tasks and the
+                shopping — were a second rendering of the three lists already
+                on the Today card directly above them; their add and delete
+                controls moved into it. The fourth was a rack of links to
+                Notion, Gmail, Spotify and GitHub, which is a browser bar.
+
+                The Status Console went with them: with no URL configured it
+                was not a status console, it was its own setup form, sitting
+                at double width on the home screen. That question belongs in
+                Settings. */}
             <div className="widget-masonry">
                 {isEnabled('today') && <TodayWidget />}
                 {/* High up on purpose: it is the only card here that is a
                     queue of things with deadlines attached to other people. */}
                 {isEnabled('tobook') && <ToBookWidget />}
                 {isEnabled('captures') && <CapturesWidget />}
-                {isEnabled('habits') && <HabitTracker />}
-                {isEnabled('todos') && <TodoWidget />}
                 {isEnabled('provisions') && <ProvisionsWidget plan={mealPlan} recipes={recipes} />}
                 {isEnabled('chores') && <ChoresWidget />}
                 {isEnabled('social') && <SocialWidget />}
@@ -98,7 +108,6 @@ const Dashboard = () => {
                 {isEnabled('hobbies') && <HobbiesWidget />}
                 {isEnabled('travel') && <TravelWidget />}
                 {isEnabled('workouts') && <WorkoutWidget />}
-                {isEnabled('links') && <QuickLinksWidget />}
                 {isEnabled('games') && (
                     <GameLauncher
                         title="The Crossword"
@@ -107,7 +116,6 @@ const Dashboard = () => {
                         description="The daily crossword challenge."
                     />
                 )}
-                {isEnabled('status') && <StatusConsole />}
                 {isEnabled('calendar') && <CalendarWidget />}
                 {isEnabled('library') && <LibraryStats />}
             </div>

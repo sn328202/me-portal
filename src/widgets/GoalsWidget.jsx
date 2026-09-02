@@ -91,7 +91,10 @@ const GoalsWidget = () => {
                 ))}
                 {goals.length === 0 && !isAdding && !loading && (
                     <EmptyState
-                        message={`No ${getLabel('goals').toLowerCase()} mapped. Define your horizons.`}
+                        /* The label is a name — "The Plan" — not a bare noun,
+                           so slotting it into a sentence gave "No the plan
+                           mapped." It reads as a heading, so let it be one. */
+                        message={`${getLabel('goals')}: nothing mapped yet. Define your horizons.`}
                         actionLabel={`Set ${getLabel('goals')}`}
                         onAction={() => setIsAdding(true)}
                         icon={getIcon('goals')}

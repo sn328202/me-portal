@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useSettings } from './useSettings';
 
+/**
+ * The widgets there are.
+ *
+ * Four ids that used to be here are gone: `habits`, `todos` and `links`,
+ * whose cards were a second copy of what the Today card already showed, and
+ * `status`, which with no URL configured rendered its own setup form at
+ * double width. A saved preference may still name them; an id nothing matches
+ * is simply not drawn, so an old `enabledWidgets` array needs no migration.
+ */
 export const ALL_WIDGETS = [
     { id: 'today', label: 'Today', description: 'Everything with a checkbox — rituals, tasks and the grocery list in one card' },
     { id: 'tobook', label: 'Still to Book', description: 'Every stop marked "to book", across all trips, in date order' },
     { id: 'greeting', label: 'Traveler Welcome', description: 'Personalized greeting and date' },
-    { id: 'status', label: 'Status Console', description: 'System health and performance' },
-    { id: 'habits', label: 'Daily Rituals', description: 'Habit tracking and streaks' },
-    { id: 'todos', label: 'Active Tasks', description: 'Simple todo list' },
     { id: 'provisions', label: 'Estate Provisions', description: 'Meal plan and grocery list' },
     { id: 'chores', label: 'Estate Upkeep', description: 'Room-by-room chore tracking' },
     { id: 'social', label: 'Social Register', description: 'RSVP and event planning' },
@@ -18,7 +24,6 @@ export const ALL_WIDGETS = [
     { id: 'library', label: 'Archives Consumed', description: 'Reading stats and book list' },
     { id: 'workouts', label: 'Physical Readiness', description: 'Daily training regimen and 5K tracker' },
     { id: 'captures', label: 'Dictations', description: 'Thoughts spoken into your phone and where they landed' },
-    { id: 'links', label: 'Quick Reference', description: 'Essential external links' },
     { id: 'games', label: 'Arcade Terminal', description: 'Quick access to entertainment' },
 ];
 

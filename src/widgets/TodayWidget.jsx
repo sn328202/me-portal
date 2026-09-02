@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { GiSunrise, GiCheckMark } from 'react-icons/gi';
 import WidgetCard from '../components/WidgetCard';
 import WidgetLoading from '../components/WidgetLoading';
@@ -17,12 +17,20 @@ import '../styles/TodayWidget.css';
  * standing in a shop or halfway out of the door — and every line is actionable
  * where it sits, without opening a room.
  *
+ * It is now also the only place those lines are *made*. The dashboard used to
+ * carry this card and then, directly underneath it, three more cards showing
+ * the same three lists again — the rituals twice, the tasks twice, the
+ * shopping twice. The reason it could not simply lose them was that the
+ * duplicates held the add and delete controls and this card only ticked, so
+ * removing them would have left her able to tick a habit and unable to write
+ * one. So they moved here, and the duplicates went.
+ *
  * Deliberately not a scrolling widget: a card that scrolls inside a page that
  * also scrolls is miserable on a phone, and the lists are capped so the card
  * cannot run away.
  */
 
-const Row = ({ done, label, onToggle }) => (
+const Row = ({ done, label, onToggle, onRemove, removeLabel }) => (
     <li className={`today__row${done ? ' today__row--done' : ''}`}>
         <button
             type="button"
@@ -34,23 +42,58 @@ const Row = ({ done, label, onToggle }) => (
             <span className="today__box" aria-hidden="true">{done && <GiCheckMark />}</span>
             <span className="today__label">{label}</span>
         </button>
+        {onRemove && (
+            <button
+                type="button"
+                className="today__remove"
+                aria-label={removeLabel}
+                onClick={onRemove}
+            >
+                ×
+            </button>
+        )}
     </li>
 );
 
-const Group = ({ title, count, children, empty }) => (
+/* One line to write the next one. Quiet until it is used — a group with
+   nothing in it should read as an empty list, not as a form. */
+const AddRow = ({ placeholder, onAdd, label }) => {
+    const [text, setText] = useState('');
+    const submit = (e) => {
+        e.preventDefault();
+        const value = text.trim();
+        if (!value) return;
+        onAdd(value);
+        setText('');
+    };
+    return (
+        <form className="today__add" onSubmit={submit}>
+            <input
+                type="text"
+                value={text}
+                aria-label={label}
+                placeholder={placeholder}
+                onChange={(e) => setText(e.target.value)}
+            />
+        </form>
+    );
+};
+
+const Group = ({ title, count, children, empty, add }) => (
     <section className="today__group">
         <h3 className="today__group-title">
             {title}
             {count > 0 && <span className="today__count">{count}</span>}
         </h3>
         {count > 0 ? <ul className="today__list">{children}</ul> : <p className="today__empty">{empty}</p>}
+        {add}
     </section>
 );
 
 const TodayWidget = () => {
-    const { todos, toggleTodo, loading: todosLoading } = useTodos();
-    const { items, toggleItem, loading: provisionsLoading } = useProvisions();
-    const { habits, toggleHabit, loading: habitsLoading } = useHabits();
+    const { todos, toggleTodo, addTodo, deleteTodo, loading: todosLoading } = useTodos();
+    const { items, toggleItem, addItem, deleteItem, loading: provisionsLoading } = useProvisions();
+    const { habits, toggleHabit, addHabit, deleteHabit, loading: habitsLoading } = useHabits();
     const { getLabel } = useTheme();
 
     const loading = todosLoading || provisionsLoading || habitsLoading;
@@ -62,36 +105,77 @@ const TodayWidget = () => {
     const openHabits = useMemo(() => (habits || []).filter((h) => !h.completed), [habits]);
     const doneHabits = useMemo(() => (habits || []).filter((h) => h.completed), [habits]);
 
-    const nothingLeft =
-        !loading && !openTodos.length && !openGroceries.length && !openHabits.length;
+    const ritualLabel = getLabel('habits') || 'Rituals';
 
     return (
         <WidgetCard title="Today" icon={<GiSunrise />} span={2}>
             {loading ? (
                 <WidgetLoading />
-            ) : nothingLeft ? (
-                <p className="today__all-clear">Nothing outstanding. Everything is ticked.</p>
             ) : (
                 <div className="today">
                     <Group
-                        title={getLabel('habits') || 'Rituals'}
+                        title={ritualLabel}
                         count={openHabits.length}
                         empty={doneHabits.length ? 'All done today.' : 'None set.'}
+                        add={<AddRow
+                            label={`Add a ${ritualLabel.toLowerCase()}`}
+                            placeholder="Something you do every day…"
+                            onAdd={addHabit}
+                        />}
                     >
                         {openHabits.map((h) => (
-                            <Row key={h.id} label={h.text} done={false} onToggle={() => toggleHabit(h.id)} />
+                            <Row
+                                key={h.id}
+                                label={h.text}
+                                done={false}
+                                onToggle={() => toggleHabit(h.id)}
+                                onRemove={() => deleteHabit(h.id)}
+                                removeLabel={`Remove ${h.text}`}
+                            />
                         ))}
                     </Group>
 
-                    <Group title="Tasks" count={openTodos.length} empty="Nothing on the list.">
+                    <Group
+                        title="Tasks"
+                        count={openTodos.length}
+                        empty="Nothing on the list."
+                        add={<AddRow
+                            label="Add a task"
+                            placeholder="Something to do…"
+                            onAdd={addTodo}
+                        />}
+                    >
                         {openTodos.map((t) => (
-                            <Row key={t.id} label={t.text} done={false} onToggle={() => toggleTodo(t.id)} />
+                            <Row
+                                key={t.id}
+                                label={t.text}
+                                done={false}
+                                onToggle={() => toggleTodo(t.id)}
+                                onRemove={() => deleteTodo(t.id)}
+                                removeLabel={`Remove ${t.text}`}
+                            />
                         ))}
                     </Group>
 
-                    <Group title="To buy" count={openGroceries.length} empty="Nothing to pick up.">
+                    <Group
+                        title="To buy"
+                        count={openGroceries.length}
+                        empty="Nothing to pick up."
+                        add={<AddRow
+                            label="Add something to buy"
+                            placeholder="Something to pick up…"
+                            onAdd={addItem}
+                        />}
+                    >
                         {openGroceries.map((i) => (
-                            <Row key={i.id} label={i.text} done={false} onToggle={() => toggleItem(i.id)} />
+                            <Row
+                                key={i.id}
+                                label={i.text}
+                                done={false}
+                                onToggle={() => toggleItem(i.id)}
+                                onRemove={() => deleteItem(i.id)}
+                                removeLabel={`Remove ${i.text}`}
+                            />
                         ))}
                     </Group>
                 </div>
