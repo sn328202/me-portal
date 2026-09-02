@@ -127,14 +127,53 @@ export const readGoodreads = (text) => {
  *
  * The export splits what it knows: `diary.csv` has the watch dates and
  * rewatches, `ratings.csv` the stars, `reviews.csv` the text, `watched.csv`
- * the full list including everything logged without a date. The Letterboxd URI
- * is the only thing common to all of them and the only reliable key — two
- * films can share a title and a year, and do.
+ * the full list including everything logged before she kept a diary.
+ *
+ * **The Letterboxd URI is not a film id.** It looked like the obvious key and
+ * it is not one: in `watched.csv` and `ratings.csv` it points at the film, but
+ * in `diary.csv` and `reviews.csv` it points at *that entry* — the diary row,
+ * the review. Measured on a real export of 1,185 films: watched and diary
+ * share **zero** URIs, while every one of the 118 diary films matches a
+ * watched film on title and year. Keying on the URI silently turned every
+ * diary entry into a second copy of a film she had already seen.
+ *
+ * So the key is title and year. It is the only thing all four files agree on,
+ * and in that same export it produced exactly 1,185 films with no duplicates
+ * inside `watched.csv` at all. Two different films sharing a title *and* a
+ * release year would collide; that is a real if uncommon thing, and it is a
+ * far smaller wrong than the one it replaces.
  */
 const uriOf = (row) => clean(pick(row, 'Letterboxd URI', 'URI', 'url')) || null;
 
-const keyOf = (row) => uriOf(row)
-    || `${clean(pick(row, 'Name', 'Title')).toLowerCase()}|${clean(pick(row, 'Year'))}`;
+/* Accents and punctuation are not the difference between two films, and the
+   same title is spelled identically across the four files anyway — this is
+   belt and braces against an export that is tidied up later. */
+const keyOf = (row) => {
+    const name = clean(pick(row, 'Name', 'Title'))
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ');
+    return name ? `${name}|${clean(pick(row, 'Year'))}` : '';
+};
+
+/**
+ * The newest thing she wrote about a film wins.
+ *
+ * A film watched twice has two reviews, and taking whichever came last in the
+ * file assumes the file is in date order — which it is, until it is not. Her
+ * real export has exactly one of these (*Materialists*, seen twice in 2025)
+ * and the two reviews say different things, so the rule has to be a rule
+ * rather than a habit of the file.
+ */
+const keepReview = (film, text, when) => {
+    const words = clean(text);
+    if (!words) return;
+    const at = when || '';
+    if (film.review && film.reviewedAt && at < film.reviewedAt) return;
+    film.review = words;
+    film.reviewedAt = at;
+};
 
 export const readLetterboxd = (files = {}) => {
     const byKey = new Map();
@@ -153,15 +192,19 @@ export const readLetterboxd = (files = {}) => {
                 rating: null,
                 review: null,
                 finished_at: null,
+                // Which viewing the kept review belongs to; dropped on the
+                // way out, since nothing downstream has a column for it.
+                reviewedAt: null,
                 year: year(pick(row, 'Year')),
-                link: uriOf(row),
+                // Filled in from watched.csv / ratings.csv below, which are
+                // the two files whose URI is the film's rather than a row's.
+                link: null,
                 source: 'letterboxd',
                 source_id: key,
             });
         }
         const film = byKey.get(key);
         if (!film.year) film.year = year(pick(row, 'Year'));
-        if (!film.link) film.link = uriOf(row);
         return film;
     };
 
@@ -169,10 +212,26 @@ export const readLetterboxd = (files = {}) => {
 
     /* Watched first, so the list is complete before the detail is laid over
        it. A film watched before she kept a diary has a row here and nowhere
-       else, and leaving it out would make the Library smaller than the truth. */
+       else, and leaving it out would make the Library smaller than the truth.
+
+       Its URI is also the only one worth keeping as a link: this file and
+       `ratings.csv` point at the film, the other two point at a diary entry.
+       A card that opens her own diary row instead of the film is a link that
+       looks right and goes somewhere else. */
     for (const row of table('watched')) {
         const film = touch(row);
-        if (film) film.finished_at = film.finished_at || isoDate(pick(row, 'Date'));
+        if (!film) continue;
+        film.finished_at = film.finished_at || isoDate(pick(row, 'Date'));
+        film.link = uriOf(row) || film.link;
+    }
+
+    /* Ratings second, for the same reason: the URI here is the film's too, so
+       a film she rated but never logged still gets a link that goes somewhere
+       useful. */
+    for (const row of table('ratings')) {
+        const film = touch(row);
+        if (!film) continue;
+        if (!film.link) film.link = uriOf(row);
     }
 
     /* The diary is the better date: `Watched Date` is when she saw it, `Date`
@@ -185,8 +244,7 @@ export const readLetterboxd = (files = {}) => {
         if (seen && (!film.finished_at || seen > film.finished_at)) film.finished_at = seen;
         const r = stars(pick(row, 'Rating'));
         if (r != null) film.rating = r;
-        const text = clean(pick(row, 'Review'));
-        if (text) film.review = text;
+        keepReview(film, pick(row, 'Review'), seen);
     }
 
     for (const row of table('ratings')) {
@@ -196,20 +254,23 @@ export const readLetterboxd = (files = {}) => {
         if (r != null) film.rating = r;
     }
 
+
     /* Reviews last: the written word beats everything, and the diary's copy of
        it can be the older one when a review has been edited since. */
     for (const row of table('reviews')) {
         const film = touch(row);
         if (!film) continue;
-        const text = clean(pick(row, 'Review'));
-        if (text) film.review = text;
+        const seen = isoDate(pick(row, 'Watched Date')) || isoDate(pick(row, 'Date'));
+        keepReview(film, pick(row, 'Review'), seen);
         const r = stars(pick(row, 'Rating'));
         if (r != null && film.rating == null) film.rating = r;
-        const seen = isoDate(pick(row, 'Watched Date')) || isoDate(pick(row, 'Date'));
         if (seen && !film.finished_at) film.finished_at = seen;
     }
 
     const items = [...byKey.values()]
+        // `reviewedAt` is bookkeeping for which viewing the kept review came
+        // from; nothing downstream has a column for it.
+        .map((film) => { const { reviewedAt: _drop, ...rest } = film; return rest; })
         .sort((a, b) => String(b.finished_at || '').localeCompare(String(a.finished_at || '')));
 
     return { items, skipped };

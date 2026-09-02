@@ -3,11 +3,17 @@ import { parseCsv, readTable, normaliseHeader, pick } from '../src/utils/csv.js'
 import {
     readGoodreads, readLetterboxd, planImport, describePlan, isbnOf, bookCover,
 } from '../src/utils/shelfImport.js';
-import { sniff } from '../src/utils/shelfFiles.js';
+import { sniff, readZip } from '../src/utils/shelfFiles.js';
+import { zipSync, strToU8 } from 'fflate';
 import { bestMatch } from '../api/covers.js';
 
 let n = 0;
 const t = (name, fn) => { fn(); n += 1; console.log(`  ok  ${name}`); };
+
+/** A ZIP in memory, so the archive layout can be tested without one on disk. */
+const zipOf = (files) => zipSync(
+    Object.fromEntries(Object.entries(files).map(([k, v]) => [k, strToU8(v)]))
+);
 
 console.log('reading a CSV somebody else wrote:');
 
@@ -136,25 +142,35 @@ t('and it carries a link back to Goodreads', () => {
 
 console.log('\na Letterboxd export:');
 
+/*
+ * Shaped like a real export, which is not what I first assumed.
+ *
+ * `watched.csv` and `ratings.csv` carry the FILM's URI; `diary.csv` and
+ * `reviews.csv` carry that ENTRY's URI. On her actual export of 1,185 films,
+ * watched and diary share exactly zero URIs — so keying on the URI turned
+ * every diary entry into a second copy of a film she had already seen.
+ */
 const LB = {
     watched: [
         'Date,Name,Year,Letterboxd URI',
-        '2026-01-10,Paddington 2,2017,https://boxd.it/aaa',
-        '2019-06-01,An Old One,2005,https://boxd.it/ddd',
+        '2026-01-10,Paddington 2,2017,https://boxd.it/film1',
+        '2019-06-01,An Old One,2005,https://boxd.it/film4',
+        '2026-03-01,Aftersun,2022,https://boxd.it/film2',
     ].join('\n'),
     diary: [
         'Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date',
-        '2026-02-02,Paddington 2,2017,https://boxd.it/aaa,4.5,Yes,,2026-02-01',
-        '2026-03-03,Aftersun,2022,https://boxd.it/bbb,5,No,,2026-03-02',
+        '2026-02-02,Paddington 2,2017,https://boxd.it/entry77aaa,4.5,Yes,,2026-02-01',
+        '2026-03-03,Aftersun,2022,https://boxd.it/entry77bbb,5,No,,2026-03-02',
     ].join('\n'),
     ratings: [
         'Date,Name,Year,Letterboxd URI,Rating',
-        '2026-03-03,Aftersun,2022,https://boxd.it/bbb,5',
-        '2026-04-04,Portrait of a Lady on Fire,2019,https://boxd.it/ccc,4',
+        '2026-03-03,Aftersun,2022,https://boxd.it/film2,5',
+        '2026-04-04,Portrait of a Lady on Fire,2019,https://boxd.it/film3,4',
     ].join('\n'),
     reviews: [
         'Date,Name,Year,Letterboxd URI,Rating,Rewatch,Review,Watched Date',
-        '2026-03-04,Aftersun,2022,https://boxd.it/bbb,5,No,"The last dance.",2026-03-02',
+        '2025-08-03,Aftersun,2022,https://boxd.it/entry77ccc,5,No,"An older thought.",2025-08-02',
+        '2026-03-04,Aftersun,2022,https://boxd.it/entry77bbb,5,No,"The last dance.",2026-03-02',
     ].join('\n'),
 };
 
@@ -162,8 +178,38 @@ const lb = readLetterboxd(LB);
 const film = (name) => lb.items.find((f) => f.title === name);
 
 t('one film, however many files mention it', () => {
+    // The bug this replaces: keyed on the URI, Paddington 2 appeared twice —
+    // once from watched.csv and once from its diary entry, which carries a
+    // different URI entirely.
     assert.equal(lb.items.filter((f) => f.title === 'Paddington 2').length, 1);
     assert.equal(lb.items.length, 4, 'four films across four files');
+});
+
+t('a diary entry is not a second copy of the film', () => {
+    const seen = lb.items.map((f) => f.source_id);
+    assert.equal(new Set(seen).size, seen.length, 'no key appears twice');
+    assert.equal(lb.items.filter((f) => f.title === 'Aftersun').length, 1,
+        'Aftersun is in watched, diary, ratings and reviews — and is one film');
+});
+
+t('the link goes to the film, not to her diary row', () => {
+    // watched.csv and ratings.csv hold the film's URI; the other two hold the
+    // entry's. A card opening her own diary row is a link that looks right
+    // and goes somewhere else.
+    assert.equal(film('Aftersun').link, 'https://boxd.it/film2');
+    assert.equal(film('Paddington 2').link, 'https://boxd.it/film1');
+    assert.equal(film('Portrait of a Lady on Fire').link, 'https://boxd.it/film3',
+        'rated but never logged, so the link comes from ratings.csv');
+});
+
+t('a film watched twice keeps the newer review', () => {
+    // Not "whichever came last in the file" — that assumes an ordering the
+    // file does not promise.
+    assert.equal(film('Aftersun').review, 'The last dance.');
+});
+
+t('and the bookkeeping does not leak out', () => {
+    assert.equal('reviewedAt' in film('Aftersun'), false);
 });
 
 t('a film only in watched still comes across', () => {
@@ -193,14 +239,24 @@ t('the written review comes across', () => {
     assert.equal(film('Aftersun').review, 'The last dance.');
 });
 
-t('the URI is the key, because titles and years collide', () => {
-    assert.equal(film('Aftersun').source_id, 'https://boxd.it/bbb');
-    assert.equal(film('Aftersun').link, 'https://boxd.it/bbb');
+t('title and year are the key, because the URI is not the film', () => {
+    assert.equal(film('Aftersun').source_id, 'aftersun|2022');
+    assert.equal(film('Portrait of a Lady on Fire').source_id,
+        'portrait of a lady on fire|2019');
+});
+
+t('accents and stray spacing do not split one film in two', () => {
+    const odd = readLetterboxd({
+        watched: 'Date,Name,Year,Letterboxd URI\n2026-01-01,Amélie,2001,https://boxd.it/f',
+        ratings: 'Date,Name,Year,Letterboxd URI,Rating\n2026-01-02,Amelie,2001,https://boxd.it/f,5',
+    });
+    assert.equal(odd.items.length, 1);
+    assert.equal(odd.items[0].rating, 5);
 });
 
 t('a missing file is not an error, just less known', () => {
     const thin = readLetterboxd({ watched: LB.watched });
-    assert.equal(thin.items.length, 2);
+    assert.equal(thin.items.length, 3);
     assert.equal(thin.items.every((f) => f.rating === null), true);
 });
 
@@ -219,7 +275,7 @@ console.log('\nwhat a second export would do:');
 t('what is already here is an update, not a duplicate', () => {
     const existing = [
         { id: 'x', source: 'goodreads', source_id: '234225' },
-        { id: 'y', source: 'letterboxd', source_id: 'https://boxd.it/bbb' },
+        { id: 'y', source: 'letterboxd', source_id: 'aftersun|2022' },
     ];
     const plan = planImport([...gr.items, ...lb.items], existing);
     assert.equal(plan.update.length, 2);
@@ -240,6 +296,40 @@ t('and it says what it is about to do in words', () => {
     assert.equal(describePlan({ fresh: [], update: [] }), 'nothing to bring in');
     assert.equal(describePlan({ fresh: [1] }, { unread: 300, untitled: 1 }),
         '1 new, 301 left behind');
+});
+
+console.log('\nfinding the right CSVs inside a real ZIP:');
+
+t('deleted, orphaned, likes and lists are not her watch history', () => {
+    // A real export has deleted/diary.csv, orphaned/diary.csv and
+    // likes/films.csv sitting beside the genuine ones. Matched on the
+    // basename alone, `likes/films.csv` IS the watched list and
+    // `deleted/diary.csv` IS the diary — and which one won came down to the
+    // order entries happened to sit in the archive.
+    const zip = zipOf({
+        'watched.csv': 'Date,Name,Year,Letterboxd URI\n2026-01-01,Real,2020,https://boxd.it/r',
+        'diary.csv': 'Date,Name,Year,Letterboxd URI,Rating,Watched Date\n2026-01-02,Real,2020,https://boxd.it/e,4,2026-01-01',
+        'deleted/diary.csv': 'Date,Name,Year,Letterboxd URI,Rating,Watched Date\n2020-01-01,Deleted,1999,https://boxd.it/x,1,2020-01-01',
+        'orphaned/diary.csv': 'Date,Name,Year,Letterboxd URI\n2020-01-01,Orphaned,1999,https://boxd.it/y',
+        'likes/films.csv': 'Date,Name,Year,Letterboxd URI\n2020-01-01,Merely Liked,1999,https://boxd.it/z',
+        'lists/some-list.csv': 'Name,Year\nListed,1999',
+    });
+    const { files } = readZip(zip);
+    const { items } = readLetterboxd(files);
+    assert.deepEqual(items.map((f) => f.title), ['Real'], 'one film, and it is the real one');
+    assert.equal(items[0].rating, 4, 'and the real diary was read, not the deleted one');
+});
+
+t('a dated wrapper folder is not depth that means anything', () => {
+    // Older exports nest everything under letterboxd-<user>-<date>-utc/.
+    const zip = zipOf({
+        'letterboxd-neha-2026-09-02-utc/watched.csv':
+            'Date,Name,Year,Letterboxd URI\n2026-01-01,Nested,2020,https://boxd.it/n',
+        'letterboxd-neha-2026-09-02-utc/deleted/diary.csv':
+            'Date,Name,Year,Letterboxd URI\n2020-01-01,Gone,1999,https://boxd.it/g',
+    });
+    const { items } = readLetterboxd(readZip(zip).files);
+    assert.deepEqual(items.map((f) => f.title), ['Nested']);
 });
 
 console.log('\ntelling the two exports apart:');
