@@ -140,6 +140,7 @@
 <div class="profilebar" id="profileBar"></div>
 <div class="tabs">
   <div class="tab active" data-tab="closet">Closet</div>
+  <div class="tab" data-tab="looks">Looks</div>
   <div class="tab" data-tab="trips">Trips</div>
   <div class="tab" data-tab="essentials">Essentials</div>
 </div>
@@ -162,6 +163,19 @@
     <div class="card">
       <div id="closetGrid"></div>
     </div>
+  </div>
+
+  <!-- ============ LOOKS TAB ============ -->
+  <div id="tab-looks" class="hide">
+    <div class="card">
+      <div class="row">
+        <h2 style="margin:0" id="looksTitle">Saved looks</h2>
+        <span class="muted small" id="looksCount"></span>
+        <button class="btn right" onclick="openLookModal()">+ Build a look</button>
+      </div>
+      <div class="scale-help" style="margin-top:6px">Combinations you already know work. Save one here and it can be worn on any day of any trip — and when a day's dressiness and weather suit it, the planner offers it by name instead of assembling something from loose pieces.</div>
+    </div>
+    <div class="card"><div id="looksGrid"></div></div>
   </div>
 
   <!-- ============ TRIPS TAB ============ -->
@@ -326,6 +340,29 @@
 </div></dialog>
 
 <!-- CUSTOM OUTFIT MODAL -->
+<dialog id="lookModal"><div class="modal-in">
+  <h2 id="lookModalTitle">Build a look</h2>
+  <input type="hidden" id="lookId">
+  <div>
+    <label>What do you call it?</label>
+    <input id="lookName" placeholder="e.g. Nice dinner, Airport day">
+  </div>
+  <div class="scale-help" style="margin-top:14px;margin-bottom:-2px">Pick from your closet or just type — any new item is saved straight into your closet. A look is a copy: wearing it on a trip does not tie the two together.</div>
+  <div id="lookSlots" style="margin-top:10px"></div>
+  <div class="row" style="margin-top:16px">
+    <button class="btn-ghost" onclick="lookModal.close()">Cancel</button>
+    <button class="btn right" onclick="saveLook()">Save look</button>
+  </div>
+</div></dialog>
+
+<dialog id="wearModal"><div class="modal-in">
+  <h2 id="wearModalTitle">Wear a saved look</h2>
+  <div id="wearList" style="margin-top:10px"></div>
+  <div class="row" style="margin-top:16px">
+    <button class="btn-ghost" onclick="wearModal.close()">Cancel</button>
+  </div>
+</div></dialog>
+
 <dialog id="outfitModal"><div class="modal-in">
   <h2 id="outfitModalTitle">Build an outfit</h2>
   <input type="hidden" id="outfitId">
@@ -448,6 +485,11 @@ profiles.forEach((p,i)=>{if(!p.mode)p.mode=i===0?"closet":"estimate";}); // full
 let activeProfile=DB.load("activeProfile",profiles[0].id);
 if(!profiles.some(p=>p.id===activeProfile))activeProfile=profiles[0].id;
 let closetsAll=DB.load("closets",null);
+// Saved looks, per profile. A look is a named set of closet item ids — the
+// combinations she already knows work, kept out of any one trip so they
+// outlive it.
+let looksAll=DB.load("looksAll",null);
+if(!looksAll||typeof looksAll!=="object"||Array.isArray(looksAll))looksAll={};
 let essAll=DB.load("essAll",null);
 let essCatsAll=DB.load("essCatsAll",null);
 // one-time migration from single-user storage into per-profile maps
@@ -471,6 +513,7 @@ let essCatsAll=DB.load("essCatsAll",null);
 })();
 // ensure each profile has valid structures
 profiles.forEach(p=>{
+  if(!Array.isArray(looksAll[p.id]))looksAll[p.id]=[];
   if(!closetsAll[p.id])closetsAll[p.id]=[];
   if(!essAll[p.id]||typeof essAll[p.id]!=="object")essAll[p.id]=defaultEssentials();
   ESS_CATS.forEach(c=>{if(!Array.isArray(essAll[p.id][c]))essAll[p.id][c]=[];});
@@ -490,16 +533,16 @@ profiles.forEach(p=>{
     profiles.forEach(p=>{if(!t.byProfile[p.id])t.byProfile[p.id]={customOutfits:[],essChecked:{},autoChecked:{},packChecked:{},packExcluded:{},dayDone:{}};});
   });
 })();
-let closet,essentials,essCats;
-function loadProfileData(){closet=closetsAll[activeProfile];essentials=essAll[activeProfile];essCats=essCatsAll[activeProfile];}
+let closet,essentials,essCats,looks;
+function loadProfileData(){closet=closetsAll[activeProfile];essentials=essAll[activeProfile];essCats=essCatsAll[activeProfile];if(!Array.isArray(looksAll[activeProfile]))looksAll[activeProfile]=[];looks=looksAll[activeProfile];}
 loadProfileData();
 function activeName(){const p=profiles.find(x=>x.id===activeProfile);return p?p.name:"";}
 // per-trip, per-profile state (customOutfits, checklists, planned days)
 function PS(t){if(!t.byProfile)t.byProfile={};if(!t.byProfile[activeProfile])t.byProfile[activeProfile]={customOutfits:[],essChecked:{},autoChecked:{},packChecked:{},packExcluded:{},dayDone:{}};return t.byProfile[activeProfile];}
 let currentTripId=null;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-function persist(){DB.save("trips",trips);DB.save("profiles",profiles);DB.save("activeProfile",activeProfile);DB.save("closets",closetsAll);DB.save("essAll",essAll);DB.save("essCatsAll",essCatsAll);}
-function setActiveProfile(pid){if(!profiles.some(p=>p.id===pid))return;activeProfile=pid;loadProfileData();DB.save("activeProfile",pid);renderProfiles();renderCloset();renderEssMaster();if(currentTripId&&!document.getElementById("tripDetailView").classList.contains("hide"))renderTripDetail();}
+function persist(){DB.save("trips",trips);DB.save("profiles",profiles);DB.save("activeProfile",activeProfile);DB.save("closets",closetsAll);DB.save("essAll",essAll);DB.save("essCatsAll",essCatsAll);DB.save("looksAll",looksAll);}
+function setActiveProfile(pid){if(!profiles.some(p=>p.id===pid))return;activeProfile=pid;loadProfileData();DB.save("activeProfile",pid);renderProfiles();renderCloset();renderLooks();renderEssMaster();if(currentTripId&&!document.getElementById("tripDetailView").classList.contains("hide"))renderTripDetail();}
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800);}
 function esc(s){return(s||"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));}
 
@@ -524,8 +567,9 @@ document.querySelectorAll(".tabs > .tab[data-tab]").forEach(t=>{
   t.onclick=()=>{
     document.querySelectorAll(".tab[data-tab]").forEach(x=>x.classList.remove("active"));
     t.classList.add("active");
-    ["closet","trips","essentials"].forEach(n=>document.getElementById("tab-"+n).classList.toggle("hide",t.dataset.tab!==n));
+    ["closet","looks","trips","essentials"].forEach(n=>document.getElementById("tab-"+n).classList.toggle("hide",t.dataset.tab!==n));
     if(t.dataset.tab==="essentials")renderEssMaster();
+    if(t.dataset.tab==="looks")renderLooks();
   };
 });
 
@@ -595,7 +639,7 @@ function addProfile(){
   if(!name)return;
   const id="p"+uid();
   profiles.push({id,name});
-  closetsAll[id]=[];essAll[id]=defaultEssentials();essCatsAll[id]=[...ESS_CATS];
+  closetsAll[id]=[];essAll[id]=defaultEssentials();essCatsAll[id]=[...ESS_CATS];looksAll[id]=[];
   trips.forEach(t=>{if(!t.byProfile)t.byProfile={};t.byProfile[id]={customOutfits:[],essChecked:{},autoChecked:{},packChecked:{},packExcluded:{},dayDone:{}};});
   persist();setActiveProfile(id);
 }
@@ -643,6 +687,103 @@ function renderCloset(){
     html+=`</div>`;
   }
   grid.innerHTML=html;
+}
+
+/* ================= LOOKS =================
+   Combinations she already knows work, kept out of any one trip so they
+   outlive it. The closet is the vocabulary; this is the sentences. */
+function lookCardHtml(l){
+  const pieces=lookPieces(l,closet);
+  const d=lookDress(l,closet);
+  const bits=pieces.map(it=>`<span class="chip">${ICONS[it.cat]||"👕"} ${esc(it.name)}</span>`).join(" ");
+  return `<div class="card" style="margin-bottom:10px">
+    <div class="row"><h3 style="margin:0">${esc(l.name)}</h3>
+      ${d?`<span class="chip">${DRESS[d-1]}</span>`:""}
+      <span class="right">
+        <button class="btn-ghost btn-sm" onclick="openLookModal('${l.id}')">Edit</button>
+        <button class="btn-danger btn-sm" onclick="deleteLook('${l.id}')">Delete</button>
+      </span></div>
+    <div class="outfit" style="margin-top:8px">${bits||'<span class="muted small">nothing in it — its pieces have all left the closet</span>'}</div>
+  </div>`;
+}
+function renderLooks(){
+  const lt=document.getElementById("looksTitle");if(lt)lt.textContent=activeName()+"’s looks";
+  const el=document.getElementById("looksGrid");if(!el)return;
+  const cnt=document.getElementById("looksCount");
+  if(activeMode()==="estimate"){
+    if(cnt)cnt.textContent="";
+    el.innerHTML=`<div class="empty">${esc(activeName())} uses <b>estimate mode</b> — no closet, so no looks to build from one.</div>`;
+    return;
+  }
+  if(cnt)cnt.textContent=looks.length?`${looks.length} look${looks.length>1?"s":""}`:"";
+  if(!closet.length){el.innerHTML='<div class="empty">Add some clothes to your Closet first — a look is a handful of them with a name on it.</div>';return;}
+  if(!looks.length){el.innerHTML='<div class="empty">No saved looks yet. Build one with “+ Build a look”, or save any outfit you have already put together on a trip — there is a ★ on every outfit card.</div>';return;}
+  el.innerHTML=looks.slice().sort((a,b)=>(b.created||0)-(a.created||0)).map(lookCardHtml).join("");
+}
+function openLookModal(id){
+  if(!closet.length){toast("Add clothes to your closet first");return;}
+  const ex=id?looks.find(l=>l.id===id):null;
+  lookModalTitle.textContent=id?"Edit look":"Build a look";
+  lookId.value=id||"";
+  lookName.value=ex?ex.name:"";
+  lookSlots.innerHTML=slotsHtmlFor(ex&&ex.items,"lookAccList","ldl");
+  document.getElementById("lookModal").showModal();
+}
+function saveLook(){
+  const {items,created}=readSlots(lookSlots,2);
+  if(!Object.keys(items).length){toast("Type or pick at least one item");return;}
+  const id=lookId.value;
+  const was=id?looks.find(l=>l.id===id):null;
+  const obj={id:id||uid(),name:lookName.value.trim()||"My look",items,created:(was&&was.created)||Date.now()};
+  if(was)looksAll[activeProfile]=looks=looks.map(l=>l.id===obj.id?obj:l);
+  else looks.push(obj);
+  persist();renderCloset();renderLooks();
+  document.getElementById("lookModal").close();
+  toast(created?`Look saved · ${created} new item${created!==1?"s":""} added to closet`:"Look saved");
+}
+function deleteLook(id){
+  const l=looks.find(x=>x.id===id);
+  if(l&&!confirm(`Delete the look “${l.name}”? Anything you have already worn it on stays as it is.`))return;
+  looksAll[activeProfile]=looks=looks.filter(l2=>l2.id!==id);
+  persist();renderLooks();
+}
+/* Save something already assembled on a trip. Half the looks worth keeping
+   were built for a particular Tuesday and then died with the trip. */
+function saveOutfitAsLook(outfitId){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;
+  const o=(PS(t).customOutfits||[]).find(x=>x.id===outfitId);if(!o)return;
+  if(!Object.keys(o.items||{}).length){toast("Nothing in that outfit yet");return;}
+  const name=(prompt("Call this look what?",o.name||"My look")||"").trim();
+  if(!name)return;
+  const copy=lookToOutfit(o,"",uid());
+  looks.push({id:copy.id,name,items:copy.items,created:Date.now()});
+  persist();renderLooks();toast(`Saved “${name}” to your looks`);
+}
+/* Wear one on a day. A copy, so editing what she wore in Kerala does not
+   rewrite the look and editing the look does not rewrite Kerala. */
+function wearThisLook(lookId,date){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;
+  const l=looks.find(x=>x.id===lookId);if(!l)return;
+  PS(t).customOutfits.push(lookToOutfit(l,date,uid()));
+  persist();document.getElementById("wearModal").close();
+  renderPlan(t);renderPack(t);toast(`“${l.name}” added`);
+}
+function openWearModal(date){
+  const t=trips.find(x=>x.id===currentTripId);if(!t)return;
+  if(!looks.length){toast("No saved looks yet — build one on the Looks tab");return;}
+  const evs=t.events.filter(e=>(e.date||"")===date);
+  const ev={dress:evs.length?Math.max.apply(null,evs.map(e=>e.dress)):2,type:""};
+  const w=date?effWeather(t,date):null;
+  wearModalTitle.textContent=date?`Wear a look on ${wdayLabel(date)}`:"Wear a saved look";
+  const fits=looks.filter(l=>lookFitsDay(l,closet,ev,w));
+  const rest=looks.filter(l=>!fits.includes(l));
+  const row=(l,ok)=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">
+    <span><b>${esc(l.name)}</b><br><span class="muted small">${lookPieces(l,closet).map(i=>esc(i.name)).join(" · ")||"empty"}</span></span>
+    <span class="right"><button class="btn${ok?"":"-ghost"} btn-sm" onclick="wearThisLook('${l.id}','${date||""}')">Wear it</button></span></div>`;
+  wearList.innerHTML=
+    (fits.length?`<div class="scale-help">Right for this day</div>${fits.map(l=>row(l,true)).join("")}`:"")
+    +(rest.length?`<div class="scale-help" style="margin-top:12px">${fits.length?"The rest":"None of these quite match the day — wear one anyway"}</div>${rest.map(l=>row(l,false)).join("")}`:"");
+  document.getElementById("wearModal").showModal();
 }
 
 /* ================= ESSENTIALS ================= */
@@ -888,7 +1029,79 @@ function renderTripDetail(){
 }
 
 /* ================= OUTFIT ENGINE ================= */
+/* ==== LOOKS: pure logic — sliced out and run by scripts/looks-test.mjs ====
+   Everything between the sentinels takes what it needs as an argument and
+   touches no globals, so the tests exercise the code that actually ships
+   rather than a second copy of it that can drift. */
 function warmthTarget(w){if(!w)return 3;const t=(w.tmax+w.tmin)/2;if(t>=78)return 1;if(t>=66)return 2;if(t>=54)return 3;if(t>=42)return 4;return 5;}
+/* Does one garment work for one day? Dressy enough but not three levels over
+   the top, and — for the things you actually feel the weather in — near the
+   right warmth. Accessories go with anything. */
+function itemCovers(item,ev,w){
+  if(item.cat===AGNOSTIC_CAT)return true;
+  const wt=warmthTarget(w);
+  const dressOk=item.dress>=ev.dress&&item.dress-ev.dress<=2;
+  const warmthMatters=(item.cat==="Bottoms"||item.cat==="Outerwear");
+  const warmOk=!warmthMatters||Math.abs(item.warmth-wt)<=2;
+  return dressOk&&warmOk;
+}
+/* The garments a look is made of, resolved out of the closet. Ids that no
+   longer exist are dropped rather than drawn as blanks: deleting a jumper
+   should not leave a hole in a look, it should leave a look with one fewer
+   thing in it. */
+function lookPieces(look,cl){
+  const out=[];
+  CATS.forEach(cat=>{
+    const v=look&&look.items?look.items[cat]:null;
+    (Array.isArray(v)?v:(v?[v]:[])).forEach(id=>{
+      const it=(cl||[]).find(c=>c.id===id);
+      if(it)out.push(it);
+    });
+  });
+  return out;
+}
+/* How dressy a look is: the dressiest thing in it that is not an accessory.
+   A cocktail dress with trainers is still a cocktail look as far as "can I
+   wear this to dinner" goes — the shoes are the part she would swap. */
+function lookDress(look,cl){
+  const real=lookPieces(look,cl).filter(i=>i.cat!==AGNOSTIC_CAT);
+  return real.length?Math.max.apply(null,real.map(i=>i.dress)):0;
+}
+/* A look fits a day when every garment in it would have been allowed on that
+   day on its own. Nothing clever: the same rule the packing optimizer uses,
+   asked of a set instead of a piece. */
+function lookFitsDay(look,cl,ev,w){
+  const pieces=lookPieces(look,cl);
+  if(!pieces.length)return false;
+  return pieces.every(it=>itemCovers(it,ev,w));
+}
+/* The saved look to offer for a day, or null.
+   Among the ones that fit, the closest to the day's dressiness wins — the
+   point of offering by name is that it is *right*, not that it is allowed —
+   and the newest breaks a tie, because a look she made last week is more
+   likely the one she means than one from a year ago. */
+function bestLookFor(list,cl,ev,w){
+  const fits=(list||[]).filter(l=>lookFitsDay(l,cl,ev,w));
+  if(!fits.length)return null;
+  return fits.slice().sort((a,b)=>{
+    const da=lookDress(a,cl)-ev.dress,db=lookDress(b,cl)-ev.dress;
+    if(da!==db)return da-db;
+    return (b.created||0)-(a.created||0);
+  })[0];
+}
+/* A look, worn on a day. A copy, deliberately: editing what she wore in
+   Kerala should not rewrite the look, and editing the look should not rewrite
+   Kerala. `fromLook` is a note about where it came from, not a live link. */
+function lookToOutfit(look,date,newId){
+  const items={};
+  Object.keys((look&&look.items)||{}).forEach(cat=>{
+    const v=look.items[cat];
+    if(Array.isArray(v)){if(v.length)items[cat]=v.slice();}
+    else if(v)items[cat]=v;
+  });
+  return {id:newId,name:(look&&look.name)||"Saved look",date:date||"",items,fromLook:look?look.id:null};
+}
+/* ==== /LOOKS pure ==== */
 function pick(cat,dl,wt,opts={}){
   const cands=closet.filter(c=>c.cat===cat);if(!cands.length)return null;
   const agn=cat===AGNOSTIC_CAT; // accessories: ignore dressiness & weather
@@ -931,7 +1144,7 @@ function outfitCardHtml(o){
   const slots=slotsArr.join("");
   return `<div class="ocard" draggable="true" data-id="${o.id}">
     <div class="row"><span class="grip" title="Drag to move">⠿</span><span class="event-title">${esc(o.name)}</span>${o.suggested?'<span class="chip">suggested</span>':""}
-      <span class="right"><button class="iconbtn" title="Edit outfit" onclick="openOutfitModal('${o.id}')">✎</button> <button class="iconbtn del" title="Delete outfit" onclick="deleteOutfit('${o.id}')">🗑</button></span></div>
+      <span class="right"><button class="iconbtn" title="Save this as a reusable look" onclick="saveOutfitAsLook('${o.id}')">★</button> <button class="iconbtn" title="Edit outfit" onclick="openOutfitModal('${o.id}')">✎</button> <button class="iconbtn del" title="Delete outfit" onclick="deleteOutfit('${o.id}')">🗑</button></span></div>
     <div class="outfit">${slots||'<span class="muted small">empty — click Edit to add items</span>'}</div></div>`;
 }
 function renderPlan(t){
@@ -960,7 +1173,16 @@ function renderPlan(t){
     daysHtml+=`<div class="card daycard${dayDone?" done":""}"><div class="day-head"><span class="day-date">${dlabel}</span>${weatherPill(w)}<button class="daydone right" onclick="toggleDayDone('${d}')" title="Mark this day done planning (visual only)">${dayDone?"✓ Planned":"Mark planned"}</button></div>`;
     if(dayEvents.length)daysHtml+=`<div class="muted small" style="margin-bottom:8px">${dayEvents.map(e=>esc(e.name||EVENT_TYPES[e.type])+" · "+DRESS[e.dress-1]).join("  •  ")}</div>`;
     daysHtml+=`<div class="dropzone dayzone" data-date="${d}">${dayOutfits.map(outfitCardHtml).join("")||'<div class="dz-empty">No looks yet — add or suggest one, or drag a look here</div>'}</div>`;
-    daysHtml+=`<div class="row" style="margin-top:8px"><button class="btn-ghost btn-sm" onclick="addLookForDay('${d}')">+ Add a look</button><button class="btn-ghost btn-sm" onclick="suggestLookForDay('${d}')">✨ Suggest a look</button>${dayOutfits.length>1?`<span class="muted small right">${dayOutfits.length} looks</span>`:""}</div></div>`;
+    /* When the day is empty and one of her saved looks is right for it, say
+       so by name. This is the whole reason for saving them: not a shortcut
+       she has to remember to reach for, but the answer offered. */
+    if(!dayOutfits.length){
+      const evs=t.events.filter(e=>(e.date||"")===d);
+      const ev={dress:evs.length?Math.max.apply(null,evs.map(e=>e.dress)):2};
+      const mine=bestLookFor(looks,closet,ev,w);
+      if(mine)daysHtml+=`<div class="row" style="margin-top:8px"><span class="muted small">Your look <b>${esc(mine.name)}</b> would work here</span><button class="btn btn-sm right" onclick="wearThisLook('${mine.id}','${d}')">Wear it</button></div>`;
+    }
+    daysHtml+=`<div class="row" style="margin-top:8px"><button class="btn-ghost btn-sm" onclick="addLookForDay('${d}')">+ Build one</button><button class="btn-ghost btn-sm" onclick="openWearModal('${d}')">👗 Saved look</button><button class="btn-ghost btn-sm" onclick="suggestLookForDay('${d}')">✨ Suggest</button>${dayOutfits.length>1?`<span class="muted small right">${dayOutfits.length} looks</span>`:""}</div></div>`;
   }
   html+=`<div class="day-grid">${daysHtml}</div>`;
   el.innerHTML=html;
@@ -968,14 +1190,6 @@ function renderPlan(t){
 }
 
 /* ================= PACKING OPTIMIZER ================= */
-function itemCovers(item,ev,w){
-  if(item.cat===AGNOSTIC_CAT)return true; // accessories go with anything
-  const wt=warmthTarget(w);
-  const dressOk=item.dress>=ev.dress&&item.dress-ev.dress<=2;
-  const warmthMatters=(item.cat==="Bottoms"||item.cat==="Outerwear");
-  const warmOk=!warmthMatters||Math.abs(item.warmth-wt)<=2;
-  return dressOk&&warmOk;
-}
 function greedyCover(cat,needs){
   const items=closet.filter(c=>c.cat===cat);
   let pool=needs.map((n,i)=>i);const chosen=[];let g=0;
@@ -1287,6 +1501,15 @@ function suggestLookForDay(date){
   const t=trips.find(x=>x.id===currentTripId);const ps=PS(t);
   const w=effWeather(t,date);
   const ev=t.events.filter(e=>(e.date||"")===date).sort((a,b)=>b.dress-a.dress)[0]||{dress:2,type:0};
+  /* Her own combinations beat the algorithm's. If a saved look is right for
+     this day, that is the suggestion — assembling one from loose pieces is
+     what to do when nothing she has already approved of fits. */
+  const saved=bestLookFor(looks,closet,ev,w);
+  if(saved){
+    ps.customOutfits.push(lookToOutfit(saved,date,uid()));
+    persist();renderPlan(t);renderPack(t);toast(`Your look “${saved.name}” — edit or delete it like any other`);
+    return;
+  }
   const items={};buildOutfit(ev,w).forEach(([role,it])=>{if(it)items[it.cat]=it.id;});
   if(!Object.keys(items).length){toast("Add clothes to your closet first");return;}
   ps.customOutfits.push({id:uid(),name:(ev.name?ev.name+" look":"Suggested look"),date,items,suggested:true});
@@ -1300,48 +1523,63 @@ function openOutfitModal(id,presetDate){
   outfitId.value=id||"";
   outfitName.value=ex?ex.name:"";
   outfitEvent.value=ex?(ex.date||""):(presetDate||"");
-  outfitSlots.innerHTML=CATS.map(cat=>{
+  outfitSlots.innerHTML=slotsHtmlFor(ex&&ex.items,"accList","dl");
+  document.getElementById("outfitModal").showModal();
+}
+/* One builder for both modals — a look and a trip outfit ask exactly the same
+   question, and the second copy of this would be the one that stopped
+   matching. `ns` namespaces the datalists so two modals in one document do not
+   share them; `accId` names the accessory list so + Add accessory adds to the
+   one that is open. */
+function slotsHtmlFor(exItems,accId,ns){
+  return CATS.map(cat=>{
     const items=closet.filter(c=>c.cat===cat);
-    const dlId="dl_"+cat.replace(/\W/g,"");
+    const dlId=ns+"_"+cat.replace(/\W/g,"");
     const opts=items.map(it=>`<option value="${esc(it.name)}">`).join("");
     if(cat===AGNOSTIC_CAT){ // accessories: allow multiple
-      const v=ex&&ex.items?ex.items[cat]:null;
+      const v=exItems?exItems[cat]:null;
       const arr=Array.isArray(v)?v:(v?[v]:[]);
       const names=arr.map(id=>{const it=closet.find(c=>c.id===id);return it?it.name:"";}).filter(Boolean);
-      const inputs=(names.length?names:[""]).map(nm=>accInput(nm)).join("");
+      const inputs=(names.length?names:[""]).map(nm=>accInput(nm,dlId)).join("");
       return `<div style="margin-bottom:8px"><label>${ICONS[cat]} ${cat} <span class="muted" style="font-weight:400">· add as many as you like</span></label>
         <datalist id="${dlId}">${opts}</datalist>
-        <div id="accList">${inputs}</div>
-        <button type="button" class="btn-ghost btn-sm" style="margin-top:2px" onclick="addAccInput()">+ Add accessory</button></div>`;
+        <div id="${accId}">${inputs}</div>
+        <button type="button" class="btn-ghost btn-sm" style="margin-top:2px" onclick="addAccInput('${accId}','${dlId}')">+ Add accessory</button></div>`;
     }
-    const selId=ex&&ex.items?ex.items[cat]:"";
+    const selId=exItems?exItems[cat]:"";
     const selItem=selId?closet.find(c=>c.id===selId):null;
     return `<div style="margin-bottom:8px"><label>${ICONS[cat]} ${cat}</label>
       <input class="ofIn" data-cat="${cat}" list="${dlId}" placeholder="Type a new item or pick one…" value="${selItem?esc(selItem.name):""}">
       <datalist id="${dlId}">${opts}</datalist></div>`;
   }).join("");
-  document.getElementById("outfitModal").showModal();
 }
-function accInput(nm){return `<input class="ofIn" data-cat="${AGNOSTIC_CAT}" list="dl_${AGNOSTIC_CAT}" placeholder="Type or pick an accessory…" value="${esc(nm)}" style="margin-bottom:6px">`;}
-function addAccInput(){document.getElementById("accList").insertAdjacentHTML("beforeend",accInput(""));}
+function accInput(nm,dlId){return `<input class="ofIn" data-cat="${AGNOSTIC_CAT}" list="${dlId}" placeholder="Type or pick an accessory…" value="${esc(nm)}" style="margin-bottom:6px">`;}
+function addAccInput(accId,dlId){document.getElementById(accId).insertAdjacentHTML("beforeend",accInput("",dlId));}
+/* Read a set of slots back into {cat: id | [ids]}, saving anything typed by
+   hand straight into the closet — the same behaviour the outfit builder has
+   always had, because "type it and it's yours" is why she uses it. */
+function readSlots(container,defaultDress){
+  const items={};let created=0;const accIds=[];
+  container.querySelectorAll(".ofIn").forEach(inp=>{
+    const cat=inp.dataset.cat,val=inp.value.trim();if(!val)return;
+    let it=closet.find(c=>c.cat===cat&&c.name.toLowerCase()===val.toLowerCase());
+    if(!it){
+      const isAcc=cat===AGNOSTIC_CAT;
+      it={id:uid(),cat,name:val,color:"",dress:isAcc?1:defaultDress,warmth:3,rain:false,style:"Everyday",notes:"",img:""};
+      closet.push(it);created++;
+    }
+    if(cat===AGNOSTIC_CAT){if(!accIds.includes(it.id))accIds.push(it.id);}
+    else items[cat]=it.id;
+  });
+  if(accIds.length)items[AGNOSTIC_CAT]=accIds;
+  return {items,created};
+}
 function saveOutfit(){
   const t=trips.find(x=>x.id===currentTripId);const ps=PS(t);
   const date=outfitEvent.value||"";
   const evs=t.events.filter(e=>(e.date||"")===date);
   const evDress=evs.length?Math.max(...evs.map(e=>e.dress)):2;
-  const items={};let created=0;const accIds=[];
-  outfitSlots.querySelectorAll(".ofIn").forEach(inp=>{
-    const cat=inp.dataset.cat,val=inp.value.trim();if(!val)return;
-    let it=closet.find(c=>c.cat===cat&&c.name.toLowerCase()===val.toLowerCase());
-    if(!it){ // typed a new item -> save it back to the closet DB
-      const isAcc=cat===AGNOSTIC_CAT;
-      it={id:uid(),cat,name:val,color:"",dress:isAcc?1:evDress,warmth:3,rain:false,style:"Everyday",notes:"",img:""};
-      closet.push(it);created++;
-    }
-    if(cat===AGNOSTIC_CAT){if(!accIds.includes(it.id))accIds.push(it.id);} // accessories -> array
-    else items[cat]=it.id;
-  });
-  if(accIds.length)items[AGNOSTIC_CAT]=accIds;
+  const {items,created}=readSlots(outfitSlots,evDress);
   if(!Object.keys(items).length){toast("Type or pick at least one item");return;}
   const obj={id:outfitId.value||uid(),name:outfitName.value.trim()||"My outfit",date,items};
   if(outfitId.value)ps.customOutfits=ps.customOutfits.map(o=>o.id===obj.id?obj:o);else ps.customOutfits.push(obj);
@@ -1354,7 +1592,7 @@ function deleteOutfit(id){
 }
 
 /* ---------- init ---------- */
-renderProfiles();renderCloset();renderTripList();renderEssMaster();
+renderProfiles();renderCloset();renderLooks();renderTripList();renderEssMaster();
 </script>
 </body>
 </html>

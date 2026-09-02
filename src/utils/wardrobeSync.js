@@ -13,7 +13,7 @@
  * worst overwrites work she just did.
  */
 
-/** The six keys the planner actually persists. Nothing else is mirrored. */
+/** The seven keys the planner actually persists. Nothing else is mirrored. */
 export const WARDROBE_KEYS = [
     'trips',
     'profiles',
@@ -21,6 +21,9 @@ export const WARDROBE_KEYS = [
     'closets',
     'essAll',
     'essCatsAll',
+    // Saved looks. A combination she worked out once is exactly the kind of
+    // thing that must not live one cleared browser away from gone.
+    'looksAll',
 ];
 
 /** The planner namespaces everything; the database does not need to. */
