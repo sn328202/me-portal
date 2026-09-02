@@ -1565,6 +1565,34 @@ input.stays__link:focus {
 
 .btn.ideas__copy:disabled { opacity: 0.4; cursor: default; }
 
+/* Shown only when both copy routes failed. A button that says "Copied" when
+   nothing was copied is worse than one that admits it and hands over the
+   text. */
+.ideas__spill {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+    padding: var(--space-3);
+    border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-sm);
+}
+
+.ideas__spill p {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+textarea.ideas__spill-text {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug, 1.4);
+    resize: vertical;
+}
+
 .ideas__columns {
     display: grid;
     grid-template-columns: 1fr 1fr;

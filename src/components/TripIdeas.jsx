@@ -268,6 +268,8 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
        choosing a day for one idea chose it for all of them. */
     const [target, setTarget] = useState({});
     const [copied, setCopied] = useState(false);
+    /* The text itself, shown only when the clipboard would not take it. */
+    const [spilled, setSpilled] = useState(null);
 
     const all = [...(hooks.toDo || []), ...(hooks.toEat || []), ...(hooks.toStay || [])];
     const sendable = countable(all);
@@ -275,12 +277,21 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
     const copyOut = async () => {
         const text = ideasAsText(all, { tripName: trip?.destination, currency });
         if (!text) return;
-        try {
-            await navigator.clipboard.writeText(text);
-        } catch {
-            /* A clipboard the browser will not hand over — an insecure origin,
-               a permission refused — should not end with nothing having
-               happened. The oldest trick still works everywhere. */
+
+        /* Three ways this fails and all of them are silent: no clipboard on an
+           insecure origin, a permission refused, and — the one that caught me —
+           a writeText that never settles because the page is not focused. So
+           it is raced against a clock, and nothing claims success until one of
+           the two routes has actually reported it. */
+        const wrote = await Promise.race([
+            navigator.clipboard?.writeText(text).then(() => true, () => false)
+                ?? Promise.resolve(false),
+            new Promise((yes) => { setTimeout(() => yes(false), 1200); }),
+        ]);
+
+        let ok = wrote;
+        if (!ok) {
+            // The oldest trick, which works in places the new API does not.
             const box = document.createElement('textarea');
             box.value = text;
             box.setAttribute('readonly', '');
@@ -288,10 +299,20 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
             box.style.opacity = '0';
             document.body.appendChild(box);
             box.select();
-            try { document.execCommand('copy'); } finally { box.remove(); }
+            try { ok = document.execCommand('copy'); } catch { ok = false; } finally { box.remove(); }
         }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+
+        if (ok) {
+            setSpilled(null);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+            return;
+        }
+
+        /* Neither route worked. A button that says "Copied" when nothing was
+           copied is worse than one that admits it, so the text comes out onto
+           the page where she can select it herself. */
+        setSpilled(text);
     };
 
     if (!trip) return null;
@@ -390,6 +411,21 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
                     {copied ? '✓ Copied' : `Copy ${sendable || ''} to send`.trim()}
                 </Button>
             </header>
+
+            {spilled && (
+                <div className="ideas__spill">
+                    <p>Your browser would not hand over the clipboard. Here it is — select it and copy.</p>
+                    <textarea
+                        readOnly
+                        className="textarea ideas__spill-text"
+                        aria-label="The ideas as text"
+                        value={spilled}
+                        rows={Math.min(16, spilled.split('\n').length + 1)}
+                        ref={(el) => { if (el) { el.focus(); el.select(); } }}
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => setSpilled(null)}>Close</Button>
+                </div>
+            )}
 
             <div className="ideas__columns">
                 <Column
