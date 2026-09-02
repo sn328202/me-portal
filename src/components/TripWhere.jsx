@@ -33,6 +33,96 @@ import PlaceField from './PlaceField';
  *   statement about where you will be. It says so before it does it.
  */
 
+/**
+ * One booking, under the stretch it covers.
+ *
+ * At module scope on purpose. Defined inside TripWhere it would be a new
+ * component type on every render, so React would tear the whole row down and
+ * build it again — which in a row made of text inputs means the field loses
+ * focus after every single keystroke.
+ */
+const Bed = ({ stay, currency, partySize, onUpdate, onDelete, onPin }) => {
+    const nights = nightsOf(stay);
+    const each = nights.length
+        ? perPerson(stay.cost, stay.cost_shared !== false, partySize) / nights.length / 100
+        : 0;
+
+    return (
+        <li className="bed">
+            <input
+                type="text"
+                className="bed__name"
+                value={stay.name}
+                aria-label="Where you are sleeping"
+                onChange={(e) => onUpdate(stay.id, { name: e.target.value })}
+            />
+            <DateField
+                value={stay.check_in}
+                aria-label="Check in"
+                onCommit={(v) => onUpdate(stay.id, { check_in: v || null })}
+            />
+            <DateField
+                value={stay.check_out}
+                aria-label="Check out"
+                onCommit={(v) => onUpdate(stay.id, { check_out: v || null })}
+            />
+            <button
+                type="button"
+                className="bed__drop"
+                aria-label={`Remove ${stay.name}`}
+                onClick={() => onDelete(stay.id)}
+            >
+                <GiTrashCan />
+            </button>
+
+            <input
+                type="number"
+                inputMode="decimal"
+                className="bed__cost"
+                value={stay.cost ?? ''}
+                aria-label="Total cost"
+                onChange={(e) => onUpdate(stay.id, { cost: e.target.value === '' ? 0 : e.target.value })}
+            />
+            <span className="bed__each">
+                {nights.length} {nights.length === 1 ? 'night' : 'nights'}
+                <em>{formatMoney(each, currency)} pp / night</em>
+                {/* The city, as a feature of the booking rather than a second
+                    thing to type: Google told us when the place was picked. */}
+                {stay.city && <em className="bed__city">{stay.city}</em>}
+            </span>
+
+            {/* A hotel has an address; an Airbnb has a link and no address
+                until the week before. Both offered, neither required. */}
+            <PlaceField
+                className="bed__place"
+                location={stay.address}
+                link={stay.place_id
+                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address || stay.name)}&query_place_id=${stay.place_id}`
+                    : null}
+                label={stay.name || 'this stay'}
+                onPick={onPin}
+                onClear={stay.address
+                    ? () => onUpdate(stay.id, { address: null, place_id: null })
+                    : undefined}
+            />
+
+            <input
+                type="url"
+                className="bed__link"
+                placeholder="Booking link (Airbnb, hotel…)"
+                aria-label={`Link for ${stay.name || 'this stay'}`}
+                value={stay.link || ''}
+                onChange={(e) => onUpdate(stay.id, { link: e.target.value.trim() || null })}
+            />
+            {stay.link && (
+                <a className="bed__open" href={stay.link} target="_blank" rel="noopener noreferrer">
+                    Open the booking ↗
+                </a>
+            )}
+        </li>
+    );
+};
+
 const TripWhere = ({
     legs, stays, days, items, costs, currency, partySize = 1, tripStart, tripEnd,
     onAddLeg, onUpdateLeg, onDeleteLeg,
@@ -121,85 +211,6 @@ const TripWhere = ({
         const city = String(stay.city || '').trim();
         const leg = legFromStay(stay, city, legs);
         if (leg) onAddLeg(leg);
-    };
-
-    const Bed = ({ stay, row }) => {
-        const nights = nightsOf(stay);
-        const each = nights.length
-            ? perPerson(stay.cost, stay.cost_shared !== false, partySize) / nights.length / 100
-            : 0;
-
-        return (
-            <li className="bed">
-                <input
-                    type="text"
-                    className="bed__name"
-                    value={stay.name}
-                    aria-label="Where you are sleeping"
-                    onChange={(e) => onUpdateStay(stay.id, { name: e.target.value })}
-                />
-                <DateField
-                    value={stay.check_in}
-                    aria-label="Check in"
-                    onCommit={(v) => onUpdateStay(stay.id, { check_in: v || null })}
-                />
-                <DateField
-                    value={stay.check_out}
-                    aria-label="Check out"
-                    onCommit={(v) => onUpdateStay(stay.id, { check_out: v || null })}
-                />
-                <button
-                    type="button"
-                    className="bed__drop"
-                    aria-label={`Remove ${stay.name}`}
-                    onClick={() => onDeleteStay(stay.id)}
-                >
-                    <GiTrashCan />
-                </button>
-
-                <input
-                    type="number"
-                    inputMode="decimal"
-                    className="bed__cost"
-                    value={stay.cost ?? ''}
-                    aria-label="Total cost"
-                    onChange={(e) => onUpdateStay(stay.id, { cost: e.target.value === '' ? 0 : e.target.value })}
-                />
-                <span className="bed__each">
-                    {nights.length} {nights.length === 1 ? 'night' : 'nights'}
-                    <em>{formatMoney(each, currency)} pp / night</em>
-                </span>
-
-                {/* A hotel has an address; an Airbnb has a link and no address
-                    until the week before. Both offered, neither required. */}
-                <PlaceField
-                    className="bed__place"
-                    location={stay.address}
-                    link={stay.place_id
-                        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address || stay.name)}&query_place_id=${stay.place_id}`
-                        : null}
-                    label={stay.name || 'this stay'}
-                    onPick={pinStay(stay, row)}
-                    onClear={stay.address
-                        ? () => onUpdateStay(stay.id, { address: null, place_id: null })
-                        : undefined}
-                />
-
-                <input
-                    type="url"
-                    className="bed__link"
-                    placeholder="Booking link (Airbnb, hotel…)"
-                    aria-label={`Link for ${stay.name || 'this stay'}`}
-                    value={stay.link || ''}
-                    onChange={(e) => onUpdateStay(stay.id, { link: e.target.value.trim() || null })}
-                />
-                {stay.link && (
-                    <a className="bed__open" href={stay.link} target="_blank" rel="noopener noreferrer">
-                        Open the booking ↗
-                    </a>
-                )}
-            </li>
-        );
     };
 
     return (
@@ -292,7 +303,15 @@ const TripWhere = ({
                                 <div className="stretch__beds">
                                     <ul className="beds">
                                         {row.lodging.map((stay) => (
-                                            <Bed key={stay.id} stay={stay} row={row} />
+                                            <Bed
+                                                key={stay.id}
+                                                stay={stay}
+                                                currency={currency}
+                                                partySize={partySize}
+                                                onUpdate={onUpdateStay}
+                                                onDelete={onDeleteStay}
+                                                onPin={pinStay(stay, row)}
+                                            />
                                         ))}
                                     </ul>
 

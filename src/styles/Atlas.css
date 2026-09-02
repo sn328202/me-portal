@@ -2837,3 +2837,12 @@ textarea.expedition__notes:focus {
     flex-wrap: wrap;
     margin-top: var(--space-2);
 }
+
+/* The city, as a feature of the booking. Google told us when the place was
+   picked, so it is a fact about the hotel rather than a second field. */
+.bed__city {
+    color: var(--text-muted);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    font-size: var(--text-2xs);
+}
