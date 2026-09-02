@@ -3,12 +3,13 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 /**
- * Restaurant reservations — the tables actually held.
+ * Bookings — the tables, tastings, shows and slots actually held.
  *
- * Spots answers "where do I want to go". This answers "where am I going, and
- * when". They are joined by `spot_id` so a booking made from the library keeps
- * pointing at the place, and eating there can settle the spot in one action
- * instead of two.
+ * It used to be joined to a Spots library by `spot_id`, so eating somewhere
+ * could settle the spot in the same action. Spots is gone: a place she wants
+ * to go is an idea on the Atlas board now, and an idea is settled by being put
+ * on a day, which is a better answer than a status column anybody had to
+ * remember to tick. The link and the column went with it.
  */
 export const useReservations = () => {
     const { user } = useAuth();
@@ -59,10 +60,10 @@ export const useReservations = () => {
     const addReservation = async (fields) => {
         if (!user) throw new Error('Not authenticated');
         const row = {
-            /* `name`, not `restaurant`. The Table Book holds every booking now
-               — a tasting, a show, a museum slot — and only the column name
-               was still insisting otherwise. The old column is kept in step by
-               a trigger until Stage 5 drops it. */
+            /* `name`, not `restaurant`. The Table Book holds every booking
+               now — a tasting, a show, a museum slot — and only the column
+               name was still insisting otherwise. The old column and the
+               trigger that kept it in step are gone. */
             name: fields.name,
             kind: fields.kind || 'table',
             starts_at: fields.starts_at,
@@ -76,7 +77,6 @@ export const useReservations = () => {
             cancel_by: fields.cancel_by || null,
             cancel_fee: fields.cancel_fee || null,
             notes: fields.notes || null,
-            spot_id: fields.spot_id || null,
             status: fields.status || 'booked',
             source: fields.source || 'manual',
             user_id: user.id,
@@ -88,15 +88,6 @@ export const useReservations = () => {
         return data;
     };
 
-    /** Book something at a place already in the spots library, keeping the link. */
-    const bookSpot = (spot, fields) => addReservation({
-        ...fields,
-        name: spot.name,
-        city: fields.city || spot.city || null,
-        address: fields.address || spot.address || null,
-        phone: fields.phone || spot.phone || null,
-        spot_id: spot.id,
-    });
 
     const updateReservation = async (id, patch) => {
         if (!user) return;
@@ -109,21 +100,8 @@ export const useReservations = () => {
         }
     };
 
-    /**
-     * She ate there. If the booking came from a saved spot, that spot has now
-     * been visited — settling both here means she never has to remember to go
-     * back to the library and tick it off.
-     */
-    const markDined = async (reservation) => {
-        await updateReservation(reservation.id, { status: 'dined' });
-        if (reservation.spot_id && user) {
-            await supabase
-                .from('spots')
-                .update({ status: 'been', visited_at: reservation.starts_at })
-                .eq('id', reservation.spot_id)
-                .eq('user_id', user.id);
-        }
-    };
+    /** She ate there. */
+    const markDined = (reservation) => updateReservation(reservation.id, { status: 'dined' });
 
     const cancelReservation = (reservation) =>
         updateReservation(reservation.id, { status: 'cancelled' });
@@ -153,7 +131,7 @@ export const useReservations = () => {
 
     return {
         reservations, upcoming, past, loading, error,
-        addReservation, bookSpot, updateReservation,
+        addReservation, updateReservation,
         markDined, cancelReservation, deleteReservation,
         refresh: fetchReservations,
     };

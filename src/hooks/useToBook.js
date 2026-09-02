@@ -55,7 +55,7 @@ export const useToBook = () => {
         setItems((list) => list.filter((i) => i.id !== id));
         const { error: err } = await supabase
             .from('atlas_day_items')
-            .update({ booking: 'booked', booked: true })
+            .update({ booking: 'booked' })
             .eq('id', id);
         if (err) { setError('That would not save — it is still to book.'); load(); }
     }, [load]);

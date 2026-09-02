@@ -72,14 +72,13 @@ export const plus = (time, minutes) => {
 
 /** A reservation as a row of `atlas_day_items`. */
 export const asAtlasItem = (r) => ({
-    title: String(r?.name || r?.restaurant || '').trim() || 'Reservation',
+    title: String(r?.name || '').trim() || 'Reservation',
     // A booked table is food, and belongs in the trip's food total.
     kind: 'food',
     /* It came from the Table Book, so it is booked — that is the whole
        claim a reservation makes. And it points at the booking rather than
        copying it, so changing the booking changes what the day shows. */
     booking: 'booked',
-    booked: true,
     booked_id: r?.id || null,
     start_time: localTime(r?.starts_at),
     end_time: plus(localTime(r?.starts_at), DEFAULT_TABLE),

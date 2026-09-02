@@ -34,14 +34,18 @@ const BY_ID = Object.fromEntries(STATES.map((s) => [s.id, s]));
  * What state a stop is in.
  *
  * A stop pointing at a reservation is booked whatever anything else says: it
- * *is* a booking. Older rows carry the boolean this replaced, so that is read
- * too rather than quietly resetting them to "nothing to book".
+ * *is* a booking. Anything else is whichever of the three states it names, and
+ * a word nobody recognises is not a state.
+ *
+ * The boolean this replaced used to be read here as a fallback for rows
+ * written before the three states existed. Those rows were migrated into
+ * `booking` and the column has been dropped, so there is nothing left to fall
+ * back to and pretending otherwise would only mislead the next reader.
  */
 export const stateOf = (stop) => {
     if (stop?.booked_id) return 'booked';
     const named = String(stop?.booking || '').trim();
-    if (BY_ID[named]) return named;
-    return stop?.booked ? 'booked' : 'none';
+    return BY_ID[named] ? named : 'none';
 };
 
 /** Round the loop: nothing to book → to book → booked → nothing to book. */

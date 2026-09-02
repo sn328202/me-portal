@@ -66,7 +66,7 @@ const ROW = {
     id: 'a1', title: 'Lunch at Arquet', start_time: '12:00:00', end_time: '13:30:00',
     location: 'Arquet, SF', link: 'https://maps', notes: 'book ahead', cost: '100.00',
     cost_shared: true, icon: '🥗', travel_note: null, place_id: 'p1', place_data: { rating: 4.5 },
-    spot_id: 's1', booked_id: null, kind: 'other', colour: 2, sort_order: 1,
+    booked_id: null, kind: 'other', colour: 2, sort_order: 1,
 };
 
 t('a row becomes something the editor already knows how to hold', () => {
@@ -87,7 +87,6 @@ t('and goes back without losing anything', () => {
     assert.equal(back.cost, 100);
     assert.equal(back.sort_order, 3);
     assert.equal(back.day_id, 'd1');
-    assert.equal(back.spot_id, 's1');
     assert.equal(back.colour, 2);
 });
 
@@ -178,9 +177,11 @@ t('a stop knows which of the three it is', () => {
     assert.equal(toStop({ id: 'a', title: 'Dinner', booking: 'booked' }).booking, 'booked');
 });
 
-t('a row from before the third state existed still reads right', () => {
-    assert.equal(toStop({ id: 'a', title: 'Dinner', booked: true }).booking, 'booked');
-    assert.equal(toStop({ id: 'a', title: 'Walk', booked: false }).booking, 'none');
+t('the boolean the three states replaced is not written or read', () => {
+    // The column is dropped. Rows that had it were migrated into `booking`
+    // first, so a `booked` arriving from anywhere is noise.
+    assert.equal(toStop({ id: 'a', title: 'Dinner', booked: true }).booking, 'none');
+    assert.equal('booked' in toRow({ activity: 'x', booking: 'booked' }, {}), false);
 });
 
 t('a stop that came from the Table Book is booked by definition', () => {
@@ -193,8 +194,6 @@ t('a stop that came from the Table Book is booked by definition', () => {
 t('and the state survives the round trip', () => {
     assert.equal(toRow({ activity: 'x', booking: 'todo' }, {}).booking, 'todo');
     assert.equal(toRow({ activity: 'x' }, {}).booking, 'none');
-    // The old boolean is kept in step so nothing reading it goes wrong.
-    assert.equal(toRow({ activity: 'x', booking: 'booked' }, {}).booked, true);
 });
 
 console.log(`\n${n} passed`);

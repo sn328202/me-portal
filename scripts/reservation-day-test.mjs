@@ -37,17 +37,17 @@ check('and no time either', localTime(null), null);
 
 console.log('\nwhat gets written under the name:');
 const r = {
-    restaurant: 'Nari', starts_at: evening, party_size: 4, seating: 'Main dining room',
+    name: 'Nari', starts_at: evening, party_size: 4, seating: 'Main dining room',
     platform: 'Resy', confirmation: 'RSY-8841Q', address: '1625 Post St, San Francisco',
     maps_url: 'https://maps.google.com/?cid=1',
 };
 check('everything worth reading at the door', bookingNote(r),
     'Party of 4 · Main dining room · Booked via Resy · Confirmation RSY-8841Q');
-check('a bare booking says little', bookingNote({ restaurant: 'X' }), '');
+check('a bare booking says little', bookingNote({ name: 'X' }), '');
 
 console.log('\nas a trip item:');
 const atlas = asAtlasItem(r);
-check('the restaurant is the title', atlas.title, 'Nari');
+check('the booking names the card', atlas.title, 'Nari');
 check('a table is food, so it counts as food', atlas.kind, 'food');
 check('with its local time', atlas.start_time, '20:45:00');
 check('a table runs two hours unless told otherwise', atlas.end_time, '22:45:00');

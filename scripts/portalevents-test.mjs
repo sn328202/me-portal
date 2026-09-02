@@ -120,14 +120,14 @@ console.log(`portalEvents: ${n} passed`);
         const days = { 7: [{ id: 70, date: '2026-12-24' }] };
         const items = {
             70: [
-                { id: 1, title: 'Was an itinerary card once', start_time: '13:00:00', from_plan_id: 'abc' },
-                { id: 2, title: 'Added in the Atlas', start_time: '15:00:00', from_plan_id: null },
+                { id: 1, title: 'An early stop', start_time: '13:00:00' },
+                { id: 2, title: 'A later one', start_time: '15:00:00' },
             ],
         };
         const trips = [{ id: 7, destination: 'Goa', start_date: '2026-12-24', end_date: '2026-12-24' }];
 
         const stops = tripEvents(trips, days, items).filter((e) => !e.allDay);
-        assert.deepEqual(stops.map((e) => e.title), ['Was an itinerary card once', 'Added in the Atlas']);
+        assert.deepEqual(stops.map((e) => e.title), ['An early stop', 'A later one']);
     });
 
     t(() => {

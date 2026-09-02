@@ -15,11 +15,12 @@ t('a stop from the Table Book is booked whatever else it says', () => {
     assert.equal(stateOf({ booked_id: 'r1', booking: 'todo' }), 'booked');
 });
 
-t('the boolean this replaced is still read', () => {
-    // Rows written before the third state existed must not silently become
-    // "nothing to book".
-    assert.equal(stateOf({ booked: true }), 'booked');
-    assert.equal(stateOf({ booked: false }), 'none');
+t('the boolean this replaced is gone, and is not read', () => {
+    // Every row that carried it was migrated into `booking` before the column
+    // was dropped, so a stray `booked` is not evidence of anything — reading
+    // it would only resurrect a field nothing writes.
+    assert.equal(stateOf({ booked: true }), 'none');
+    assert.equal(stateOf({ booked: true, booking: 'booked' }), 'booked');
 });
 
 t('a state nobody recognises is not a state', () => {
