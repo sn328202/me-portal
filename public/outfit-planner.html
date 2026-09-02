@@ -692,18 +692,39 @@ function renderCloset(){
 /* ================= LOOKS =================
    Combinations she already knows work, kept out of any one trip so they
    outlive it. The closet is the vocabulary; this is the sentences. */
+/* The look ids already on the trip that is open, so it is not offered twice.
+   Empty when no trip is open — the Looks shelf is not inside any trip. */
+function wornHereIds(){
+  const t=trips.find(x=>x.id===currentTripId);
+  if(!t)return [];
+  const ps=t.byProfile&&t.byProfile[activeProfile];
+  return [...new Set(((ps&&ps.customOutfits)||[]).map(o=>o&&o.fromLook).filter(Boolean))];
+}
+function shortDate(d){return d?new Date(d+"T00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):"";}
 function lookCardHtml(l){
   const pieces=lookPieces(l,closet);
   const d=lookDress(l,closet);
   const bits=pieces.map(it=>`<span class="chip">${ICONS[it.cat]||"👕"} ${esc(it.name)}</span>`).join(" ");
+  /* Worn, and where. Read off the outfits rather than counted into the look,
+     so deleting the day she wore it takes the wear with it. */
+  const wears=wearsOfLook(l.id,trips,activeProfile);
+  const last=wears[0];
+  const wornChip=wears.length
+    ? `<span class="chip" title="${esc(wears.map(x=>`${x.tripName}${x.date?" · "+shortDate(x.date):""}`).join("\n"))}">✓ worn ${wears.length}×</span>`
+    : "";
+  const wornLine=last
+    ? `<div class="muted small" style="margin-top:6px">Last worn${last.tripName?` on ${esc(last.tripName)}`:""}${last.date?` · ${esc(shortDate(last.date))}`:""}</div>`
+    : "";
   return `<div class="card" style="margin-bottom:10px">
     <div class="row"><h3 style="margin:0">${esc(l.name)}</h3>
       ${d?`<span class="chip">${DRESS[d-1]}</span>`:""}
+      ${wornChip}
       <span class="right">
         <button class="btn-ghost btn-sm" onclick="openLookModal('${l.id}')">Edit</button>
         <button class="btn-danger btn-sm" onclick="deleteLook('${l.id}')">Delete</button>
       </span></div>
     <div class="outfit" style="margin-top:8px">${bits||'<span class="muted small">nothing in it — its pieces have all left the closet</span>'}</div>
+    ${wornLine}
   </div>`;
 }
 function renderLooks(){
@@ -775,14 +796,25 @@ function openWearModal(date){
   const ev={dress:evs.length?Math.max.apply(null,evs.map(e=>e.dress)):2,type:""};
   const w=date?effWeather(t,date):null;
   wearModalTitle.textContent=date?`Wear a look on ${wdayLabel(date)}`:"Wear a saved look";
-  const fits=looks.filter(l=>lookFitsDay(l,closet,ev,w));
-  const rest=looks.filter(l=>!fits.includes(l));
-  const row=(l,ok)=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">
-    <span><b>${esc(l.name)}</b><br><span class="muted small">${lookPieces(l,closet).map(i=>esc(i.name)).join(" · ")||"empty"}</span></span>
-    <span class="right"><button class="btn${ok?"":"-ghost"} btn-sm" onclick="wearThisLook('${l.id}','${date||""}')">Wear it</button></span></div>`;
+  /* Three piles. What is already on this trip goes last and says which days
+     it is on — but it is still a button, because sometimes there is a washing
+     machine and a thing worth wearing twice. */
+  const here=new Set(wornHereIds());
+  const fresh=looks.filter(l=>!here.has(l.id));
+  const fits=fresh.filter(l=>lookFitsDay(l,closet,ev,w));
+  const rest=fresh.filter(l=>!fits.includes(l));
+  const again=looks.filter(l=>here.has(l.id));
+  const row=(l,ok)=>{
+    const on=wornInTrip(l.id,t,activeProfile).filter(Boolean).map(shortDate);
+    return `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">
+      <span><b>${esc(l.name)}</b>${on.length?` <span class="chip">✓ ${esc(on.join(", "))}</span>`:""}<br>
+        <span class="muted small">${lookPieces(l,closet).map(i=>esc(i.name)).join(" · ")||"empty"}</span></span>
+      <span class="right"><button class="btn${ok?"":"-ghost"} btn-sm" onclick="wearThisLook('${l.id}','${date||""}')">${on.length?"Wear it again":"Wear it"}</button></span></div>`;
+  };
   wearList.innerHTML=
     (fits.length?`<div class="scale-help">Right for this day</div>${fits.map(l=>row(l,true)).join("")}`:"")
-    +(rest.length?`<div class="scale-help" style="margin-top:12px">${fits.length?"The rest":"None of these quite match the day — wear one anyway"}</div>${rest.map(l=>row(l,false)).join("")}`:"");
+    +(rest.length?`<div class="scale-help" style="margin-top:12px">${fits.length?"The rest":"None of these quite match the day — wear one anyway"}</div>${rest.map(l=>row(l,false)).join("")}`:"")
+    +(again.length?`<div class="scale-help" style="margin-top:12px">Already on this trip — wear one again if you are doing laundry</div>${again.map(l=>row(l,false)).join("")}`:"");
   document.getElementById("wearModal").showModal();
 }
 
@@ -1075,13 +1107,40 @@ function lookFitsDay(look,cl,ev,w){
   if(!pieces.length)return false;
   return pieces.every(it=>itemCovers(it,ev,w));
 }
+/* Everywhere a look has been worn, newest first.
+   Derived from the outfits rather than counted into a field on the look: a
+   stored tally goes wrong the first time she deletes the outfit she wore, and
+   then the look claims a Tuesday that no longer exists. The outfits are the
+   record; this reads them. */
+function wearsOfLook(lookId,tripList,pid){
+  const out=[];
+  (tripList||[]).forEach(t=>{
+    const ps=t&&t.byProfile&&t.byProfile[pid];
+    ((ps&&ps.customOutfits)||[]).forEach(o=>{
+      if(o&&o.fromLook===lookId)out.push({tripId:t.id,tripName:t.name||"",date:o.date||""});
+    });
+  });
+  return out.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+}
+/* The dates a look is already on within one trip. */
+function wornInTrip(lookId,trip,pid){
+  const ps=trip&&trip.byProfile&&trip.byProfile[pid];
+  return ((ps&&ps.customOutfits)||[])
+    .filter(o=>o&&o.fromLook===lookId)
+    .map(o=>o.date||"")
+    .sort();
+}
 /* The saved look to offer for a day, or null.
    Among the ones that fit, the closest to the day's dressiness wins — the
    point of offering by name is that it is *right*, not that it is allowed —
    and the newest breaks a tie, because a look she made last week is more
-   likely the one she means than one from a year ago. */
-function bestLookFor(list,cl,ev,w){
-  const fits=(list||[]).filter(l=>lookFitsDay(l,cl,ev,w));
+   likely the one she means than one from a year ago.
+   `skip` is what has already been worn on this trip. Offering it again is
+   the app forgetting; she can still pick it herself, because sometimes there
+   is a washing machine. */
+function bestLookFor(list,cl,ev,w,skip){
+  const no=new Set(skip||[]);
+  const fits=(list||[]).filter(l=>lookFitsDay(l,cl,ev,w)&&!no.has(l.id));
   if(!fits.length)return null;
   return fits.slice().sort((a,b)=>{
     const da=lookDress(a,cl)-ev.dress,db=lookDress(b,cl)-ev.dress;
@@ -1179,7 +1238,9 @@ function renderPlan(t){
     if(!dayOutfits.length){
       const evs=t.events.filter(e=>(e.date||"")===d);
       const ev={dress:evs.length?Math.max.apply(null,evs.map(e=>e.dress)):2};
-      const mine=bestLookFor(looks,closet,ev,w);
+      /* Not one she is already wearing on this trip — offering it again is
+         the app forgetting she packed it. She can still choose it herself. */
+      const mine=bestLookFor(looks,closet,ev,w,wornHereIds());
       if(mine)daysHtml+=`<div class="row" style="margin-top:8px"><span class="muted small">Your look <b>${esc(mine.name)}</b> would work here</span><button class="btn btn-sm right" onclick="wearThisLook('${mine.id}','${d}')">Wear it</button></div>`;
     }
     daysHtml+=`<div class="row" style="margin-top:8px"><button class="btn-ghost btn-sm" onclick="addLookForDay('${d}')">+ Build one</button><button class="btn-ghost btn-sm" onclick="openWearModal('${d}')">👗 Saved look</button><button class="btn-ghost btn-sm" onclick="suggestLookForDay('${d}')">✨ Suggest</button>${dayOutfits.length>1?`<span class="muted small right">${dayOutfits.length} looks</span>`:""}</div></div>`;
@@ -1504,7 +1565,7 @@ function suggestLookForDay(date){
   /* Her own combinations beat the algorithm's. If a saved look is right for
      this day, that is the suggestion — assembling one from loose pieces is
      what to do when nothing she has already approved of fits. */
-  const saved=bestLookFor(looks,closet,ev,w);
+  const saved=bestLookFor(looks,closet,ev,w,wornHereIds());
   if(saved){
     ps.customOutfits.push(lookToOutfit(saved,date,uid()));
     persist();renderPlan(t);renderPack(t);toast(`Your look “${saved.name}” — edit or delete it like any other`);

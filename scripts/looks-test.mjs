@@ -21,7 +21,7 @@ const to = html.indexOf(CLOSE);
 assert.ok(from > 0 && to > from, 'the pure block is still in the planner, between its sentinels');
 
 const source = html.slice(from, to);
-for (const fn of ['warmthTarget', 'itemCovers', 'lookPieces', 'lookDress', 'lookFitsDay', 'bestLookFor', 'lookToOutfit']) {
+for (const fn of ['warmthTarget', 'itemCovers', 'lookPieces', 'lookDress', 'lookFitsDay', 'bestLookFor', 'lookToOutfit', 'wearsOfLook', 'wornInTrip']) {
     assert.ok(source.includes(`function ${fn}(`), `${fn} lives in the pure block`);
 }
 
@@ -30,8 +30,10 @@ const CATS = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories',
 const AGNOSTIC_CAT = 'Accessories';
 const {
     warmthTarget, itemCovers, lookPieces, lookDress, lookFitsDay, bestLookFor, lookToOutfit,
+    wearsOfLook, wornInTrip,
 } = new Function('CATS', 'AGNOSTIC_CAT', `${source}
-    return { warmthTarget, itemCovers, lookPieces, lookDress, lookFitsDay, bestLookFor, lookToOutfit };`)(CATS, AGNOSTIC_CAT);
+    return { warmthTarget, itemCovers, lookPieces, lookDress, lookFitsDay, bestLookFor, lookToOutfit,
+             wearsOfLook, wornInTrip };`)(CATS, AGNOSTIC_CAT);
 
 let n = 0;
 const t = (name, fn) => { fn(); n += 1; console.log(`  ok  ${name}`); };
@@ -157,6 +159,82 @@ t('an empty accessory list does not become an empty slot', () => {
     assert.deepEqual(Object.keys(out.items), ['Tops']);
 });
 
+console.log('\nonce it has been worn:');
+
+const TRIPS = [
+    {
+        id: 'nyc',
+        name: 'NYC!',
+        byProfile: {
+            me: {
+                customOutfits: [
+                    { id: 'o1', name: 'Nice dinner', date: '2026-09-05', fromLook: 'dinner', items: {} },
+                    { id: 'o2', name: 'Something else', date: '2026-09-06', items: {} },
+                ],
+            },
+            adeesh: { customOutfits: [] },
+        },
+    },
+    {
+        id: 'kerala',
+        name: 'India',
+        byProfile: {
+            me: {
+                customOutfits: [
+                    { id: 'o3', name: 'Nice dinner', date: '2026-12-28', fromLook: 'dinner', items: {} },
+                    { id: 'o4', name: 'Airport day', date: '2026-12-23', fromLook: 'airport', items: {} },
+                ],
+            },
+        },
+    },
+];
+
+t('a look knows everywhere it has been worn, newest first', () => {
+    assert.deepEqual(wearsOfLook('dinner', TRIPS, 'me'), [
+        { tripId: 'kerala', tripName: 'India', date: '2026-12-28' },
+        { tripId: 'nyc', tripName: 'NYC!', date: '2026-09-05' },
+    ]);
+    assert.deepEqual(wearsOfLook('beach', TRIPS, 'me'), []);
+});
+
+t('and it is read off the outfits, not counted into the look', () => {
+    /* A tally stored on the look goes wrong the first time she deletes the
+       day she wore it, and then the look claims a Tuesday that no longer
+       exists. Delete the outfit and the wear goes with it. */
+    const trimmed = JSON.parse(JSON.stringify(TRIPS));
+    trimmed[1].byProfile.me.customOutfits = trimmed[1].byProfile.me.customOutfits.filter((o) => o.id !== 'o3');
+    assert.equal(wearsOfLook('dinner', trimmed, 'me').length, 1);
+});
+
+t('one person\u2019s wearing is not another\u2019s', () => {
+    assert.deepEqual(wearsOfLook('dinner', TRIPS, 'adeesh'), []);
+    assert.deepEqual(wearsOfLook('dinner', TRIPS, 'nobody'), []);
+});
+
+t('within one trip it knows which days', () => {
+    assert.deepEqual(wornInTrip('dinner', TRIPS[0], 'me'), ['2026-09-05']);
+    assert.deepEqual(wornInTrip('airport', TRIPS[1], 'me'), ['2026-12-23']);
+    assert.deepEqual(wornInTrip('dinner', TRIPS[1], 'adeesh'), []);
+    assert.deepEqual(wornInTrip('dinner', undefined, 'me'), []);
+});
+
+t('what is already packed is not suggested again', () => {
+    // Offering it a second time is the app forgetting she packed it.
+    assert.equal(bestLookFor(LOOKS, CLOSET, { dress: 4 }, MILD).id, 'dinner');
+    assert.equal(bestLookFor(LOOKS, CLOSET, { dress: 4 }, MILD, ['dinner']), null);
+});
+
+t('it steps down to the next one that fits rather than giving up', () => {
+    assert.equal(bestLookFor(LOOKS, CLOSET, { dress: 1 }, MILD).id, 'beach');
+    assert.equal(bestLookFor(LOOKS, CLOSET, { dress: 1 }, MILD, ['beach']).id, 'airport');
+    assert.equal(bestLookFor(LOOKS, CLOSET, { dress: 1 }, MILD, ['beach', 'airport']), null);
+});
+
+t('but skipping is only about suggesting — nothing is taken away', () => {
+    // She can still choose it herself: sometimes there is a washing machine.
+    assert.equal(lookFitsDay(LOOKS[0], CLOSET, { dress: 4 }, MILD), true);
+});
+
 console.log('\nwired into the planner:');
 
 for (const [what, needle] of [
@@ -165,8 +243,10 @@ for (const [what, needle] of [
     ['looks are persisted', 'DB.save("looksAll",looksAll)'],
     ['a trip outfit can be kept', 'function saveOutfitAsLook('],
     ['a saved one can be worn on a day', 'function wearThisLook('],
-    ['the suggester asks for hers first', 'const saved=bestLookFor(looks,closet,ev,w);'],
-    ['and an empty day is offered one by name', 'const mine=bestLookFor(looks,closet,ev,w);'],
+    ['the suggester asks for hers first', 'const saved=bestLookFor(looks,closet,ev,w,wornHereIds());'],
+    ['and an empty day is offered one by name', 'const mine=bestLookFor(looks,closet,ev,w,wornHereIds());'],
+    ['the shelf says how often each has been worn', '✓ worn ${wears.length}×'],
+    ['and the picker lets her wear one again anyway', 'Wear it again'],
 ]) {
     t(what, () => assert.ok(html.includes(needle), needle));
 }

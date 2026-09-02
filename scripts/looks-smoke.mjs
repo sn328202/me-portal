@@ -154,19 +154,87 @@ try {
         assert.deepEqual(worn.items, look.items);
     });
 
+    page.on('dialog', (d) => d.accept('Kept from the trip'));
+    await t('an outfit built on a trip can be kept as a look', async () => {
+        const before = await page.evaluate(() => JSON.parse(localStorage.getItem('op_looksAll')).me.length);
+        await page.click('#planContent .ocard button.iconbtn');
+        await page.waitForFunction((n) => JSON.parse(localStorage.getItem('op_looksAll')).me.length === n + 1, before);
+        const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('op_looksAll')).me.slice(-1)[0]);
+        assert.equal(kept.name, 'Kept from the trip');
+        assert.ok(kept.items.Tops, 'it kept what was in the outfit');
+        assert.equal(kept.fromLook, undefined, 'a look, not an outfit wearing a costume');
+        // Put it back: a second look with identical pieces would be a rival
+        // candidate for every assertion below about what gets offered.
+        await page.evaluate((id) => deleteLook(id), kept.id);
+    });
+
     await t('and the day stops offering once it is dressed', async () => {
         const first = await page.textContent('#planContent .daycard');
         assert.equal(/would work here/.test(first), false);
     });
 
-    page.on('dialog', (d) => d.accept('Kept from the trip'));
-    await t('an outfit built on a trip can be kept as a look', async () => {
-        await page.click('#planContent .ocard button.iconbtn');
-        // The prompt for a name.
-        await page.waitForTimeout(50);
-        const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('op_looksAll')).me.length);
-        assert.ok(stored >= 1);
+    console.log('\nonce it has been worn:');
+
+    await t('the shelf says so, and how often', async () => {
+        await page.click('.tab[data-tab="looks"]');
+        const text = await page.textContent('#looksGrid');
+        assert.match(text, /worn 1×/);
+        assert.match(text, /Last worn on Test trip/);
     });
+
+    await t('it is not suggested onto another day of the same trip', async () => {
+        // Add a second dressy day. Without the skip it would be offered the
+        // same look again, which is the app forgetting she packed it.
+        await page.evaluate(() => {
+            const t2 = trips.find((x) => x.id === 'trip1');
+            t2.end = '2026-10-03';
+            t2.events.push({ id: 'e3', date: '2026-10-03', name: 'Dinner again', type: 0, dress: 4 });
+            persist(); renderPlan(t2);
+        });
+        await page.waitForFunction(() => document.querySelectorAll('#planContent .daycard').length === 3);
+        const cards = await page.$$('#planContent .daycard');
+        const said = await Promise.all(cards.map((c) => c.textContent()));
+        assert.equal(/would work here/.test(said[2]), false, 'the new dressy day is not offered it again');
+    });
+
+    await t('nor picked by Suggest', async () => {
+        const before = await page.evaluate(() => PS(trips[0]).customOutfits.length);
+        await page.evaluate(() => suggestLookForDay('2026-10-03'));
+        const made = await page.evaluate(() => PS(trips[0]).customOutfits.slice(-1)[0]);
+        const after = await page.evaluate(() => PS(trips[0]).customOutfits.length);
+        assert.equal(after, before + 1, 'it still suggests something');
+        assert.equal(made.fromLook, undefined, 'assembled from pieces, not the look she is already wearing');
+        await page.evaluate((id) => { deleteOutfit(id); }, made.id);
+    });
+
+    await t('but she can still choose it herself — there is a washing machine', async () => {
+        await page.evaluate(() => openWearModal('2026-10-03'));
+        await page.waitForSelector('#wearModal[open]');
+        const text = await page.textContent('#wearList');
+        assert.match(text, /Already on this trip/);
+        assert.match(text, /Wear it again/);
+        await page.click('#wearList button:has-text("Wear it again")');
+        const worn = await page.evaluate(() => PS(trips[0]).customOutfits.filter((o) => o.fromLook).length);
+        assert.equal(worn, 2, 'worn twice on one trip, on purpose');
+    });
+
+    await t('and the shelf counts both', async () => {
+        await page.click('.tab[data-tab="looks"]');
+        assert.match(await page.textContent('#looksGrid'), /worn 2×/);
+    });
+
+    await t('deleting the day she wore it takes the wear with it', async () => {
+        // The count is read off the outfits, not stored on the look, so it
+        // cannot outlive the Tuesday it is claiming.
+        await page.evaluate(() => {
+            const ps = PS(trips[0]);
+            ps.customOutfits.filter((o) => o.fromLook).forEach((o) => deleteOutfit(o.id));
+        });
+        await page.click('.tab[data-tab="looks"]');
+        const text = await page.textContent('#looksGrid');
+        assert.equal(/worn/.test(text), false, 'no wears left to report');
+    });
+
 
     console.log(`\nlooks-smoke: ${n} passed`);
 } finally {
