@@ -2,21 +2,14 @@ import React from 'react';
 import GreetingWidget from '../widgets/GreetingWidget';
 import { useAuth } from '../contexts/AuthContext';
 import LibraryStats from '../widgets/LibraryStats';
-import ProvisionsWidget from '../widgets/ProvisionsWidget';
 import CalendarWidget from '../widgets/CalendarWidget';
 import ChoresWidget from '../widgets/ChoresWidget';
-import SocialWidget from '../widgets/SocialWidget';
-import GoalsWidget from '../widgets/GoalsWidget';
-import HobbiesWidget from '../widgets/HobbiesWidget';
 import TravelWidget from '../widgets/TravelWidget';
-import GameLauncher from '../widgets/GameLauncher';
-import WorkoutWidget from '../widgets/WorkoutWidget';
 import TodayWidget from '../widgets/TodayWidget';
 import ToBookWidget from '../widgets/ToBookWidget';
 import CapturesWidget from '../widgets/CapturesWidget';
 import { useRecipes } from '../hooks/useRecipes';
 import { useHabits } from '../hooks/useHabits';
-import { useHobbies } from '../hooks/useHobbies';
 import { useDashboardSettings } from '../hooks/useDashboardSettings';
 import { useTheme } from '../contexts/ThemeContext';
 import StreakBadge from '../components/gamification/StreakBadge';
@@ -27,7 +20,6 @@ const Dashboard = () => {
     const { user } = useAuth();
     const { mealPlan, recipes, loading: recipesLoading } = useRecipes();
     const { habits, streak: ritualStreak, loading: habitsLoading } = useHabits();
-    const { streak: pursuitStreak } = useHobbies();
     const { isEnabled } = useDashboardSettings();
     const { getLabel, getIcon } = useTheme();
 
@@ -60,22 +52,17 @@ const Dashboard = () => {
                     </div>
                 )}
 
-                {/* The theme's labels already read as names — "The Streak",
-                    "Pastimes" — so appending the word produced "THE STREAK
-                    STREAK" on the mantelpiece. The badge is a number under a
-                    name; it does not need to say what kind of number. */}
+                {/* One badge. The theme's labels already read as names —
+                    "The Streak" — so appending the word produced "THE STREAK
+                    STREAK" here; a badge is a number under a name and does not
+                    need to say what kind of number. The Pastimes badge went
+                    with its widget: it had read zero since February. */}
                 <div className="trophy-case">
                     <StreakBadge
                         label={getLabel('habits')}
                         count={ritualStreak}
                         icon={getIcon('habits')}
                         color="var(--text-gold)"
-                    />
-                    <StreakBadge
-                        label={getLabel('hobbies')}
-                        count={pursuitStreak}
-                        icon={getIcon('hobbies')}
-                        color="var(--text-muted)"
                     />
                 </div>
             </div>
@@ -94,28 +81,23 @@ const Dashboard = () => {
                 The Status Console went with them: with no URL configured it
                 was not a status console, it was its own setup form, sitting
                 at double width on the home screen. That question belongs in
-                Settings. */}
+                Settings.
+
+                A second pass took five more. Supplies was not a duplicate —
+                it held the shopping list the meal plan implies — so rather
+                than delete it, its work moved into Today's "to buy", where the
+                other half of the same list already was. The Crowd, The Plan,
+                Pastimes, Physical Readiness and the crossword tile went for
+                the plainer reason: two of them had never held a row, two had
+                not been touched since February, and the last was a link. */}
             <div className="widget-masonry">
-                {isEnabled('today') && <TodayWidget />}
+                {isEnabled('today') && <TodayWidget plan={mealPlan} recipes={recipes} />}
                 {/* High up on purpose: it is the only card here that is a
                     queue of things with deadlines attached to other people. */}
                 {isEnabled('tobook') && <ToBookWidget />}
                 {isEnabled('captures') && <CapturesWidget />}
-                {isEnabled('provisions') && <ProvisionsWidget plan={mealPlan} recipes={recipes} />}
                 {isEnabled('chores') && <ChoresWidget />}
-                {isEnabled('social') && <SocialWidget />}
-                {isEnabled('goals') && <GoalsWidget />}
-                {isEnabled('hobbies') && <HobbiesWidget />}
                 {isEnabled('travel') && <TravelWidget />}
-                {isEnabled('workouts') && <WorkoutWidget />}
-                {isEnabled('games') && (
-                    <GameLauncher
-                        title="The Crossword"
-                        icon={getIcon('games')}
-                        url="https://www.nytimes.com/crosswords/game/daily"
-                        description="The daily crossword challenge."
-                    />
-                )}
                 {isEnabled('calendar') && <CalendarWidget />}
                 {isEnabled('library') && <LibraryStats />}
             </div>

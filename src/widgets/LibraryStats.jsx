@@ -1,85 +1,96 @@
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { usePicks } from '../hooks/usePicks';
-import { MEDIA, tally, thisYear } from '../utils/picks';
+import { MEDIA } from '../utils/picks';
 import { useTheme } from '../contexts/ThemeContext';
-import { GiBookshelf, GiFilmStrip, GiCompactDisc, GiTv, GiGamepad } from 'react-icons/gi';
+import { GiBookshelf } from 'react-icons/gi';
 import WidgetCard from '../components/WidgetCard';
 import WidgetLoading from '../components/WidgetLoading';
-import EmptyState from '../components/EmptyState';
-import Stat from '../components/ui/Stat';
 import '../styles/LibraryStats.css';
 
 /*
- * The Library stopped being a count of everything finished, so this stopped
- * counting it. "247 books" was a fact about Goodreads wearing this portal's
- * clothes; how many of the blanks she has answered is a fact about this page.
+ * The Library is a page of favourites, so this shows the favourites.
+ *
+ * It used to show five numbers — how many blanks she had filled per medium —
+ * over a "currently consuming" row that said "Nothing currently", because
+ * `currently` is the one slot she has never used. So a shelf holding eighteen
+ * chosen things with cover art for every one of them was rendering as five
+ * digits and an empty state.
+ *
+ * Covers, then. It is the only widget on the page whose content is pictures,
+ * and a strip of them says what the room is for in a way "4 · MOVIES" never
+ * did. What she is in the middle of leads when there is any, because that is
+ * the part that changes.
  */
-const KINDS = [
-    { key: 'Books', type: 'Book', icon: <GiBookshelf size={24} /> },
-    { key: 'Movies', type: 'Movie', icon: <GiFilmStrip size={24} /> },
-    { key: 'Albums', type: 'Album', icon: <GiCompactDisc size={24} /> },
-    { key: 'Shows', type: 'TV Show', icon: <GiTv size={24} /> },
-    { key: 'Games', type: 'Game', icon: <GiGamepad size={24} /> },
-];
+
+/* Mixed media, mixed shapes: a book is tall, an album is square, a Steam
+   capsule is taller still. One height and a free width keeps them a shelf
+   rather than a grid of crops. */
+const Cover = ({ pick }) => (
+    <li className="stack__item" title={[pick.title, pick.creator].filter(Boolean).join(' · ')}>
+        {pick.image_url ? (
+            <img
+                className="stack__art"
+                src={pick.image_url}
+                alt={pick.title}
+                loading="lazy"
+                onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
+            />
+        ) : (
+            <span className="stack__nocover">{pick.title.slice(0, 1)}</span>
+        )}
+    </li>
+);
 
 const LibraryStats = () => {
     const { picks, loading } = usePicks();
     const { getLabel } = useTheme();
-    const year = thisYear();
 
-    const stats = useMemo(() => KINDS.reduce((acc, kind) => {
-        acc[kind.key] = tally(picks, kind.type, year).filled;
-        return acc;
-    }, {}), [picks, year]);
+    const { shown, count, shelves, current } = useMemo(() => {
+        const all = picks || [];
+        const currently = all.filter((p) => p.slot === 'currently');
+        const favourites = all.filter((p) => p.slot !== 'currently');
 
-    /* What she is in the middle of, across all five — which is the half of
-       this widget anyone actually reads. */
-    const nowConsuming = useMemo(
-        () => picks.filter((p) => p.slot === 'currently')
-            .sort((a, b) => MEDIA.indexOf(a.media) - MEDIA.indexOf(b.media)),
-        [picks]
-    );
+        /* In the order the Library reads — books, films, shows, albums, games
+           — rather than by when she happened to add them, so the strip looks
+           the same tomorrow as it does today. */
+        const byMedia = (a, b) => MEDIA.indexOf(a.media) - MEDIA.indexOf(b.media)
+            || (a.position ?? 0) - (b.position ?? 0);
+
+        return {
+            shown: [...currently.sort(byMedia), ...favourites.sort(byMedia)].slice(0, 14),
+            count: all.length,
+            shelves: new Set(all.map((p) => p.media)).size,
+            current: currently.length,
+        };
+    }, [picks]);
 
     return (
-        <WidgetCard title={getLabel('library')} icon={<GiBookshelf />} span={3}>
+        <WidgetCard
+            title={getLabel('library')}
+            icon={<GiBookshelf />}
+            span={3}
+            actions={<Link className="stack__all" to="/library">All of it →</Link>}
+        >
             {loading ? (
                 <WidgetLoading />
+            ) : count === 0 ? (
+                <p className="stack__empty">
+                    Nothing chosen yet. The Library is four favourites per shelf and a
+                    handful of blanks worth arguing about.
+                </p>
             ) : (
                 <>
-                    <div className="stat-row library-kpi-grid">
-                        {KINDS.map(kind => (
-                            <Stat key={kind.key} icon={kind.icon} value={stats[kind.key]} label={kind.key} />
-                        ))}
-                    </div>
-
-                    <div className="library-now-consuming-container">
-                        <h4 className="library-subtitle">
-                            {getLabel('nowConsuming')}
-                        </h4>
-
-                        {nowConsuming.length === 0 ? (
-                            <EmptyState
-                                message={`Nothing ${getLabel('nowConsuming').toLowerCase()}.`}
-                                icon={<GiBookshelf />}
-                                inline
-                            />
-                        ) : (
-                            <div className="library-consuming-list">
-                                {nowConsuming.map(item => (
-                                    <div key={item.id} className="library-item-card">
-                                        <div className="library-item-poster">
-                                            {item.image_url ? (
-                                                <img src={item.image_url} alt="" className="library-item-image" />
-                                            ) : (
-                                                <div className="library-item-placeholder" aria-hidden="true">?</div>
-                                            )}
-                                        </div>
-                                        <div className="library-item-title">{item.title}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <ul className="stack__strip">
+                        {shown.map((p) => <Cover key={p.id} pick={p} />)}
+                    </ul>
+                    <p className="stack__line">
+                        <strong>{count}</strong> {count === 1 ? 'pick' : 'picks'} across {shelves}
+                        {shelves === 1 ? ' shelf' : ' shelves'}
+                        {current > 0
+                            ? ` · ${current} on the go`
+                            : ' · nothing marked as on the go'}
+                    </p>
                 </>
             )}
         </WidgetCard>

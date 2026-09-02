@@ -1,11 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { GiSunrise, GiCheckMark } from 'react-icons/gi';
+import { GiSunrise, GiCheckMark, GiFiles, GiHouse } from 'react-icons/gi';
 import WidgetCard from '../components/WidgetCard';
 import WidgetLoading from '../components/WidgetLoading';
+import Button from '../components/ui/Button';
 import { useTodos } from '../hooks/useTodos';
 import { useProvisions } from '../hooks/useProvisions';
 import { useHabits } from '../hooks/useHabits';
+import { useIngredients } from '../hooks/useIngredients';
 import { useTheme } from '../contexts/ThemeContext';
+import { plannedFrom, listAsText } from '../utils/shoppingList';
 import '../styles/TodayWidget.css';
 
 /**
@@ -24,6 +27,11 @@ import '../styles/TodayWidget.css';
  * duplicates held the add and delete controls and this card only ticked, so
  * removing them would have left her able to tick a habit and unable to write
  * one. So they moved here, and the duplicates went.
+ *
+ * "To buy" is the whole shopping list, not half of it. It used to be the
+ * things she had typed, with a second card underneath holding the other half —
+ * every ingredient the meal plan implies, matched against the pantry. Two
+ * lists of things to buy, on one screen, is how you buy basil twice.
  *
  * Deliberately not a scrolling widget: a card that scrolls inside a page that
  * also scrolls is miserable on a phone, and the lists are capped so the card
@@ -79,24 +87,62 @@ const AddRow = ({ placeholder, onAdd, label }) => {
     );
 };
 
-const Group = ({ title, count, children, empty, add }) => (
-    <section className="today__group">
-        <h3 className="today__group-title">
-            {title}
-            {count > 0 && <span className="today__count">{count}</span>}
-        </h3>
-        {count > 0 ? <ul className="today__list">{children}</ul> : <p className="today__empty">{empty}</p>}
-        {add}
-    </section>
-);
+const Group = ({ title, count, children, empty, add }) => {
+    /* `count` is what the heading says; whether to draw a list is a different
+       question, because the shopping group can have lines the count does not
+       claim — things already in the cupboard are shown and are not to buy. */
+    const hasRows = React.Children.toArray(children).some(Boolean);
+    return (
+        <section className="today__group">
+            <h3 className="today__group-title">
+                {title}
+                {count > 0 && <span className="today__count">{count}</span>}
+            </h3>
+            {hasRows ? <ul className="today__list">{children}</ul> : <p className="today__empty">{empty}</p>}
+            {add}
+        </section>
+    );
+};
 
-const TodayWidget = () => {
+const TodayWidget = ({ plan, recipes }) => {
     const { todos, toggleTodo, addTodo, deleteTodo, loading: todosLoading } = useTodos();
-    const { items, toggleItem, addItem, deleteItem, loading: provisionsLoading } = useProvisions();
+    const {
+        items, toggleItem, addItem, deleteItem, clearChecked, loading: provisionsLoading,
+    } = useProvisions();
     const { habits, toggleHabit, addHabit, deleteHabit, loading: habitsLoading } = useHabits();
+    const { matcher, pantryStock } = useIngredients();
     const { getLabel } = useTheme();
+    const [copied, setCopied] = useState(false);
 
     const loading = todosLoading || provisionsLoading || habitsLoading;
+
+    /* Everything the meal plan implies, aggregated and checked against the
+       cupboard. See utils/shoppingList — the arithmetic is out there because
+       the same ingredient arriving from three recipes in three spellings has
+       to land on one line, and getting that wrong is invisible until you are
+       standing in a shop. */
+    const planned = useMemo(
+        () => plannedFrom({ plan, recipes, matcher, pantryStock }),
+        [plan, recipes, matcher, pantryStock]
+    );
+    const toBuy = useMemo(() => planned.filter((p) => !p.inStock), [planned]);
+
+    const copyList = async () => {
+        const text = listAsText({
+            items,
+            planned,
+            title: (getLabel('provisions') || 'Shopping').toUpperCase(),
+            hearth: (getLabel('fromTheHearth') || 'From the hearth').toUpperCase(),
+        });
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            // A clipboard the browser will not hand over is not worth a dialog
+            // here; the list is on screen and can be read from it.
+        }
+    };
 
     // Unfinished things first; anything ticked today stays visible underneath
     // so it reads as progress rather than vanishing the moment it is done.
@@ -106,9 +152,28 @@ const TodayWidget = () => {
     const doneHabits = useMemo(() => (habits || []).filter((h) => h.completed), [habits]);
 
     const ritualLabel = getLabel('habits') || 'Rituals';
+    const shopping = openGroceries.length + toBuy.length;
 
     return (
-        <WidgetCard title="Today" icon={<GiSunrise />} span={2}>
+        <WidgetCard
+            title="Today"
+            icon={<GiSunrise />}
+            span={2}
+            actions={(
+                <>
+                    {shopping > 0 && (
+                        <Button size="sm" variant="ghost" onClick={copyList} label="Copy the shopping list">
+                            {copied ? <GiCheckMark /> : <GiFiles />} {copied ? 'Copied' : 'Copy list'}
+                        </Button>
+                    )}
+                    {items.some((i) => i.checked) && (
+                        <Button size="sm" variant="ghost" onClick={clearChecked} label="Clear bought items">
+                            Clear bought
+                        </Button>
+                    )}
+                </>
+            )}
+        >
             {loading ? (
                 <WidgetLoading />
             ) : (
@@ -159,7 +224,7 @@ const TodayWidget = () => {
 
                     <Group
                         title="To buy"
-                        count={openGroceries.length}
+                        count={shopping}
                         empty="Nothing to pick up."
                         add={<AddRow
                             label="Add something to buy"
@@ -177,6 +242,32 @@ const TodayWidget = () => {
                                 removeLabel={`Remove ${i.text}`}
                             />
                         ))}
+
+                        {/* What the week's cooking needs. Not tickable — it is
+                            not a list she wrote, it is what the meal plan
+                            implies, and it changes when the plan does. */}
+                        {planned.length > 0 && (
+                            <>
+                                <li className="today__from">{getLabel('fromTheHearth') || 'For the cooking'}</li>
+                                {planned.map((ing) => (
+                                    <li
+                                        key={ing.key}
+                                        className={`today__planned${ing.inStock ? ' today__planned--stocked' : ''}`}
+                                    >
+                                        {ing.Icon && <span className="today__planned-icon">{ing.Icon}</span>}
+                                        {ing.amount > 0 && (
+                                            <span className="today__planned-amount">{ing.amount} {ing.unit}</span>
+                                        )}
+                                        <span className="today__planned-label">{ing.label}</span>
+                                        {ing.inStock && (
+                                            <span className="today__stocked" title="Already in the pantry">
+                                                <GiHouse /> in the pantry
+                                            </span>
+                                        )}
+                                    </li>
+                                ))}
+                            </>
+                        )}
                     </Group>
                 </div>
             )}

@@ -158,3 +158,54 @@
 .today__remove:focus-visible { color: var(--text-dim); }
 
 .today__remove:hover { color: var(--accent-crimson); }
+
+/* --- What the meal plan needs -------------------------------------------
+   The other half of the shopping list: not lines she wrote but lines the
+   week's cooking implies, so they are not tickable — they change when the
+   plan does. Set apart by a rule and a quieter weight rather than by living
+   in a second card, which is how you end up buying basil twice. */
+
+.today__from {
+    margin-top: var(--space-2);
+    padding-top: var(--space-1);
+    border-top: var(--rule-hair);
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    list-style: none;
+}
+
+.today__planned {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    padding: 2px 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    list-style: none;
+}
+
+.today__planned-amount {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-dim);
+}
+
+.today__planned-label { overflow-wrap: anywhere; }
+
+/* Already in the cupboard: shown, because "you have this" is worth knowing in
+   a shop, and faded, because it is not something to pick up. */
+.today__planned--stocked { opacity: 0.55; }
+
+.today__stocked {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    flex-shrink: 0;
+    color: var(--text-gold);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+}

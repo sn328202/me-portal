@@ -4,27 +4,26 @@ import { useSettings } from './useSettings';
 /**
  * The widgets there are.
  *
- * Four ids that used to be here are gone: `habits`, `todos` and `links`,
- * whose cards were a second copy of what the Today card already showed, and
- * `status`, which with no URL configured rendered its own setup form at
- * double width. A saved preference may still name them; an id nothing matches
- * is simply not drawn, so an old `enabledWidgets` array needs no migration.
+ * Ten ids that used to be here are gone. `habits`, `todos` and `provisions`
+ * because the Today card now shows and edits all three lists — provisions
+ * brought its meal-plan arithmetic with it rather than being deleted.
+ * `links` was a rack of bookmarks, `status` was a setup form for a dashboard
+ * that was never embedded, `games` was a link to the crossword. `social` and
+ * `goals` had never held a row; `hobbies` and `workouts` had not been touched
+ * since February.
+ *
+ * A saved preference may still name any of them; an id nothing matches is
+ * simply not drawn, so an old `enabledWidgets` array needs no migration.
  */
 export const ALL_WIDGETS = [
-    { id: 'today', label: 'Today', description: 'Everything with a checkbox — rituals, tasks and the grocery list in one card' },
+    { id: 'today', label: 'Today', description: 'Rituals, tasks and the whole shopping list — what you typed and what the meal plan needs — in one card' },
     { id: 'tobook', label: 'Still to Book', description: 'Every stop marked "to book", across all trips, in date order' },
     { id: 'greeting', label: 'Traveler Welcome', description: 'Personalized greeting and date' },
-    { id: 'provisions', label: 'Estate Provisions', description: 'Meal plan and grocery list' },
     { id: 'chores', label: 'Estate Upkeep', description: 'Room-by-room chore tracking' },
-    { id: 'social', label: 'Social Register', description: 'RSVP and event planning' },
-    { id: 'goals', label: 'Life Objectives', description: 'Horizon-based goal tracking' },
-    { id: 'hobbies', label: 'Active Pursuits', description: 'Interest and hobby logger' },
     { id: 'travel', label: 'Next Expedition', description: 'Trip countdown and atlas link' },
     { id: 'calendar', label: 'Chronometer', description: 'Embedded Google Calendar' },
-    { id: 'library', label: 'Archives Consumed', description: 'Reading stats and book list' },
-    { id: 'workouts', label: 'Physical Readiness', description: 'Daily training regimen and 5K tracker' },
+    { id: 'library', label: 'The Stack', description: 'The covers of your favourites, and what you are in the middle of' },
     { id: 'captures', label: 'Dictations', description: 'Thoughts spoken into your phone and where they landed' },
-    { id: 'games', label: 'Arcade Terminal', description: 'Quick access to entertainment' },
 ];
 
 /**

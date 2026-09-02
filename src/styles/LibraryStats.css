@@ -1,89 +1,71 @@
-/* Library Stats - The Archives
-   The KPI tiles are <Stat>; the card shell and title are <Card>. There used
-   to be a third stat-box design and a fifth card-title size in here. */
+/* A shelf of covers rather than a row of counts.
 
-.library-kpi-grid {
-    grid-template-columns: repeat(5, 1fr);
-}
+   Mixed media means mixed shapes — a book is tall, an album is square, a Steam
+   capsule taller still — so one height and a free width keeps it reading as a
+   shelf instead of a grid of badly cropped rectangles. */
 
-.library-now-consuming-container {
+.stack__strip {
     display: flex;
-    flex-direction: column;
-    margin-top: var(--space-5);
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
-/* Sub-heading *inside* a card: quieter than the card title, never louder. */
-.library-subtitle {
-    margin: 0 0 var(--space-3);
-    padding-bottom: var(--space-2);
-    border-bottom: var(--rule-hair);
-    font-family: var(--font-display);
-    font-size: var(--text-xs);
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
-    color: var(--text-muted);
-}
-
-.library-consuming-list {
-    display: flex;
-    gap: var(--space-4);
-    overflow-x: auto;
-    padding-bottom: var(--space-2);
-    align-items: flex-start;
-}
-
-.library-item-card {
-    min-width: 80px;
-    max-width: 80px;
-    text-align: center;
-}
-
-.library-item-poster {
-    width: 80px;
-    height: 120px;
-    margin-bottom: var(--space-2);
-    border: var(--rule-hair);
+.stack__item {
+    display: block;
+    height: 84px;
     border-radius: var(--radius-sm);
     overflow: hidden;
-    position: relative;
-    transition: transform var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform var(--dur-base) var(--ease);
 }
 
-.library-item-poster:hover {
-    transform: var(--lift);
-    border-color: var(--border-gold);
-    box-shadow: var(--glow-gold);
-}
+.stack__item:hover { transform: translateY(-2px); }
 
-.library-item-image {
-    width: 100%;
-    height: 100%;
+.stack__art {
+    display: block;
+    height: 84px;
+    width: auto;
+    max-width: 120px;
     object-fit: cover;
 }
 
-.library-item-placeholder {
-    width: 100%;
-    height: 100%;
-    background: var(--bg-hover);
+.stack__nocover {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-muted);
+    height: 84px;
+    width: 56px;
+    background: var(--fill-soft, var(--bg-panel));
+    color: var(--text-dim);
     font-family: var(--font-display);
-    font-size: var(--text-xl);
+    font-size: var(--text-lg);
 }
 
-.library-item-title {
-    max-height: 2.4em;
-    overflow: hidden;
-    line-height: var(--leading-snug);
+.stack__line {
+    margin: var(--space-3) 0 0;
     color: var(--text-muted);
-    font-family: var(--font-body);
     font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
 }
 
-@media (max-width: 768px) {
-    .library-kpi-grid {
-        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    }
+.stack__line strong { color: var(--text-gold); font-family: var(--font-mono); }
+
+.stack__empty {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: var(--text-sm);
 }
+
+.stack__all {
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    color: var(--text-dim);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--border-dim);
+}
+
+.stack__all:hover { color: var(--text-gold); border-bottom-color: var(--text-gold); }
