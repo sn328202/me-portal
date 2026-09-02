@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { GiHourglass, GiFeather, GiPositionMarker, GiCoins, GiNotebook, GiCancel, GiTreasureMap } from 'react-icons/gi';
-import { useJsApiLoader } from '@react-google-maps/api';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { Button, Card, ConfirmButton, EmptyState, Field, PageHeader } from '../components/ui';
 import PlacesSearch from '../components/PlacesSearch';
+import { useMapsReady } from '../hooks/useMapsReady';
 import MentionInput from '../components/MentionInput';
 import SmartTimeInput from '../components/SmartTimeInput';
 import DurationPicker from '../components/DurationPicker';
@@ -27,9 +27,6 @@ import { generateGoogleCalendarUrl } from '../utils/calendarUtils';
 import '../styles/Boards.css';
 import '../styles/DayBuilder.css';
 
-const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-const libraries = ['places'];
-
 const BLANK = { activity: '', location: '', link: '', cost: '', place_id: null, lat: null, lng: null };
 
 /**
@@ -49,7 +46,9 @@ const DayBuilder = () => {
     const { tripId, date } = useParams();
     const navigate = useNavigate();
 
-    const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey, libraries });
+    // One definition of how the Maps script is loaded, shared with every
+    // PlaceField on every other page — see hooks/useMapsReady.
+    const isLoaded = useMapsReady();
 
     const {
         day, trip, timeline, ideas, loading, saving, savedAt, error, setError,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GiPositionMarker } from 'react-icons/gi';
 import PlacesSearch from './PlacesSearch';
+import { useMapsReady } from '../hooks/useMapsReady';
 import '../styles/PlaceField.css';
 
 /**
@@ -16,21 +17,22 @@ import '../styles/PlaceField.css';
  * So the line is a control. Empty, it offers to look the place up; filled, it
  * is the address with its map link and a way to change or forget it.
  */
-const PlaceField = ({
-    location,
-    link,
-    ready = true,
-    label = 'this stop',
-    className = '',
-    onPick,
-    onClear,
-}) => {
-    const [searching, setSearching] = useState(false);
+/**
+ * The search box, mounted only once she has asked for it.
+ *
+ * The Maps script is loaded from in here rather than by the page, so that no
+ * page can forget — and mounting this only on the click means the script is
+ * not fetched by every trip page on the off-chance somebody wants to look a
+ * place up. It says so while it loads, because a search box that silently
+ * finds nothing looks like an answer.
+ */
+const Picker = ({ label, className, onPick, onCancel }) => {
+    const loaded = useMapsReady();
 
-    if (searching && ready) {
-        return (
-            <p className={`placefield placefield--searching ${className}`}>
-                <GiPositionMarker aria-hidden="true" />
+    return (
+        <p className={`placefield placefield--searching ${className}`}>
+            <GiPositionMarker aria-hidden="true" />
+            {loaded ? (
                 <PlacesSearch
                     className="placefield__search"
                     placeholder="Search for the place…"
@@ -47,17 +49,38 @@ const PlaceField = ({
                             lat: place.lat ?? null,
                             lng: place.lng ?? null,
                         });
-                        setSearching(false);
+                        onCancel();
                     }}
                 />
-                <button
-                    type="button"
-                    className="placefield__act"
-                    onClick={() => setSearching(false)}
-                >
-                    cancel
-                </button>
-            </p>
+            ) : (
+                <span className="placefield__loading">Loading the map…</span>
+            )}
+            <button type="button" className="placefield__act" onClick={onCancel}>
+                cancel
+            </button>
+        </p>
+    );
+};
+
+const PlaceField = ({
+    location,
+    link,
+    ready = true,
+    label = 'this stop',
+    className = '',
+    onPick,
+    onClear,
+}) => {
+    const [searching, setSearching] = useState(false);
+
+    if (searching && ready) {
+        return (
+            <Picker
+                label={label}
+                className={className}
+                onPick={onPick}
+                onCancel={() => setSearching(false)}
+            />
         );
     }
 

@@ -101,3 +101,13 @@
     font-size: var(--text-xs);
     padding: 2px var(--space-1);
 }
+
+/* While the Maps script arrives. A search box that silently finds nothing
+   looks like an answer, so it says what it is doing instead. */
+.placefield__loading {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
