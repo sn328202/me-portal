@@ -56,3 +56,31 @@
         animation-timing-function: steps(1, end);
     }
 }
+
+/* The way back to the trip she came from. Top-left, because the planner's own
+   controls are along the top-right and a link that overlaps a button is a link
+   that gets pressed by accident. */
+.wardrobe__back {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 2;
+    padding: var(--space-1) var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--text-dim);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 25%);
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.wardrobe__back:hover,
+.wardrobe__back:focus-visible {
+    color: var(--text-gold);
+    border-color: var(--border-gold);
+}

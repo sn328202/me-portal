@@ -1,17 +1,20 @@
 import React, { useRef, useState } from 'react';
-import { GiTable, GiClothes } from 'react-icons/gi';
+import { GiTable } from 'react-icons/gi';
 import { Button } from './ui';
 import { supabase } from '../lib/supabase';
 import { sheetPayload, readSheet, dayLabel } from '../utils/tripSheet';
-import { sendToWardrobe } from '../utils/wardrobeHandoff';
 
 /**
- * The trip, out to a spreadsheet and back again — and across to the Wardrobe.
+ * The trip, out to a spreadsheet and back again.
  *
- * Three buttons doing the same kind of thing: take what the Atlas already knows
+ * Two buttons doing the same kind of thing: take what the Atlas already knows
  * and put it where it is needed, instead of typing it a second time into a
- * sheet, a third time into the packing planner, and a fourth when the dates
- * change.
+ * sheet and a third when the dates change.
+ *
+ * The Wardrobe used to be a third button here, and that was the bug. A room
+ * that keeps a copy of the trip cannot be served by an export you press once
+ * — the copy goes stale the moment a day moves, silently. It lives with the
+ * loose ends now (`TripWardrobe`), keeps itself current, and says so.
  *
  * It moves as a *file*, not through an API. The version that talked to Google
  * directly was blocked outright by her account — not the usual "unverified app,
@@ -133,15 +136,6 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
         }
     };
 
-    const toWardrobe = () => {
-        const result = sendToWardrobe(trip, data);
-        if (!result.ok) { fail(result.reason); return; }
-        say(
-            `${result.updated ? 'Updated' : 'Created'} this trip in the Wardrobe — `
-            + `${result.events} days planned, weather on ${result.days}.`
-        );
-    };
-
     return (
         <div className="tripsheet">
             <div className="panel__row">
@@ -152,9 +146,6 @@ const TripSheet = ({ trip, data, onUpdateTrip, onImport }) => {
                 )}
                 <Button size="sm" variant="ghost" onClick={exportSheet} disabled={busy === 'export'}>
                     <GiTable /> {busy === 'export' ? 'Building…' : 'Download as a spreadsheet'}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={toWardrobe}>
-                    <GiClothes /> Send to the Wardrobe
                 </Button>
             </div>
 

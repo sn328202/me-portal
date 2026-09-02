@@ -2622,3 +2622,53 @@ textarea.expedition__notes:focus {
 .idea__place {
     margin-top: var(--space-2);
 }
+
+/* ---------- The Wardrobe, from the trip ---------------------------------- */
+
+/* Sits with the loose ends, because "nothing chosen to wear for four days" is
+   a loose end. It reports rather than instructs: the link keeps itself
+   current, so there is no step here she has to remember to take. */
+.trip-wardrobe__sum,
+.trip-wardrobe__none,
+.trip-wardrobe__when,
+.trip-wardrobe__bad {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.trip-wardrobe__sum strong { color: var(--text-gold); }
+.trip-wardrobe__when { color: var(--text-dim); font-size: var(--text-2xs); }
+.trip-wardrobe__bad { color: var(--text-warn, #c0642f); }
+
+.trip-wardrobe__people {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.trip-wardrobe__people li {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+    flex-wrap: wrap;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.trip-wardrobe__people strong {
+    min-width: 6rem;
+    color: var(--text-main);
+}
+
+.trip-wardrobe__row {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: var(--space-2);
+}

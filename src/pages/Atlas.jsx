@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
 import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
+import TripWardrobe from '../components/TripWardrobe';
 import TripLooseEnds from '../components/TripLooseEnds';
 import DateField from '../components/DateField';
 import TripCard from '../components/TripCard';
@@ -867,6 +868,12 @@ const Atlas = () => {
                             legs={planner.legs}
                             stays={planner.stays}
                         />
+
+                        {/* What is still unfinished includes what she has not
+                            decided to wear. It sits here rather than in the
+                            setup drawer, where the old one-shot button lived
+                            and was never found. */}
+                        <TripWardrobe trip={selectedTrip} data={planner} />
 
                         <div className="field">
                         <span className="field__label">WAYPOINTS (CLICK MAP TO ADD)</span>

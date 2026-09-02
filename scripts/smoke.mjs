@@ -34,6 +34,10 @@ const session = {
 
 const ROUTES = [
     '/', '/larder', '/treasury', '/library', '/atlas',
+    // The Wardrobe is an iframe around the real 81KB planner, and the deep
+    // link reaches into it and calls its own `openTrip`. Both are exactly the
+    // kind of thing that works until the planner is edited by someone else.
+    '/wardrobe', '/wardrobe?trip=atlas-4242',
     // Retired rooms. Kept in the list because a bookmark is a promise: these
     // must still land somewhere, and a redirect that has quietly stopped
     // redirecting looks exactly like a working page until you follow it.
@@ -57,6 +61,15 @@ await ctx.route('**', (route) => {
 await ctx.addInitScript(
     ([ref, sess]) => {
         localStorage.setItem(`sb-${ref}-auth-token`, JSON.stringify(sess));
+        // A trip in the planner's own storage, so `/wardrobe?trip=…` has
+        // something real to land on rather than quietly doing nothing.
+        localStorage.setItem('op_trips', JSON.stringify([{
+            id: 'atlas-4242', name: 'Smoke Trip', dest: 'Goa',
+            start: '2026-12-25', end: '2026-12-27',
+            events: [{ date: '2026-12-25', type: 0, label: 'A day' }],
+            weather: {}, byProfile: {}, fromAtlas: true,
+        }]));
+        localStorage.setItem('op_profiles', JSON.stringify([{ id: 'p1', name: 'Neha' }]));
     },
     [REF, session],
 );

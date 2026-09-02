@@ -274,9 +274,24 @@ store.set('op_trips', JSON.stringify(saved));
 const again = sendToWardrobe(trip, { days, items, legs }, fake);
 const after = JSON.parse(store.get('op_trips'));
 check('sending twice does not make two trips', after.length, 1);
-check('the second send is an update', again.updated, true);
+// The Atlas rewrites its half whenever the trip moves, so "nothing moved" has
+// to be a real answer. A write here would be a no-op to a reader and a storage
+// event to the planner, which reloads on one — a flicker mid-drag.
+check('sending an unchanged trip writes nothing', again.unchanged, true);
+check('and does not claim to have updated anything', again.updated, false);
 check('what you ticked in there survives',
     after[0].byProfile, { me: { packChecked: { socks: true } } });
+
+// And a real change does go across, still carrying her work.
+const moved = sendToWardrobe(
+    { ...trip, destination: 'India (Goa / Kerala)' }, { days, items, legs }, fake
+);
+const afterMove = JSON.parse(store.get('op_trips'));
+check('a changed trip is an update', moved.updated, true);
+check('and is not called unchanged', moved.unchanged, false);
+check('the change is in the store', afterMove[0].name, 'India (Goa / Kerala)');
+check('her work still survives it',
+    afterMove[0].byProfile, { me: { packChecked: { socks: true } } });
 check('a full storage is a reason, not a crash',
     sendToWardrobe(trip, { days, items, legs }, {
         getItem: () => '[]', setItem: () => { throw new Error('quota'); },

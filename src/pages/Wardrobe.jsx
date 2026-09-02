@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { wardrobeCss } from '../utils/wardrobeTheme';
 import { useWardrobeBackup } from '../hooks/useWardrobeBackup';
+import { atlasIdFrom, readTrips } from '../utils/wardrobeLink';
 import '../styles/Wardrobe.css';
 
 /**
@@ -23,11 +25,22 @@ import '../styles/Wardrobe.css';
  * gone. The portal reconciles the planner's storage with the account before the
  * planner is allowed to start, and listens to its writes afterwards. The
  * planner itself is not modified — it still believes localStorage is the world.
+ *
+ * And it is why `/wardrobe?trip=atlas-11` can land on a trip. The planner has
+ * a global `openTrip(id)`; the portal calls it once the frame is up. Arriving
+ * at a list of trips having just clicked "open in the Wardrobe" from one
+ * particular trip is the sort of small betrayal that makes a link not worth
+ * following, and the way back to the Atlas goes with it.
  */
 export default function Wardrobe() {
     const frame = useRef(null);
     const { themeId } = useTheme();
     const { ready, status, failed, note, backedUp } = useWardrobeBackup();
+
+    const [params] = useSearchParams();
+    const wanted = params.get('trip');
+    // Only a trip that came from the Atlas has somewhere to go back to.
+    const cameFrom = atlasIdFrom(wanted);
 
     // Held in a ref so the wrapper installed on the planner's storage keeps
     // reaching the current one without being reinstalled.
@@ -85,7 +98,32 @@ export default function Wardrobe() {
         }
     }, []);
 
-    const started = useCallback((e) => { paint(); listen(e.currentTarget); }, [paint, listen]);
+    /**
+     * Land on the trip that was asked for.
+     *
+     * Guarded on the trip actually being there: `openTrip` sets the current id
+     * and renders the detail view from it, so a name for a trip that does not
+     * exist is a blank page rather than a missing one. Nothing to open is not
+     * an error — it is a trip that has never been sent across, and the list is
+     * a perfectly good place to arrive.
+     */
+    const openWanted = useCallback((el) => {
+        if (!wanted) return;
+        const win = el?.contentWindow;
+        if (typeof win?.openTrip !== 'function') return;
+        try {
+            if (!readTrips(win.localStorage).some((t) => t.id === wanted)) return;
+            win.openTrip(wanted);
+        } catch {
+            // A browser that will not let us near the frame keeps the list.
+        }
+    }, [wanted]);
+
+    const started = useCallback((e) => {
+        paint();
+        listen(e.currentTarget);
+        openWanted(e.currentTarget);
+    }, [paint, listen, openWanted]);
 
     // Re-paint on every theme change. The iframe is not remounted, so nothing
     // else would tell it the room had changed colour.
@@ -103,6 +141,14 @@ export default function Wardrobe() {
                 />
             ) : (
                 <p className="wardrobe__waiting">Fetching your wardrobe…</p>
+            )}
+
+            {/* The way home. Only when she arrived from a trip — on its own
+                the Wardrobe is a room, not a subpage of the Atlas. */}
+            {cameFrom && (
+                <Link className="wardrobe__back" to={`/atlas?trip=${encodeURIComponent(cameFrom)}`}>
+                    ← Back to the trip
+                </Link>
             )}
 
             {failed && (

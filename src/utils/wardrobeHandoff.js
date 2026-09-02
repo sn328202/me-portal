@@ -22,8 +22,7 @@
  */
 
 import { legsOn, isHandover, isTravelLeg, cityLabelOn } from './tripLegs.js';
-
-const STORE = 'op_trips';
+import { TRIPS_KEY as STORE, wardrobeIdFor, sameAtlasPart } from './wardrobeLink.js';
 
 /* The planner's own vocabulary. Indexes into its EVENT_TYPES array — kept here
    as names so a reader can see what the numbers mean, and asserted against the
@@ -153,6 +152,11 @@ export const wardrobeTrip = (trip, { days = [], items = {}, legs = [], existing 
 
     const events = ordered.flatMap((day) => eventsForDay(day, items[day.id] || [], legs));
 
+    const sameWeather = sameAtlasPart(
+        { weather },
+        { weather: existing?.weather || {} }
+    ) && Boolean(existing);
+
     const home = anchorCity(legs) || ordered.find((d) => d.city)?.city || trip.destination || '';
 
     return {
@@ -168,7 +172,14 @@ export const wardrobeTrip = (trip, { days = [], items = {}, legs = [], existing 
         geo: trip.coordinates?.lat != null
             ? { lat: trip.coordinates.lat, lon: trip.coordinates.lng, label: trip.destination || '' }
             : (existing?.geo || null),
-        weatherFetched: Object.keys(weather).length ? new Date().toISOString() : undefined,
+        /* Only moved when the weather itself moved. This used to be stamped on
+           every build, which was harmless while a person pressed a button and
+           is not harmless now that the Atlas rewrites its half whenever the
+           trip changes: a timestamp that is different every time makes every
+           trip look changed every time, forever. */
+        weatherFetched: sameWeather
+            ? existing?.weatherFetched
+            : (Object.keys(weather).length ? new Date().toISOString() : undefined),
         // Everything you have done inside the Wardrobe for this trip.
         byProfile: existing?.byProfile || {},
         fromAtlas: true,
@@ -196,9 +207,22 @@ export const sendToWardrobe = (trip, data, storage) => {
         trips = [];
     }
 
-    const id = `atlas-${trip.id}`;
+    const id = wardrobeIdFor(trip.id);
     const existing = trips.find((t) => t && t.id === id) || null;
     const built = wardrobeTrip(trip, { ...data, existing });
+
+    /* Nothing the Atlas owns has moved, so there is nothing to say. Writing
+       anyway would be a no-op to a reader and a storage event to the planner,
+       which reloads itself when its storage changes — this is the difference
+       between a link that keeps up and one that makes the Wardrobe flicker
+       while she is dragging an outfit around inside it. */
+    if (existing && sameAtlasPart(built, existing)) {
+        return {
+            ok: true, updated: false, unchanged: true,
+            days: Object.keys(built.weather).length,
+            events: built.events.length,
+        };
+    }
 
     const next = existing
         ? trips.map((t) => (t && t.id === id ? built : t))
@@ -213,6 +237,7 @@ export const sendToWardrobe = (trip, data, storage) => {
     return {
         ok: true,
         updated: Boolean(existing),
+        unchanged: false,
         days: Object.keys(built.weather).length,
         events: built.events.length,
     };

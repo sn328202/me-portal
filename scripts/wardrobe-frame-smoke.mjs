@@ -11,12 +11,19 @@
  *    save, without touching the eighty kilobytes of planner or polling on a
  *    timer.
  *
- * Both are true in principle. Neither is worth betting a hand-built closet on
- * without watching a browser actually do it.
+ * 3. The parent can reach into the real planner and call its own `openTrip`,
+ *    so `/wardrobe?trip=atlas-11` lands on that trip rather than on a list.
+ *    That one is a call into eighty kilobytes of someone else's script, which
+ *    is exactly the sort of thing that keeps working until it does not.
+ *
+ * All three are true in principle. None is worth betting a hand-built closet
+ * on without watching a browser actually do it.
  */
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const PLANNER = `<!doctype html><meta charset="utf-8"><body><script>
   // Stands in for the real planner: reads at parse time, writes on demand.
@@ -30,8 +37,16 @@ const PLANNER = `<!doctype html><meta charset="utf-8"><body><script>
 
 const HOST = `<!doctype html><meta charset="utf-8"><body><div id="slot"></div></body>`;
 
+// The genuine article, for assumption 3. A stand-in cannot prove `openTrip`
+// still exists in the file that actually ships.
+const REAL = readFileSync(
+    fileURLToPath(new URL('../public/outfit-planner.html', import.meta.url)), 'utf8'
+);
+
 const server = http.createServer((req, res) => {
-    const body = req.url.startsWith('/planner') ? PLANNER : HOST;
+    let body = HOST;
+    if (req.url.startsWith('/planner')) body = PLANNER;
+    if (req.url.startsWith('/outfit-planner.html')) body = REAL;
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(body);
 });
@@ -74,6 +89,41 @@ const out = await tab.evaluate(async (origin) => {
     };
 }, base);
 
+/* --- 3. landing on a trip ------------------------------------------------ */
+
+const deep = await tab.evaluate(async (origin) => {
+    localStorage.clear();
+    localStorage.setItem('op_trips', JSON.stringify([
+        { id: 'atlas-11', name: 'Goa', dest: 'Goa', start: '2026-12-25', end: '2026-12-27',
+          events: [{ date: '2026-12-25', type: 0 }], weather: {}, byProfile: {}, fromAtlas: true },
+        { id: 'made-here', name: 'Something else', start: '2027-03-01', end: '2027-03-02',
+          events: [], weather: {}, byProfile: {} },
+    ]));
+
+    const frame = document.createElement('iframe');
+    frame.src = `${origin}/outfit-planner.html`;
+    document.getElementById('slot').appendChild(frame);
+    await new Promise((ok) => { frame.onload = ok; });
+
+    const win = frame.contentWindow;
+    const kind = typeof win.openTrip;
+    if (kind !== 'function') return { kind };
+
+    win.openTrip('atlas-11');
+    const detail = win.document.getElementById('tripDetailView');
+    const list = win.document.getElementById('tripListView');
+    return {
+        kind,
+        // Not `win.currentTripId`: the planner declares it with `let` at the
+        // top level of a classic script, and `let` does not become a property
+        // of the window. What it actually rendered is the better witness
+        // anyway — the id is bookkeeping, the page is the promise.
+        detailShown: detail ? !detail.classList.contains('hide') : null,
+        listHidden: list ? list.classList.contains('hide') : null,
+        showing: (detail?.innerText || '').replace(/\s+/g, ' ').slice(0, 200),
+    };
+}, base);
+
 await browser.close();
 server.close();
 
@@ -83,6 +133,13 @@ assert.deepEqual(out.heard, ['trips', 'closets'], 'every save was heard, in orde
 assert.deepEqual(out.parentSees, [{ name: 'Napa' }], 'the iframe and the parent share one store');
 assert.equal(out.parentUntouched, true, 'wrapping the iframe did not wrap the portal');
 
+assert.equal(deep.kind, 'function', 'the real planner no longer exposes openTrip');
+assert.equal(deep.detailShown, true, 'the trip opened but its detail view stayed hidden');
+assert.equal(deep.listHidden, true, 'the list is still showing over the trip');
+assert.ok(deep.showing.includes('Goa'), `landed on the wrong trip: ${deep.showing}`);
+assert.ok(!deep.showing.includes('Something else'), 'the other trip came along too');
+
 console.log('  ok  the planner reads the account copy at parse time');
 console.log('  ok  every planner save is heard, and the portal\'s own storage is untouched');
-console.log('\n2 passed');
+console.log('  ok  the real planner opens the trip the deep link asked for');
+console.log('\n3 passed');
