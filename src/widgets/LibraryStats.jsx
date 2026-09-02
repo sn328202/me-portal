@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { useLibrary } from '../hooks/useLibrary';
+import { usePicks } from '../hooks/usePicks';
+import { MEDIA, tally, thisYear } from '../utils/picks';
 import { useTheme } from '../contexts/ThemeContext';
 import { GiBookshelf, GiFilmStrip, GiCompactDisc, GiTv, GiGamepad } from 'react-icons/gi';
 import WidgetCard from '../components/WidgetCard';
@@ -8,6 +9,11 @@ import EmptyState from '../components/EmptyState';
 import Stat from '../components/ui/Stat';
 import '../styles/LibraryStats.css';
 
+/*
+ * The Library stopped being a count of everything finished, so this stopped
+ * counting it. "247 books" was a fact about Goodreads wearing this portal's
+ * clothes; how many of the blanks she has answered is a fact about this page.
+ */
 const KINDS = [
     { key: 'Books', type: 'Book', icon: <GiBookshelf size={24} /> },
     { key: 'Movies', type: 'Movie', icon: <GiFilmStrip size={24} /> },
@@ -17,23 +23,25 @@ const KINDS = [
 ];
 
 const LibraryStats = () => {
-    const { items, loading } = useLibrary();
+    const { picks, loading } = usePicks();
     const { getLabel } = useTheme();
+    const year = thisYear();
 
-    const stats = useMemo(() => {
-        const completed = items.filter(i => i.status === 'Completed');
-        return KINDS.reduce((acc, kind) => {
-            acc[kind.key] = completed.filter(i => i.type === kind.type).length;
-            return acc;
-        }, {});
-    }, [items]);
+    const stats = useMemo(() => KINDS.reduce((acc, kind) => {
+        acc[kind.key] = tally(picks, kind.type, year).filled;
+        return acc;
+    }, {}), [picks, year]);
 
-    const nowConsuming = useMemo(() => {
-        return items.filter(i => i.status === 'In Progress');
-    }, [items]);
+    /* What she is in the middle of, across all five — which is the half of
+       this widget anyone actually reads. */
+    const nowConsuming = useMemo(
+        () => picks.filter((p) => p.slot === 'currently')
+            .sort((a, b) => MEDIA.indexOf(a.media) - MEDIA.indexOf(b.media)),
+        [picks]
+    );
 
     return (
-        <WidgetCard title={`${getLabel('library')} Consumed`} icon={<GiBookshelf />} span={3}>
+        <WidgetCard title={getLabel('library')} icon={<GiBookshelf />} span={3}>
             {loading ? (
                 <WidgetLoading />
             ) : (
