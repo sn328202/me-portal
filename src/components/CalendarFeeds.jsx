@@ -35,20 +35,52 @@ const CalendarFeeds = () => {
     const [url, setUrl] = useState('');
     const [checking, setChecking] = useState(false);
     const [checked, setChecked] = useState(null);
+    const [saved, setSaved] = useState(null);
 
     const status = (id) => feeds.find((f) => f.id === id);
 
+    /**
+     * Check it and keep it, in one press.
+     *
+     * This used to be two buttons. Check told you the calendar's real name,
+     * its event count and the titles of the next few things on it — which is
+     * every signal a person needs to conclude that the calendar is connected —
+     * and then stored nothing, because storing it was a second button
+     * underneath. Touching the address field again cleared that button away.
+     *
+     * So the address never reached the account, the widget went on saying
+     * "disconnected", and the honest reading of that from the outside is that
+     * it keeps disconnecting. One button now: it reads the calendar, and if it
+     * can read it, it keeps it.
+     */
     const check = async () => {
         if (!url.trim() || checking) return;
         setChecking(true);
         setChecked(null);
-        setChecked(await probe(url.trim()));
+        setSaved(null);
+
+        const result = await probe(url.trim());
+        setChecked(result);
+
+        /* Every event titled "Busy" means she copied the public free/busy
+           address instead of the secret one. It reads fine and is useless, so
+           it is the one case worth stopping on rather than saving. */
+        if (result?.ok && !result.freeBusyOnly) {
+            const kept = await addFeed({ name: name.trim() || result.calendarName, url: url.trim() });
+            setSaved({ name: kept.name, count: result.eventCount });
+            setName('');
+            setUrl('');
+            setChecked(null);
+        }
         setChecking(false);
     };
 
-    const save = async () => {
+    /* Kept out of the address field's own state so the confirmation survives
+       the field being cleared. */
+    const saveAnyway = async () => {
         if (!checked?.ok) return;
-        await addFeed({ name: name.trim() || checked.calendarName, url: url.trim() });
+        const kept = await addFeed({ name: name.trim() || checked.calendarName, url: url.trim() });
+        setSaved({ name: kept.name, count: checked.eventCount });
         setName('');
         setUrl('');
         setChecked(null);
@@ -143,10 +175,10 @@ const CalendarFeeds = () => {
                     type="url"
                     placeholder="https://calendar.google.com/calendar/ical/…/private-…/basic.ics"
                     value={url}
-                    onChange={(e) => { setUrl(e.target.value); setChecked(null); }}
+                    onChange={(e) => { setUrl(e.target.value); setChecked(null); setSaved(null); }}
                 />
-                <Button onClick={check} disabled={!url.trim() || checking}>
-                    {checking ? 'Checking…' : 'Check'}
+                <Button variant="primary" onClick={check} disabled={!url.trim() || checking}>
+                    <GiSundial /> {checking ? 'Reading it…' : 'Add this calendar'}
                 </Button>
             </div>
 
@@ -154,29 +186,29 @@ const CalendarFeeds = () => {
                 <p className="integration-warning">Could not read that calendar — {checked.error}</p>
             )}
 
-            {checked?.ok && (
+            {/* Saved, and said so in the past tense. It also appears in the
+                list above with its own event count, which is the thing that
+                actually proves it is kept. */}
+            {saved && (
+                <p className="integration-msg">
+                    <GiCheckMark aria-hidden="true" />{' '}
+                    <strong>{saved.name}</strong> is connected — {saved.count} events in the next
+                    three months. It is saved to your account, so it is there on your phone too.
+                </p>
+            )}
+
+            {/* The one case that reads fine and is useless: every event titled
+                "Busy" is the public free/busy address, not the secret one. Not
+                saved automatically, but she can insist. */}
+            {checked?.ok && checked.freeBusyOnly && (
                 <div className="feed-check">
-                    <p className="integration-msg">
-                        <GiCheckMark aria-hidden="true" />{' '}
-                        <strong>{checked.calendarName || 'Calendar'}</strong> — {checked.eventCount} events
-                        in the next three months.
-                        {checked.sample?.length > 0 && (
-                            <> First up: {checked.sample.map((s) => s.title).join(', ')}.</>
-                        )}
+                    <p className="integration-warning">
+                        Every event on this calendar is titled &ldquo;Busy&rdquo; — that is the
+                        public free/busy feed, not the secret one. Go back to <em>Integrate
+                        calendar</em> and copy the address under <em>Secret address in iCal
+                        format</em> instead.
                     </p>
-
-                    {checked.freeBusyOnly && (
-                        <p className="integration-warning">
-                            Every event on this calendar is titled &ldquo;Busy&rdquo; — that is the
-                            public free/busy feed, not the secret one. Go back to <em>Integrate
-                            calendar</em> and copy the address under <em>Secret address in iCal
-                            format</em> instead.
-                        </p>
-                    )}
-
-                    <Button variant="primary" onClick={save} disabled={checked.freeBusyOnly}>
-                        <GiSundial /> Add this calendar
-                    </Button>
+                    <Button onClick={saveAnyway}>Add it anyway</Button>
                 </div>
             )}
         </div>
