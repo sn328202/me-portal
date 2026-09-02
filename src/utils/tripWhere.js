@@ -33,10 +33,21 @@ const day = (v) => String(v ?? '').slice(0, 10);
  */
 export const whereRows = (summary = [], stays = []) => {
     const placed = new Set();
+
     const rows = summary.map((row) => {
-        for (const stay of row.lodging || []) placed.add(stay.id);
+        /* Nights, not days. A leg's last date is the day you leave, and the
+           night before that morning belongs to whoever you slept with — so
+           matching on a leg's inclusive dates puts the Napa Airbnb under San
+           Francisco *and* under Napa, because both legs claim the 1st. Every
+           stay showed up twice, once in the stretch it belonged to and once
+           in the one before it. */
+        const nights = new Set((row.dates || []).slice(0, -1));
+        const lodging = stays.filter((s) => nightsOf(s).some((n) => nights.has(n)));
+        for (const stay of lodging) placed.add(stay.id);
+
         return {
             ...row,
+            lodging,
             travel: isTravelLeg(row.leg),
             /* A travel leg is not a night she forgot to book — it is a
                red-eye, and asking where she is sleeping on it is the question

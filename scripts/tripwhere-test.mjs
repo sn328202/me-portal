@@ -87,6 +87,27 @@ t('and it says which nights are still open', () => {
     assert.deepEqual(unhousedNights(rows[0]), []);
 });
 
+t('a handover night belongs to the city you arrive in, not the one you left', () => {
+    /* The bug the live page showed in five seconds: matching on a leg's
+       inclusive dates put the Napa Airbnb under San Francisco as well, because
+       both legs claim the 1st. Every booking appeared twice. */
+    const legs = [
+        { id: 1, city: 'San Francisco', start_date: '2026-10-29', end_date: '2026-11-01' },
+        { id: 2, city: 'Napa Valley', start_date: '2026-11-01', end_date: '2026-11-02' },
+        { id: 3, city: 'San Francisco', start_date: '2026-11-02', end_date: '2026-11-03' },
+    ];
+    const booked = [
+        { id: 'x', name: '250 King Street', check_in: '2026-10-29', check_out: '2026-11-01' },
+        { id: 'y', name: 'Airbnb TBD', check_in: '2026-11-01', check_out: '2026-11-02' },
+        { id: 'z', name: '250 King Street again', check_in: '2026-11-02', check_out: '2026-11-03' },
+    ];
+    const out = whereRows(summariseLegs(legs, { stays: booked }), booked);
+    assert.deepEqual(out.rows.map((r) => r.lodging.map((s) => s.name)), [
+        ['250 King Street'], ['Airbnb TBD'], ['250 King Street again'],
+    ]);
+    assert.deepEqual(out.orphans, []);
+});
+
 t('a booking no city covers is not dropped on the floor', () => {
     // It is the most interesting row on the page: she has booked somewhere
     // she has not yet said she is going.
