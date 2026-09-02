@@ -115,11 +115,26 @@ export const useWardrobeLink = (trip, data, { auto = true } = {}) => {
     // eleven she is only reminiscing about.
     const linked = state.present;
 
+    /* `raw` is in here on purpose, alongside the fingerprint.
+
+       The Wardrobe backs itself up to the account, and its rule is timid by
+       design: a browser that has never agreed with the server takes the
+       server's copy. Which means opening the Wardrobe in a fresh browser
+       replaces this browser's `op_trips` with whatever was backed up —
+       including an Atlas trip as it stood weeks ago. Watched live: the trip
+       page sent fifteen days across, the Wardrobe opened, and the copy from
+       August came back over the top of it.
+
+       Pushing again on a fingerprint change would not fix that, because the
+       trip did not change — the store did. So the store is a reason to look.
+       `sendToWardrobe` compares before writing, so the common case is a
+       comparison and nothing else, and a push that does write bumps the
+       snapshot to a state it agrees with, which ends there. */
     useEffect(() => {
         if (!auto || tripId == null || !linked) return undefined;
         const timer = setTimeout(() => pushRef.current?.(), SETTLE);
         return () => clearTimeout(timer);
-    }, [auto, tripId, linked, fingerprint]);
+    }, [auto, tripId, linked, fingerprint, raw]);
 
     return { state, error, sentAt, push };
 };

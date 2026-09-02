@@ -292,6 +292,27 @@ check('and is not called unchanged', moved.unchanged, false);
 check('the change is in the store', afterMove[0].name, 'India (Goa / Kerala)');
 check('her work still survives it',
     afterMove[0].byProfile, { me: { packChecked: { socks: true } } });
+// The backup restoring an older copy over the top of a fresh one. Watched
+// live: the trip page sent fifteen days across, the Wardrobe opened, its
+// account backup won, and August came back. The next send has to put the
+// Atlas's half right again without touching what she has ticked.
+{
+    const stale = JSON.parse(store.get('op_trips'));
+    stale[0].events = [];
+    stale[0].weather = {};
+    stale[0].name = 'India';
+    stale[0].byProfile = { me: { packChecked: { socks: true }, dayDone: { '2026-12-25': true } } };
+    store.set('op_trips', JSON.stringify(stale));
+
+    const repair = sendToWardrobe({ ...trip, destination: 'India' }, { days, items, legs }, fake);
+    const fixed = JSON.parse(store.get('op_trips'))[0];
+    check('a copy that came back stale is put right', repair.updated, true);
+    check('the days are back', fixed.events.length > 0, true);
+    check('and the weather with them', Object.keys(fixed.weather).length > 0, true);
+    check('while everything she ticked is untouched',
+        fixed.byProfile, { me: { packChecked: { socks: true }, dayDone: { '2026-12-25': true } } });
+}
+
 check('a full storage is a reason, not a crash',
     sendToWardrobe(trip, { days, items, legs }, {
         getItem: () => '[]', setItem: () => { throw new Error('quota'); },
