@@ -24,9 +24,19 @@ import {
     ConfirmButton,
     EmptyState
 } from '../components/ui';
+import ShelfImport from '../components/ShelfImport';
 import '../styles/Library.css';
 
 const TYPES = ['Book', 'Movie', 'Album', 'TV Show', 'Game'];
+
+/** "Mar 2026" — the month is the useful grain for a shelf, and the day of the
+ *  month is noise nobody has ever wanted from a reading list. */
+const finishedLabel = (iso) => {
+    const [y, m] = String(iso).split('-');
+    const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(m) - 1];
+    return month ? `${month} ${y}` : y;
+};
 const STATUSES = ['Not Started', 'In Progress', 'Completed', 'Dropped'];
 
 const TYPE_ICONS = {
@@ -89,19 +99,36 @@ const MediaCard = ({ title, creator, cover, aspect, badge, children, ...rest }) 
     );
 };
 
-const Rating = ({ value = 0 }) => (
-    <div className="rating" role="img" aria-label={`Rated ${value || 0} out of 5`}>
-        {[1, 2, 3, 4, 5].map(star => (
-            <FaStar
-                key={star}
-                className={star <= (value || 0) ? 'rating__star rating__star--on' : 'rating__star'}
-            />
-        ))}
-    </div>
-);
+/*
+ * Half stars, because Letterboxd rates in them.
+ *
+ * Rounding 3.5 down to 3 on the way in would be a small lie about what she
+ * thought of a film, told silently, on every import — so the column holds
+ * halves and this draws them: a full star underneath, a clipped one over it.
+ */
+const Rating = ({ value = 0 }) => {
+    const v = Number(value) || 0;
+    return (
+        <div className="rating" role="img" aria-label={`Rated ${v || 0} out of 5`}>
+            {[1, 2, 3, 4, 5].map(star => {
+                const fill = Math.max(0, Math.min(1, v - star + 1));
+                return (
+                    <span key={star} className="rating__slot">
+                        <FaStar className="rating__star" />
+                        {fill > 0 && (
+                            <span className="rating__fill" style={{ width: `${fill * 100}%` }}>
+                                <FaStar className="rating__star rating__star--on" />
+                            </span>
+                        )}
+                    </span>
+                );
+            })}
+        </div>
+    );
+};
 
 const Library = () => {
-    const { items, loading, error, addItem, updateItem, deleteItem } = useLibrary();
+    const { items, loading, error, addItem, updateItem, deleteItem, reload } = useLibrary();
     const [activeTab, setActiveTab] = useState('Book'); // 'Book', 'Movie', 'Album', 'TV Show', 'Game'
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -130,6 +157,18 @@ const Library = () => {
         result.sort((a, b) => {
             if (sortBy === 'Rating') return (b.rating || 0) - (a.rating || 0);
             if (sortBy === 'Title') return (a.title || '').localeCompare(b.title || '');
+            /* When she actually finished it, which for an imported shelf is
+               the only ordering that means anything — everything arrived on
+               the same afternoon, so "date added" says nothing at all.
+               Anything undated goes last rather than pretending to be old. */
+            if (sortBy === 'Finished') {
+                const A = a.finished_at || '';
+                const B = b.finished_at || '';
+                if (!A && !B) return 0;
+                if (!A) return 1;
+                if (!B) return -1;
+                return B.localeCompare(A);
+            }
             // Default: Date Added (Desc) - the hook already returns items newest-first,
             // so the incoming order is what we want.
             return 0;
@@ -372,12 +411,18 @@ const Library = () => {
                                 onChange={(e) => setSortBy(e.target.value)}
                             >
                                 <option value="Date Added">Date Added (Newest)</option>
+                                <option value="Finished">Finished (Newest)</option>
                                 <option value="Rating">Highest Rated</option>
                                 <option value="Title">Title (A-Z)</option>
                             </select>
                         </Field>
                     </div>
                 </div>
+
+                {/* A shelf she has already kept somewhere else for years.
+                    Neither Goodreads nor Letterboxd will answer an API, but
+                    both hand over a file, so a file is the way in. */}
+                <ShelfImport items={items} onDone={reload} />
             </Card>
 
             {/* The shelf */}
@@ -417,6 +462,17 @@ const Library = () => {
                             }
                         >
                             <Rating value={item.rating} />
+
+                            {/* When she finished it, and when it was made.
+                                On an imported shelf this is the only date that
+                                means anything — they all arrived at once. */}
+                            {(item.finished_at || item.year) && (
+                                <span className="media-card__when">
+                                    {item.finished_at && finishedLabel(item.finished_at)}
+                                    {item.finished_at && item.year && ' · '}
+                                    {item.year && <em>{item.year}</em>}
+                                </span>
+                            )}
 
                             {item.link && (
                                 <a

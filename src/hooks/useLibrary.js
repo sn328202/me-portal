@@ -114,6 +114,9 @@ export const useLibrary = () => {
         error,
         addItem,
         updateItem,
-        deleteItem
+        deleteItem,
+        // An import writes hundreds of rows straight to the table rather than
+        // one at a time through addItem, so it needs a way to say "look again".
+        reload: fetchItems,
     };
 };
