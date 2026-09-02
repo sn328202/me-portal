@@ -7,6 +7,7 @@ import { formatMoney } from '../utils/tripCosts';
 import { mapFor, pageFor } from '../utils/mapsLink';
 import PlaceField from './PlaceField';
 import { tripRect } from '../utils/tripBounds';
+import { ideasAsText, countable } from '../utils/ideasText';
 
 /**
  * Somewhere to put an idea before it has a date.
@@ -266,6 +267,32 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
     /* Which day each idea is being put on, by idea. One shared value meant
        choosing a day for one idea chose it for all of them. */
     const [target, setTarget] = useState({});
+    const [copied, setCopied] = useState(false);
+
+    const all = [...(hooks.toDo || []), ...(hooks.toEat || []), ...(hooks.toStay || [])];
+    const sendable = countable(all);
+
+    const copyOut = async () => {
+        const text = ideasAsText(all, { tripName: trip?.destination, currency });
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            /* A clipboard the browser will not hand over — an insecure origin,
+               a permission refused — should not end with nothing having
+               happened. The oldest trick still works everywhere. */
+            const box = document.createElement('textarea');
+            box.value = text;
+            box.setAttribute('readonly', '');
+            box.style.position = 'fixed';
+            box.style.opacity = '0';
+            document.body.appendChild(box);
+            box.select();
+            try { document.execCommand('copy'); } finally { box.remove(); }
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     if (!trip) return null;
 
@@ -345,6 +372,23 @@ const TripIdeas = ({ trip, days = [], legs = [], hooks, onAddToDay, onBook }) =>
             <header className="ideas__head">
                 <h3><GiLightBulb /> Ideas</h3>
                 <span className="ideas__hint">Anything you might do. Dates optional.</span>
+
+                {/* The board is for planning; this is for asking. "Here are
+                    the six places, which do you fancy" is a message, and the
+                    only way to send it was to retype it or screenshot it —
+                    a screenshot being the version nobody can tap a link in. */}
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    className="ideas__copy"
+                    disabled={!sendable}
+                    onClick={copyOut}
+                    title={sendable
+                        ? 'Copy every idea as plain text, with a link on each one that has one'
+                        : 'Nothing to send yet'}
+                >
+                    {copied ? '✓ Copied' : `Copy ${sendable || ''} to send`.trim()}
+                </Button>
             </header>
 
             <div className="ideas__columns">

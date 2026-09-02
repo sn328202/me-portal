@@ -4,6 +4,7 @@ import { Button, Card } from './ui';
 import { formatMoney } from '../utils/tripCosts';
 import { summariseLegs, isTravelLeg, legDestination } from '../utils/tripLegs';
 import DateField from './DateField';
+import PlaceField from './PlaceField';
 
 /**
  * The trip before it is days: five in Goa, then four in Kerala.
@@ -17,6 +18,12 @@ import DateField from './DateField';
  * list, where halfway up the page it read as the next step — a thing to fix
  * before carrying on. It is a checklist you glance at once the planning is
  * done, so it lives at the bottom now, as TripLooseEnds.
+ *
+ * A leg can be pinned. It always had a coordinate, geocoded from whatever
+ * string was in the city box, which is fine until "Kerala" resolves to the
+ * middle of a state and the pin lands in a field. Choosing the place gives it
+ * the coordinate the map wants and the address she meant — the same control
+ * every stop and every idea already has.
  */
 
 const TripRoute = ({
@@ -51,7 +58,7 @@ const TripRoute = ({
         <div className="route">
             <Card className="route__legs">
                 <header className="route__head">
-                    <h4><GiPathDistance /> Where, and when</h4>
+                    <h4><GiPathDistance /> The cities</h4>
                     <Button size="sm" variant="ghost" onClick={() => setAdding((v) => !v)}>
                         {adding ? 'Cancel' : '+ Add a city'}
                     </Button>
@@ -84,6 +91,15 @@ const TripRoute = ({
                                 onCommit={(v) => onUpdate(leg.id, { end_date: v || null })}
                             />
 
+                            <button
+                                type="button"
+                                className="route__drop"
+                                aria-label={`Remove ${leg.city}`}
+                                onClick={() => onDelete(leg.id)}
+                            >
+                                <GiTrashCan />
+                            </button>
+
                             <span className="route__facts">
                                 <span>
                                     {dayCount} {dayCount === 1 ? 'day' : 'days'} · {nights} {nights === 1 ? 'night' : 'nights'}
@@ -106,14 +122,26 @@ const TripRoute = ({
 
                             <strong className="route__cost">{formatMoney(cost, currency)}</strong>
 
-                            <button
-                                type="button"
-                                className="route__drop"
-                                aria-label={`Remove ${leg.city}`}
-                                onClick={() => onDelete(leg.id)}
-                            >
-                                <GiTrashCan />
-                            </button>
+                            {/* Where this actually is. Empty, it offers to
+                                look it up; filled, it is the address with its
+                                map link. */}
+                            <PlaceField
+                                className="route__place"
+                                location={leg.address}
+                                link={leg.place_id
+                                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(leg.address || leg.city)}&query_place_id=${leg.place_id}`
+                                    : null}
+                                label={leg.city || 'this leg'}
+                                onPick={(place) => onUpdate(leg.id, {
+                                    address: place.location,
+                                    place_id: place.place_id,
+                                    lat: place.lat ?? null,
+                                    lng: place.lng ?? null,
+                                })}
+                                onClear={leg.address
+                                    ? () => onUpdate(leg.id, { address: null, place_id: null })
+                                    : undefined}
+                            />
                         </li>
                     ))}
                 </ol>

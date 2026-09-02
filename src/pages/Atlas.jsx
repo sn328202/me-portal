@@ -8,6 +8,7 @@ import { useAtlas } from '../hooks/useAtlas';
 import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, describeShape } from '../utils/tripShape';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
+import TripStays from '../components/TripStays';
 import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
 import TripWardrobe from '../components/TripWardrobe';
@@ -782,6 +783,9 @@ const Atlas = () => {
                             answered from a city and a date, and those are
                             these. It was in the cost header; before that it
                             was nowhere near either. */}
+                        {/* Two halves of one question — where are we, and
+                            where are we sleeping — so they sit side by side
+                            rather than as two full-width stacks. */}
                         <section className="expedition__where">
                             <div className="expedition__where-head">
                                 <h3 className="section-title">Where and when</h3>
@@ -801,6 +805,14 @@ const Atlas = () => {
                                 <p className="expedition__weather-note" role="status">{planner.weatherMessage}</p>
                             )}
 
+                            {/* The cities and the beds, side by side. They are
+                                two halves of one question and each was a
+                                full-width stack, so between them they were the
+                                whole of the first screen before the plan
+                                started. Named by their own cards, so the
+                                section keeps one heading rather than three. */}
+                            <div className="expedition__pair">
+                              <div className="expedition__pair-half">
                             <TripRoute
                                 legs={planner.legs}
                                 stays={planner.stays}
@@ -812,6 +824,21 @@ const Atlas = () => {
                                 onUpdate={planner.updateLeg}
                                 onDelete={planner.deleteLeg}
                             />
+                              </div>
+
+                              <div className="expedition__pair-half">
+                            <TripStays
+                                stays={planner.stays}
+                                currency={selectedTrip.currency || 'USD'}
+                                partySize={selectedTrip.party_size || 1}
+                                tripStart={selectedTrip.start_date}
+                                tripEnd={selectedTrip.end_date}
+                                onAdd={planner.addStay}
+                                onUpdate={planner.updateStay}
+                                onDelete={planner.deleteStay}
+                            />
+                              </div>
+                            </div>
                         </section>
 
                         {/* Open when there is something in it, folded away
@@ -834,10 +861,11 @@ const Atlas = () => {
                             />
                         </details>
 
-                        {/* The day-by-day plan: the spreadsheet's spine, and
-                            the reason for the page. */}
+                        {/* The day-by-day plan, and what it costs. It was
+                            called "The Days", which said nothing about the
+                            half of it that adds up. */}
                         <section className="expedition__planner">
-                            <h3 className="section-title">The Days</h3>
+                            <h3 className="section-title">The Ledger</h3>
                             <TripPlanner
                                 trip={selectedTrip}
                                 onUpdateTrip={handleUpdateTrip}
@@ -869,13 +897,12 @@ const Atlas = () => {
                             stays={planner.stays}
                         />
 
-                        {/* What is still unfinished includes what she has not
-                            decided to wear. It sits here rather than in the
-                            setup drawer, where the old one-shot button lived
-                            and was never found. */}
-                        <TripWardrobe trip={selectedTrip} data={planner} />
-
-                        <div className="field">
+                        {/* The map and the wardrobe, side by side. What to
+                            wear is a thing about the trip rather than a gap
+                            in it, and the last version of this link went
+                            unfound because it was three sections down. */}
+                        <div className="expedition__beside">
+                        <div className="field expedition__mapfield">
                         <span className="field__label">WAYPOINTS (CLICK MAP TO ADD)</span>
                         <ul className="waypoints">
                             {currentWaypoints.map((wp, idx) => (
@@ -923,6 +950,11 @@ const Atlas = () => {
                             }}
                         />
                         {locating && <p className="atlas__locating">Finding these places…</p>}
+                        </div>
+
+                        <div className="field expedition__wardrobe">
+                            <TripWardrobe trip={selectedTrip} data={planner} />
+                        </div>
                         </div>
                     </section>
 

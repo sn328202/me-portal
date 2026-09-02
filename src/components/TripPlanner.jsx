@@ -9,7 +9,6 @@ import TripTimeline from './TripTimeline';
 import StopPopover from './StopPopover';
 import BookedChip from './BookedChip';
 import { needsBooking } from '../utils/bookingState';
-import TripStays from './TripStays';
 import MentionInput from './MentionInput';
 import { isTravelLeg } from '../utils/tripLegs';
 
@@ -147,7 +146,7 @@ const VIEWS = [
 const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
     const {
         days, items, stays, legs, strays, costs,
-        lodgingPerNight, stayOnDate, addStay, updateStay, deleteStay,
+        lodgingPerNight, stayOnDate,
         legOnDate, cityLabelFor, moveItem,
         ensureDays, updateDay, addItem, updateItem, deleteItem,
         dropDay,
@@ -231,16 +230,10 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
                 </ul>
             </Card>
 
-            <TripStays
-                stays={stays}
-                currency={currency}
-                partySize={party}
-                tripStart={trip.start_date}
-                tripEnd={trip.end_date}
-                onAdd={addStay}
-                onUpdate={updateStay}
-                onDelete={deleteStay}
-            />
+            {/* Lodging used to sit here, at the bottom of the day
+                planner, which is where you look for it last and enter it
+                first. It is up beside the route now — same question, "where
+                are we and where are we sleeping", answered in one row. */}
 
             {/* A day left over from an earlier set of dates, still holding
                 something. Empty ones are cleared automatically; these are not,

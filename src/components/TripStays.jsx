@@ -3,6 +3,7 @@ import { GiTrashCan, GiHouse } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import { nightsOf, perPerson, formatMoney } from '../utils/tripCosts';
 import DateField from './DateField';
+import PlaceField from './PlaceField';
 
 /**
  * Lodging, entered once for the nights it covers.
@@ -15,6 +16,12 @@ import DateField from './DateField';
  *
  * The cost is entered as the whole booking, because that is what the
  * confirmation email says. What each person owes per night falls out of it.
+ *
+ * A stay has a place and a link now. Half of lodging is a hotel with an
+ * address, and the other half is an Airbnb whose address you do not get until
+ * the week before — so both are offered and neither is required. `address` and
+ * `link` had been columns on the table since it was made, holding nothing,
+ * because there was nowhere on screen to put them.
  */
 
 const TripStays = ({ stays, currency, partySize, tripStart, tripEnd, onAdd, onUpdate, onDelete }) => {
@@ -74,6 +81,15 @@ const TripStays = ({ stays, currency, partySize, tripStart, tripEnd, onAdd, onUp
                                 aria-label="Check out"
                                 onCommit={(v) => onUpdate(stay.id, { check_out: v || null })}
                             />
+                            <button
+                                type="button"
+                                className="stays__drop"
+                                aria-label={`Remove ${stay.name}`}
+                                onClick={() => onDelete(stay.id)}
+                            >
+                                <GiTrashCan />
+                            </button>
+
                             <input
                                 type="number"
                                 inputMode="decimal"
@@ -88,14 +104,44 @@ const TripStays = ({ stays, currency, partySize, tripStart, tripEnd, onAdd, onUp
                                 {nights.length} {nights.length === 1 ? 'night' : 'nights'}
                                 <em>{formatMoney(each, currency)} pp / night</em>
                             </span>
-                            <button
-                                type="button"
-                                className="stays__drop"
-                                aria-label={`Remove ${stay.name}`}
-                                onClick={() => onDelete(stay.id)}
-                            >
-                                <GiTrashCan />
-                            </button>
+
+                            {/* A hotel has an address; an Airbnb has a link
+                                and no address until the week before. Both are
+                                offered, neither is required. */}
+                            <PlaceField
+                                className="stays__place"
+                                location={stay.address}
+                                link={stay.place_id
+                                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address || stay.name)}&query_place_id=${stay.place_id}`
+                                    : null}
+                                label={stay.name || 'this stay'}
+                                onPick={(place) => onUpdate(stay.id, {
+                                    address: place.location,
+                                    place_id: place.place_id,
+                                })}
+                                onClear={stay.address
+                                    ? () => onUpdate(stay.id, { address: null, place_id: null })
+                                    : undefined}
+                            />
+
+                            <input
+                                type="url"
+                                className="stays__link"
+                                placeholder="Booking link (Airbnb, hotel…)"
+                                aria-label={`Link for ${stay.name || 'this stay'}`}
+                                value={stay.link || ''}
+                                onChange={(e) => onUpdate(stay.id, { link: e.target.value.trim() || null })}
+                            />
+                            {stay.link && (
+                                <a
+                                    className="stays__open"
+                                    href={stay.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Open the booking ↗
+                                </a>
+                            )}
                         </li>
                     );
                 })}

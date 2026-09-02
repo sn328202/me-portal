@@ -41,6 +41,11 @@ const PlaceField = ({
                             location: place.address || place.location,
                             link: place.link || null,
                             place_id: place.place_id || null,
+                            // Carried through for the callers that draw pins.
+                            // A stop does not need a coordinate; a leg of the
+                            // route is a dot on the map and does.
+                            lat: place.lat ?? null,
+                            lng: place.lng ?? null,
                         });
                         setSearching(false);
                     }}
