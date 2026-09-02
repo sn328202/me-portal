@@ -158,7 +158,6 @@ const TodayWidget = ({ plan, recipes }) => {
         <WidgetCard
             title="Today"
             icon={<GiSunrise />}
-            span={2}
             actions={(
                 <>
                     {shopping > 0 && (

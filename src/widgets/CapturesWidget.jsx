@@ -43,7 +43,7 @@ const CapturesWidget = () => {
     const rooms = (actions) => [...new Set((actions || []).map((a) => ROOM[a.table]).filter(Boolean))];
 
     return (
-        <WidgetCard title="Dictations" icon={<GiFeather />} scroll span={2}>
+        <WidgetCard title="Dictations" icon={<GiFeather />} scroll>
             {loading ? (
                 <WidgetLoading />
             ) : captures.length === 0 ? (

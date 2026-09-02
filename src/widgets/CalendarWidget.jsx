@@ -172,7 +172,6 @@ const CalendarWidget = () => {
             <WidgetCard
                 title="Chronometer"
                 icon={<GiSundial />}
-                span={2}
                 scroll
                 actions={
                     <Button icon size="sm" onClick={refresh} label="Refresh calendars" disabled={loading}>
@@ -210,7 +209,7 @@ const CalendarWidget = () => {
 
     if (!calendarId) {
         return (
-            <WidgetCard title="Chronometer" icon={<GiSundial />} span={2}>
+            <WidgetCard title="Chronometer" icon={<GiSundial />}>
                 <EmptyState
                     icon={<GiSundial />}
                     message="The Chronometer is disconnected."
@@ -227,7 +226,6 @@ const CalendarWidget = () => {
             <WidgetCard
                 title="Google Chronometer"
                 icon={<GiSundial />}
-                span={3}
                 className="calendar-widget"
                 actions={
                     <>

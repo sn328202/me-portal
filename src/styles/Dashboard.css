@@ -43,19 +43,103 @@
     flex-shrink: 0;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    align-items: stretch;
+    /* Not `stretch`. A card was as tall as the tallest thing beside it, so a
+       four-line trip countdown next to a nine-item booking list became four
+       lines of content in a card the height of nine — which is most of what
+       made the grid look wrong. A card is now as tall as what is in it. */
+    align-items: start;
     gap: var(--space-5);
 }
 
-/* Hierarchy without reordering: a widget asks for the room it needs.
-   <WidgetCard span={2}> / span={3}. */
-.widget--span-2 {
-    grid-column: span 2;
+/* How wide a card is comes from her settings, on the slot rather than from
+   inside the widget — see utils/dashboardLayout. */
+.dash-slot { position: relative; display: flex; min-width: 0; }
+.dash-slot > .card { width: 100%; }
+.dash-slot--2 { grid-column: span 2; }
+.dash-slot--3 { grid-column: 1 / -1; }
+
+/* The old per-widget span classes. Kept because <WidgetCard span> still emits
+   them and something outside the dashboard may yet use it; inside a slot they
+   do nothing, which is the point. */
+.widget--span-2,
+.widget--span-full {
+    grid-column: auto;
 }
 
-.widget--span-full {
-    grid-column: 1 / -1;
+/* --- Arranging ----------------------------------------------------------
+   These cards are full of things you press — a checkbox per habit, a text
+   field in each of Today's groups, a delete on every row — so dragging is a
+   mode rather than something always live under all of it. */
+
+.dashboard-arrange {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: calc(var(--space-3) * -1);
 }
+
+.dashboard-arrange__hint {
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+}
+
+.widget-masonry.is-arranging .card { pointer-events: none; }
+
+.dash-slot.is-arranging { cursor: grab; }
+
+.dash-slot.is-arranging .card {
+    outline: 1px dashed var(--border-gold);
+    outline-offset: 2px;
+}
+
+/* The cover is the handle: in arrange mode there is nothing underneath to
+   press, so a small grip would only be a smaller target for the same gesture. */
+.dash-slot__grip {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bg-panel) 78%, transparent);
+}
+
+.dash-slot__drag {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    text-align: left;
+    color: var(--text-main);
+    background: none;
+    border: 0;
+    cursor: grab;
+    touch-action: none;
+}
+
+.dash-slot__drag:active { cursor: grabbing; }
+
+.dash-slot__size {
+    flex-shrink: 0;
+    padding: var(--space-1) var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-gold);
+    background: none;
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.dash-slot__size:hover { border-color: var(--border-gold); }
 
 
 /* ---------- First-run guide -------------------------------- */
@@ -176,7 +260,8 @@
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .widget--span-2 {
+    .dash-slot--2,
+    .dash-slot--3 {
         grid-column: 1 / -1;
     }
 }
@@ -198,10 +283,14 @@
         grid-template-columns: 1fr;
     }
 
-    .widget--span-2,
-    .widget--span-full {
+    /* One column: every card is the width of the page, so a width she chose
+       for a three-column grid has nothing to say here. */
+    .dash-slot--2,
+    .dash-slot--3 {
         grid-column: auto;
     }
+
+    .dashboard-arrange { margin-bottom: 0; }
 
     .welcome-card {
         width: 100%;

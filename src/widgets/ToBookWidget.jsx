@@ -23,7 +23,7 @@ const ToBookWidget = () => {
     const { items, loading, error, markBooked } = useToBook();
 
     return (
-        <WidgetCard title="Still to book" icon={GiRotaryPhone} span={items.length ? 2 : 1}>
+        <WidgetCard title="Still to book" icon={GiRotaryPhone}>
             {error && <p className="tobook__error" role="alert">{error}</p>}
 
             {items.length === 0 ? (

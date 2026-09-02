@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useSettings } from './useSettings';
+import { orderedWidgets, moveWidget, spanOf, nextSpan } from '../utils/dashboardLayout';
 
 /**
  * The widgets there are.
@@ -74,5 +75,28 @@ export const useDashboardSettings = () => {
 
     const isEnabled = (id) => enabledWidgets.includes(id);
 
-    return { enabledWidgets, toggleWidget, isEnabled, loading };
+    /* Her arrangement. Kept as ids and widths in settings rather than as
+       positions, so turning a widget off and on again does not renumber
+       everything around it. */
+    const spans = useMemo(() => settings.widgetSpans || {}, [settings.widgetSpans]);
+    const order = useMemo(
+        () => orderedWidgets(ALL_WIDGETS.map((w) => w.id).filter(isEnabled), settings.widgetOrder),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [enabledWidgets, settings.widgetOrder]
+    );
+
+    const widthOf = (id) => spanOf(id, spans);
+
+    const widen = (id) => updateSetting('widgetSpans', { ...spans, [id]: nextSpan(widthOf(id)) });
+
+    const rearrange = (activeId, overId) => {
+        const next = moveWidget(order, activeId, overId);
+        if (next !== order) updateSetting('widgetOrder', next);
+        return next;
+    };
+
+    return {
+        enabledWidgets, toggleWidget, isEnabled, loading,
+        order, rearrange, widthOf, widen,
+    };
 };

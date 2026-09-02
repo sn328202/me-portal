@@ -1,4 +1,9 @@
 import React from 'react';
+import {
+    DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+} from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
+import { GiMove, GiCheckMark } from 'react-icons/gi';
 import GreetingWidget from '../widgets/GreetingWidget';
 import { useAuth } from '../contexts/AuthContext';
 import LibraryStats from '../widgets/LibraryStats';
@@ -14,13 +19,47 @@ import { useDashboardSettings } from '../hooks/useDashboardSettings';
 import { useTheme } from '../contexts/ThemeContext';
 import StreakBadge from '../components/gamification/StreakBadge';
 import WelcomeHero from '../components/WelcomeHero';
+import DashSlot from '../components/DashSlot';
+import Button from '../components/ui/Button';
 import '../styles/Dashboard.css';
+
+/* One place that says which id draws what, so the order can be a list of ids
+   and nothing else. */
+const WIDGETS = {
+    today: ({ mealPlan, recipes }) => <TodayWidget plan={mealPlan} recipes={recipes} />,
+    tobook: () => <ToBookWidget />,
+    captures: () => <CapturesWidget />,
+    chores: () => <ChoresWidget />,
+    travel: () => <TravelWidget />,
+    calendar: () => <CalendarWidget />,
+    library: () => <LibraryStats />,
+};
+
+/* What to call each one while she is moving it, since in arrange mode the
+   card underneath is covered. */
+const NAMES = {
+    today: 'Today',
+    tobook: 'Still to book',
+    captures: 'Dictations',
+    chores: 'Upkeep',
+    travel: 'Next expedition',
+    calendar: 'Chronometer',
+    library: 'The Stack',
+};
 
 const Dashboard = () => {
     const { user } = useAuth();
     const { mealPlan, recipes, loading: recipesLoading } = useRecipes();
     const { habits, streak: ritualStreak, loading: habitsLoading } = useHabits();
-    const { isEnabled } = useDashboardSettings();
+    const { isEnabled, order, rearrange, widthOf, widen } = useDashboardSettings();
+    const [arranging, setArranging] = React.useState(false);
+
+    /* A little travel before a press becomes a drag, so a slip of the hand on
+       a trackpad does not reorder the page. */
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
     const { getLabel, getIcon } = useTheme();
 
     // Onboarding Persistence
@@ -90,17 +129,50 @@ const Dashboard = () => {
                 Pastimes, Physical Readiness and the crossword tile went for
                 the plainer reason: two of them had never held a row, two had
                 not been touched since February, and the last was a link. */}
-            <div className="widget-masonry">
-                {isEnabled('today') && <TodayWidget plan={mealPlan} recipes={recipes} />}
-                {/* High up on purpose: it is the only card here that is a
-                    queue of things with deadlines attached to other people. */}
-                {isEnabled('tobook') && <ToBookWidget />}
-                {isEnabled('captures') && <CapturesWidget />}
-                {isEnabled('chores') && <ChoresWidget />}
-                {isEnabled('travel') && <TravelWidget />}
-                {isEnabled('calendar') && <CalendarWidget />}
-                {isEnabled('library') && <LibraryStats />}
+            {/* Which card, by id. The order and the widths come from her
+                settings; this only says what each id draws. */}
+            <div className="dashboard-arrange">
+                <Button
+                    size="sm"
+                    variant={arranging ? 'solid' : 'ghost'}
+                    onClick={() => setArranging((v) => !v)}
+                    label={arranging ? 'Finish arranging the dashboard' : 'Arrange the dashboard'}
+                >
+                    {arranging ? <><GiCheckMark /> Done</> : <><GiMove /> Arrange</>}
+                </Button>
+                {arranging && (
+                    <span className="dashboard-arrange__hint">
+                        Drag a card to move it, or press its width to make it wider.
+                    </span>
+                )}
             </div>
+
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={({ active, over }) => rearrange(active?.id, over?.id)}
+            >
+                <SortableContext items={order} strategy={rectSortingStrategy}>
+                    <div className={`widget-masonry${arranging ? ' is-arranging' : ''}`}>
+                        {order.map((id) => {
+                            const draw = WIDGETS[id];
+                            if (!draw) return null;
+                            return (
+                                <DashSlot
+                                    key={id}
+                                    id={id}
+                                    span={widthOf(id)}
+                                    arranging={arranging}
+                                    label={NAMES[id] || id}
+                                    onResize={widen}
+                                >
+                                    {draw({ mealPlan, recipes })}
+                                </DashSlot>
+                            );
+                        })}
+                    </div>
+                </SortableContext>
+            </DndContext>
         </div>
     );
 };

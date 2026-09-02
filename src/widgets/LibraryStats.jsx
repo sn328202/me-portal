@@ -69,7 +69,6 @@ const LibraryStats = () => {
         <WidgetCard
             title={getLabel('library')}
             icon={<GiBookshelf />}
-            span={3}
             actions={<Link className="stack__all" to="/library">All of it →</Link>}
         >
             {loading ? (

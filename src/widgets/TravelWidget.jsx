@@ -28,7 +28,7 @@ const TravelWidget = () => {
     };
 
     return (
-        <WidgetCard title="Next Expedition" icon={GiCompass} span={nextTrip ? 2 : 1}>
+        <WidgetCard title="Next Expedition" icon={GiCompass}>
             {nextTrip ? (
                 <div className="travel-container">
                     <div className="travel-countdown">
