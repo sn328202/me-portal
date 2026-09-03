@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GiTrashCan, GiPathDistance, GiHouse, GiCommercialAirplane, GiPositionMarker } from 'react-icons/gi';
+import { GiTrashCan, GiHouse, GiCommercialAirplane, GiPositionMarker, GiSunrise } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import { formatMoney, nightsOf, perPerson } from '../utils/tripCosts';
 import { summariseLegs, isTravelLeg, legDestination } from '../utils/tripLegs';
@@ -143,6 +143,7 @@ const Bed = ({ stay, currency, partySize, onUpdate, onDelete, onPin }) => {
 
 const TripWhere = ({
     legs, stays, days, items, costs, currency, partySize = 1, tripStart, tripEnd,
+    onWeather, weatherBusy, weatherMessage,
     onAddLeg, onUpdateLeg, onDeleteLeg,
     onAddStay, onUpdateStay, onDeleteStay,
 }) => {
@@ -233,12 +234,32 @@ const TripWhere = ({
 
     return (
         <Card className="where">
+            {/* No title. The section above this card already says "Where and
+                when"; saying it again inside the card is the card explaining
+                itself to someone who has just read it.
+
+                The weather sits here because it is only answerable once the
+                cities and their dates are in, and those are added by the
+                button next to it. */}
             <header className="where__head">
-                <h4><GiPathDistance /> Where, and where you sleep</h4>
+                <Button
+                    size="sm"
+                    onClick={onWeather}
+                    disabled={weatherBusy || !legs.length}
+                    title={legs.length
+                        ? 'Look up the weather for these cities on these dates'
+                        : 'Add a city and its dates first — that is what the forecast is looked up from'}
+                >
+                    <GiSunrise /> {weatherBusy ? 'Checking…' : 'Fill in weather'}
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => setAddingLeg((v) => !v)}>
                     {addingLeg ? 'Cancel' : '+ Add a city'}
                 </Button>
             </header>
+
+            {weatherMessage && (
+                <p className="expedition__weather-note" role="status">{weatherMessage}</p>
+            )}
 
             {!rows.length && !addingLeg && (
                 <p className="where__empty">

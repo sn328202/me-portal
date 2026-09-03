@@ -387,17 +387,25 @@
     flex-shrink: 0;
 }
 
-/* Location beside Cost where there is room for both, stacked where there is
-   not. `1fr 7rem` gave Location 119 pixels in the narrow board — not enough
-   to show the word "Location", let alone anything typed into it — and no
-   media query would have known, because it depends on how wide the board is
-   rather than how wide the window is. auto-fit works it out. */
-.idea-form__row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+/* One line: what it is, what it costs, and where it goes.
+
+   It was three labelled field groups stacked with two full-width buttons
+   under them — about 300 pixels of chrome for one sentence. The labels went
+   with the layout: "Activity" over a box that says "What is it?" is the same
+   word twice. */
+.idea-form__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-2);
-    align-items: end;
 }
+
+.idea-form__what { flex: 1 1 14rem; min-width: 0; }
+
+input.idea-form__cost { flex: 0 0 5rem; width: 5rem; text-align: right; }
+
+.idea-form__line .btn { flex-shrink: 0; }
+
 
 .idea-form__linked {
     margin: 0;
@@ -972,16 +980,13 @@
     .tl-travel {
         padding-left: var(--space-5);
     }
-
-    .idea-form__row {
-        grid-template-columns: 1fr;
-    }
 }
 
 
-/* The place an @-mention pulled in. The Location field beside it is a search
-   box rather than a display of what is set, so without this a place arrives
-   in the item with nothing on screen saying it did. */
+/* The place an @-mention pulled in. Nothing else on screen says a place is
+   attached — the Location search box that used to sit beside this is gone,
+   because @ already asks the same question — so without this a place arrives
+   in the item silently. */
 .idea-form__pulled {
     display: flex;
     align-items: center;
@@ -1129,17 +1134,6 @@
 
 /* Two ways out of the add box. The one she wants is the loud one: things
    typed in here are usually things she is doing, not things she is weighing. */
-
-.idea-form__actions {
-    display: flex;
-    gap: var(--space-2);
-    align-items: stretch;
-}
-
-.idea-form__actions > * {
-    flex: 1;
-    min-width: 0;
-}
 
 
 /* ---------- The grip, the face, the length ------------------ */

@@ -27,7 +27,7 @@ const TripCard = ({ trip, days = [], itemsByDay = {} }) => {
 
     return (
         <>
-            <Button onClick={() => setOpen(true)}>📮 Share sheet</Button>
+            <Button size="sm" onClick={() => setOpen(true)}>📮 Share</Button>
 
             <Modal open={open} onClose={() => setOpen(false)} title="Send this trip to someone" size="wide">
                 <div className="daycard__wrap">

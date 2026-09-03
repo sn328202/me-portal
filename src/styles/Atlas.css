@@ -1102,21 +1102,15 @@
    booked for those nights nested underneath it. It used to be two cards side
    by side asserting the same city over the same nights. */
 
+/* Two buttons and nothing else — the section heading above the card names it,
+   so there is no title in here to sit them against. */
 .where__head {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
     gap: var(--space-2);
     margin-bottom: var(--space-2);
-}
-
-.where__head h4 {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--text-base);
 }
 
 .where__empty,
@@ -2509,18 +2503,9 @@ textarea.expedition__notes:focus {
     border-top: var(--rule-hair);
 }
 
-.expedition__where-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    margin-bottom: var(--space-3);
-}
-
-.expedition__where-head .section-title { margin: 0; }
-
-.expedition__where-head .btn { font-size: var(--text-2xs); }
+/* Retired: the section heading stands alone now. The weather button that used
+   to sit beside it moved into the card, next to the button that adds the
+   cities it needs — see .where__head. */
 
 
 /* The two cards that used to sit here — the cities, and the lodging — are one

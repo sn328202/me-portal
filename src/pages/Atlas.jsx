@@ -16,7 +16,7 @@ import TripLooseEnds from '../components/TripLooseEnds';
 import DateField from '../components/DateField';
 import TripCard from '../components/TripCard';
 import TripWhere from '../components/TripWhere';
-import { GiSunrise, GiGears } from 'react-icons/gi';
+import { GiGears } from 'react-icons/gi';
 import { useTripDays } from '../hooks/useTripDays';
 import { useTripIdeas } from '../hooks/useTripIdeas';
 import { flagsForLegs } from '../utils/flags';
@@ -508,21 +508,22 @@ const Atlas = () => {
                             render until the trip has dates — so on a brand new
                             expedition, the one thing that could fill it in was
                             behind the thing it was meant to fill in. */}
-                        {/* Same size as the two beside it: they are three
-                            things you do with the whole expedition, and one of
-                            them looking like a lesser control was only an
-                            accident of where it used to live. */}
-                        <Button onClick={() => setSetupOpen(true)}>
+                        {/* Small, and short. Three full-size buttons across a
+                            page header is a toolbar pretending to be a
+                            decision, and "Save & Return to Map" wrapped onto
+                            two lines to say something that is not even true —
+                            nothing is saved by pressing it, because everything
+                            here saves as it is typed. It goes back. */}
+                        <Button size="sm" onClick={() => setSetupOpen(true)}>
                             <GiGears /> Setup
                         </Button>
-                        {/* Things you do with the whole expedition, together. */}
                         <TripCard
                             trip={selectedTrip}
                             days={planner.days}
                             itemsByDay={planner.items}
                         />
-                        <Button variant="primary" onClick={() => setSelectedTripId(null)}>
-                            Save &amp; Return to Map
+                        <Button size="sm" variant="ghost" onClick={() => setSelectedTripId(null)}>
+                            ← All trips
                         </Button>
                     </>
                 )}
@@ -823,23 +824,7 @@ const Atlas = () => {
                             where are we sleeping — so they sit side by side
                             rather than as two full-width stacks. */}
                         <section className="expedition__where">
-                            <div className="expedition__where-head">
-                                <h3 className="section-title">Where and when</h3>
-                                <Button
-                                    size="sm"
-                                    onClick={planner.refreshWeather}
-                                    disabled={planner.weatherBusy || !planner.legs.length}
-                                    title={planner.legs.length
-                                        ? 'Look up the weather for these cities on these dates'
-                                        : 'Add a city and its dates first — that is what the forecast is looked up from'}
-                                >
-                                    <GiSunrise /> {planner.weatherBusy ? 'Checking…' : 'Fill in weather'}
-                                </Button>
-                            </div>
-
-                            {planner.weatherMessage && (
-                                <p className="expedition__weather-note" role="status">{planner.weatherMessage}</p>
-                            )}
+                            <h3 className="section-title">Where and when</h3>
 
                             {/* One list, not two. A booking already says which
                                 city you are in and which nights it covers, so
@@ -850,6 +835,13 @@ const Atlas = () => {
                                 looking at a calendar — it is only the editing
                                 surface that stops being two of them. */}
                             <TripWhere
+                                /* Filling in the weather only works once the
+                                   cities and dates are in, so it belongs beside
+                                   the button that adds them, not floating above
+                                   the card they live in. */
+                                onWeather={planner.refreshWeather}
+                                weatherBusy={planner.weatherBusy}
+                                weatherMessage={planner.weatherMessage}
                                 legs={planner.legs}
                                 stays={planner.stays}
                                 days={planner.days}

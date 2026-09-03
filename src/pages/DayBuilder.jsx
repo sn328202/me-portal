@@ -254,12 +254,21 @@ const DayBuilder = () => {
                         <GiFeather size={24} /> Ideas
                     </h3>
 
+                    {/* One line. It was three stacked field groups with their
+                        own labels and two full-width buttons, for what is
+                        really one sentence — what, how much, and where it
+                        goes. The Location search went with them: typing @ in
+                        the activity box looks a place up and brings its
+                        address and map link along, so a second box asking the
+                        same question was asking it twice. */}
                     <Card variant="flat" className="idea-form">
-                        <Field label="Activity">
+                        <div className="idea-form__line">
                             <MentionInput
+                                className="input idea-form__what"
                                 value={draft.activity}
                                 near={lookNear}
                                 placeholder="What is it? (@ to search a place)"
+                                aria-label="What is it"
                                 onChange={(activity) => setDraft((d) => ({ ...d, activity }))}
                                 onPick={(place, activity) => setDraft((d) => ({
                                     ...d,
@@ -271,12 +280,21 @@ const DayBuilder = () => {
                                     lng: place.lng ?? d.lng,
                                 }))}
                             />
-                        </Field>
+                            <input
+                                className="input idea-form__cost"
+                                inputMode="decimal"
+                                placeholder="$"
+                                aria-label="Cost"
+                                value={draft.cost}
+                                onChange={(e) => setDraft((d) => ({ ...d, cost: e.target.value }))}
+                            />
+                            <Button size="sm" variant="primary" onClick={addToDay}>Add to the day</Button>
+                            <Button size="sm" variant="ghost" onClick={addToBoard}>Just an idea</Button>
+                        </div>
 
-                        {/* The Location box below is a search widget, not a
-                            display of what is set — so a place pulled in by @
-                            would land in the item with nothing on screen
-                            saying so. This is that. */}
+                        {/* What @ brought with it. Nothing else on screen says
+                            a place is attached, so without this it would land
+                            in the item silently. */}
                         {(draft.location || draft.link) && (
                             <p className="idea-form__pulled">
                                 <GiPositionMarker aria-hidden="true" />
@@ -291,43 +309,6 @@ const DayBuilder = () => {
                                 </button>
                             </p>
                         )}
-
-                        <div className="idea-form__row">
-                            {isLoaded ? (
-                                <Field label="Location">
-                                    <PlacesSearch
-                                        placeholder="Search Location…"
-                                        onSelect={(place) => setDraft((d) => ({
-                                            ...d,
-                                            location: place.address,
-                                            lat: place.lat,
-                                            lng: place.lng,
-                                            link: place.link,
-                                            place_id: place.place_id,
-                                        }))}
-                                    />
-                                </Field>
-                            ) : (
-                                <Field
-                                    label="Location/Link"
-                                    placeholder="Location/Link"
-                                    value={draft.link}
-                                    onChange={(e) => setDraft((d) => ({ ...d, link: e.target.value }))}
-                                />
-                            )}
-                            <Field
-                                label="Cost ($)"
-                                className="idea-form__cost"
-                                placeholder="Cost ($)"
-                                value={draft.cost}
-                                onChange={(e) => setDraft((d) => ({ ...d, cost: e.target.value }))}
-                            />
-                        </div>
-
-                        <div className="idea-form__actions">
-                            <Button variant="primary" block onClick={addToDay}>Add to the day</Button>
-                            <Button variant="ghost" block onClick={addToBoard}>Just an idea</Button>
-                        </div>
                     </Card>
 
                     {ideas.length === 0 && (
