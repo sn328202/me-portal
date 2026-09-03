@@ -106,4 +106,98 @@ t('and it counts what is still to buy', () => {
     assert.equal(stillToBuy(), 0);
 });
 
+
+/* --- one list, not two -------------------------------------------------- */
+const { mergeList, byAisle, aisleOf } = await import('../src/utils/shoppingList.js');
+
+const CAT = {
+    garlic: { id: 'garlic', label: 'Garlic', category: 'Produce' },
+    basil: { id: 'basil', label: 'Basil', category: 'Produce' },
+    butter: { id: 'butter', label: 'Butter', category: 'Dairy' },
+};
+const cat = {
+    matchOne: (raw) => {
+        const normalised = String(raw || '').toLowerCase().trim();
+        const hit = Object.keys(CAT).find((k) => normalised.includes(k));
+        return hit ? { item: CAT[hit], normalised } : { item: null, normalised };
+    },
+};
+
+console.log('\nthe typed half and the cooked half are one list:');
+
+t('the same thing from both sides is one line', () => {
+    /* The Larder kept them apart and never compared them, so "garlic" typed by
+       hand and "4 cloves garlic" from a recipe were two lines in two places —
+       and buying twice is what a shopping list exists to prevent. */
+    const planned = plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat });
+    const merged = mergeList({
+        items: [{ id: 'm1', text: 'garlic', checked: false }],
+        planned,
+        matcher: cat,
+    });
+    const garlic = merged.filter((l) => /garlic/i.test(l.label));
+    assert.equal(garlic.length, 1);
+    assert.equal(garlic[0].amount, 6, 'and it carries the recipes’ amount');
+    assert.equal(garlic[0].itemId, 'm1', 'while staying the row she can tick');
+});
+
+t('her words win the label', () => {
+    // A thing she wrote down should read back as she wrote it.
+    const merged = mergeList({
+        items: [{ id: 'm1', text: 'the good garlic', checked: false }],
+        planned: plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat }),
+        matcher: cat,
+    });
+    assert.ok(merged.some((l) => l.label === 'the good garlic'));
+});
+
+t('and it says which recipes wanted it', () => {
+    const planned = plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat });
+    const garlic = planned.find((l) => l.label === 'Garlic');
+    assert.deepEqual(garlic.notes, ['Beet pasta', 'Garlic bread']);
+});
+
+t('something typed that matches nothing still gets a line', () => {
+    const merged = mergeList({ items: [{ id: 'm9', text: 'birthday candles' }], planned: [], matcher: cat });
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].label, 'birthday candles');
+});
+
+console.log('\nlaid out like a shop:');
+
+t('aisles in the order you walk them, not A to Z', () => {
+    // Sorted alphabetically it sends you back across the shop for the yoghurt.
+    const merged = mergeList({
+        items: [],
+        planned: plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat }),
+        matcher: cat,
+    });
+    const { aisles } = byAisle(merged);
+    const names = aisles.map((a) => a.name);
+    assert.equal(names.indexOf('Produce') < names.indexOf('Dairy'), true);
+});
+
+t('and anything unmatched goes to the end, not into Produce', () => {
+    assert.equal(aisleOf({ category: '' }), 'Anything else');
+    assert.equal(aisleOf({}), 'Anything else');
+    const { aisles } = byAisle([
+        { key: 'a', label: 'Candles', category: '' },
+        { key: 'b', label: 'Basil', category: 'Produce' },
+    ]);
+    assert.equal(aisles.at(-1).name, 'Anything else');
+});
+
+t('what she already has drops out of the walk', () => {
+    // Worth seeing once, not worth walking for.
+    const { aisles, have, needed } = byAisle([
+        { key: 'a', label: 'Garlic', category: 'Produce', inStock: true },
+        { key: 'b', label: 'Basil', category: 'Produce' },
+        { key: 'c', label: 'Butter', category: 'Dairy', checked: true },
+    ]);
+    assert.equal(needed, 1);
+    assert.deepEqual(aisles.map((x) => x.name), ['Produce']);
+    assert.deepEqual(aisles[0].lines.map((l) => l.label), ['Basil']);
+    assert.deepEqual(have.map((l) => l.label).sort(), ['Butter', 'Garlic']);
+});
+
 console.log(`\nshoppingList: ${n} passed`);

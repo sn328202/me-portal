@@ -47,11 +47,17 @@ export const plannedFrom = ({ plan, recipes, matcher, pantryStock = {} } = {}) =
                     amount: 0,
                     unit,
                     Icon: match ? match.icon : null,
+                    category: match?.category || '',
                     inStock: match ? !!pantryStock[match.id] : false,
+                    ingredientId: match ? match.id : null,
+                    notes: [],
                 };
             }
             const val = parseFloat(ing.amount);
             if (!Number.isNaN(val)) out[uniqueKey].amount += val;
+            if (recipe.title && !out[uniqueKey].notes.includes(recipe.title)) {
+                out[uniqueKey].notes.push(recipe.title);
+            }
         });
     });
 
@@ -92,3 +98,106 @@ export const listAsText = ({ items = [], planned = [], title = 'SHOPPING', heart
 /** How many lines are actually still to buy, for a count on a heading. */
 export const stillToBuy = (items = [], planned = []) => items.filter((i) => !i.checked).length
     + planned.filter((p) => !p.inStock).length;
+
+
+/* ---------- one list, not two ------------------------------------------ */
+
+/**
+ * Everything to buy, merged.
+ *
+ * The Larder's list kept the two halves apart and never compared them, so
+ * "garlic" typed by hand and "4 cloves garlic" from a recipe were two lines in
+ * two different places on the page — and buying twice is exactly what a
+ * shopping list exists to prevent. They are one line here, keyed the same way
+ * the pantry matcher keys everything else, so they merge on meaning rather
+ * than on spelling.
+ *
+ * Her words win the label. A thing she wrote down herself should read back as
+ * she wrote it, not as the pantry's tidy name for it.
+ */
+export const mergeList = ({ items = [], planned = [], matcher, pantryStock = {} } = {}) => {
+    const out = new Map();
+
+    for (const item of items) {
+        const text = String(item?.text || '').trim();
+        if (!text) continue;
+        const resolved = matcher?.matchOne?.(text) || {};
+        const match = resolved.item;
+        const key = match ? `ing-${match.id}` : `raw-${resolved.normalised || text.toLowerCase()}`;
+
+        out.set(key, {
+            key,
+            label: text,
+            amount: 0,
+            unit: '',
+            Icon: match ? match.icon : null,
+            category: match?.category || '',
+            ingredientId: match ? match.id : null,
+            inStock: match ? !!pantryStock[match.id] : false,
+            notes: [],
+            itemId: item.id,
+            checked: !!item.checked,
+        });
+    }
+
+    for (const ing of planned) {
+        const key = ing.ingredientId ? `ing-${ing.ingredientId}` : `raw-${String(ing.label || '').toLowerCase()}`;
+        const had = out.get(key);
+        if (had) {
+            // Same thing, said twice. Keep her label, take the recipe's amount
+            // and the reason it is needed.
+            had.amount += ing.amount || 0;
+            had.unit = had.unit || ing.unit;
+            had.notes = [...new Set([...had.notes, ...(ing.notes || [])])];
+            had.Icon = had.Icon || ing.Icon;
+            had.category = had.category || ing.category;
+            continue;
+        }
+        out.set(key, { ...ing, key, itemId: null, checked: false, notes: ing.notes || [] });
+    }
+
+    return [...out.values()];
+};
+
+/** Where in a shop it lives. Unmatched things go to the end, not into Produce. */
+const AISLES = ['Produce', 'Dairy', 'Protein', 'Bakery', 'Frozen', 'Pantry', 'Spices', 'Drinks'];
+const MISC = 'Anything else';
+
+export const aisleOf = (line) => {
+    const want = String(line?.category || '').trim();
+    if (!want) return MISC;
+    const hit = AISLES.find((a) => a.toLowerCase() === want.toLowerCase());
+    return hit || want;
+};
+
+/**
+ * The list as a shop is laid out, with what you already have at the end.
+ *
+ * Aisles in the order you walk them rather than alphabetically: a list sorted
+ * A–Z sends you back across the shop for the yoghurt. Anything already in the
+ * pantry drops out of its aisle and into its own group at the bottom, because
+ * it is worth seeing once and is not worth walking for.
+ */
+export const byAisle = (lines = []) => {
+    const needed = lines.filter((l) => !l.inStock && !l.checked);
+    const have = lines.filter((l) => l.inStock || l.checked);
+
+    const groups = new Map();
+    for (const line of needed) {
+        const aisle = aisleOf(line);
+        if (!groups.has(aisle)) groups.set(aisle, []);
+        groups.get(aisle).push(line);
+    }
+
+    const rank = (name) => {
+        const i = AISLES.indexOf(name);
+        if (i !== -1) return i;
+        return name === MISC ? AISLES.length + 1 : AISLES.length;
+    };
+
+    const aisles = [...groups.entries()]
+        .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+        .map(([name, of]) => ({ name, lines: of.sort((x, y) => x.label.localeCompare(y.label)) }));
+
+    return { aisles, have, needed: needed.length };
+};

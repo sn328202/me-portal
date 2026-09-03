@@ -728,156 +728,121 @@
    Deliberately un-themed. Cream stock, typewriter face, and the
    half-degree of slouch that makes it read as a real list. */
 
-.grocery-empty {
+/* --- The shopping list ---------------------------------------------------
+   One list, laid out the way a shop is walked. It used to be a sheet of
+   notepaper: a centred title, a scribble line, generous rules between every
+   row and an italic "Manual" tag on anything she had typed. Handsome, and it
+   meant six items filled a screen — and the tag labelled the one thing on the
+   page that needed no explanation. */
+
+.shop {
     display: flex;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--space-4);
 }
 
-.grocery-empty__form {
-    max-width: 300px;
-    margin: 0 auto;
-    width: 100%;
-}
-
-.grocery-paper {
-    position: relative;
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 600px;
-    min-height: 600px;
-    margin: 0 auto;
-    padding: var(--space-8);
-    background: #e8e6e3;
-    color: #1a1a1a;
-    font-family: var(--font-mono);
-    box-shadow: var(--shadow-md);
-    transform: rotate(-0.5deg);
-}
-
-.grocery-paper__title {
+.shop__head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin: 0 0 var(--space-6);
-    padding-bottom: var(--space-4);
-    font-family: var(--font-display);
-    border-bottom: 2px solid #1a1a1a;
+    gap: var(--space-2);
 }
 
-.grocery-paper__clear {
-    position: absolute;
-    right: var(--space-6);
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: #555;
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    text-decoration: underline;
-    cursor: pointer;
-}
+.shop__add { flex: 1 1 14rem; min-width: 0; }
+.shop__add .input { width: 100%; }
 
-.grocery-paper__form {
-    margin-bottom: var(--space-6);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px dashed #aaa;
-}
-
-.grocery-paper__input {
-    width: 100%;
-    padding: var(--space-2);
-    border: none;
-    background: transparent;
-    color: #1a1a1a;
-    font-family: var(--font-mono);
-    font-size: var(--text-lg);
-    outline: none;
-}
-
-.grocery-paper__groups {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-6);
-}
-
-.grocery-paper__category {
-    margin: 0 0 var(--space-2);
-    padding-bottom: var(--space-1);
-    border-bottom: 1px solid #ccc;
-    color: #666;
-    font-size: var(--text-xs);
-    letter-spacing: 2px;
-}
-
-.grocery-paper__list {
+.shop__count {
     margin: 0;
-    padding: 0;
-    list-style: none;
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
 }
 
-.grocery-paper__row {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    padding: var(--space-2) 0;
-    border-bottom: 1px dashed #ccc;
+.shop__count strong { color: var(--text-gold); font-family: var(--font-mono); }
+
+.shop__aisle h4 {
+    margin: 0 0 var(--space-1);
+    padding-bottom: 2px;
+    border-bottom: var(--rule-hair);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-weight: 400;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
 }
 
-.grocery-paper__check {
-    flex: 1;
+.shop__aisle ul { margin: 0; padding: 0; list-style: none; }
+
+.shop__aisle + .shop__aisle { margin-top: var(--space-3); }
+
+.shop__row {
     display: flex;
     align-items: baseline;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+    padding: 3px 0;
+}
+
+.shop__tick {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
     padding: 0;
-    border: none;
-    background: transparent;
-    color: inherit;
     font: inherit;
     text-align: left;
+    color: var(--text-main);
+    background: none;
+    border: 0;
     cursor: pointer;
 }
 
-.grocery-paper__check.is-checked {
-    opacity: 0.5;
-    text-decoration: line-through;
-}
-
-.grocery-paper__box {
-    display: flex;
+.shop__box {
+    flex-shrink: 0;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    margin-top: 2px;
-    border: 1.5px solid #1a1a1a;
-    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--border-dim);
+    border-radius: 3px;
+    font-size: 9px;
+    color: var(--text-gold);
+    transform: translateY(2px);
 }
 
-.grocery-paper__check.is-checked .grocery-paper__box {
-    background: #1a1a1a;
+.shop__tick:hover .shop__box { border-color: var(--text-gold); }
+
+.shop__what { font-size: var(--text-sm); }
+
+.shop__amount {
+    margin-right: var(--space-1);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
 }
 
-.grocery-paper__box--planned {
-    border-color: #aaa;
-}
-
-.grocery-paper__item {
-    font-weight: var(--weight-bold);
-}
-
-.grocery-paper__origin {
-    margin-left: auto;
-    color: #888;
-    font-size: 0.6rem;
+/* Why it is on the list. Small, and after the thing itself — she is looking
+   for the word "pecorino", not for the recipe that wants it. */
+.shop__for {
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
     font-style: italic;
 }
 
-.grocery-paper__row > div .grocery-paper__origin {
-    margin-left: 0;
+.shop__stocked {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--text-gold);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
 }
+
+.shop__row--got .shop__what { color: var(--text-dim); text-decoration: line-through; }
+.shop__row--got .shop__amount { text-decoration: line-through; }
+
+.shop__aisle--got { opacity: 0.6; }
 
 
 /* ---------- Menu Builder ----------------------------------- */
@@ -1481,15 +1446,6 @@
 @media (max-width: 640px) {
     .larder__content {
         padding-right: 0;
-    }
-
-    .grocery-paper {
-        min-height: 0;
-        padding: var(--space-4);
-    }
-
-    .grocery-paper__clear {
-        right: var(--space-4);
     }
 
     .menu-paper {
