@@ -5,7 +5,7 @@
  * is a worse failure than the duplicates it exists to prevent. These cases pin
  * both directions: what must collapse, and what must stay distinct.
  */
-import { norm, dedupe, describeDupes } from '../api/capture.js';
+import { norm, dedupe, describeDupes, TOOLS } from '../api/capture.js';
 
 let failed = 0;
 const check = (label, actual, expected) => {
@@ -71,6 +71,26 @@ check('across places', describeDupes([
     { item: 'Rome', where: 'in the Atlas' },
 ]), 'pasta was already on your grocery list; Rome was already in the Atlas');
 check('nothing', describeDupes([]), null);
+
+
+/* --- running out is two facts ------------------------------------------
+   The shortcut only ever recorded the second one: "we are out of garlic and
+   milk" put both on the grocery list and left the pantry claiming she had
+   them. These pin the shape of the fix without a database. */
+
+console.log('\nran_out — the tool the shortcut was missing:');
+
+const tool = (n) => TOOLS.find((t) => t.name === n);
+
+check('there is a tool for it', !!tool('ran_out'), true);
+check('it takes a list, like the grocery one does',
+    tool('ran_out')?.input_schema?.properties?.items?.type, 'array');
+check('and its description says it does both',
+    /out of stock.*grocery list|grocery list.*out of stock/is.test(tool('ran_out')?.description || ''), true);
+check('so the model is told not to also add them to the list',
+    /not also call add_groceries|one call, not two/i.test(tool('ran_out')?.description || ''), true);
+check('and restocking says it can put something back',
+    /back in stock|out of stock/i.test(tool('add_pantry_item')?.description || ''), true);
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);

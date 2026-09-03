@@ -64,7 +64,7 @@ export const useCaptures = (limit = 20) => {
         return () => { supabase.removeChannel(channel); };
     }, [user, limit]);
 
-    /** Delete everything a capture created, then mark it undone. */
+    /** Put back everything a capture did, then mark it undone. */
     const undoCapture = async (capture) => {
         const actions = capture.actions || [];
         // Children first. One dictation can make a trip, a day inside it and
@@ -75,11 +75,16 @@ export const useCaptures = (limit = 20) => {
 
         for (const action of sorted) {
             if (!action.table || !action.id) continue;
-            const { error: err } = await supabase
-                .from(action.table)
-                .delete()
-                .eq('id', action.id)
-                .eq('user_id', user.id);
+            /* Most actions made a row, so taking them back means deleting it.
+               Some only changed one — "we're out of garlic" flips a column on
+               an ingredient she curated — and those carry what to put back.
+               Deleting there would take the garlic with it. */
+            const put = action.undo?.set;
+            const { error: err } = put
+                ? await supabase.from(action.table).update(put)
+                    .eq('id', action.id).eq('user_id', user.id)
+                : await supabase.from(action.table).delete()
+                    .eq('id', action.id).eq('user_id', user.id);
             // A capture from before a room was retired points at a table that
             // no longer exists. There is nothing left to take back, which is
             // not a failure — refusing to undo the rest of the dictation

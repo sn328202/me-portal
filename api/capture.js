@@ -372,8 +372,23 @@ const TOOLS = [
         },
     },
     {
+        name: 'ran_out',
+        description:
+            'She has run out of something: "we are out of garlic and milk", "the olive oil is finished", '
+            + '"used up the last of the butter". Marks each one out of stock in the pantry AND puts it on '
+            + 'the grocery list — running out is both facts at once, so this is one call, not two. '
+            + 'Use add_groceries instead for something she simply wants to buy that is not a pantry staple.',
+        input_schema: {
+            type: 'object',
+            properties: { items: { type: 'array', items: { type: 'string' } } },
+            required: ['items'],
+        },
+    },
+    {
         name: 'add_pantry_item',
-        description: 'Record that an ingredient is now in the pantry, or add a new ingredient to the pantry catalogue.',
+        description:
+            'Record that an ingredient is now in the pantry — she has bought it or found it. '
+            + 'If it is already in the pantry catalogue but marked out of stock, this puts it back in stock.',
         input_schema: {
             type: 'object',
             properties: {
@@ -492,6 +507,10 @@ async function loadContext(sb, userId) {
         library: rows(library).map((l) => ({ title: l.title, type: l.type, status: l.status })),
         rooms: uniq(chores, 'room'),
         pantry: rows(pantry).filter((p) => p.in_stock !== false).map((p) => p.label || p.name),
+        /* Out of stock is not the same as absent, and the difference is the
+           whole of "we're out of garlic": the ingredient is known, it is just
+           not there. Listed separately so the model can tell them apart. */
+        pantryOut: rows(pantry).filter((p) => p.in_stock === false).map((p) => p.label || p.name),
         groceries: uniq(provisions, 'text'),
         todos: uniq(todos, 'text'),
         goals: rows(goals).map((g) => `${g.text}${g.horizon ? ` (${g.horizon})` : ''}`),
@@ -500,6 +519,17 @@ async function loadContext(sb, userId) {
         recipes: uniq(recipes, 'title'),
         ideas: rows(ideas).map((i) => ({ title: i.title, kind: i.kind, area: i.area })),
     };
+
+    /* The pantry addressable by what she calls it, so a tool can flip a row
+       rather than insert a second one. Normalised the same way the duplicate
+       check is, so "the garlic" and "Garlic" both land on the garlic. */
+    ctx.pantryBy = new Map();
+    rows(pantry).forEach((p) => {
+        const key = norm(p.label || p.name);
+        if (key && !ctx.pantryBy.has(key)) {
+            ctx.pantryBy.set(key, { id: p.id, label: p.label || p.name, in_stock: p.in_stock !== false });
+        }
+    });
 
     // The enforceable half. Keyed by table name so the writer can look up
     // `ctx.index[table]` without a second mapping to keep in sync.
@@ -589,6 +619,9 @@ Recipes in the Larder:${bullets(ctx.recipes)}
 Places she already means to get to, waiting for a trip (Atlas ideas):${bullets(ctx.ideas.map((i) => `${i.title}${i.area ? ` (${i.area})` : ''}${i.kind === 'eat' ? ' — somewhere to eat' : ''}${i.kind === 'stay' ? ' — somewhere to stay' : ''}`))}
 Chore rooms in use: ${ctx.rooms.join(', ') || 'none yet'} (plus Misc, the catch-all)
 In the pantry: ${ctx.pantry.join(', ') || 'nothing yet'}
+Known but out of stock: ${ctx.pantryOut.join(', ') || 'nothing'}
+
+Running out of something is two facts, not one: it is no longer in the cupboard **and** it needs buying. Use **ran_out** for "we're out of X", "the X is finished", "used the last of the X" — it does both, so do not also call add_groceries for the same thing. Use **add_groceries** only for things that are not pantry staples, or that she simply wants to buy.
 
 # The rooms, and what she may call them
 
@@ -695,7 +728,17 @@ async function writeRecipe(sb, userId, recipe, actions, toolName) {
 }
 
 async function runTool(sb, userId, name, input, actions, ctx, dupes) {
-    const push = (table, id, text) => actions.push({ tool: name, table, id, label: label(text) });
+    /**
+     * Record something to take back.
+     *
+     * `undo` describes how. Without it, undo deletes the row, which is right
+     * for everything that was created — and wrong for the pantry, where the
+     * write is a flip of one column on a row she has curated. Undoing "we're
+     * out of garlic" must put the garlic back in stock, not delete the garlic.
+     */
+    const push = (table, id, text, undo) => actions.push({
+        tool: name, table, id, label: label(text), ...(undo ? { undo } : {}),
+    });
     const ins = async (table, rows) => {
         const { data, error } = await sb.from(table).insert(rows).select('id');
         if (error) throw new Error(`${table}: ${error.message}`);
@@ -1057,8 +1100,60 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             push('habits', r.id, text);
             return `"${text}" as a daily ritual`;
         }
+        case 'ran_out': {
+            /* Running out is two facts at once — it is no longer in the
+               cupboard, and it needs buying — and the shortcut only ever
+               recorded the second. So the pantry row is flipped here and the
+               grocery line is added in the same call, because a person saying
+               "we're out of garlic" is not going to say it twice. */
+            const named = (input.items || []).map((x) => String(x || '').trim()).filter(Boolean);
+            if (!named.length) return null;
+
+            const marked = [];
+            for (const item of named) {
+                const known = ctx.pantryBy.get(norm(item));
+                if (!known || !known.in_stock) continue;
+                const { error } = await sb.from('pantry_ingredients')
+                    .update({ in_stock: false })
+                    .eq('id', known.id).eq('user_id', userId);
+                if (error) throw new Error(`pantry_ingredients: ${error.message}`);
+                known.in_stock = false;
+                push('pantry_ingredients', known.id, known.label, { set: { in_stock: true } });
+                marked.push(known.label);
+            }
+
+            const items = dedupe(ctx, 'provisions', named, 'on your grocery list', dupes);
+            if (items.length) {
+                const rows2 = items.map((text) => ({ text, checked: false, user_id: userId }));
+                (await ins('provisions', rows2)).forEach((r, i) => push('provisions', r.id, items[i]));
+            }
+
+            if (!items.length && !marked.length) return null;
+            const bought = items.length ? `${listOf(items)} to the grocery list` : '';
+            const gone = marked.length ? `${listOf(marked)} marked out of stock in the pantry` : '';
+            return [bought, gone].filter(Boolean).join(', and ');
+        }
         case 'add_pantry_item': {
-            const nameIn = once('pantry_ingredients', input.name, 'in the pantry');
+            const asked = String(input.name || '').trim();
+            if (!asked) return null;
+
+            /* Already in the catalogue but marked out of stock is the common
+               case once "we're out of X" exists at all — she buys it again.
+               Refusing that as a duplicate would leave the pantry claiming she
+               has none, which is the state she is trying to correct. */
+            const known = ctx.pantryBy.get(norm(asked));
+            if (known) {
+                if (known.in_stock) { dupes.push({ item: asked, where: 'in the pantry' }); return null; }
+                const { error } = await sb.from('pantry_ingredients')
+                    .update({ in_stock: true })
+                    .eq('id', known.id).eq('user_id', userId);
+                if (error) throw new Error(`pantry_ingredients: ${error.message}`);
+                known.in_stock = true;
+                push('pantry_ingredients', known.id, known.label, { set: { in_stock: false } });
+                return `${known.label} back in stock`;
+            }
+
+            const nameIn = once('pantry_ingredients', asked, 'in the pantry');
             if (!nameIn) return null;
             const [r] = await ins('pantry_ingredients', [{
                 name: nameIn.toLowerCase(),
@@ -1067,6 +1162,7 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
                 in_stock: input.in_stock !== false,
                 user_id: userId,
             }]);
+            ctx.pantryBy.set(norm(nameIn), { id: r.id, label: nameIn, in_stock: true });
             push('pantry_ingredients', r.id, nameIn);
             return `${nameIn} to the pantry`;
         }
