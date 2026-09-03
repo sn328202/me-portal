@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     GiForkKnifeSpoon, GiCheckMark, GiTrashCan, GiPositionMarker,
-    GiQuill, GiClockwork, GiWineGlass, GiEnvelope,
+    GiQuill, GiClockwork, GiWineGlass, GiEnvelope, GiArchiveResearch,
 } from 'react-icons/gi';
 import {
     Button, Card, PageHeader, Tabs, TabPanel, Modal, Field, Tag, Stat,
@@ -371,8 +371,8 @@ const TableBook = ({ embedded = false }) => {
                 active={tab}
                 onChange={setTab}
                 tabs={[
-                    { id: 'held', label: 'On the books', count: upcoming.length },
-                    { id: 'history', label: 'The full book', count: past.length },
+                    { id: 'held', label: 'On the books', icon: <GiWineGlass />, count: upcoming.length },
+                    { id: 'history', label: 'The full book', icon: <GiArchiveResearch />, count: past.length },
                 ]}
             />
 

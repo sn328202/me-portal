@@ -13,7 +13,8 @@ import MenuBuilder from '../components/MenuBuilder';
 import { useMenus } from '../hooks/useMenus';
 import {
     GiQuill, GiMagnifyingGlass, GiFunnel, GiHourglass, GiCookingPot,
-    GiHerbsBundle, GiScrollQuill, GiScrollUnfurled, GiCauldron, GiTrashCan
+    GiHerbsBundle, GiScrollQuill, GiScrollUnfurled, GiCauldron, GiTrashCan,
+    GiSpellBook
 } from 'react-icons/gi';
 import EmojiPicker from 'emoji-picker-react';
 import { readToken, isLight } from '../utils/mapStyle';
@@ -22,11 +23,19 @@ import {
 } from '../components/ui';
 import '../styles/Larder.css';
 
+/* In the order the kitchen is actually used: what you can cook, what you
+   have to cook it with, what you are cooking this week, and only then the
+   occasional grand menu. The Hearth used to sit second, before the Pantry
+   had been consulted, which is planning a week before looking in a cupboard.
+
+   Each tab wears the icon of its own primary action - the Pantry's is the
+   herbs on its "New Provision" button, the Menu Builder's the quill on its
+   "New Menu" - so the button and the tab that leads to it are one thing. */
 const TABS = [
-    { id: 'collection', label: 'Recipe Collection' },
-    { id: 'hearth', label: 'The Hearth' },
-    { id: 'menus', label: 'Menu Builder' },
-    { id: 'pantry', label: 'Pantry' }
+    { id: 'collection', label: 'Recipe Collection', icon: <GiSpellBook /> },
+    { id: 'pantry', label: 'Pantry', icon: <GiHerbsBundle /> },
+    { id: 'hearth', label: 'The Hearth', icon: <GiCauldron /> },
+    { id: 'menus', label: 'Menu Builder', icon: <GiScrollQuill /> }
 ];
 
 const TAB_SUBTITLES = {
@@ -499,11 +508,14 @@ const Larder = () => {
                 </Button>
             );
         }
-        return (
-            <Button variant="primary" onClick={() => setIsProvisionModalOpen(true)}>
-                <GiHerbsBundle /> New Provision
-            </Button>
-        );
+        if (activeTab === 'pantry') {
+            return (
+                <Button variant="primary" onClick={() => setIsProvisionModalOpen(true)}>
+                    <GiHerbsBundle /> New Provision
+                </Button>
+            );
+        }
+        return null;
     })();
 
     return (

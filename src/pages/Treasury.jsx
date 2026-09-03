@@ -10,7 +10,9 @@ import {
     GiPriceTag,
     GiShop,
     GiCoins,
-    GiMagnifyingGlass
+    GiMagnifyingGlass,
+    GiTiedScroll,
+    GiEyeTarget
 } from 'react-icons/gi';
 import {
     Button,
@@ -54,8 +56,8 @@ const SECTIONS = [
 ];
 
 const VIEWS = [
-    { id: 'ledger', label: 'Ledger' },
-    { id: 'vision', label: 'Vision Board' }
+    { id: 'ledger', label: 'Ledger', icon: <GiTiedScroll /> },
+    { id: 'vision', label: 'Vision Board', icon: <GiEyeTarget /> }
 ];
 
 const Treasury = () => {
