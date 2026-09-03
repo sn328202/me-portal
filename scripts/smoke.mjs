@@ -99,13 +99,24 @@ for (const path of ROUTES) {
     // A component that gave up — not merely a page showing a notice.
     const boundaryHit = await page.locator('[data-error-boundary]').count();
     const blank = rootHtml.length < 200;
+    // A JSX comment written `/* … */` instead of `{/* … */}` is not a comment —
+    // it is a string, and React prints it on the page. It compiles, it lints,
+    // and every other check here passes while a paragraph of source commentary
+    // sits in the middle of the timeline. Ask the page whether it is showing
+    // any, because that is the only thing that noticed.
+    const leaked = /\/\*|\*\//.test(body);
 
-    const status = errors.length || blank || boundaryHit ? 'FAIL' : 'ok';
+    const status = errors.length || blank || boundaryHit || leaked ? 'FAIL' : 'ok';
     if (status === 'FAIL') failures++;
     console.log(
         `${status.padEnd(4)} ${path.padEnd(16)} chars=${String(rootHtml.length).padStart(6)}` +
-        ` boundary=${boundaryHit} :: ${body.replace(/\s+/g, ' ').slice(0, 90)}`,
+        ` boundary=${boundaryHit}${leaked ? ' COMMENT-LEAK' : ''}` +
+        ` :: ${body.replace(/\s+/g, ' ').slice(0, 90)}`,
     );
+    if (leaked) {
+        const at = body.search(/\/\*|\*\//);
+        console.log(`       leaked comment: ${body.slice(Math.max(0, at - 20), at + 80).replace(/\s+/g, ' ')}`);
+    }
     for (const e of errors.slice(0, 4)) console.log(`       ${e}`);
     await page.close();
 }

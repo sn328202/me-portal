@@ -199,19 +199,15 @@ const TripTimeline = ({
                     );
                 })}
 
-                /* The City row is gone.
+                {/* The City row is gone. Every day head already names the
+                    city, and on a travel day it names both — "San Francisco →
+                    Napa Valley". A band underneath repeating it was the same
+                    fact said twice, once per column and once as a bar, and it
+                    cost a row at the top of every timeline.
 
-                   Every day head already names the city, and on a travel day
-                   it names both — "San Francisco → Napa Valley". A band
-                   underneath repeating it was the same fact said twice, once
-                   per column and once as a bar, and it cost a row at the top
-                   of every timeline.
-
-                   Lodging stays, because a booking is not a fact the header
-                   carries: a stay spans nights rather than days, and which
-                   nights it covers is exactly what a merged bar is for. */
-
-                {/* Lodging, spanning. The merged cell from the sheet. */}
+                    Lodging stays, because a booking is not a fact the header
+                    carries: a stay spans nights rather than days, and which
+                    nights it covers is exactly what a merged bar is for. */}
                 <div className="timeline__rowlabel timeline__rowlabel--stays" style={{ gridRow: 2, gridColumn: 1 }}>Lodging</div>
                 <div className="timeline__stays" style={{ '--days': days.length, gridRow: 2 }}>
                     {bars.map(({ stay, start, span }) => (
