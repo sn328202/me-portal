@@ -1057,6 +1057,35 @@
     text-overflow: ellipsis;
 }
 
+/* When it happens, on the face of the block rather than read off the row
+   labels four columns to the left. Mono, so the times line up down a day and
+   a glance can compare them. */
+.timeline__when {
+    font-family: var(--font-mono);
+    opacity: 0.85;
+}
+
+.timeline__when time { font-variant-numeric: tabular-nums; }
+
+/* One row tall: the time sits in front of the title on the only line there is. */
+.timeline__when:not(.timeline__when--own-line) { margin-right: var(--space-2); }
+
+/* Two rows or more: the time gets a line of its own, and the length can come
+   with it. */
+.timeline__when--own-line {
+    display: block;
+    line-height: 1.3;
+}
+
+.timeline__long {
+    margin-left: var(--space-1);
+    font-style: normal;
+    opacity: 0.75;
+}
+
+/* The title wraps only where there is height to wrap into. */
+.timeline__item .timeline__what { overflow: hidden; text-overflow: ellipsis; }
+
 .timeline__item.is-food { background: var(--fill-strong); }
 .timeline__item.is-transport { background: var(--text-dim); }
 

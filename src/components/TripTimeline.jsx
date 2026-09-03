@@ -7,7 +7,7 @@ import { HUES, blockPalette, blockStyle } from '../utils/blockColour';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
 import { legBands, legLabel, cityLabelOn, isTravelLeg } from '../utils/tripLegs';
-import { HOURS, rowsFor, dragRange, timesFromDrag, movedTo, describeSpan } from '../utils/timeline';
+import { HOURS, rowsFor, dragRange, timesFromDrag, movedTo, timeLabel } from '../utils/timeline';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -310,6 +310,12 @@ const TripTimeline = ({
                         const box = rowsFor(item, HOURS);
                         if (!box) return null;
                         const open = painting === item.id;
+                        const when = timeLabel(item);
+                        /* A block one row tall has a single line of 11px to
+                           work with, so the time goes in front of the title
+                           rather than above it. Anything taller can stack, and
+                           that is where the length fits. */
+                        const roomy = box.span > 1;
                         return (
                             <span
                                 key={item.id}
@@ -329,14 +335,33 @@ const TripTimeline = ({
                                        for its kind still applies. */
                                     ...(blockStyle(item, palette) || {}),
                                 }}
-                                title={`${item.title} · ${describeSpan(item)}`}
+                                title={[
+                                    item.title,
+                                    when?.range,
+                                    when?.length,
+                                ].filter(Boolean).join(' · ')}
                                 /* One click, because this is a thing you can
                                    see and want to change — not a thing you
                                    have to discover a gesture for. */
                                 onClick={() => onOpen?.(day.id, item, nearOn(legs, day))}
                             >
                                     <>
-                                        {item.title}
+                                        {when && (
+                                            <span className={`timeline__when${roomy ? ' timeline__when--own-line' : ''}`}>
+                                                <time>{roomy ? when.range : when.at}</time>
+                                                {/* Only when it is known. Two
+                                                    thirds of these have no end
+                                                    time, and a block whose
+                                                    length nobody has said is
+                                                    not a one-hour block. */}
+                                                {roomy && when.length && (
+                                                    <em className="timeline__long">
+                                                        {'\u00b7'} {when.length}
+                                                    </em>
+                                                )}
+                                            </span>
+                                        )}
+                                        <span className="timeline__what">{item.title}</span>
                                         <span className="timeline__tools">
                                             {item.link && (
                                                 <a

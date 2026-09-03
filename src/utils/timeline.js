@@ -101,6 +101,68 @@ export const movedTo = (item, hour, hours = HOURS) => {
     return { start_time: hourToTime(from), end_time: hourToTime(from + length) };
 };
 
+
+/**
+ * The minutes past the hour, which the grid throws away and the label must not.
+ *
+ * The grid is hourly, so `timeToHour` truncates — but sixteen of her items are
+ * stored at a real time like 19:30, and rounding a 7:30 reservation to "7pm"
+ * on the face of the block is telling her something that is not true.
+ */
+export const timeToMinutes = (time) => {
+    if (!time) return null;
+    const m = Number(String(time).slice(3, 5));
+    return Number.isFinite(m) ? m : 0;
+};
+
+/** 9 -> "9am"; (19, 30) -> "7:30pm". */
+export const clockLabel = (hour, minute = 0) => {
+    if (hour === null || hour === undefined) return '';
+    const h = hour % 24;
+    const suffix = h < 12 ? 'am' : 'pm';
+    const twelve = h % 12 === 0 ? 12 : h % 12;
+    const mins = Number(minute) || 0;
+    return mins ? `${twelve}:${String(mins).padStart(2, '0')}${suffix}` : `${twelve}${suffix}`;
+};
+
+/** 90 -> "1h 30m"; 120 -> "2h"; 45 -> "45m". */
+export const lengthLabel = (minutes) => {
+    const total = Math.round(Number(minutes) || 0);
+    if (total <= 0) return '';
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    if (!h) return `${m}m`;
+    return m ? `${h}h ${m}m` : `${h}h`;
+};
+
+/**
+ * What a block should say about itself: when it starts, when it ends, how long.
+ *
+ * `length` is null when the item has no end time, and that is most of them —
+ * 83 of her 125 are a start and nothing else. A block one row tall is not a
+ * one-hour block; it is a block whose length nobody has said. Printing "1h" on
+ * it would be inventing, the same way filling in an end time would be, so it
+ * prints nothing and the absence is the honest answer.
+ */
+export const timeLabel = (item) => {
+    const fromHour = timeToHour(item?.start_time);
+    if (fromHour === null) return null;
+
+    const fromMin = timeToMinutes(item?.start_time);
+    const at = clockLabel(fromHour === 0 ? 24 : fromHour, fromMin);
+
+    const toHour = timeToHour(item?.end_time);
+    if (toHour === null) return { at, till: null, length: null, range: at };
+
+    const toMin = timeToMinutes(item?.end_time);
+    const start = (fromHour === 0 ? 24 : fromHour) * 60 + fromMin;
+    const end = (toHour === 0 ? 24 : toHour) * 60 + toMin;
+    if (end <= start) return { at, till: null, length: null, range: at };
+
+    const till = clockLabel(toHour === 0 ? 24 : toHour, toMin);
+    return { at, till, length: lengthLabel(end - start), range: `${at}\u2013${till}` };
+};
+
 /** "9am – 12pm", or just "9am" for something with no length. */
 export const describeSpan = (item) => {
     const span = spanOf(item);

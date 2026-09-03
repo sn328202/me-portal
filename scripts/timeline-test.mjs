@@ -9,7 +9,7 @@
 
 import {
     HOURS, hourToTime, timeToHour, spanOf, rowsFor, dragRange,
-    timesFromDrag, movedTo, describeSpan,
+    timesFromDrag, movedTo, describeSpan, timeLabel, clockLabel, lengthLabel,
 } from '../src/utils/timeline.js';
 
 let failed = 0;
@@ -88,6 +88,40 @@ check('noon is 12pm, not 0pm',
 check('an evening block crosses the meridiem',
     describeSpan({ start_time: '11:00:00', end_time: '14:00:00' }), '11am – 2pm');
 check('nothing to say about an untimed thing', describeSpan({ start_time: null }), '');
+
+/* ---- what a block says about itself ------------------------------- */
+
+check('a start with no end says when, and nothing about how long',
+    timeLabel({ start_time: '09:00:00' }),
+    { at: '9am', till: null, length: null, range: '9am' });
+
+check('a real half-hour is not rounded to the row it sits in',
+    timeLabel({ start_time: '19:30:00', end_time: '21:00:00' }),
+    { at: '7:30pm', till: '9pm', length: '1h 30m', range: '7:30pm\u20139pm' });
+
+check('a whole-hour span reads in whole hours',
+    timeLabel({ start_time: '09:00:00', end_time: '11:00:00' }),
+    { at: '9am', till: '11am', length: '2h', range: '9am\u201311am' });
+
+// Midnight is the end of the day, not six hours before the start.
+check('an evening that runs to midnight is two hours, not minus twenty-two',
+    timeLabel({ start_time: '22:00:00', end_time: '00:00:00' }),
+    { at: '10pm', till: '12am', length: '2h', range: '10pm\u201312am' });
+
+check('an end at or before the start is no length at all',
+    timeLabel({ start_time: '14:00:00', end_time: '14:00:00' }),
+    { at: '2pm', till: null, length: null, range: '2pm' });
+
+check('an untimed item has nothing to say', timeLabel({ start_time: null }), null);
+
+check('noon and midnight are twelve, not zero', clockLabel(12), '12pm');
+check('and midnight reads as twelve too', clockLabel(24), '12am');
+check('minutes only show when there are any', clockLabel(9, 0), '9am');
+
+check('under an hour is minutes', lengthLabel(45), '45m');
+check('a round hour drops the minutes', lengthLabel(120), '2h');
+check('and a ragged one keeps them', lengthLabel(95), '1h 35m');
+check('nothing is nothing', lengthLabel(0), '');
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);
