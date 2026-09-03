@@ -455,7 +455,15 @@ async function loadContext(sb, userId) {
         q('treasury_items', 'id, title, category', { limit: 60 }),
         q('library_items', 'id, title, type, status', { limit: 80 }),
         q('chores', 'room', { limit: 60 }),
-        q('pantry_ingredients', 'name, label, in_stock', { limit: 120 }),
+        /* `id`, because the pantry is now written to as well as read: marking
+           something out of stock updates a row rather than inserting one, and
+           an update with no id to aim at fails every time.
+
+           And all of them, not the newest 120. This is the one list where the
+           limit changes answers rather than just shortening a prompt — an
+           ingredient past the cut-off cannot be matched, so it cannot be
+           restocked and would be inserted a second time instead. */
+        q('pantry_ingredients', 'id, name, label, in_stock', { limit: 400 }),
         q('provisions', 'text', { where: ['checked', false], limit: 80 }),
         q('todos', 'text', { where: ['completed', false], limit: 60 }),
         q('goals', 'text, horizon', { limit: 40 }),
@@ -1112,7 +1120,10 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             const marked = [];
             for (const item of named) {
                 const known = ctx.pantryBy.get(norm(item));
-                if (!known || !known.in_stock) continue;
+                // No id is nothing to aim an update at. Skip the pantry half
+                // rather than failing the whole line — the grocery line is the
+                // half she would miss.
+                if (!known?.id || !known.in_stock) continue;
                 const { error } = await sb.from('pantry_ingredients')
                     .update({ in_stock: false })
                     .eq('id', known.id).eq('user_id', userId);
@@ -1142,7 +1153,7 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
                Refusing that as a duplicate would leave the pantry claiming she
                has none, which is the state she is trying to correct. */
             const known = ctx.pantryBy.get(norm(asked));
-            if (known) {
+            if (known?.id) {
                 if (known.in_stock) { dupes.push({ item: asked, where: 'in the pantry' }); return null; }
                 const { error } = await sb.from('pantry_ingredients')
                     .update({ in_stock: true })

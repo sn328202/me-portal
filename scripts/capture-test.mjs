@@ -5,7 +5,7 @@
  * is a worse failure than the duplicates it exists to prevent. These cases pin
  * both directions: what must collapse, and what must stay distinct.
  */
-import { norm, dedupe, describeDupes, TOOLS } from '../api/capture.js';
+import { norm, dedupe, describeDupes, TOOLS, loadContext } from '../api/capture.js';
 
 let failed = 0;
 const check = (label, actual, expected) => {
@@ -91,6 +91,20 @@ check('so the model is told not to also add them to the list',
     /not also call add_groceries|one call, not two/i.test(tool('ran_out')?.description || ''), true);
 check('and restocking says it can put something back',
     /back in stock|out of stock/i.test(tool('add_pantry_item')?.description || ''), true);
+
+
+/* The pantry is now written to, not only read from, and that changes what the
+   context query has to fetch. It selected `name, label, in_stock` — no `id` —
+   so the first restock ran an update with nothing to aim at and the whole
+   dictation came back "every write failed". */
+console.log('\nthe pantry context, now that it is written to:');
+
+const loader = loadContext.toString();
+const pantryQuery = (loader.match(/q\('pantry_ingredients'[^)]*\)/) || [''])[0];
+
+check('the pantry query fetches ids', /\bid\b/.test(pantryQuery), true);
+check('and every ingredient, not the newest handful',
+    Number((pantryQuery.match(/limit:\s*(\d+)/) || [])[1] || 0) >= 400, true);
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);
