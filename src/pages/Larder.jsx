@@ -13,7 +13,7 @@ import MenuBuilder from '../components/MenuBuilder';
 import { useMenus } from '../hooks/useMenus';
 import {
     GiQuill, GiMagnifyingGlass, GiFunnel, GiHourglass, GiCookingPot,
-    GiHerbsBundle, GiBasket, GiScrollQuill, GiScrollUnfurled, GiCauldron, GiTrashCan
+    GiHerbsBundle, GiScrollQuill, GiScrollUnfurled, GiCauldron, GiTrashCan
 } from 'react-icons/gi';
 import EmojiPicker from 'emoji-picker-react';
 import { readToken, isLight } from '../utils/mapStyle';
@@ -26,12 +26,11 @@ const TABS = [
     { id: 'collection', label: 'Recipe Collection' },
     { id: 'hearth', label: 'The Hearth' },
     { id: 'menus', label: 'Menu Builder' },
-    { id: 'pantry', label: 'Pantry' },
-    { id: 'provisions', label: 'Provisions' }
+    { id: 'pantry', label: 'Pantry' }
 ];
 
 const TAB_SUBTITLES = {
-    hearth: 'Select recipes from the Collection to check your stock. Arrange your sustenance here.',
+    hearth: 'What you are cooking this week, and what it means you need to buy.',
     menus: 'Curate your grandest menus for the most exceptional occasions.'
 };
 
@@ -214,7 +213,7 @@ const PantryItem = ({
 };
 
 const Larder = () => {
-    const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'hearth', 'menus', 'pantry', 'provisions'
+    const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'hearth', 'menus', 'pantry'
     const [view, setView] = useState('list'); // 'list', 'form', 'detail', 'cook'
     const [editingRecipe, setEditingRecipe] = useState(null);
     const [viewingRecipe, setViewingRecipe] = useState(null);
@@ -500,16 +499,9 @@ const Larder = () => {
                 </Button>
             );
         }
-        if (activeTab === 'pantry') {
-            return (
-                <Button variant="primary" onClick={() => setIsProvisionModalOpen(true)}>
-                    <GiHerbsBundle /> New Provision
-                </Button>
-            );
-        }
         return (
-            <Button variant="primary" onClick={() => groceryInputRef.current?.focus()}>
-                <GiBasket /> Scribble Item
+            <Button variant="primary" onClick={() => setIsProvisionModalOpen(true)}>
+                <GiHerbsBundle /> New Provision
             </Button>
         );
     })();
@@ -588,13 +580,23 @@ const Larder = () => {
                 </TabPanel>
 
                 <TabPanel id="hearth" active={activeTab}>
-                    <div className="larder__pane">
-                        <MealPlanner
-                            plan={mealPlan}
-                            recipes={recipes}
-                            onAddToDay={openPicker}
-                            onClearDay={clearDay}
-                        />
+                    {/* The week and the shop it implies, side by side. They were
+                        two tabs, which meant planning Thursday's dinner and
+                        seeing what it added to the list were two clicks apart -
+                        and the list is the whole reason the plan exists. */}
+                    <div className="larder__pane hearth">
+                        <div className="hearth__plan">
+                            <MealPlanner
+                                plan={mealPlan}
+                                recipes={recipes}
+                                onAddToDay={openPicker}
+                                onClearDay={clearDay}
+                            />
+                        </div>
+                        <aside className="hearth__shop" aria-label="What to buy">
+                            <h3 className="hearth__shop-title">What to buy</h3>
+                            <GroceryList plan={mealPlan} recipes={recipes} inputRef={groceryInputRef} />
+                        </aside>
                     </div>
                 </TabPanel>
 
@@ -687,11 +689,6 @@ const Larder = () => {
                     </div>
                 </TabPanel>
 
-                <TabPanel id="provisions" active={activeTab}>
-                    <div className="larder__pane larder__pane--narrow">
-                        <GroceryList plan={mealPlan} recipes={recipes} inputRef={groceryInputRef} />
-                    </div>
-                </TabPanel>
             </div>
 
             <DaySelector

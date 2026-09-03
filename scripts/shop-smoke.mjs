@@ -1,4 +1,5 @@
-// Ad-hoc smoke test for the Larder's Provisions tab.
+// Ad-hoc smoke test for the Larder's Hearth tab - the week's plan and the
+// shopping list it implies, which live together on one tab.
 //
 // The unit tests in shopping-test.mjs prove the merge; this proves the page
 // actually renders it - that the tab switches, the aisles draw in walk order,
@@ -105,7 +106,7 @@ const check = (name, ok, detail = '') => {
 };
 
 await page.goto(`${BASE}/larder`, { waitUntil: 'networkidle' });
-await page.click('button:has-text("Provisions")');
+await page.click('button:has-text("The Hearth")');
 await page.waitForSelector('.shop', { timeout: 5000 });
 
 const shape = await page.evaluate(() => {
@@ -126,6 +127,10 @@ const shape = await page.evaluate(() => {
         aisles,
         count: document.querySelector('.shop__count')?.textContent?.trim() || '',
         legacy: document.querySelectorAll('[class*="grocery-"]').length,
+        // Both halves, in one panel, on one tab.
+        planDays: document.querySelectorAll('.hearth__plan .plan-day').length,
+        shopIsBeside: !!document.querySelector('.hearth .hearth__shop .shop'),
+        tabs: [...document.querySelectorAll('[role="tab"]')].map((t) => t.textContent.trim()),
     };
 });
 
@@ -135,6 +140,9 @@ const all = shape.aisles.flatMap((a) => a.lines);
 const named = (frag) => all.filter((l) => (l.what || '').toLowerCase().includes(frag));
 
 check('the page rendered as a shop', shape.aisles.length > 0);
+check('the week is on the same tab as the list', shape.planDays === 7, `${shape.planDays} days`);
+check('the list sits beside the week', shape.shopIsBeside);
+check('there is no separate Provisions tab', !shape.tabs.includes('Provisions'), shape.tabs.join(' | '));
 check('no page errors', errors.length === 0, errors.join(' | '));
 check('no legacy grocery- markup left', shape.legacy === 0, `${shape.legacy} nodes`);
 
