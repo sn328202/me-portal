@@ -106,13 +106,23 @@ await t('a share row pointing at a trip that is not the owner\'s yields nothing'
 
 /* ---- what comes back ------------------------------------------------- */
 
-await t('the payload never carries the token or the owner', async () => {
+await t('the payload never carries the token or the owner, at any depth', async () => {
+    // The first version of this test looked only at the top level and passed
+    // while every row underneath still carried `user_id`. Ask the whole
+    // payload, because that is what actually goes over the wire.
     const sb = spy(rows);
     const out = await readTrip(sb, share);
     const text = JSON.stringify(out);
     assert.equal(text.includes(share.token), false, 'the token came back to the page');
-    assert.equal(Object.hasOwn(out, 'user_id'), false);
-    assert.equal(Object.hasOwn(out, 'token'), false);
+    assert.equal(text.includes(OWNER), false, 'the owner id came back to the page');
+    assert.equal(text.includes('user_id'), false, 'a user_id key came back to the page');
+});
+
+await t('and the trip itself is stripped, not only the lists', async () => {
+    const sb = spy(rows);
+    const out = await readTrip(sb, share);
+    assert.equal(Object.hasOwn(out.trip, 'user_id'), false);
+    assert.equal(out.trip.destination, 'Florence', 'and it kept everything else');
 });
 
 await t('and it says plainly whether this link may edit', async () => {

@@ -20,6 +20,20 @@ export const looksLikeToken = (t) =>
  * which is exactly why it is worth having, because the day that stops being
  * true this is what stops the leak.
  */
+/* `user_id` is plumbing, not content. It is on every row of every table, and
+   the page needs none of it — it is the same value on all of them and the
+   visitor already knows whose trip they are reading. It cannot be used to
+   impersonate anybody (RLS keys off a signed token, not off anything a client
+   asserts), which is precisely why it should not be sent: a value with no use
+   to the reader and a real use to somebody correlating links is a value to
+   leave at home. */
+const strip = (row) => {
+    if (!row || typeof row !== 'object') return row;
+    const { user_id: _owner, ...rest } = row;
+    return rest;
+};
+const stripAll = (rows = []) => rows.map(strip);
+
 export const readTrip = async (sb, share) => {
     const { trip_id: tripId, user_id: owner } = share;
 
@@ -50,12 +64,12 @@ export const readTrip = async (sb, share) => {
         // Never the token, never the owner's id. The page needs neither, and a
         // page that does not hold a secret cannot spill one.
         canEdit: !!share.can_edit,
-        trip: trip.data,
-        days: days.data || [],
-        items: items.data || [],
-        legs: legs.data || [],
-        stays: stays.data || [],
-        ideas: ideas.data || [],
-        waypoints: waypoints.data || [],
+        trip: strip(trip.data),
+        days: stripAll(days.data || []),
+        items: stripAll(items.data || []),
+        legs: stripAll(legs.data || []),
+        stays: stripAll(stays.data || []),
+        ideas: stripAll(ideas.data || []),
+        waypoints: stripAll(waypoints.data || []),
     };
 };
