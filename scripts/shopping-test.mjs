@@ -108,7 +108,7 @@ t('and it counts what is still to buy', () => {
 
 
 /* --- one list, not two -------------------------------------------------- */
-const { mergeList, byAisle, aisleOf } = await import('../src/utils/shoppingList.js');
+const { mergeList, byAisle, aisleOf, faceOf } = await import('../src/utils/shoppingList.js');
 
 const CAT = {
     garlic: { id: 'garlic', label: 'Garlic', category: 'Produce' },
@@ -198,6 +198,24 @@ t('what she already has drops out of the walk', () => {
     assert.deepEqual(aisles.map((x) => x.name), ['Produce']);
     assert.deepEqual(aisles[0].lines.map((l) => l.label), ['Basil']);
     assert.deepEqual(have.map((l) => l.label).sort(), ['Butter', 'Garlic']);
+});
+
+t('every aisle carries a face', () => {
+    // Read at arm's length in a shop: the shape lands before the word does.
+    const { aisles } = byAisle([
+        { key: 'a', label: 'Basil', category: 'Produce' },
+        { key: 'b', label: 'Butter', category: 'Dairy' },
+        { key: 'c', label: 'Candles', category: '' },
+    ]);
+    assert.deepEqual(aisles.map((x) => x.face), ['\u{1F96C}', '\u{1F9C0}', '\u{1F9FA}']);
+    assert.ok(aisles.every((x) => x.face && [...x.face].length === 1));
+});
+
+t('an aisle the app has never heard of still gets one', () => {
+    // Her pantry categories are hers to name, and a blank where a face should
+    // be reads as a broken image rather than as a category with no picture.
+    assert.equal(faceOf('Cheese counter'), '\u{1F4CE}');
+    assert.equal(faceOf(''), '\u{1F4CE}');
 });
 
 console.log(`\nshoppingList: ${n} passed`);

@@ -753,36 +753,56 @@
 
 .shop__count {
     margin: 0;
-    color: var(--text-muted);
-    font-size: var(--text-2xs);
+    color: var(--text-main);
+    font-size: var(--text-xs);
     letter-spacing: var(--tracking-label);
 }
 
 .shop__count strong { color: var(--text-gold); font-family: var(--font-mono); }
 
+/* The aisle heading is the thing she scans for while walking, so it is the
+   loudest text on the page rather than the quietest - it used to be dim grey
+   at 11px, which is a caption, not a signpost. */
 .shop__aisle h4 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     margin: 0 0 var(--space-1);
-    padding-bottom: 2px;
-    border-bottom: var(--rule-hair);
-    color: var(--text-dim);
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--text-gold);
+    color: var(--text-gold);
     font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    font-weight: 400;
+    font-size: var(--text-xs);
+    font-weight: 600;
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
+}
+
+.shop__face { font-size: var(--text-base); line-height: 1; }
+
+/* How many things are in this aisle, so a glance says "two more here". */
+.shop__tally {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+    font-weight: 400;
 }
 
 .shop__aisle ul { margin: 0; padding: 0; list-style: none; }
 
 .shop__aisle + .shop__aisle { margin-top: var(--space-3); }
 
+/* A row is a target as well as a line: 3px of padding was a 20px-tall thing
+   to hit with a thumb while holding a basket. */
 .shop__row {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
     gap: var(--space-1) var(--space-2);
-    padding: 3px 0;
+    padding: var(--space-1) 0;
 }
+
+.shop__row + .shop__row { border-top: var(--rule-hair); }
 
 .shop__tick {
     display: flex;
@@ -802,47 +822,55 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 14px;
-    height: 14px;
-    border: 1px solid var(--border-dim);
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--text-muted);
     border-radius: 3px;
-    font-size: 9px;
+    font-size: 11px;
     color: var(--text-gold);
-    transform: translateY(2px);
+    transform: translateY(3px);
 }
 
 .shop__tick:hover .shop__box { border-color: var(--text-gold); }
 
-.shop__what { font-size: var(--text-sm); }
+.shop__what { font-size: var(--text-base); color: var(--text-main); }
 
 .shop__amount {
     margin-right: var(--space-1);
-    color: var(--text-muted);
+    color: var(--text-gold);
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
 }
 
 /* Why it is on the list. Small, and after the thing itself — she is looking
    for the word "pecorino", not for the recipe that wants it. */
 .shop__for {
-    color: var(--text-dim);
-    font-size: var(--text-2xs);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
     font-style: italic;
 }
 
+/* A badge, not a footnote: this is the line that stops her buying it twice. */
 .shop__stocked {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
+    padding: 1px var(--space-2);
+    border: 1px solid var(--text-gold);
+    border-radius: 999px;
     color: var(--text-gold);
     font-size: var(--text-2xs);
     letter-spacing: var(--tracking-label);
 }
 
-.shop__row--got .shop__what { color: var(--text-dim); text-decoration: line-through; }
+.shop__row--got .shop__what { color: var(--text-muted); text-decoration: line-through; }
 .shop__row--got .shop__amount { text-decoration: line-through; }
 
-.shop__aisle--got { opacity: 0.6; }
+/* Settled, not switched off. At 0.6 the whole group went grey-on-grey and the
+   strike-through was doing the work alone; the ticks are the difference now. */
+.shop__aisle--got { opacity: 0.85; }
+.shop__aisle--got h4 { border-bottom-color: var(--text-muted); color: var(--text-muted); }
+.shop__aisle--got .shop__box { border-color: var(--text-gold); background: var(--bg-hover); }
 
 
 /* ---------- Menu Builder ----------------------------------- */

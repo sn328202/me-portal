@@ -110,7 +110,9 @@ await page.waitForSelector('.shop', { timeout: 5000 });
 
 const shape = await page.evaluate(() => {
     const aisles = [...document.querySelectorAll('.shop__aisle')].map((el) => ({
-        name: el.querySelector('h4')?.textContent?.trim(),
+        name: el.dataset.aisle,
+        face: el.querySelector('.shop__face')?.textContent?.trim() || '',
+        tally: el.querySelector('.shop__tally')?.textContent?.trim() || '',
         got: el.classList.contains('shop__aisle--got'),
         lines: [...el.querySelectorAll('.shop__row')].map((li) => ({
             what: li.querySelector('.shop__what')?.textContent?.trim(),
@@ -159,6 +161,13 @@ check('the unmatched line lands in "Anything else"',
     (walk.find((a) => a.name === 'Anything else')?.lines || []).some((l) => /birthday candles/i.test(l.what)));
 
 check('the count names what is left to get', /\d+ things? to get/.test(shape.count), shape.count);
+
+// Emoji per aisle, and a count beside it, so a glance says where and how many.
+check('every aisle wears a face', shape.aisles.every((a) => a.face.length > 0),
+    shape.aisles.map((a) => `${a.name}:${a.face || '-'}`).join(' '));
+check('every aisle counts its own lines',
+    shape.aisles.every((a) => a.tally === String(a.lines.length)),
+    shape.aisles.map((a) => `${a.name}:${a.tally}/${a.lines.length}`).join(' '));
 
 // Every row is a control - the old planned rows drew a box you could not press.
 const pressable = await page.$$eval('.shop__row .shop__tick', (els) => els.length);

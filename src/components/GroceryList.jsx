@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { GiCheckMark, GiBasket, GiHouse, GiFiles } from 'react-icons/gi';
+import { GiCheckMark, GiBasket, GiFiles } from 'react-icons/gi';
 import { useProvisions } from '../hooks/useProvisions';
 import { useIngredients } from '../hooks/useIngredients';
 import { plannedFrom, mergeList, byAisle, listAsText } from '../utils/shoppingList';
@@ -52,7 +52,7 @@ const Row = ({ line, onToggle }) => {
 
             {line.inStock && !line.checked && (
                 <span className="shop__stocked" title="Already in your pantry">
-                    <GiHouse aria-hidden="true" /> in the pantry
+                    <span aria-hidden="true">{'\u{1F3E0}'}</span> in the pantry
                 </span>
             )}
             {line.notes.length > 0 && (
@@ -150,8 +150,12 @@ const GroceryList = ({ plan, recipes, inputRef }) => {
                     </p>
 
                     {aisles.map((aisle) => (
-                        <section key={aisle.name} className="shop__aisle">
-                            <h4>{aisle.name}</h4>
+                        <section key={aisle.name} className="shop__aisle" data-aisle={aisle.name}>
+                            <h4>
+                                <span className="shop__face" aria-hidden="true">{aisle.face}</span>
+                                {aisle.name}
+                                <span className="shop__tally">{aisle.lines.length}</span>
+                            </h4>
                             <ul>
                                 {aisle.lines.map((line) => (
                                     <Row key={line.key} line={line} onToggle={toggle} />
@@ -162,8 +166,12 @@ const GroceryList = ({ plan, recipes, inputRef }) => {
 
                     {/* Worth seeing once, not worth walking for. */}
                     {have.length > 0 && (
-                        <section className="shop__aisle shop__aisle--got">
-                            <h4>Already have</h4>
+                        <section className="shop__aisle shop__aisle--got" data-aisle="Already have">
+                            <h4>
+                                <span className="shop__face" aria-hidden="true">{'\u2705'}</span>
+                                Already have
+                                <span className="shop__tally">{have.length}</span>
+                            </h4>
                             <ul>
                                 {have.map((line) => (
                                     <Row key={line.key} line={line} onToggle={toggle} />

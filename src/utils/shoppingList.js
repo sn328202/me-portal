@@ -163,6 +163,22 @@ export const mergeList = ({ items = [], planned = [], matcher, pantryStock = {} 
 const AISLES = ['Produce', 'Dairy', 'Protein', 'Bakery', 'Frozen', 'Pantry', 'Spices', 'Drinks'];
 const MISC = 'Anything else';
 
+/* A face for each aisle. Not decoration: the list is read at arm's length in
+   a shop, and a shape catches the eye a whole word before the word does. */
+const FACES = {
+    Produce: '\u{1F96C}',
+    Dairy: '\u{1F9C0}',
+    Protein: '\u{1F357}',
+    Bakery: '\u{1F35E}',
+    Frozen: '\u{1F9CA}',
+    Pantry: '\u{1F96B}',
+    Spices: '\u{1F9C2}',
+    Drinks: '\u{1F375}',
+    [MISC]: '\u{1F9FA}',
+};
+
+export const faceOf = (aisle) => FACES[aisle] || '\u{1F4CE}';
+
 export const aisleOf = (line) => {
     const want = String(line?.category || '').trim();
     if (!want) return MISC;
@@ -197,7 +213,11 @@ export const byAisle = (lines = []) => {
 
     const aisles = [...groups.entries()]
         .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
-        .map(([name, of]) => ({ name, lines: of.sort((x, y) => x.label.localeCompare(y.label)) }));
+        .map(([name, of]) => ({
+            name,
+            face: faceOf(name),
+            lines: of.sort((x, y) => x.label.localeCompare(y.label)),
+        }));
 
     return { aisles, have, needed: needed.length };
 };
