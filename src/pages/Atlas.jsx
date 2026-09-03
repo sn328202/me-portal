@@ -9,6 +9,7 @@ import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, descri
 import { searchTrips, sortTrips, emptyBecause, SORTS } from '../utils/tripShelf';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
+import TripShare from '../components/TripShare';
 import TripLedger from '../components/TripLedger';
 import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
@@ -518,6 +519,7 @@ const Atlas = () => {
                         <Button size="sm" onClick={() => setSetupOpen(true)}>
                             <GiGears /> Setup
                         </Button>
+                        <TripShare trip={selectedTrip} />
                         <TripCard
                             trip={selectedTrip}
                             days={planner.days}

@@ -46,6 +46,10 @@ const ROUTES = [
     // Both still have to land somewhere: see the note above.
     '/study', '/learning', '/systems',
     '/play', '/settings', '/no-such-page',
+    // A share link nobody made. It must say so rather than throw — the page a
+    // stranger lands on when a link has been turned off is the page most
+    // likely to be seen by somebody who cannot report a bug.
+    '/t/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
 ];
 
 const browser = await chromium.launch({

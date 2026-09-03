@@ -1,0 +1,44 @@
+.tripshare { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.tripshare__lede { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+
+.tripshare__none,
+.tripshare__quiet {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+}
+
+.tripshare__bad { margin: 0; color: var(--accent-crimson); font-size: var(--text-sm); }
+
+.tripshare__list { margin: 0; padding: 0; list-style: none; }
+
+.tripshare__list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+}
+
+.tripshare__list li + li { border-top: var(--rule-hair); }
+
+/* The link is the thing on the row, so it takes the row. It breaks anywhere
+   because a token is one long word and would otherwise run off the side. */
+.tripshare__url {
+    flex: 1 1 18rem;
+    min-width: 0;
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    overflow-wrap: anywhere;
+}
+
+.tripshare__meta {
+    flex-shrink: 0;
+    color: var(--text-dim);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+}
+
+.tripshare__acts { display: flex; align-items: center; gap: var(--space-1); }

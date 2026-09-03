@@ -20,6 +20,7 @@ const Treasury = lazy(() => import('./pages/Treasury'));
 const Library = lazy(() => import('./pages/Library'));
 const Studio = lazy(() => import('./pages/Studio'));
 const Play = lazy(() => import('./pages/Play'));
+const SharedTrip = lazy(() => import('./pages/SharedTrip'));
 const Wardrobe = lazy(() => import('./pages/Wardrobe'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -49,6 +50,22 @@ function App() {
             <Router>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
+                {/* A shared trip. Outside the shell and outside the guard:
+                    whoever opens this has a link and no account, so there is
+                    nothing to protect them into and no rail to draw. */}
+                <Route
+                    path="/t/:token"
+                    element={(
+                        /* Its own boundary and its own fallback: the shell's
+                           are inside the protected branch, and this route is
+                           deliberately outside it. */
+                        <ErrorBoundary>
+                            <Suspense fallback={<LoadingScreen />}>
+                                <SharedTrip />
+                            </Suspense>
+                        </ErrorBoundary>
+                    )}
+                />
                 <Route path="/*" element={
                   <ProtectedRoute>
                     <AppShell>

@@ -1,0 +1,180 @@
+/* ============================================================
+   A trip read by somebody who was sent it.
+
+   Set as a document rather than as an interface: one column, generous
+   measure, nothing to press. The visitor has no account, so there is no
+   rail, no capture bar and no theme — this page brings its own.
+   ============================================================ */
+
+/* The page is the paper. This route renders outside the app shell, so the
+   theme's own background is still on <body> behind it — without this the
+   document floats in the middle of somebody else's dark room. */
+.shared-page {
+    min-height: 100vh;
+    background: #f4efe7;
+}
+
+.shared {
+    --paper: #f4efe7;
+    --ink: #2a241f;
+    --ink-soft: #6d6259;
+    --ink-faint: #9a8f85;
+    --accent: #9b6a4f;
+    --rule: 1px solid #e0d6c9;
+
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 5vw, 4rem) 1.25rem 6rem;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.55;
+    min-height: 100vh;
+}
+
+.shared--message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    text-align: center;
+    color: var(--ink-soft);
+}
+
+.shared--message h1 { margin: 0; font-size: 1.5rem; color: var(--ink); }
+.shared--message p { margin: 0; }
+
+.shared__head { margin-bottom: 2.5rem; }
+
+.shared__eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--accent);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.shared__head h1 {
+    margin: 0;
+    font-size: clamp(1.9rem, 6vw, 2.8rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+}
+
+.shared__dates { margin: 0.4rem 0 0; color: var(--ink-soft); }
+
+.shared h2 {
+    margin: 0;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+/* ---- where you are sleeping ---- */
+
+.shared__stays {
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: var(--rule);
+}
+
+.shared__stays ul { margin: 0.75rem 0 0; padding: 0; list-style: none; }
+
+.shared__stays li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.5rem 0;
+}
+
+.shared__stays li + li { border-top: var(--rule); }
+
+.shared__stays li > span:nth-child(2) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.shared__nights {
+    flex-shrink: 0;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- the days ---- */
+
+.shared__day + .shared__day { margin-top: 2.25rem; }
+
+.shared__day > header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-bottom: 0.4rem;
+    border-bottom: var(--rule);
+}
+
+.shared__day > header h2 {
+    font-size: 1.05rem;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.shared__city { margin: 0; color: var(--ink-soft); font-size: 0.85rem; }
+
+.shared__stops { margin: 0.75rem 0 0; padding: 0; list-style: none; }
+
+/* Time in a fixed column so a day reads down its own left edge. */
+.shared__stop {
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    padding: 0.55rem 0;
+}
+
+.shared__stop + .shared__stop { border-top: var(--rule); }
+
+@media (max-width: 32rem) {
+    .shared__stop { grid-template-columns: minmax(0, 1fr); }
+}
+
+.shared__when {
+    display: flex;
+    flex-direction: column;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.shared__when em { font-style: normal; color: var(--ink-faint); }
+.shared__long { color: var(--ink-faint); font-size: 0.75rem; }
+
+.shared__what { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.shared__what strong { font-weight: 600; overflow-wrap: anywhere; }
+
+.shared__where,
+.shared__notes {
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+.shared__quiet { color: var(--ink-faint); font-size: 0.9rem; }
+
+.shared__foot {
+    margin-top: 4rem;
+    padding-top: 1rem;
+    border-top: var(--rule);
+    color: var(--ink-faint);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.shared__foot p { margin: 0; }
