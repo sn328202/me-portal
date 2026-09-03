@@ -78,6 +78,16 @@ body {
     position: relative;
 }
 
+/* A page that is a document rather than an application: it is taller than the
+   window and it scrolls the window, so it opts out of the frame above. The
+   shared trip is the only such page, and it is the one strangers open. */
+body.is-document {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    border: 0;
+}
+
 /* Long-form prose opts into the serif. */
 .prose {
     font-family: var(--font-serif);

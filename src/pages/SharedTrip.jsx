@@ -46,6 +46,21 @@ const SharedTrip = () => {
     const { token } = useParams();
     const [state, setState] = useState({ loading: true });
 
+    /* The app's <body> is a fixed-height frame — `height: 100dvh` with
+       `overflow: hidden` — because the shell scrolls its own panes inside it.
+       This page is not in the shell. It is a document, it is taller than the
+       window, and inside that frame it was simply clipped: no scrollbar, no
+       way down, the back half of the trip unreachable.
+       
+       Done in JavaScript rather than with `body:has(.shared-page)` because
+       this is the one page in the app that gets opened by whoever was sent
+       the link, on whatever browser they have. A visitor on a Firefox without
+       `:has()` would get exactly the bug this is fixing. */
+    useEffect(() => {
+        document.body.classList.add('is-document');
+        return () => document.body.classList.remove('is-document');
+    }, []);
+
     useEffect(() => {
         let alive = true;
         (async () => {
