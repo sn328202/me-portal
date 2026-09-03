@@ -2153,7 +2153,18 @@ textarea.ideas__spill-text {
     z-index: 400;
     gap: var(--space-3);
     padding: var(--space-4);
-    background: var(--bg-main);
+    /* Panel, not page.
+
+       Collapsed, the grid sits inside a card and every part of it - the row
+       labels, the day heads, the cost row - is drawn in `--bg-hover`, which is
+       a shade *of the panel*. Expanding used to swap the ground for `--bg-main`
+       and leave the furniture where it was. In most skins the two are a shade
+       apart and nobody notices; in Retro Press they are Cream and Sky, so
+       expanding dropped a cream grid onto a blue floor.
+
+       The expanded pane is the same card at full size, so it stands on the
+       same colour the card does. */
+    background: var(--bg-panel);
 }
 
 .timeline-pane.is-full .timeline {
