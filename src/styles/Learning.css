@@ -1,4 +1,4 @@
-/* Learning Page - The Curator
+/* The Curator - the Study's third section, and once a room of its own.
    Layout only. The page header, form fields, buttons and tags now come
    from the primitives, so everything they used to duplicate here
    (.learning-title, .learning-label, .learning-input, .learning-btn-*)
@@ -17,7 +17,18 @@
 }
 
 .learning-tags {
-    margin-top: var(--space-1);
+    margin-top: 0;
+    flex: 1;
+}
+
+/* The topics and the gear that changes them, on one line above the grid.
+   As a room this was the page header's job; as a tab the section has to
+   carry its own. */
+.curator__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
 }
 
 .learning-form {

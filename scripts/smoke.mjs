@@ -42,7 +42,10 @@ const ROUTES = [
     // must still land somewhere, and a redirect that has quietly stopped
     // redirecting looks exactly like a working page until you follow it.
     '/daydream', '/commonplace', '/tablebook',
-    '/study', '/learning', '/play', '/systems', '/settings', '/no-such-page',
+    // Learning is the Study's Curator tab now and Systems is gone entirely.
+    // Both still have to land somewhere: see the note above.
+    '/study', '/learning', '/systems',
+    '/play', '/settings', '/no-such-page',
 ];
 
 const browser = await chromium.launch({

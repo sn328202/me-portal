@@ -19,9 +19,7 @@ const Larder = lazy(() => import('./pages/Larder'));
 const Treasury = lazy(() => import('./pages/Treasury'));
 const Library = lazy(() => import('./pages/Library'));
 const Studio = lazy(() => import('./pages/Studio'));
-const Learning = lazy(() => import('./pages/Learning'));
 const Play = lazy(() => import('./pages/Play'));
-const Systems = lazy(() => import('./pages/Systems'));
 const Wardrobe = lazy(() => import('./pages/Wardrobe'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -79,10 +77,14 @@ function App() {
                                 path="/tablebook"
                                 element={<Navigate to="/atlas?tab=table" replace />}
                             />
+                            {/* Two more retired rooms. Learning was a news
+                                wire and is now the Study's third tab; Systems
+                                was three ideas and an empty state, and is
+                                nothing at all. Same promise as above. */}
+                            <Route path="/learning" element={<Navigate to="/study" replace />} />
+                            <Route path="/systems" element={<Navigate to="/settings" replace />} />
                             <Route path="/study" element={<Studio />} />
-                            <Route path="/learning" element={<Learning />} />
                             <Route path="/play" element={<Play />} />
-                            <Route path="/systems" element={<Systems />} />
                             <Route path="/wardrobe" element={<Wardrobe />} />
                             <Route path="/settings" element={<Settings />} />
                             <Route path="*" element={<NotFound />} />
