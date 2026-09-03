@@ -10,11 +10,23 @@
 }
 
 /* Three columns once there is room; a phone reads them as one
-   continuous list, which is the order you would actually work in. */
+   continuous list, which is the order you would actually work in.
+
+   Wider gaps between the columns than between the rows, and a hairline in
+   the gap: without one the three lists sit close enough to read as a single
+   ragged column, and a long line in the middle one reads as belonging to
+   whichever list it lands nearest. */
 @media (min-width: 900px) {
     .today {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: var(--space-5);
+        column-gap: var(--space-6);
+        row-gap: var(--space-5);
+    }
+
+    .today__group + .today__group {
+        padding-left: var(--space-6);
+        border-left: var(--rule-hair);
+        margin-left: calc(var(--space-6) * -1);
     }
 }
 
@@ -91,8 +103,18 @@
     background: var(--bg-hover);
 }
 
+/* A URL is one long word with nowhere to break, so without this it does not
+   wrap — it runs straight out of its column and over whatever is next to it.
+   Two of her captures are a saved link with the error text in front of it,
+   which is exactly the shape that broke this: the tasks column was painting
+   across the shopping list.
+
+   `min-width: 0` because the label is a flex item, and a flex item will not
+   shrink below its content's own minimum width unless it is told it may. */
 .today__label {
+    min-width: 0;
     line-height: var(--leading-snug);
+    overflow-wrap: anywhere;
 }
 
 .today__row--done .today__label {
