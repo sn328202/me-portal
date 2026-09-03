@@ -9,6 +9,7 @@ import { SHELVES, onShelf as onTripShelf, shelfCounts as tripShelfCounts, descri
 import { searchTrips, sortTrips, emptyBecause, SORTS } from '../utils/tripShelf';
 import { supabase } from '../lib/supabase';
 import TripPlanner from '../components/TripPlanner';
+import TripLedger from '../components/TripLedger';
 import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
 import TripWardrobe from '../components/TripWardrobe';
@@ -823,6 +824,11 @@ const Atlas = () => {
                         {/* Two halves of one question — where are we, and
                             where are we sleeping — so they sit side by side
                             rather than as two full-width stacks. */}
+                        {/* Where and when, and what it costs, on one row.
+                            Both are short and wide; stacked they were two
+                            full-width bands with the figures at one edge and
+                            the labels at the other. */}
+                        <div className="expedition__row">
                         <section className="expedition__where">
                             <h3 className="section-title">Where and when</h3>
 
@@ -860,6 +866,17 @@ const Atlas = () => {
                             />
                         </section>
 
+                        <section className="expedition__money">
+                            <h3 className="section-title">What it costs</h3>
+                            <TripLedger
+                                costs={planner.costs}
+                                currency={selectedTrip.currency || 'USD'}
+                                party={selectedTrip.party_size || 1}
+                                onParty={(n) => handleUpdateTrip(selectedTrip.id, { party_size: n })}
+                            />
+                        </section>
+                        </div>
+
                         {/* Open when there is something in it, folded away
                             when there is not — a full-height textarea holding
                             nothing was taking a third of the page above the
@@ -880,14 +897,16 @@ const Atlas = () => {
                             />
                         </details>
 
-                        {/* The day-by-day plan, and what it costs. It was
-                            called "The Days", which said nothing about the
-                            half of it that adds up. */}
+                        {/* The day-by-day plan. What it costs has gone up
+                            beside Where and when — both are short, wide
+                            things, and stacked full-width they were two bands
+                            of mostly empty paper with the figures flung to one
+                            edge. The heading stays here because it is the days
+                            that add up. */}
                         <section className="expedition__planner">
                             <h3 className="section-title">The Ledger</h3>
                             <TripPlanner
                                 trip={selectedTrip}
-                                onUpdateTrip={handleUpdateTrip}
                                 planner={planner}
                                 onIdeaUsed={ideas.markPromoted}
                             />

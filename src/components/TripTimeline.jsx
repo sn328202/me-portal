@@ -6,7 +6,7 @@ import { needsBooking } from '../utils/bookingState';
 import { HUES, blockPalette, blockStyle } from '../utils/blockColour';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
-import { legBands, legLabel, cityLabelOn, isTravelLeg } from '../utils/tripLegs';
+import { cityLabelOn, isTravelLeg } from '../utils/tripLegs';
 import { HOURS, rowsFor, dragRange, timesFromDrag, movedTo, timeLabel } from '../utils/timeline';
 
 /**
@@ -29,8 +29,8 @@ const label = (hour) => {
     return `${twelve}${suffix}`;
 };
 
-/* The hour rows begin on the fourth grid row: day heads, City, Lodging. */
-const FIRST_HOUR_ROW = 4;
+/* The hour rows begin on the third grid row: day heads, then Lodging. */
+const FIRST_HOUR_ROW = 3;
 
 /* Where to look for a place mentioned on this day. A travel day has no
    coordinates worth biasing towards, so it falls back to nothing. */
@@ -123,17 +123,6 @@ const TripTimeline = ({
     const byId = Object.fromEntries((costs?.days || []).map((d) => [d.id, d]));
     const dates = days.map((d) => String(d.date).slice(0, 10));
 
-    /* A leg and a stay span the same way, so they draw the same way. */
-    const spanning = (covered) => {
-        const inside = covered.filter((d) => dates.includes(d));
-        if (!inside.length) return null;
-        return { start: dates.indexOf(inside[0]), span: inside.length };
-    };
-
-    const cityBars = legBands(legs).map(({ leg, dates: band }) => {
-        const box = spanning(band);
-        return box && { leg, ...box };
-    }).filter(Boolean);
 
     // Each stay becomes one bar: where it starts in this grid and how wide.
     const bars = (stays || []).map((stay) => {
@@ -210,27 +199,21 @@ const TripTimeline = ({
                     );
                 })}
 
-                {/* City, spanning — the merged cell the sheet had at the top,
-                    and the row that tells you where you are before it tells you
-                    what you are doing. */}
-                <div className="timeline__rowlabel timeline__rowlabel--stays" style={{ gridRow: 2, gridColumn: 1 }}>City</div>
-                <div className="timeline__stays" style={{ '--days': days.length, gridRow: 2 }}>
-                    {cityBars.map(({ leg, start, span }) => (
-                        <span
-                            key={leg.id}
-                            className="timeline__leg"
-                            style={{ gridColumn: `${start + 1} / span ${span}` }}
-                            title={`${legLabel(leg, legs)} — ${span} ${span === 1 ? 'day' : 'days'}`}
-                        >
-                            {legLabel(leg, legs)}
-                        </span>
-                    ))}
-                    {!cityBars.length && <span className="timeline__nostay">No cities set</span>}
-                </div>
+                /* The City row is gone.
+
+                   Every day head already names the city, and on a travel day
+                   it names both — "San Francisco → Napa Valley". A band
+                   underneath repeating it was the same fact said twice, once
+                   per column and once as a bar, and it cost a row at the top
+                   of every timeline.
+
+                   Lodging stays, because a booking is not a fact the header
+                   carries: a stay spans nights rather than days, and which
+                   nights it covers is exactly what a merged bar is for. */
 
                 {/* Lodging, spanning. The merged cell from the sheet. */}
-                <div className="timeline__rowlabel timeline__rowlabel--stays" style={{ gridRow: 3, gridColumn: 1 }}>Lodging</div>
-                <div className="timeline__stays" style={{ '--days': days.length, gridRow: 3 }}>
+                <div className="timeline__rowlabel timeline__rowlabel--stays" style={{ gridRow: 2, gridColumn: 1 }}>Lodging</div>
+                <div className="timeline__stays" style={{ '--days': days.length, gridRow: 2 }}>
                     {bars.map(({ stay, start, span }) => (
                         <span
                             key={stay.id}

@@ -143,7 +143,7 @@ const VIEWS = [
     { value: 'cards', label: 'Cards' },
 ];
 
-const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
+const TripPlanner = ({ trip, planner, onIdeaUsed }) => {
     const {
         days, items, stays, legs, strays, costs,
         lodgingPerNight, stayOnDate,
@@ -169,7 +169,6 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
     // other day of it.
     const [view, setView] = useState('timeline');
     const currency = trip?.currency || 'USD';
-    const party = trip?.party_size || 1;
 
     // Days follow the trip's dates rather than being made by hand.
     useEffect(() => { ensureDays(); }, [ensureDays]);
@@ -190,45 +189,6 @@ const TripPlanner = ({ trip, onUpdateTrip, planner, onIdeaUsed }) => {
 
     return (
         <div className="trip-planner">
-            <Card className="trip-planner__summary">
-                <div className="trip-planner__totals">
-                    <div>
-                        <span className="trip-planner__figure">{formatMoney(costs.perPerson, currency)}</span>
-                        <span className="trip-planner__caption">per person</span>
-                    </div>
-                    <div>
-                        <span className="trip-planner__figure">{formatMoney(costs.party, currency)}</span>
-                        <span className="trip-planner__caption">
-                            for {party} {party === 1 ? 'person' : 'people'}
-                        </span>
-                    </div>
-                    <label className="trip-planner__party">
-                        <span>Party</span>
-                        <input
-                            type="number"
-                            min="1"
-                            value={party}
-                            onChange={(e) => onUpdateTrip?.(trip.id, {
-                                party_size: Math.max(1, Number(e.target.value) || 1),
-                            })}
-                        />
-                    </label>
-                    {/* The view toggle used to be here, at the top of a card
-                        two sections above the thing it switched — which is why
-                        pressing it looked like it was changing the trip's
-                        details rather than the days below them. It sits
-                        directly on top of what it controls now. */}
-                </div>
-
-                <ul className="trip-planner__buckets">
-                    {COST_BUCKETS.map((b) => (
-                        <li key={b}>
-                            <span>{BUCKET_LABEL[b]}</span>
-                            <strong>{formatMoney(costs.totals[b], currency)}</strong>
-                        </li>
-                    ))}
-                </ul>
-            </Card>
 
             {/* Lodging used to sit here, at the bottom of the day
                 planner, which is where you look for it last and enter it

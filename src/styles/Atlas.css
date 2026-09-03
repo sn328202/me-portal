@@ -449,49 +449,93 @@
     margin-top: var(--space-6);
 }
 
-.trip-planner__summary {
-    margin-bottom: var(--space-5);
-}
+/* Where and when, and what it costs, on one row.
 
-.trip-planner__totals {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
+   Both are short and wide. Full width and stacked, each drew a band the width
+   of the page with its figures pushed to the far edge and an acre of nothing
+   in between; the ledger's five buckets ran across a 1300px card as five words
+   with 200px between them. Beside each other the route gets the width it uses
+   and the money becomes a sidebar, which is the shape it always was. */
+.expedition__row {
+    display: grid;
     gap: var(--space-5);
 }
 
-.trip-planner__figure {
+@media (min-width: 1000px) {
+    .expedition__row {
+        grid-template-columns: minmax(0, 1fr) minmax(15rem, 22rem);
+        align-items: start;
+    }
+}
+
+.trip-ledger__totals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+}
+
+.trip-ledger__figure {
     display: block;
     font-family: var(--font-display);
-    font-size: var(--text-3xl);
+    font-size: var(--text-2xl);
     line-height: 1.1;
     color: var(--text-gold);
 }
 
-.trip-planner__caption {
+.trip-ledger__caption {
     display: block;
     color: var(--text-muted);
     font-size: var(--text-xs);
     letter-spacing: var(--tracking-label);
 }
 
-.trip-planner__party {
+.trip-ledger__party {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
     color: var(--text-muted);
     font-size: var(--text-xs);
     letter-spacing: var(--tracking-label);
 }
 
-.trip-planner__party input {
-    width: 5em;
-    padding: var(--space-2);
+.trip-ledger__party input {
+    width: 4.5em;
+    padding: var(--space-1) var(--space-2);
     border: var(--rule-hair);
     border-radius: var(--radius-sm);
     background: var(--field-bg);
     color: var(--text-main);
     font-size: 16px;
+    text-align: right;
+}
+
+/* Down, not across. In a sidebar five buckets in a row is five columns of
+   one word; in a column it is a list of figures you can add up by eye. */
+.trip-ledger__buckets {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: var(--space-3) 0 0;
+    padding: var(--space-3) 0 0;
+    border-top: var(--rule-hair);
+    list-style: none;
+}
+
+.trip-ledger__buckets li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.trip-ledger__buckets strong {
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
 }
 
 .trip-planner__note {
@@ -500,34 +544,6 @@
     font-size: var(--text-sm);
 }
 
-.trip-planner__buckets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-4);
-    margin: var(--space-4) 0 0;
-    padding: var(--space-3) 0 0;
-    border-top: var(--rule-hair);
-    list-style: none;
-}
-
-.trip-planner__buckets li {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    color: var(--text-muted);
-    font-size: var(--text-xs);
-}
-
-.trip-planner__buckets strong {
-    color: var(--text-main);
-    font-size: var(--text-base);
-}
-
-/* One day per row, full width.
-   Side by side, a day card was a 320px column trying to hold a time, a name,
-   a kind, a price, a split toggle and a delete — so "Ad Hoc Fried Chicken
-   Lunch + Yountville Exploration" came out five words tall and the columns
-   to its right fell off the screen. A day is a wide thing. It gets the page. */
 /* Two days to a row once there is room for two.
 
    One card per row meant a day of one stop drew a strip of empty paper the
@@ -2568,10 +2584,16 @@ textarea.expedition__notes:focus {
    This was the fourth entry in the Route/Timeline/Cards toggle, which was
    wrong twice over — it is not a way of looking at the days, it is what the
    days are made out of, and it sat a page away from the thing it feeds. */
-.expedition__where {
+/* The rule belongs to the row now, not to the left half of it — drawn on the
+   section it would stop dead where the sidebar begins, and the two headings
+   would start at different heights. */
+.expedition__row {
     margin-top: var(--space-4);
     padding-top: var(--space-4);
     border-top: var(--rule-hair);
+}
+
+.expedition__where {
 }
 
 /* Retired: the section heading stands alone now. The weather button that used
