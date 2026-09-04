@@ -32,6 +32,16 @@ export const TOKEN_MAP = {
     '--shadow': '--glow-gold',
     '--font-ui': '--font-body',
     '--font-title': '--font-display',
+    /* How this theme sets a heading. Eleven of the thirteen set their own
+       tracking and six shout their titles, so the planner's header has to be
+       told rather than guessing — otherwise it is the one heading in the app
+       not speaking in the room's voice.
+
+       Weight is not here: every theme uses the same 700, so it is a constant
+       rather than a thing to hand across, and the test below is right to
+       refuse a token no theme defines. */
+    '--case-title': '--case-heading',
+    '--tracking-title': '--tracking-heading',
 };
 
 const hex = (value) => {

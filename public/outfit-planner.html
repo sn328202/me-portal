@@ -22,15 +22,25 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:var(--font-ui);
     background:var(--bg);color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
-  header{padding:22px 26px 14px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-  header h1{font-size:22px;margin:0;letter-spacing:-.3px;font-family:var(--font-title)}
-  header .sub{color:var(--muted);font-size:13px}
-  .profilebar{display:flex;gap:6px;padding:10px 26px 0;flex-wrap:wrap;align-items:center}
+  /* The same header every other room in the portal draws: display face,
+     2.25rem, the theme's own casing and tracking, a subtitle under it rather
+     than beside it, and a rule along the bottom. It used to be a 22px line
+     with the subtitle trailing off to its right — a standalone app's header,
+     which is what this file was before it was a room. */
+  header{padding:22px 26px 12px;margin:0 26px;display:flex;align-items:flex-end;
+    justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);
+    padding-left:0;padding-right:0}
+  header .titles{display:flex;flex-direction:column;gap:4px;min-width:0}
+  header h1{font-size:2.25rem;margin:0;font-family:var(--font-title);font-weight:700;
+    line-height:1.15;color:var(--ink);
+    letter-spacing:var(--tracking-title,-.3px);text-transform:var(--case-title,none)}
+  header .sub{color:var(--muted);font-size:.875rem;line-height:1.4}
+  .profilebar{display:flex;gap:6px;padding:12px 26px 0;flex-wrap:wrap;align-items:center}
   .pchip{padding:5px 14px;border:1px solid var(--line);border-radius:20px;background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
   .pchip:hover{border-color:var(--accent)}
   .pchip.active{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
   .pchip.add{color:var(--accent);border-style:dashed}
-  .tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tabs{display:flex;gap:4px;padding:0 26px;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .tab{padding:11px 16px;cursor:pointer;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;font-weight:500}
   .tab.active{color:var(--ink);border-bottom-color:var(--accent)}
   .wrap{max-width:1100px;margin:0 auto;padding:22px}
@@ -169,8 +179,13 @@
 </head>
 <body>
 <header>
-  <h1>👗 Outfit Planner</h1>
-  <span class="sub">Your closet, trip planner, outfit ideas & smart packing — all saved in your browser.</span>
+  <div class="titles">
+    <h1>👗 The Wardrobe</h1>
+    <!-- Not "saved in your browser" any more. It is saved to the account and
+         pulled back on any device, which is the whole point of the sync — and
+         a line telling her otherwise is a line telling her not to trust it. -->
+    <span class="sub">Your closet, your outfits, and what to pack.</span>
+  </div>
 </header>
 <div class="profilebar" id="profileBar"></div>
 <div class="tabs">
