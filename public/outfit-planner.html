@@ -32,8 +32,10 @@
     padding-left:0;padding-right:0}
   header .titles{display:flex;flex-direction:column;gap:4px;min-width:0}
   header h1{font-size:2.25rem;margin:0;font-family:var(--font-title);font-weight:700;
-    line-height:1.15;color:var(--ink);
+    line-height:1.15;color:var(--ink);display:flex;align-items:center;gap:12px;
     letter-spacing:var(--tracking-title,-.3px);text-transform:var(--case-title,none)}
+  /* 0.8em and the accent, exactly as `.page-header__icon` sets it. */
+  .hd-ico{width:.8em;height:.8em;flex-shrink:0;fill:var(--accent);stroke:var(--accent)}
   header .sub{color:var(--muted);font-size:.875rem;line-height:1.4}
   .profilebar{display:flex;gap:6px;padding:12px 26px 0;flex-wrap:wrap;align-items:center}
   .pchip{padding:5px 14px;border:1px solid var(--line);border-radius:20px;background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
@@ -131,6 +133,18 @@
   .slot .role{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
   .slot .val{font-weight:600}
   .slot.miss{border-style:dashed;color:var(--danger)}
+  /* The packing list, in columns for the same reason the closet is: it is
+     read next to a suitcase, and a thing you scroll for six screens is a
+     thing you lose your place in.
+
+     `break-inside: avoid` here, unlike the closet — these sections are a
+     handful of garments each, so none of them is tall enough to gate the
+     column height, and a category split across the fold while you are
+     counting shirts into a bag is worse than a ragged edge. */
+  .pack-cols{columns:2 320px;column-gap:16px}
+  .pack-cols .pack-cat{break-inside:avoid;-webkit-column-break-inside:avoid;display:inline-block;width:100%}
+  .auto-cols{columns:2 240px;column-gap:20px}
+  .auto-cols .ess-item{break-inside:avoid;-webkit-column-break-inside:avoid}
   .pack-cat{margin-bottom:14px}
   .pack-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
   .pack-item:last-child{border-bottom:none}
@@ -180,7 +194,12 @@
 <body>
 <header>
   <div class="titles">
-    <h1>👗 The Wardrobe</h1>
+    <!-- The rail's own GiDress, inlined. Every other room heads itself with a
+         gold line drawing from the same set; a colour emoji here was the one
+         icon in the portal from a different alphabet. It cannot be imported —
+         this file is standalone HTML with no bundler — so the path is copied,
+         and it is the same path react-icons draws. -->
+    <h1><svg class="hd-ico" viewBox="0 0 512 512" aria-hidden="true"><path d="M342.842 462.946c-2.029 31.63-171.708 29.834-173.863 0-6.223-162.824 18.646-224.226 26.506-280.24 1.902-13.533-14.843-37.589-19.016-54.323-8.917-35.36 3.856-66.262-8.917-95.42L185.977 26C196.373 66.568 223.8 95.547 256 95.547c32.201 0 59.627-28.979 70.023-69.547l18.425 6.962c-12.773 29.159 0 60.06-8.917 95.42-4.226 16.735-20.96 40.79-19.016 54.324 7.68 56.025 32.55 117.427 26.327 280.24z"/></svg>The Wardrobe</h1>
     <!-- Not "saved in your browser" any more. It is saved to the account and
          pulled back on any device, which is the whole point of the sync — and
          a line telling her otherwise is a line telling her not to trust it. -->
@@ -1416,13 +1435,13 @@ function renderPack(t){
   // ----- AUTO-CALCULATED quantities (full-closet mode) -----
   const autoRows=computeAutoPack(t);
   let autoHtml=`<div class="card"><h2 style="margin:0 0 4px">🧮 Auto-calculated for ${days} day${days!==1?"s":""}</h2>
-    <div class="scale-help" style="margin-bottom:8px">Quantities worked out from your trip length, the weekdays you're away, and the weather.</div>`;
+    <div class="scale-help" style="margin-bottom:8px">Quantities worked out from your trip length, the weekdays you're away, and the weather.</div><div class="auto-cols">`;
   autoHtml+=autoRows.map((r,i)=>{
     const key="auto:"+r.label,checked=ps.autoChecked[key]?"checked":"";
     return `<div class="ess-item ${checked?"done":""}"><input type="checkbox" id="au${i}" ${checked} onchange="toggleAuto('${key.replace(/'/g,"\\'")}',this.checked)">
       <label for="au${i}"><b>${r.qty}×</b> ${esc(r.label)}</label><span class="badge">${esc(r.note)}</span></div>`;
   }).join("");
-  autoHtml+=`</div>`;
+  autoHtml+=`</div></div>`;
   essHtml+=autoHtml;
 
   const autoTotal=autoRows.length;let autoDone=0;autoRows.forEach(r=>{if(ps.autoChecked["auto:"+r.label])autoDone++;});
@@ -1491,6 +1510,10 @@ function renderPack(t){
     if(res.uncovered.length)s+=`<div class="pack-item" style="color:#b4543f">⚠ Gap: no ${title.toLowerCase()} for ${res.uncovered.map(n=>esc(n.ev.name||"an event")).join(", ")}. Consider adding one.</div>`;
     s+=`</div>`;return s;
   };
+  /* The garment sections, side by side rather than stacked. Six cards of a
+     handful of items each was six screens of scrolling to read a packing
+     list you are holding a suitcase next to. */
+  html+=`<div class="pack-cols">`;
   html+=renderSec("Tops",tops);
   html+=renderSec("Bottoms",pants);
   if(dresses.chosen.length||dresses.uncovered.length)html+=renderSec("Dresses",dresses);
@@ -1505,6 +1528,7 @@ function renderPack(t){
     const items=[...usedByCat[cat]].map(id=>closet.find(c=>c.id===id)).filter(Boolean);
     if(items.length){extraItems.push(...items);html+=renderSec(cat,{chosen:items,uncovered:[]});}
   });
+  html+=`</div>`;
   // excluded items — listed at the bottom so you can add them back
   const allItems=[...new Set([...allChosen,...extraItems])];
   const excludedList=allItems.filter(it=>ps.packExcluded[it.id]);
