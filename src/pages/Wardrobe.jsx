@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { wardrobeCss } from '../utils/wardrobeTheme';
+import { fontHref, wardrobeCss } from '../utils/wardrobeTheme';
 import { useWardrobeBackup } from '../hooks/useWardrobeBackup';
 import { atlasIdFrom, readTrips } from '../utils/wardrobeLink';
 import '../styles/Wardrobe.css';
@@ -52,6 +52,25 @@ export default function Wardrobe() {
         // A cross-origin iframe throws on contentDocument rather than returning
         // null, and a not-yet-loaded one has no <head> to hang anything off.
         if (!doc?.head) return;
+
+        // Fonts first, and separately from the colours: handing the planner
+        // the *name* of a face its document has never loaded is how the one
+        // header in the portal ended up in a fallback. The portal's own
+        // @import is copied across as a link so the iframe loads the same
+        // faces from the same URL — cached by then, so it costs nothing.
+        const href = fontHref(document);
+        if (href) {
+            let fonts = doc.getElementById('portal-fonts');
+            if (!fonts) {
+                fonts = doc.createElement('link');
+                fonts.id = 'portal-fonts';
+                fonts.rel = 'stylesheet';
+                // First in the head: @font-face has to be there before the
+                // rules that ask for it, and the theme block goes in last.
+                doc.head.insertBefore(fonts, doc.head.firstChild);
+            }
+            if (fonts.getAttribute('href') !== href) fonts.setAttribute('href', href);
+        }
 
         const read = (name) => getComputedStyle(document.documentElement)
             .getPropertyValue(name);

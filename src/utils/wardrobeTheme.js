@@ -44,6 +44,41 @@ export const TOKEN_MAP = {
     '--tracking-title': '--tracking-heading',
 };
 
+/**
+ * The stylesheet that carries the portal's webfonts, read off the live document.
+ *
+ * `index.css` opens with a single @import for every family the thirteen themes
+ * use. That stylesheet belongs to the *portal* document. The planner is a
+ * second document inside an iframe, and it has never loaded a font in its life
+ * — there is not one @font-face or <link> in the whole file. So when the theme
+ * hands it `--font-title: 'Archivo Black'` the name matches nothing and the
+ * browser quietly draws the next thing in the stack. The Wardrobe's header has
+ * been wearing Helvetica while every other room wore the real face, which is
+ * exactly the "nothing alike" you can see and cannot name.
+ *
+ * Read at runtime rather than copied. Writing that URL out a second time means
+ * a family added to index.css stops arriving here, silently, and the next
+ * person to notice is whoever opens the Wardrobe under a new theme.
+ */
+export const fontHref = (doc) => {
+    const sheets = Array.from(doc?.styleSheets || []);
+    for (const sheet of sheets) {
+        // A stylesheet from another origin throws on .cssRules. Ours never
+        // does, but an extension's does, and one of those must not be able to
+        // take the fonts down with it.
+        let rules;
+        try { rules = Array.from(sheet.cssRules || []); } catch { continue; }
+        for (const rule of rules) {
+            const href = rule?.href || '';
+            if (/fonts\.googleapis\.com/.test(href)) return href;
+        }
+    }
+    // Vite serves that @import inside an injected <style> in dev and as a
+    // <link> in production; if either ever becomes a plain link, find it here.
+    const link = doc?.querySelector?.('link[rel~="stylesheet"][href*="fonts.googleapis.com"]');
+    return link?.href || null;
+};
+
 const hex = (value) => {
     const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(value || '').trim());
     if (!m) return null;

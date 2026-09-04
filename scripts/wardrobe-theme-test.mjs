@@ -12,7 +12,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import {
-    TOKEN_MAP, hueOf, luminance, contrast, nearestHue, wardrobeVars, wardrobeCss,
+    TOKEN_MAP, fontHref, hueOf, luminance, contrast, nearestHue, wardrobeVars, wardrobeCss,
 } from '../src/utils/wardrobeTheme.js';
 
 /* themes.jsx is JSX, and its only JSX is the icon elements. Strip them and the
@@ -113,6 +113,61 @@ console.log('\nthe stylesheet it produces:');
         wardrobeCss((n) => dark[n] || '').includes('color-scheme:dark'), true);
 
     check('nothing to say means nothing said', wardrobeCss(() => ''), '');
+}
+
+console.log('\nfinding the fonts to hand across:');
+{
+    /* The bug this exists for: the planner is a second document, and a face
+       declared only in the portal's stylesheet does not reach it. Proven with
+       a real browser — same family, same size, same weight, and the iframe
+       drew 161px where the portal drew 190px because the iframe had zero
+       faces loaded. So the href has to be found and copied over, and found by
+       reading rather than by remembering. */
+    const IMPORT = 'https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap';
+    const sheet = (rules) => ({ get cssRules() { return rules; } });
+
+    check('it finds the @import in our own stylesheet',
+        fontHref({ styleSheets: [sheet([{ href: IMPORT }])] }), IMPORT);
+
+    check('it looks past the rules that are not imports',
+        fontHref({ styleSheets: [sheet([{ selectorText: '.x' }, { href: IMPORT }])] }), IMPORT);
+
+    check('it looks past a stylesheet with nothing in it',
+        fontHref({ styleSheets: [sheet([]), sheet([{ href: IMPORT }])] }), IMPORT);
+
+    // An extension's stylesheet throws on .cssRules. One of those must not be
+    // able to take the whole Wardrobe's typography down with it.
+    const hostile = { get cssRules() { throw new Error('cross-origin'); } };
+    check('a stylesheet it is not allowed to read is stepped over',
+        fontHref({ styleSheets: [hostile, sheet([{ href: IMPORT }])] }), IMPORT);
+
+    // Vite emits a <link> in production and an injected <style> in dev; if the
+    // shape ever changes, the link is the second place to look.
+    check('a plain <link> is the fallback',
+        fontHref({ styleSheets: [], querySelector: () => ({ href: IMPORT }) }), IMPORT);
+
+    check('an import to somewhere else is not a font sheet',
+        fontHref({ styleSheets: [sheet([{ href: 'https://example.com/a.css' }])] }), null);
+
+    check('no fonts anywhere is null, not a crash', fontHref({ styleSheets: [] }), null);
+    check('no document at all is null, not a crash', fontHref(null), null);
+}
+
+/* The URL it will be reading, at the top of index.css. If this @import ever
+   moves or is inlined, fontHref finds nothing and the Wardrobe goes back to
+   Helvetica without a word — so the test knows where it lives. */
+{
+    const css = fs.readFileSync('src/index.css', 'utf8');
+    check('index.css still holds the @import fontHref is looking for',
+        /@import\s+url\(['"]https:\/\/fonts\.googleapis\.com/.test(css), true);
+}
+
+/* And the planner still declares none of its own — if it ever grows a <link>
+   of its own this whole mechanism is redundant and should go. */
+{
+    const html = fs.readFileSync('public/outfit-planner.html', 'utf8');
+    check('the planner itself still loads no fonts',
+        /fonts\.googleapis\.com|@font-face/.test(html), false);
 }
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
