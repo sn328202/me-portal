@@ -118,3 +118,78 @@ t('the closet is counted across everyone in it', () => {
 });
 
 console.log(`\n${n} passed`);
+
+/* ---- not clobbering what the account learned ------------------------- */
+
+const { mergeById, movedOn, MERGEABLE } = await import('../src/utils/wardrobeSync.js');
+
+let k = 0;
+const w = (name, fn) => { fn(); k += 1; console.log(`  ok  ${name}`); };
+
+w('a garment the account has and the browser does not is kept', () => {
+    // The actual failure: 46 garments dictated into the account, a tab holding
+    // the copy from before them, and a push that took the lot.
+    const local = { me: [{ id: 'a' }] };
+    const remote = { me: [{ id: 'a' }, { id: 'dictated1' }, { id: 'dictated2' }] };
+    assert.deepEqual(mergeById(local, remote).me.map((g) => g.id),
+        ['a', 'dictated1', 'dictated2']);
+});
+
+w('and one the browser has and the account does not is kept too', () => {
+    // Both directions, or the fix is just the old bug pointing the other way.
+    const local = { me: [{ id: 'a' }, { id: 'typed-here' }] };
+    const remote = { me: [{ id: 'a' }] };
+    assert.deepEqual(mergeById(local, remote).me.map((g) => g.id), ['a', 'typed-here']);
+});
+
+w('when both have the same id the account wins', () => {
+    const out = mergeById({ me: [{ id: 'a', name: 'stale' }] }, { me: [{ id: 'a', name: 'fresh' }] });
+    assert.equal(out.me[0].name, 'fresh');
+});
+
+w('profiles are merged separately', () => {
+    const out = mergeById({ me: [{ id: 'm' }] }, { adeesh: [{ id: 'x' }] });
+    assert.deepEqual(Object.keys(out).sort(), ['adeesh', 'me']);
+    assert.equal(out.me.length, 1);
+    assert.equal(out.adeesh.length, 1);
+});
+
+w('a profile only the account knows about arrives', () => {
+    const out = mergeById({}, { adeesh: [{ id: 'x' }] });
+    assert.equal(out.adeesh.length, 1);
+});
+
+w('rubbish on either side does not throw away the other', () => {
+    assert.deepEqual(mergeById(null, { me: [{ id: 'a' }] }).me.map((g) => g.id), ['a']);
+    assert.deepEqual(mergeById({ me: [{ id: 'a' }] }, null).me.map((g) => g.id), ['a']);
+    assert.deepEqual(mergeById('nonsense', 'rubbish'), {});
+});
+
+w('an entry with no id is dropped rather than duplicated for ever', () => {
+    // Without an id there is nothing to match on, so keeping it would add a
+    // copy on every single sync.
+    const out = mergeById({ me: [{ name: 'no id' }] }, { me: [{ id: 'a' }] });
+    assert.deepEqual(out.me.map((g) => g.id), ['a']);
+});
+
+w('the account having moved on is what triggers a merge', () => {
+    assert.equal(movedOn('2026-09-04T01:00:00Z', '2026-09-04T00:20:00Z'), true);
+    assert.equal(movedOn('2026-09-04T00:10:00Z', '2026-09-04T00:20:00Z'), false);
+});
+
+w('a browser that has never agreed with the account is behind, not ahead', () => {
+    // No mark means it has no claim to be the newer story.
+    assert.equal(movedOn('2026-09-04T01:00:00Z', null), true);
+});
+
+w('and an account with no timestamp is not treated as newer', () => {
+    assert.equal(movedOn(null, '2026-09-04T00:20:00Z'), false);
+});
+
+w('the closet and the looks are both mergeable', () => {
+    // Both are {profile: [things with ids]}. Anything else is chosen between,
+    // so if a new key of that shape appears it has to be added here.
+    assert.deepEqual(MERGEABLE, ['closets', 'looksAll']);
+});
+
+console.log(`\nwardrobe merge: ${k} passed`);

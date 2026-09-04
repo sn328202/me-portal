@@ -147,6 +147,57 @@ export const describeSync = ({ push = [], pull = [] } = {}, closetCount = null) 
 };
 
 /** How many garments are in the closet, across everyone. */
+/**
+ * Keys whose value is {profileId: [things with ids]} and can therefore be
+ * merged rather than chosen between.
+ *
+ * This matters because the browser is no longer the only thing that writes
+ * here. A dictation adds garments server-side, and a tab that has not seen
+ * them must not push its own copy over the top — which is exactly what
+ * happened on 4 September: forty-six garments dictated in twenty minutes,
+ * then a tab holding the copy from before them wrote it back and took the lot.
+ */
+export const MERGEABLE = ['closets', 'looksAll'];
+
+/**
+ * Both copies, by id, for one profile-keyed collection.
+ *
+ * Remote first so the server's version of a thing wins on conflict — it is the
+ * one written most recently — and anything this browser has that the server
+ * has never seen is kept rather than dropped. Nothing is chosen between,
+ * because with stable ids nothing has to be.
+ */
+export const mergeById = (local, remote) => {
+    const asObj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+    const a = asObj(remote);
+    const b = asObj(local);
+    const out = {};
+
+    for (const profile of new Set([...Object.keys(a), ...Object.keys(b)])) {
+        const mine = Array.isArray(b[profile]) ? b[profile] : [];
+        const theirs = Array.isArray(a[profile]) ? a[profile] : [];
+        const byId = new Map();
+        // Remote first, then local: a local entry with an id the server also
+        // has does not replace it, and one with a new id is added.
+        for (const row of theirs) if (row && row.id != null) byId.set(String(row.id), row);
+        for (const row of mine) {
+            if (!row || row.id == null) continue;
+            if (!byId.has(String(row.id))) byId.set(String(row.id), row);
+        }
+        out[profile] = [...byId.values()];
+    }
+    return out;
+};
+
+/** Has the account moved since this browser last agreed with it? */
+export const movedOn = (remoteUpdatedAt, syncedAt) => {
+    const there = time(remoteUpdatedAt);
+    const agreed = time(syncedAt);
+    if (there === null) return false;
+    if (agreed === null) return true;
+    return there > agreed;
+};
+
 export const closetSize = (closets) => {
     if (!closets || typeof closets !== 'object') return 0;
     return Object.values(closets).reduce((n, list) => n + (Array.isArray(list) ? list.length : 0), 0);

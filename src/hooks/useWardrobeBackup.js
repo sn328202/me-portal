@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
-    WARDROBE_KEYS, META_KEY, plan, readLocal, writeLocal, describeSync, closetSize,
+    WARDROBE_KEYS, META_KEY, MERGEABLE, plan, readLocal, writeLocal, describeSync,
+    closetSize, mergeById, movedOn,
 } from '../utils/wardrobeSync';
 
 /**
@@ -41,17 +42,71 @@ export const useWardrobeBackup = () => {
 
         const locals = readLocal(window.localStorage);
         const stamp = new Date().toISOString();
-        const rows = keys
-            .filter((k) => WARDROBE_KEYS.includes(k) && locals[k] !== undefined)
-            .map((k) => ({ user_id: who, key: k, value: locals[k], updated_at: stamp }));
+        const wanted = keys.filter((k) => WARDROBE_KEYS.includes(k) && locals[k] !== undefined);
+        if (!wanted.length) return;
 
-        if (!rows.length) return;
+        /* What the account holds right now.
+         *
+         * This browser is no longer the only thing that writes here: a
+         * dictation adds garments server-side, and a tab that has not seen
+         * them must not write its own copy over the top. It did once — forty
+         * six garments dictated in twenty minutes, then a tab holding the copy
+         * from before them pushed it back and took the lot.
+         *
+         * So a push is now a read first. Where the account has moved on, the
+         * two copies are merged by id rather than one being chosen: garments
+         * and looks both carry stable ids, so nothing has to be chosen between
+         * and nothing is lost in either direction. */
+        const { data: current, error: readErr } = await supabase
+            .from('wardrobe_state')
+            .select('key, value, updated_at')
+            .eq('user_id', who)
+            .in('key', wanted);
+        if (readErr) throw readErr;
+
+        const server = Object.fromEntries((current || []).map((r) => [r.key, r]));
+        const agreed = window.localStorage.getItem(META_KEY);
+
+        const rows = [];
+        const merged = [];
+        for (const key of wanted) {
+            const theirs = server[key];
+            const behind = theirs && movedOn(theirs.updated_at, agreed);
+
+            if (!behind) {
+                rows.push({ user_id: who, key, value: locals[key], updated_at: stamp });
+                continue;
+            }
+
+            if (MERGEABLE.includes(key)) {
+                const union = mergeById(locals[key], theirs.value);
+                // The browser has to end up holding what it just agreed to,
+                // or the very next push starts the argument again.
+                writeLocal(window.localStorage, key, union);
+                rows.push({ user_id: who, key, value: union, updated_at: stamp });
+                merged.push(key);
+                continue;
+            }
+
+            /* Not mergeable and the account is ahead: take theirs. Losing one
+               edit made in this tab is a smaller wrong than overwriting
+               everything the account learned while the tab was not looking. */
+            writeLocal(window.localStorage, key, theirs.value);
+        }
+
+        if (!rows.length) {
+            window.localStorage.setItem(META_KEY, stamp);
+            return;
+        }
 
         const { error } = await supabase
             .from('wardrobe_state')
             .upsert(rows, { onConflict: 'user_id,key' });
 
         if (error) throw error;
+        if (merged.length) {
+            setStatus(`Merged what you dictated into the closet on this device.`);
+        }
 
         // Only now is this browser in agreement with the account. Writing the
         // mark before the write lands would make a failed save look settled.
