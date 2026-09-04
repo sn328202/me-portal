@@ -74,17 +74,29 @@ export const useCaptures = (limit = 20) => {
         const sorted = [...actions].sort((a, b) => DEPTH(a.table) - DEPTH(b.table));
 
         for (const action of sorted) {
-            if (!action.table || !action.id) continue;
+            const keyed = typeof action.key === 'string' && action.key.length > 0;
+            if (!action.table || (!keyed && !action.id)) continue;
+
             /* Most actions made a row, so taking them back means deleting it.
                Some only changed one — "we're out of garlic" flips a column on
                an ingredient she curated — and those carry what to put back.
-               Deleting there would take the garlic with it. */
+               Deleting there would take the garlic with it.
+
+               And some rows are not addressed by an id at all: `wardrobe_state`
+               is one JSON blob per (user, key), so dictating three garments
+               edits the row that holds the whole closet. Such an action must
+               carry an undo, because the delete branch here would take every
+               garment she owns to put back three. */
             const put = action.undo?.set;
+            if (keyed && !put) continue;
+
+            const where = (q) => (keyed
+                ? q.eq('key', action.key).eq('user_id', user.id)
+                : q.eq('id', action.id).eq('user_id', user.id));
+
             const { error: err } = put
-                ? await supabase.from(action.table).update(put)
-                    .eq('id', action.id).eq('user_id', user.id)
-                : await supabase.from(action.table).delete()
-                    .eq('id', action.id).eq('user_id', user.id);
+                ? await where(supabase.from(action.table).update(put))
+                : await where(supabase.from(action.table).delete());
             // A capture from before a room was retired points at a table that
             // no longer exists. There is nothing left to take back, which is
             // not a failure — refusing to undo the rest of the dictation

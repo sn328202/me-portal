@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 /**
  * Unit checks for the capture endpoint's duplicate guard.
  *
@@ -5,7 +6,7 @@
  * is a worse failure than the duplicates it exists to prevent. These cases pin
  * both directions: what must collapse, and what must stay distinct.
  */
-import { norm, dedupe, describeDupes, TOOLS, loadContext } from '../api/capture.js';
+import { norm, dedupe, describeDupes, TOOLS, loadContext, systemPrompt } from '../api/capture.js';
 
 let failed = 0;
 const check = (label, actual, expected) => {
@@ -105,6 +106,57 @@ const pantryQuery = (loader.match(/q\('pantry_ingredients'[^)]*\)/) || [''])[0];
 check('the pantry query fetches ids', /\bid\b/.test(pantryQuery), true);
 check('and every ingredient, not the newest handful',
     Number((pantryQuery.match(/limit:\s*(\d+)/) || [])[1] || 0) >= 400, true);
+
+
+/* ---- the wardrobe ---------------------------------------------------- */
+
+console.log('\ndictating a closet:');
+
+{
+    const tools = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
+
+    check('there is a tool for clothes she already owns', Boolean((tools.add_garment)), true);
+    check('and one for outfits', Boolean((tools.add_outfit)), true);
+
+    // The whole complaint: clothes were landing in the Treasury, which is a
+    // list of things she wants to buy.
+    /* Every list the prompt reads, all empty. A missing key is a crash rather
+       than an empty section, which is worth knowing on its own. */
+    const empty = {
+        index: {}, days: [], trips: [], treasury: [], treasuryCategories: [],
+        library: [], rooms: [], pantry: [], pantryOut: [], pantryBy: new Map(),
+        groceries: [], todos: [], goals: [], habits: [], social: [], recipes: [],
+        ideas: [], closet: [], looks: [], sharedPost: null,
+    };
+    const prompt = systemPrompt(empty, new Date('2026-09-03T09:00:00Z'));
+    check('the prompt draws the line between owning and wanting', Boolean(/Owning is not wanting/.test(prompt)), true);
+    check('and names both tools where it draws it', Boolean(/add_garment/.test(prompt) && /add_desire/.test(prompt)), true);
+    check('the Wardrobe is listed as a room', Boolean(/\*\*Wardrobe\*\*/.test(prompt)), true);
+
+    // A garment filed under a category the planner does not know is a garment
+    // that appears on no screen, and nothing anywhere reports it.
+    const cat = tools.add_garment.input_schema.properties.garments.items.properties.category;
+    check('a garment must carry a category', Boolean(tools.add_garment.input_schema.properties.garments.items.required.includes('category')), true);
+    check('and it can only be one the planner draws',
+        JSON.stringify(cat.enum),
+        JSON.stringify(['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories', 'Swimwear']));
+
+    // Dictating a wardrobe is dozens of garments. One call each would be absurd.
+    check('garments arrive many at a time', Boolean(tools.add_garment.input_schema.properties.garments.type === 'array'), true);
+}
+
+console.log('\nbackticks in the prompt:');
+
+{
+    // Twice now a backtick inside the prompt's template literal has broken
+    // this whole file at parse time — once for `ran_out`, once for `category`.
+    // The module importing at all proves it today; this says why out loud so
+    // the next person reaches for ** rather than ` .
+    const src = await readFile(new URL('../api/capture.js', import.meta.url), 'utf8');
+    const promptBody = src.slice(src.indexOf('const systemPrompt'));
+    const literal = promptBody.slice(promptBody.indexOf('`'), promptBody.indexOf('# How to file'));
+    check('the prompt uses ** for emphasis, never a backtick', Boolean(!/\n[^\n]*`[a-z_]+`/.test(literal)), true);
+}
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);

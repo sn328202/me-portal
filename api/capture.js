@@ -4,6 +4,9 @@ import { extractRecipe, parseIngredient } from './_recipe.js';
 import { extractProduct } from './_link.js';
 import { resolvePlace } from './_place.js';
 import { readPost, platformOf, firstUrl, expand } from './_social.js';
+import {
+    CATS, DRESS, WARMTH, STYLES, addGarments, describeAdded, buildLook, addLook,
+} from './_garment.js';
 
 /**
  * POST /api/capture   { text: "..." }
@@ -199,6 +202,60 @@ const TOOLS = [
                 priority: { type: 'string', enum: ['Low', 'Medium', 'High'] },
             },
             required: ['title'],
+        },
+    },
+    {
+        name: 'add_garment',
+        description:
+            'Add clothes she ALREADY OWNS to her Wardrobe closet. This is the line: owns it -> add_garment; wants to buy it -> add_desire. "I have a black wool coat", "add my three white t-shirts", "I own a pair of brown boots" are all this tool. Takes many garments at once and should — dictating a wardrobe is dozens of items and one call each would be absurd. Names go in as she says them; do not invent brands or colours she did not mention.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                garments: {
+                    type: 'array',
+                    description: 'Every garment she named in this dictation.',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', description: 'As she said it — "brown tank top", "high waisted black jeans".' },
+                            category: {
+                                type: 'string',
+                                enum: CATS,
+                                description: 'Which drawer. Required: the closet groups by this and a garment filed under anything else does not appear on any screen.',
+                            },
+                            color: { type: 'string', description: 'Only if she said one.' },
+                            dress: {
+                                type: 'string',
+                                enum: DRESS,
+                                description: 'How dressy. Default Casual. Ignored for Accessories, which go with everything.',
+                            },
+                            warmth: { type: 'string', enum: WARMTH, description: 'Default Medium.' },
+                            style: { type: 'string', enum: STYLES, description: 'Default Everyday.' },
+                            rain: { type: 'boolean', description: 'Only true for something actually waterproof.' },
+                            notes: { type: 'string' },
+                        },
+                        required: ['name', 'category'],
+                    },
+                },
+            },
+            required: ['garments'],
+        },
+    },
+    {
+        name: 'add_outfit',
+        description:
+            'Save a named outfit — a set of clothes she wears together — to her Wardrobe. Use when she describes a combination: "my work outfit is the white silk shirt, black jeans and the wool blazer", "call that one Sunday brunch". Name every piece as she said it; they are matched against the closet. If she names garments she has not added yet, call add_garment in the same turn FIRST and then this — the pieces will be found. An outfit holds one garment per category, so do not name two tops.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string', description: 'What she called it — "work", "Sunday brunch", "the airport one".' },
+                pieces: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Each garment by name, as she said it.',
+                },
+            },
+            required: ['name', 'pieces'],
         },
     },
     {
@@ -448,6 +505,7 @@ async function loadContext(sb, userId) {
     const [
         days, dayItems, trips, treasury, library,
         chores, pantry, provisions, todos, goals, habits, social, recipes, ideas,
+        wardrobe,
     ] = await Promise.all([
         q('atlas_days', 'id, date, city, trip_id', { limit: 120 }),
         q('atlas_day_items', 'day_id, title', { limit: 200 }),
@@ -477,6 +535,13 @@ async function loadContext(sb, userId) {
         sb.from('atlas_ideas').select('id, title, kind, area, trip_id, place_id')
             .eq('user_id', userId).is('trip_id', null).is('promoted_at', null)
             .order('created_at', { ascending: false }).limit(120),
+        /* The closet. Not shaped like the others — `wardrobe_state` is one
+           JSON blob per key with no `created_at` to order by — so it is asked
+           for directly rather than through `q`. Told to the model so it can
+           match "the black jeans" to a garment she owns when she names an
+           outfit, and so it does not offer to add what is already hanging up. */
+        sb.from('wardrobe_state').select('key, value')
+            .eq('user_id', userId).in('key', ['closets', 'looksAll', 'activeProfile']),
     ]);
 
     // A single failed sub-query must not take the whole capture down; the
@@ -512,6 +577,23 @@ async function loadContext(sb, userId) {
         trips: rows(trips).map((t) => ({ id: t.id, destination: t.destination, status: t.status })),
         treasury: rows(treasury).map((t) => ({ title: t.title, category: t.category })),
         treasuryCategories: uniq(treasury, 'category'),
+        closet: (() => {
+            const held = Object.fromEntries(rows(wardrobe).map((r) => [r.key, r.value]));
+            const who = typeof held.activeProfile === 'string' && held.activeProfile
+                ? held.activeProfile : 'me';
+            const mine = held.closets && typeof held.closets === 'object' ? held.closets[who] : null;
+            // Names and drawers only. Sixty garments is a paragraph; sixty
+            // garments with warmth, dressiness and notes is a page, and none
+            // of it helps the model decide where a new one goes.
+            return Array.isArray(mine) ? mine.map((g) => `${g.name} [${g.cat}]`) : [];
+        })(),
+        looks: (() => {
+            const held = Object.fromEntries(rows(wardrobe).map((r) => [r.key, r.value]));
+            const who = typeof held.activeProfile === 'string' && held.activeProfile
+                ? held.activeProfile : 'me';
+            const mine = held.looksAll && typeof held.looksAll === 'object' ? held.looksAll[who] : null;
+            return Array.isArray(mine) ? mine.map((l) => l?.name).filter(Boolean) : [];
+        })(),
         library: rows(library).map((l) => ({ title: l.title, type: l.type, status: l.status })),
         rooms: uniq(chores, 'room'),
         pantry: rows(pantry).filter((p) => p.in_stock !== false).map((p) => p.label || p.name),
@@ -619,6 +701,8 @@ Grocery list, still unbought:${bullets(ctx.groceries)}
 Open tasks:${bullets(ctx.todos)}
 Treasury (things she wants to buy):${bullets(ctx.treasury.map((t) => `${t.title}${t.category ? ` [${t.category}]` : ''}`))}
 Treasury categories in use: ${ctx.treasuryCategories.join(', ') || 'none yet'}
+Wardrobe — clothes she already owns:${bullets(ctx.closet)}
+Outfits already saved: ${ctx.looks.join(', ') || 'none yet'}
 Library:${bullets(ctx.library.map((l) => `${l.title} (${l.type}, ${l.status})`))}
 Aspirations:${bullets(ctx.goals)}
 Daily rituals:${bullets(ctx.habits)}
@@ -639,6 +723,7 @@ This arrives as phone dictation, so words come through mangled. Map near-misses 
 - **Library** — books, films, TV, albums, games. Things consumed, not cooked.
 - **Provisions** — the grocery list.
 - **Treasury** — things she wants to buy.
+- **Wardrobe** — clothes she already owns. Not the Treasury: the Treasury is a list of wants.
 - **Atlas** — every plan that happens somewhere: a fortnight abroad, a Saturday across town, and the pile of places she has not dated yet. A single day out is a one-day trip, not a lesser thing.
 - **Register** — plans with other people. **Duty** — chores. **Aspirations** — goals. **Rituals** — daily habits.
 
@@ -648,6 +733,9 @@ This arrives as phone dictation, so words come through mangled. Map near-misses 
 - **Already there?** If she names something that appears above, do not add it again. If everything she said is already filed, call nothing_to_file and say what she already has. Adding it anyway will be rejected before it is written, so you gain nothing by trying.
 - **Attach, don't duplicate.** A restaurant in a city where a day already exists belongs on that day — pass its id. Only pass an id that appears in the list above; a made-up id is discarded and a new day is created instead.
 - Distinguish needing from wanting. Groceries are needs; the Treasury is for wants.
+- **Owning is not wanting, and clothes are where this goes wrong.** "I have a black wool coat" is her Wardrobe — call **add_garment**. "I want that black wool coat" is the Treasury — call **add_desire**. Past tense, possession and inventory all mean owning: *I have, I own, I bought, add to my closet, these are my*, or simply reading a list of garments off a shelf. Only a wish, a plan or a link to a shop means wanting.
+  - When she is dictating a wardrobe she will just name garments, one after another, with no verb at all — "brown tank top, black jeans, the green silk shirt, white sneakers". A run of bare garment names is a closet being read aloud. It is **add_garment**, and it is one call carrying all of them, not one call each.
+  - Every garment needs a **category** from the list. It is what the closet groups by, and a garment filed anywhere else appears on no screen at all.
 - **Treasury items need a link.** If she gives one, pass it and stop — the page is read for you. If she only describes the thing ("that matte black Hario kettle", "the ribbed tank from Everlane"), use web_search to find it, then pass the URL as the link parameter.
   - Prefer **the brand's own product page** over Amazon, a marketplace, a reseller or a review article. Brand pages have accurate prices, real photography and stable URLs.
   - Search at most once or twice per item. If nothing convincing turns up, file it without a link rather than attaching a page you are unsure about — a wrong product is worse than a missing one.
@@ -744,6 +832,30 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
      * write is a flip of one column on a row she has curated. Undoing "we're
      * out of garlic" must put the garlic back in stock, not delete the garlic.
      */
+    /* The Wardrobe as it stands: one JSON blob per key, and which profile the
+       planner is currently showing. Read the same way by both wardrobe tools
+       so the second one sees what the first one wrote. */
+    const readWardrobe = async (client, uid) => {
+        const { data, error } = await client
+            .from('wardrobe_state')
+            .select('key, value')
+            .eq('user_id', uid)
+            .in('key', ['closets', 'looksAll', 'activeProfile']);
+        if (error) throw new Error(`wardrobe_state: ${error.message}`);
+        const rows = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+        const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+        return {
+            rows,
+            closets: obj(rows.closets),
+            looks: obj(rows.looksAll),
+            /* Whoever the planner is showing. "me" is the id it gives its own
+               first profile, so it is the right fallback rather than a guess. */
+            profile: typeof rows.activeProfile === 'string' && rows.activeProfile
+                ? rows.activeProfile
+                : 'me',
+        };
+    };
+
     const push = (table, id, text, undo) => actions.push({
         tool: name, table, id, label: label(text), ...(undo ? { undo } : {}),
     });
@@ -1107,6 +1219,93 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             const [r] = await ins('habits', [{ text, completed: false, user_id: userId }]);
             push('habits', r.id, text);
             return `"${text}" as a daily ritual`;
+        }
+        case 'add_outfit': {
+            /* Runs after add_garment when a dictation does both, because the
+               tools are called in the order the model emits them and the
+               prompt tells it to add the clothes first. That ordering is the
+               whole reason "I have a white shirt, black jeans and a blazer —
+               that's my work outfit" works in one breath: by the time this
+               runs, those three are in the closet to be found. */
+            const pieces = Array.isArray(input.pieces) ? input.pieces : [];
+            if (!pieces.length) return null;
+
+            const { rows: wr, closets: cl, looks: lk, profile: who } = await readWardrobe(sb, userId);
+            const items = Array.isArray(cl[who]) ? cl[who] : [];
+
+            const { look, used, missing, clashes } = buildLook(items, { name: input.name, pieces });
+            if (!look) {
+                return missing.length
+                    ? `could not find ${listOf(missing)} in your closet, so that outfit was not saved`
+                    : null;
+            }
+
+            const { looks, added: kept } = addLook(lk, who, look);
+            if (!kept) return `you already have an outfit called ${look.name}`;
+
+            const { error: writeErr } = await sb
+                .from('wardrobe_state')
+                .upsert(
+                    { user_id: userId, key: 'looksAll', value: looks, updated_at: new Date().toISOString() },
+                    { onConflict: 'user_id,key' },
+                );
+            if (writeErr) throw new Error(`wardrobe_state: ${writeErr.message}`);
+
+            actions.push({
+                tool: name,
+                table: 'wardrobe_state',
+                key: 'looksAll',
+                label: label(look.name),
+                undo: { set: { value: wr.looksAll || {} } },
+            });
+
+            const gaps = missing.length ? `, but ${listOf(missing)} could not be found` : '';
+            const extra = clashes.length
+                ? `, and ${listOf(clashes)} was left out — an outfit takes one of each kind`
+                : '';
+            return `${look.name} saved as an outfit (${used.map((g) => g.name).join(', ')})${gaps}${extra}`;
+        }
+        case 'add_garment': {
+            /* The Wardrobe is not a table. It is the outfit planner's own
+               localStorage, mirrored here as one JSON blob per key, so adding
+               a garment means reading the whole closet, putting something in
+               it and writing it back — and the browser picks it up on its next
+               load through the wardrobe sync.
+
+               Which is also why this action is addressed by `key` rather than
+               by `id`: the row is the entire closet. Undo therefore carries
+               the closet as it was, because the ordinary undo would delete the
+               row — every garment she owns — to take back three. */
+            const wanted = Array.isArray(input.garments) ? input.garments : [];
+            if (!wanted.length) return null;
+
+            const { closets: before, profile } = await readWardrobe(sb, userId);
+            const { closets, added, duplicates } = addGarments(before, profile, wanted);
+            if (!added.length) {
+                return duplicates.length
+                    ? `${listOf(duplicates)} ${duplicates.length === 1 ? 'is' : 'are'} already in your closet`
+                    : null;
+            }
+
+            const { error: writeErr } = await sb
+                .from('wardrobe_state')
+                .upsert(
+                    { user_id: userId, key: 'closets', value: closets, updated_at: new Date().toISOString() },
+                    { onConflict: 'user_id,key' },
+                );
+            if (writeErr) throw new Error(`wardrobe_state: ${writeErr.message}`);
+
+            actions.push({
+                tool: name,
+                table: 'wardrobe_state',
+                key: 'closets',
+                label: label(`${added.length} ${added.length === 1 ? 'garment' : 'garments'}`),
+                undo: { set: { value: before } },
+            });
+
+            const where = describeAdded(added);
+            const already = duplicates.length ? `, ${listOf(duplicates)} already there` : '';
+            return `${listOf(added.map((g) => g.name))} to your closet (${where})${already}`;
         }
         case 'ran_out': {
             /* Running out is two facts at once — it is no longer in the
