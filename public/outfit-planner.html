@@ -54,17 +54,39 @@
   .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--line)}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .right{margin-left:auto}
-  .closet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-  .item{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card);display:flex;flex-direction:column}
-  .item .thumb{height:110px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;
-    font-size:30px;color:var(--accent);background-size:cover;background-position:center}
-  .item .body{padding:9px 10px;font-size:13px}
-  .item .nm{font-weight:600;margin-bottom:3px}
-  .item .meta{color:var(--muted);font-size:11px}
+  /* The closet, as a list rather than a wall of tiles.
+
+     A hundred and twenty-four garments at a card apiece is 6600px of
+     scrolling — and since almost none of them have a photograph, most of
+     that height is a 110px block containing one emoji. A garment is a
+     line of text; it only needs a tile when there is something to look at.
+
+     Same shape as the always-pack list, for the same reason: categories
+     are wildly uneven (forty-nine tops against seven pairs of shoes), so
+     they flow in columns and `break-inside` keeps each one whole. */
+  .cl-cols{columns:3 260px;column-gap:26px}
+  .cl-group{display:block;width:100%;margin:0 0 14px}
+  .cl-group>h3{break-after:avoid}
+  .cl-row{break-inside:avoid}
+  .cl-group>h3{margin:0 0 4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .cl-n{font-weight:400;opacity:.6}
+  .cl-row{display:flex;align-items:center;gap:9px;padding:4px 4px 4px 0;border-radius:8px;cursor:pointer}
+  .cl-row:hover{background:var(--accent-soft)}
+  .cl-thumb{flex-shrink:0;width:30px;height:30px;border-radius:7px;background:var(--accent-soft);background-size:cover;background-position:center;
+    display:flex;align-items:center;justify-content:center;font-size:15px}
+  .cl-thumb--none{opacity:.65}
+  .cl-what{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+  .cl-nm{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cl-meta{font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Quiet until pointed at: a column of × down a wardrobe is an invitation
+     to lose something. Always there on touch, where there is no hover. */
+  .cl-drop{flex-shrink:0;border:0;background:none;color:transparent;font-size:15px;line-height:1;cursor:pointer;padding:0 2px}
+  .cl-row:hover .cl-drop,.cl-drop:focus-visible{color:var(--muted)}
+  .cl-drop:hover{color:var(--bad,#b4543f)}
+  @media (hover:none){.cl-drop{color:var(--muted)}}
   .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
   .chip{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--accent-soft);color:var(--accent);font-weight:600}
   .chip.cat{color:var(--good);background:color-mix(in oklab, var(--good) 13%, var(--card))}
-  .item .acts{display:flex;gap:4px;padding:0 8px 8px}
   .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
   .pill.cold{color:var(--cold)} .pill.hot{color:var(--hot)}
   .pill.mild{color:var(--good)} .pill.rain{color:var(--cold)}
@@ -672,6 +694,7 @@ function renderCloset(){
     (!fs||(c.name+" "+(c.color||"")+" "+(c.notes||"")).toLowerCase().includes(fs)));
   closetCount.textContent=closet.length?`${closet.length} item${closet.length>1?"s":""}`:"";
   const grid=closetGrid;
+  grid.className="cl-cols";
   if(!closet.length){grid.innerHTML='<div class="empty">Your closet is empty. Add your clothes with “+ Add item” — a description is enough, photos optional.</div>';return;}
   if(!list.length){grid.innerHTML='<div class="empty">No items match those filters.</div>';return;}
   // group by category in fixed order
@@ -679,25 +702,23 @@ function renderCloset(){
   for(const cat of CATS){
     const items=list.filter(c=>c.cat===cat);
     if(!items.length)continue;
-    html+=`<h3>${ICONS[cat]} ${cat} <span class="muted" style="font-weight:400">· ${items.length}</span></h3><div class="closet-grid">`;
+    html+=`<section class="cl-group"><h3>${ICONS[cat]} ${cat} <span class="cl-n">${items.length}</span></h3>`;
     html+=items.map(c=>`
-      <div class="item">
-        <div class="thumb" ${c.img?`style="background-image:url('${c.img}')"`:""}>${c.img?"":ICONS[c.cat]||"👕"}</div>
-        <div class="body">
-          <div class="nm">${esc(c.name)}</div>
-          <div class="meta">${esc(c.color||"")}</div>
-          <div class="chips">
-            ${c.cat===AGNOSTIC_CAT?'<span class="chip">matches anything</span>':
-              `<span class="chip">${DRESS[c.dress-1]}</span><span class="chip">${WARMTH[c.warmth-1]}</span>${c.rain?'<span class="chip">rain-ok</span>':""}`}
-            ${c.style&&c.style!=="Everyday"?`<span class="chip cat">${c.style}</span>`:""}
-          </div>
-        </div>
-        <div class="acts">
-          <button class="btn-ghost btn-sm" onclick="openItemModal('${c.id}')">Edit</button>
-          <button class="btn-danger btn-sm" onclick="deleteItem('${c.id}')">Delete</button>
-        </div>
+      <div class="cl-row" onclick="openItemModal('${c.id}')" title="${esc(c.name)}">
+        ${c.img?`<span class="cl-thumb" style="background-image:url('${c.img}')"></span>`:`<span class="cl-thumb cl-thumb--none">${ICONS[c.cat]||"👕"}</span>`}
+        <span class="cl-what">
+          <span class="cl-nm">${esc(c.name)}</span>
+          <span class="cl-meta">${[
+            c.color||"",
+            c.cat===AGNOSTIC_CAT?"matches anything":DRESS[c.dress-1],
+            c.cat===AGNOSTIC_CAT?"":WARMTH[c.warmth-1],
+            c.rain?"rain-ok":"",
+            c.style&&c.style!=="Everyday"?c.style:"",
+          ].filter(Boolean).map(esc).join(" · ")}</span>
+        </span>
+        <button class="cl-drop" title="Remove" onclick="event.stopPropagation();deleteItem('${c.id}')">×</button>
       </div>`).join("");
-    html+=`</div>`;
+    html+=`</section>`;
   }
   grid.innerHTML=html;
 }
