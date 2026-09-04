@@ -109,6 +109,19 @@
   .progress{height:12px;background:var(--accent-soft);border-radius:20px;overflow:hidden}
   .progress-fill{height:100%;border-radius:20px;transition:width .35s ease}
   .badge{margin-left:auto;font-size:11px;color:var(--muted)}
+  /* The always-pack list is eight bags and sixty-odd items. In one column
+     that is a page and a half of scrolling to find the toothbrush; in
+     columns it is a thing you can read at a glance while packing.
+
+     `columns`, not grid: the bags are wildly different lengths — eighteen
+     toiletries against four pieces of jewellery — and a grid would leave a
+     ragged hole under every short one. Columns pack them tight, and
+     break-inside keeps a bag whole rather than splitting it across the
+     fold. */
+  .ess-cols{columns:3 220px;column-gap:28px;margin-top:8px}
+  .ess-group{break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;display:inline-block;width:100%;margin:0 0 14px}
+  .ess-group>h3{margin:0 0 4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .ess-n{font-weight:400;opacity:.6}
   .ess-item{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:14px}
   .ess-item input{width:auto}
   .ess-item.done label{text-decoration:line-through;color:var(--muted)}
@@ -822,9 +835,10 @@ function openWearModal(date){
 function renderEssMaster(){
   const et=document.getElementById("essTitle");if(et)et.textContent=activeName()+"’s essentials";
   const el=document.getElementById("essMaster");
+  el.className="ess-cols";
   el.innerHTML=essCats.map(cat=>{
     const items=essentials[cat]||[];
-    return `<div class="card"><div class="row"><h3 style="margin:0">${essIcon(cat)} ${esc(cat)} <span class="muted" style="font-weight:400">· ${items.length}</span></h3>
+    return `<div class="card ess-group"><div class="row"><h3 style="margin:0">${essIcon(cat)} ${esc(cat)} <span class="muted" style="font-weight:400">· ${items.length}</span></h3>
       <button class="btn-ghost btn-sm right" onclick="openEssModal('${attrJs(cat)}')">Edit</button></div>
       ${items.length?`<div style="margin-top:8px">${items.map(i=>`<div class="ess-item"><span>•</span><label style="margin:0;color:var(--ink);font-size:14px;font-weight:500">${esc(i)}</label></div>`).join("")}</div>`
                     :'<div class="muted small" style="margin-top:6px">No items yet — click Edit to add.</div>'}</div>`;
@@ -1326,14 +1340,20 @@ function renderPack(t){
   const essTotal=essCats.reduce((n,c)=>n+(essentials[c]||[]).length,0);
   if(!essTotal){essHtml+='<div class="muted small" style="margin-top:8px">No essentials set. Open the Essentials tab to add them.</div>';}
   else{
+    // Each category is its own block, so the columns below can flow them
+    // without cutting a bag in half. Sixty items in one column is a scroll;
+    // sixty in three is a page.
+    essHtml+=`<div class="ess-cols">`;
     essCats.forEach((cat,ci)=>{
       const items=essentials[cat]||[];if(!items.length)return;
-      essHtml+=`<h3 style="margin:12px 0 4px">${essIcon(cat)} ${esc(cat)}</h3>`;
+      essHtml+=`<section class="ess-group"><h3>${essIcon(cat)} ${esc(cat)} <span class="ess-n">${items.length}</span></h3>`;
       essHtml+=items.map((it,i)=>{
         const key=cat+"::"+it,checked=ps.essChecked[key]?"checked":"",idd=`e_${ci}_${i}`;
         return `<div class="ess-item ${checked?"done":""}"><input type="checkbox" id="${idd}" ${checked} onchange="toggleEss('${attrJs(key)}',this.checked)"><label for="${idd}">${esc(it)}</label></div>`;
       }).join("");
+      essHtml+=`</section>`;
     });
+    essHtml+=`</div>`;
   }
   essHtml+=`</div>`;
   let essDone=0;essCats.forEach(cat=>{(essentials[cat]||[]).forEach(it=>{if(ps.essChecked[cat+"::"+it])essDone++;});});
