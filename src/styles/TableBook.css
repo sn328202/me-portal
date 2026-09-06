@@ -45,281 +45,6 @@
     max-width: 76rem;
 }
 
-/* Card renders its children inside .card__body, so the three-column layout
-   has to live on that wrapper — not on .slip, which is the outer surface. */
-.card.slip { position: relative; }
-
-/* Two columns and two rows, not three columns: when, what, and then what to
-   do about it underneath. The third column was a stretched stack of four
-   buttons, so every card was as tall as four buttons whatever was on it. */
-.slip__grid {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: var(--space-2) var(--space-3);
-    align-items: start;
-}
-
-.slip__when { grid-row: span 2; }
-
-/* Three days out is the point at which most cancellation windows
-   close, so it is the point worth colouring. */
-.slip--soon {
-    border-left: 3px solid var(--accent-gold);
-}
-
-.slip__when {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    width: 5rem;
-    padding-right: var(--space-3);
-    border-right: var(--rule-hair);
-}
-
-.slip__day {
-    font-family: var(--font-display);
-    font-size: var(--text-base);
-    line-height: var(--leading-tight);
-    color: var(--text-heading);
-}
-
-.slip__time {
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    color: var(--text-gold);
-    font-variant-numeric: tabular-nums;
-}
-
-.slip__count {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-top: 2px;
-}
-
-.slip__body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    min-width: 0;
-    /* Room for the delete in the corner. */
-    padding-right: var(--space-5);
-}
-
-.slip__name {
-    font-family: var(--font-display);
-    font-size: var(--text-base);
-    line-height: var(--leading-tight);
-    margin: 0;
-    color: var(--text-heading);
-    overflow-wrap: break-word;
-}
-
-.slip__where {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    margin: 0;
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    overflow-wrap: break-word;
-}
-
-.slip__tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-}
-
-.slip__deadline {
-    margin: 0;
-    font-size: var(--text-xs);
-    color: var(--accent-gold);
-}
-
-.slip__notes {
-    margin: 0;
-    font-size: var(--text-xs);
-    color: var(--text-dim);
-    line-height: var(--leading-normal);
-}
-
-/* A row under what it acts on, wrapping when it has to. It was a column of
-   stretched buttons in a third grid column, which set the height of every
-   card and left the icon-only delete on a line by itself at the bottom. */
-.slip__actions {
-    grid-column: 2;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.slip__actions .btn { font-size: var(--text-2xs); }
-
-/* The one thing here that cannot be undone, in the corner rather than in the
-   row, and quiet until the card is under the cursor. */
-.btn.slip__drop {
-    position: absolute;
-    top: var(--space-2);
-    right: var(--space-2);
-    opacity: 0.35;
-}
-
-.slip:hover .slip__drop,
-.slip__drop:focus-visible { opacity: 1; }
-
-/* --- The ledger ------------------------------------------ */
-
-.tablebook__scroll {
-    margin-top: var(--space-5);
-    overflow-x: auto;
-    border: var(--rule-hair);
-    border-radius: var(--radius-md);
-}
-
-.ledger {
-    width: 100%;
-    min-width: 620px;
-    border-collapse: collapse;
-    font-size: var(--text-sm);
-}
-
-.ledger thead th {
-    text-align: left;
-    padding: var(--space-3) var(--space-4);
-    font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
-    color: var(--text-muted);
-    font-weight: var(--weight-normal);
-    background: var(--bg-panel);
-    border-bottom: var(--rule-accent);
-}
-
-.ledger tbody td {
-    padding: var(--space-3) var(--space-4);
-    border-bottom: var(--rule-hair);
-    vertical-align: top;
-    color: var(--text-main);
-}
-
-.ledger tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.ledger tbody tr:hover {
-    background: var(--bg-hover);
-}
-
-.ledger__date {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    color: var(--text-muted);
-    font-size: var(--text-xs);
-}
-
-.ledger__sub {
-    display: block;
-    color: var(--text-dim);
-    font-size: var(--text-xs);
-    margin-top: 2px;
-}
-
-.ledger__plat {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--text-dim);
-    white-space: nowrap;
-}
-
-.outcome {
-    display: inline-block;
-    font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
-    padding: 2px var(--space-2);
-    border-radius: var(--radius-pill);
-    white-space: nowrap;
-    border: 1px solid currentColor;
-}
-
-.outcome--dined { color: var(--accent-green); }
-.outcome--cancelled { color: var(--accent-red); }
-.outcome--no_show { color: var(--accent-crimson); }
-.outcome--booked { color: var(--text-gold); }
-
-/* --- Worth chasing --------------------------------------- */
-
-.chasing {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-6);
-    margin-top: var(--space-5);
-}
-
-.chasing__heading {
-    font-family: var(--font-display);
-    font-size: var(--text-xl);
-    letter-spacing: var(--tracking-heading);
-    text-transform: var(--case-heading);
-    color: var(--text-heading);
-    margin: 0 0 var(--space-1);
-    padding-bottom: var(--space-2);
-    border-bottom: var(--rule-accent);
-}
-
-.chasing__lede {
-    margin: 0 0 var(--space-3);
-    font-size: var(--text-sm);
-    color: var(--text-muted);
-    max-width: 60ch;
-}
-
-.chasing__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.chasing__row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding: var(--space-3) 0;
-    border-bottom: var(--rule-hair);
-}
-
-.chasing__row h3 {
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    margin: 0 0 2px;
-    color: var(--text-heading);
-}
-
-.chasing__row p {
-    margin: 0;
-    font-size: var(--text-sm);
-    color: var(--text-muted);
-    max-width: 58ch;
-}
-
-.chasing__why {
-    font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
-    color: var(--accent-gold);
-    white-space: nowrap;
-}
-
 /* --- The booking form ------------------------------------ */
 
 .tablebook__form {
@@ -342,44 +67,12 @@
     border-top: var(--rule-hair);
 }
 
-@media (max-width: 900px) {
-    .slip__grid {
-        grid-template-columns: 1fr;
-    }
-
-    .slip__when {
-        grid-row: auto;
-        flex-direction: row;
-        align-items: baseline;
-        width: auto;
-        gap: var(--space-3);
-        border-right: none;
-        border-bottom: var(--rule-hair);
-        padding: 0 var(--space-5) var(--space-2) 0;
-    }
-
-    .slip__count {
-        margin-top: 0;
-        margin-left: auto;
-    }
-
-    .slip__body { padding-right: 0; }
-
-    .slip__actions { grid-column: 1; }
-}
-
 @media (max-width: 600px) {
     .tablebook__form {
         grid-template-columns: 1fr;
     }
 
-    .chasing__row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-2);
-    }
 }
-
 
 /* --- As a tab of the Daydream ---------------------------------
    Embedded, it has no page heading of its own — the room's name is
@@ -411,7 +104,6 @@
     color: var(--text-muted);
     font-size: var(--text-sm);
 }
-
 
 /* --- Refresh: what changed, and pasting a confirmation --------- */
 
@@ -453,7 +145,6 @@
     gap: var(--space-2);
 }
 
-
 /* The restaurant, once Google has been asked who it is. */
 .tablebook__found {
     display: flex;
@@ -466,13 +157,6 @@
 }
 
 .tablebook__found a { color: var(--text-gold); }
-
-.slip__rating {
-    margin-left: var(--space-2);
-    color: var(--text-gold);
-    font-family: var(--font-mono);
-}
-
 
 /* What the Google sweep found, and what it could not be sure of. Both halves,
    because a report that lists only its successes leaves the rest looking
@@ -536,6 +220,3 @@
     border-color: var(--border-gold);
 }
 
-.slip__face {
-    margin-right: var(--space-2);
-}

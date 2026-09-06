@@ -34,6 +34,10 @@ const session = {
 
 const ROUTES = [
     '/', '/larder', '/treasury', '/library', '/atlas',
+    // The Atlas' other two rooms. Reached only by a tab click, so a route
+    // sweep would never open them — and the Ticket Book is a whole lazy chunk
+    // that nothing else on the sweep imports.
+    '/atlas?tab=table', '/atlas?tab=tickets',
     // The Wardrobe is an iframe around the real 81KB planner, and the deep
     // link reaches into it and calls its own `openTrip`. Both are exactly the
     // kind of thing that works until the planner is edited by someone else.

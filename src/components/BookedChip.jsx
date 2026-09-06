@@ -17,7 +17,8 @@ import '../styles/BookedChip.css';
  */
 const BookedChip = ({ stop, label = 'this', onChange }) => {
     const state = stateOf(stop);
-    const fixed = Boolean(stop?.booked_id);
+    const fixed = Boolean(stop?.booked_id || stop?.journey_id);
+    const book = stop?.journey_id ? 'Ticket Book' : 'Table Book';
     const classes = `booked booked--${state}${fixed ? ' booked--fixed' : ''}`;
 
     // Nothing to change it with — an overview showing the state rather than
@@ -28,7 +29,7 @@ const BookedChip = ({ stop, label = 'this', onChange }) => {
             <span
                 className={`${classes} booked--fixed`}
                 title={fixed
-                    ? `${label || 'This'} came from the Table Book — it is a real booking`
+                    ? `${label || 'This'} came from the ${book} — it is a real booking`
                     : titleOf(state)}
             >
                 {labelOf(state)}

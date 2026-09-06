@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { GiCalendar } from 'react-icons/gi';
 import { Button, Modal } from './ui';
 import { supabase } from '../lib/supabase';
-import { localDate, asAtlasItem, bookingNote } from '../utils/reservationToDay';
+import { BOOKING } from '../utils/placeable';
 import { dayChoices, daysOn, labelDay, nearestDays } from '../utils/bookingDay';
 import '../styles/SendToDay.css';
 
@@ -20,11 +20,17 @@ import '../styles/SendToDay.css';
  * One question now, and usually it answers itself: a booking knows its date,
  * so the day it lands on is the day with that date. Every day of every trip is
  * in one list, so nothing has to be found twice.
+ *
+ * It places a journey too. Choosing the day is the whole of this component and
+ * none of it depends on whether the thing held is a table or a train — so what
+ * differs is four functions in a `spec` (see utils/placeable) rather than a
+ * second copy of the picker that would drift from this one by the second
+ * change either of them needed.
  */
 
 const pretty = (d) => format(parseISO(String(d).slice(0, 10)), 'EEE d MMM');
 
-const AddBookingToDay = ({ reservation, onPlaced }) => {
+const AddBookingToDay = ({ reservation, onPlaced, spec = BOOKING }) => {
     const [open, setOpen] = useState(false);
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -33,7 +39,9 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
     const [done, setDone] = useState(null);
     const [error, setError] = useState(null);
 
-    const on = localDate(reservation?.starts_at);
+    const on = spec.dateOf(reservation);
+    const name = spec.nameOf(reservation);
+    const note = spec.noteOf(reservation);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -71,18 +79,18 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
             if (!user) throw new Error('Not signed in.');
 
             const { error: e } = await supabase.from('atlas_day_items')
-                .insert([{ ...asAtlasItem(reservation), day_id: target.id, user_id: user.id }]);
+                .insert([{ ...spec.itemOf(reservation), day_id: target.id, user_id: user.id }]);
             if (e) throw e;
 
             const label = labelDay(target, pretty);
-            await supabase.from('reservations')
+            await supabase.from(spec.table)
                 .update({ placed_at: new Date().toISOString(), placed_where: label })
                 .eq('id', reservation.id);
 
             setDone(label);
             onPlaced?.(label);
         } catch (err) {
-            console.error('Error placing the booking:', err);
+            console.error(`Error placing the ${spec.noun}:`, err);
             setError('That did not go across. Nothing was added.');
         } finally {
             setBusy(false);
@@ -93,14 +101,14 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
 
     return (
         <>
-            <Button size="sm" onClick={() => setOpen(true)} title="Put this booking on a day">
+            <Button size="sm" onClick={() => setOpen(true)} title={`Put this ${spec.noun} on a day`}>
                 <GiCalendar /> Add to a day
             </Button>
 
-            <Modal open={open} onClose={close} title="Put this booking on a day">
+            <Modal open={open} onClose={close} title={`Put this ${spec.noun} on a day`}>
                 {done ? (
                     <div className="send-atlas">
-                        <p><strong>{reservation.name}</strong> is on {done}.</p>
+                        <p><strong>{name}</strong> is on {done}.</p>
                         <div className="send-atlas__acts">
                             <Button variant="solid" onClick={close}>Done</Button>
                         </div>
@@ -115,9 +123,9 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
                         )}
 
                         <p className="send-atlas__count">
-                            {reservation.name}
+                            {name}
                             {on ? ` · ${pretty(on)}` : ''}
-                            {bookingNote(reservation) ? ` · ${bookingNote(reservation)}` : ''}
+                            {note ? ` · ${note}` : ''}
                         </p>
 
                         {loading && <p className="send-atlas__why">Looking through your trips…</p>}
@@ -125,7 +133,7 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
                         {!loading && settled && (
                             <p className="send-atlas__matched">
                                 Lands on <strong>{labelDay(settled, pretty)}</strong>, matched from the
-                                booking’s own date.
+                                {spec.noun === 'journey' ? ' departure' : ' booking’s own'} date.
                             </p>
                         )}
 
@@ -136,7 +144,7 @@ const AddBookingToDay = ({ reservation, onPlaced }) => {
                                         ? `Two trips cover ${pretty(on)} — which one?`
                                         : on
                                             ? `Nothing in the Atlas covers ${pretty(on)} yet.`
-                                            : 'This booking has no date, so pick the day yourself.'}
+                                            : `This ${spec.noun} has no date, so pick the day yourself.`}
                                 </p>
 
                                 {/* What is near it, when nothing is on it. "No day

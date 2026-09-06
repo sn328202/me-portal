@@ -1,0 +1,263 @@
+/* ============================================================
+   A booking slip, and the ledger it ends up in
+   ------------------------------------------------------------
+   Shared vocabulary, not a page. The Table Book holds tables and
+   the Ticket Book holds journeys, and both draw the same two
+   things: a slip with the date in the gutter for what is still
+   ahead, and a ledger for what has been.
+
+   These class names were never prefixed with .tablebook, which
+   was the first clue they did not belong to it. Extracted whole
+   rather than copied — two stylesheets drawing the same card is
+   how one of them quietly stops matching.
+   ============================================================ */
+
+/* Card renders its children inside .card__body, so the three-column layout
+   has to live on that wrapper — not on .slip, which is the outer surface. */
+.card.slip { position: relative; }
+
+/* Two columns and two rows, not three columns: when, what, and then what to
+   do about it underneath. The third column was a stretched stack of four
+   buttons, so every card was as tall as four buttons whatever was on it. */
+.slip__grid {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
+    align-items: start;
+}
+
+.slip__when { grid-row: span 2; }
+
+/* Three days out is the point at which most cancellation windows
+   close, so it is the point worth colouring. */
+.slip--soon {
+    border-left: 3px solid var(--accent-gold);
+}
+
+.slip__when {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 5rem;
+    padding-right: var(--space-3);
+    border-right: var(--rule-hair);
+}
+
+.slip__day {
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    line-height: var(--leading-tight);
+    color: var(--text-heading);
+}
+
+/* The gutter is narrow on purpose, and a 12-hour clock is two words: without
+   this, "11:25 AM" breaks after the digits and the AM sits on a line of its
+   own under it. */
+.slip__time {
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-gold);
+    font-variant-numeric: tabular-nums;
+}
+
+.slip__count {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.slip__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+    /* Room for the delete in the corner. */
+    padding-right: var(--space-5);
+}
+
+.slip__name {
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    line-height: var(--leading-tight);
+    margin: 0;
+    color: var(--text-heading);
+    overflow-wrap: break-word;
+}
+
+.slip__where {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    overflow-wrap: break-word;
+}
+
+.slip__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.slip__deadline {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--accent-gold);
+}
+
+.slip__notes {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    line-height: var(--leading-normal);
+}
+
+/* A row under what it acts on, wrapping when it has to. It was a column of
+   stretched buttons in a third grid column, which set the height of every
+   card and left the icon-only delete on a line by itself at the bottom. */
+.slip__actions {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.slip__actions .btn { font-size: var(--text-2xs); }
+
+/* The one thing here that cannot be undone, in the corner rather than in the
+   row, and quiet until the card is under the cursor. */
+.btn.slip__drop {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    opacity: 0.35;
+}
+
+.slip:hover .slip__drop,
+.slip__drop:focus-visible { opacity: 1; }
+
+/* --- The ledger ------------------------------------------ */
+
+.book-scroll {
+    margin-top: var(--space-5);
+    overflow-x: auto;
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+}
+
+.ledger {
+    width: 100%;
+    min-width: 620px;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+}
+
+.ledger thead th {
+    text-align: left;
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: var(--weight-normal);
+    background: var(--bg-panel);
+    border-bottom: var(--rule-accent);
+}
+
+.ledger tbody td {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: var(--rule-hair);
+    vertical-align: top;
+    color: var(--text-main);
+}
+
+.ledger tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ledger tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.ledger__date {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.ledger__sub {
+    display: block;
+    color: var(--text-dim);
+    font-size: var(--text-xs);
+    margin-top: 2px;
+}
+
+.ledger__plat {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.outcome {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-pill);
+    white-space: nowrap;
+    border: 1px solid currentColor;
+}
+
+.outcome--dined { color: var(--accent-green); }
+.outcome--cancelled { color: var(--accent-red); }
+.outcome--no_show { color: var(--accent-crimson); }
+.outcome--booked { color: var(--text-gold); }
+
+@media (max-width: 900px) {
+    .slip__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .slip__when {
+        grid-row: auto;
+        flex-direction: row;
+        align-items: baseline;
+        width: auto;
+        gap: var(--space-3);
+        border-right: none;
+        border-bottom: var(--rule-hair);
+        padding: 0 var(--space-5) var(--space-2) 0;
+    }
+
+    .slip__count {
+        margin-top: 0;
+        margin-left: auto;
+    }
+
+    .slip__body { padding-right: 0; }
+
+    .slip__actions { grid-column: 1; }
+}
+
+.slip__rating {
+    margin-left: var(--space-2);
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+}
+
+.slip__face {
+    margin-right: var(--space-2);
+}

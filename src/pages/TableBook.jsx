@@ -13,6 +13,7 @@ import { looksLike, fillFrom } from '../utils/placeMatch';
 import AddBookingToDay from '../components/AddBookingToDay';
 import MentionInput from '../components/MentionInput';
 import { KINDS, faceOf, labelOf, guessKind } from '../utils/bookingKinds';
+import '../styles/BookingSlip.css';
 import '../styles/TableBook.css';
 
 const PLATFORMS = ['OpenTable', 'Resy', 'Tock', 'Yelp', 'Google', 'SevenRooms', 'Direct', 'Other'];
@@ -478,7 +479,7 @@ const TableBook = ({ embedded = false }) => {
                         {past.length === 0 ? (
                             <EmptyState icon={<GiForkKnifeSpoon />} message="No history yet." />
                         ) : (
-                            <div className="tablebook__scroll">
+                            <div className="book-scroll">
                                 <table className="ledger">
                                     <thead>
                                         <tr>

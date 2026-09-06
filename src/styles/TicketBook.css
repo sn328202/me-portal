@@ -1,0 +1,144 @@
+/* ============================================================
+   The Ticket Book
+   ------------------------------------------------------------
+   The Table Book's sibling. Almost everything it draws — the
+   slip with the date in its gutter, the ledger underneath — is
+   in BookingSlip.css, shared between the two books. What is
+   here is only what is different about a journey: the mode
+   picker, the arrival line, and a form with two clocks in it.
+   ============================================================ */
+
+.ticketbook {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding: var(--pad-page);
+    max-width: var(--page-max);
+}
+
+.ticketbook__error {
+    color: var(--accent-red);
+    font-size: var(--text-sm);
+    margin: 0;
+}
+
+.ticketbook__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-4);
+}
+
+/* Two abreast where there is room, same as the Table Book: a journey is a
+   route and a time, and giving it the width of the page is giving it nothing
+   to do with the width of the page. */
+.ticketbook__slips {
+    list-style: none;
+    margin: var(--space-5) 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+    gap: var(--space-3);
+    align-items: start;
+    max-width: 76rem;
+}
+
+/* --- The arrival ----------------------------------------- */
+
+.ticketbook__arrive {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+}
+
+/* An overnight leg said in the card as well as in the note, because the one
+   thing that goes wrong with a red-eye is being read as landing the same
+   evening. */
+.ticketbook__overnight {
+    color: var(--text-gold);
+    font-style: normal;
+    font-weight: var(--weight-bold);
+}
+
+/* --- As a tab of the Atlas -------------------------------- */
+
+.ticketbook.is-embedded {
+    margin-top: var(--space-5);
+}
+
+.ticketbook__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    padding-bottom: var(--space-3);
+    border-bottom: var(--rule);
+}
+
+.ticketbook__head p {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    max-width: 62ch;
+}
+
+.ticketbook__acts {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+
+/* --- The form -------------------------------------------- */
+
+.ticketbook__form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+    padding: var(--space-5);
+}
+
+.ticketbook__form-wide,
+.ticketbook__modes,
+.ticketbook__form-actions {
+    grid-column: 1 / -1;
+}
+
+.ticketbook__modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.ticketbook__mode {
+    padding: var(--space-1) var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-pill);
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.ticketbook__mode:hover {
+    color: var(--text-main);
+    border-color: var(--border-gold);
+}
+
+.ticketbook__mode.is-on {
+    color: var(--text-gold);
+    border-color: var(--border-gold);
+}
+
+.ticketbook__form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+}
+
+@media (max-width: 600px) {
+    .ticketbook__form {
+        grid-template-columns: 1fr;
+    }
+}

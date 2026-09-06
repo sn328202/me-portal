@@ -29,6 +29,12 @@ import { formatMoney } from '../utils/tripCosts';
    chunk they can end up waiting on each other for. Its own chunk, and the
    question does not arise. */
 const TableBook = lazy(() => import('./TableBook'));
+const TicketBook = lazy(() => import('./TicketBook'));
+
+/* The rooms that are not the default one, so the URL can carry whichever of
+   them she is in. Module scope, not the component: it is a constant, and a
+   fresh array every render is a fresh dependency for the callback below. */
+const ROOMS = ['table', 'tickets'];
 import { todayLocal } from '../utils/today';
 import { legDestination, isTravelLeg } from '../utils/tripLegs';
 import '../styles/Atlas.css';
@@ -83,13 +89,15 @@ const Atlas = () => {
        Declared here, below `params`, and not up with the other view state:
        reading a `const` from above its own declaration is a temporal dead
        zone, and it took the whole Atlas down rather than just this. */
-    const [room, setRoom] = useState(() => (params.get('tab') === 'table' ? 'table' : 'trips'));
+    const [room, setRoom] = useState(
+        () => (ROOMS.includes(params.get('tab')) ? params.get('tab') : 'trips')
+    );
 
     const chooseRoom = useCallback((next) => {
         setRoom(next);
         setParams((prev) => {
             const nextParams = new URLSearchParams(prev);
-            if (next === 'table') nextParams.set('tab', 'table');
+            if (ROOMS.includes(next)) nextParams.set('tab', next);
             else nextParams.delete('tab');
             return nextParams;
         }, { replace: true });
@@ -552,6 +560,15 @@ const Atlas = () => {
                     >
                         📖 The Table Book
                     </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={room === 'tickets'}
+                        className={`atlas__roomtab${room === 'tickets' ? ' is-on' : ''}`}
+                        onClick={() => chooseRoom('tickets')}
+                    >
+                        🎫 The Ticket Book
+                    </button>
                 </div>
             )}
 
@@ -561,6 +578,15 @@ const Atlas = () => {
             {!selectedTrip && room === 'table' && (
                 <Suspense fallback={<p className="atlas__waiting">Opening the Table Book…</p>}>
                     <TableBook embedded />
+                </Suspense>
+            )}
+
+            {/* And how she gets there. Its own book rather than a kind inside
+                the Table Book: a journey has two places and two clocks, and
+                none of the Table Book's columns are those columns. */}
+            {!selectedTrip && room === 'tickets' && (
+                <Suspense fallback={<p className="atlas__waiting">Opening the Ticket Book…</p>}>
+                    <TicketBook embedded />
                 </Suspense>
             )}
 
