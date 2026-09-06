@@ -34,7 +34,7 @@ export const BOOKING = {
 export const JOURNEY = {
     table: 'journeys',
     noun: 'journey',
-    dateOf: (j) => journeyDate(j?.depart_at),
+    dateOf: (j) => journeyDate(j?.departs),
     nameOf: journeyTitle,
     noteOf: journeyNote,
     itemOf: itemFromJourney,

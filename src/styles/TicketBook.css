@@ -89,6 +89,13 @@
     flex-shrink: 0;
 }
 
+/* The clock she lands on, said as such. Quiet — it is a qualifier, not a
+   thing to read; the time beside it is the thing to read. */
+.ticketbook__local {
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
 /* --- The form -------------------------------------------- */
 
 .ticketbook__form {
@@ -100,8 +107,20 @@
 
 .ticketbook__form-wide,
 .ticketbook__modes,
+.ticketbook__warn,
 .ticketbook__form-actions {
     grid-column: 1 / -1;
+}
+
+/* Two clocks that cannot make a block, said while she can still fix it. */
+.ticketbook__warn {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-left: 2px solid var(--border-gold);
+    background: var(--bg-sunken, var(--bg-panel));
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug);
 }
 
 .ticketbook__modes {

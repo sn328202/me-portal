@@ -12,7 +12,8 @@ import AddBookingToDay from '../components/AddBookingToDay';
 import { JOURNEY } from '../utils/placeable';
 import {
     MODES, faceOf, labelOf, guessMode, routeLabel, serviceLabel,
-    durationLabel, crossesMidnight, titleOf, totalsByCurrency,
+    clockLabel, clockSpanLabel, crossesMidnight, drawsAsBlock,
+    localDate, titleOf, totalsByCurrency,
 } from '../utils/journeys';
 import { formatMoney } from '../utils/tripCosts';
 import '../styles/BookingSlip.css';
@@ -22,27 +23,31 @@ const EMPTY_FORM = {
     mode: 'flight', carrier: '', number: '',
     from_place: '', to_place: '',
     date: '', time: '09:00', arrive_date: '', arrive_time: '',
-    confirmation: '', cost: '', currency: 'USD', baggage: '', notes: '',
+    confirmation: '', duration: '', cost: '', currency: 'USD', baggage: '', notes: '',
 };
 
 const STATUS_LABEL = {
     booked: 'Booked', travelled: 'Travelled', cancelled: 'Cancelled', missed: 'Missed',
 };
 
-const fmtDay = (iso) => new Date(iso).toLocaleDateString(undefined, {
+/* Dates only — a ticket's *time* never goes through `Date`, because building
+   one re-applies the reader's own zone and turns a 6pm New York arrival back
+   into whatever 6pm New York is where she happens to be sitting. `clockLabel`
+   reads the printed time instead. Noon is used to build the date so a daylight
+   saving shift cannot round the day itself off by one. */
+const asDay = (value) => new Date(`${String(value).slice(0, 10)}T12:00:00`);
+
+const fmtDay = (value) => asDay(value).toLocaleDateString(undefined, {
     weekday: 'short', day: 'numeric', month: 'short',
 });
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString(undefined, {
-    hour: 'numeric', minute: '2-digit',
-});
-const fmtShort = (iso) => new Date(iso).toLocaleDateString(undefined, {
+const fmtShort = (value) => asDay(value).toLocaleDateString(undefined, {
     day: 'numeric', month: 'short', year: 'numeric',
 });
 
 /** Whole days from now, so "tomorrow" reads as tomorrow all day. */
-const daysAway = (iso) => {
+const daysAway = (value) => {
     const start = new Date(); start.setHours(0, 0, 0, 0);
-    const then = new Date(iso); then.setHours(0, 0, 0, 0);
+    const then = asDay(value); then.setHours(0, 0, 0, 0);
     return Math.round((then - start) / 86400000);
 };
 
@@ -96,16 +101,16 @@ const TicketBook = ({ embedded = false }) => {
             + (paid.length > 2 ? ` +${paid.length - 2}` : '')
         : '—';
 
-    /* An arrival with no date of its own is the same day as the departure —
+    /* Both ends written down exactly as the form has them — no `Date`, no
+       `toISOString`, nothing that would stamp a zone onto a clock that belongs
+       to somewhere else. `2026-09-16T18:00:00` means six in the evening where
+       she lands, and Postgres stores that and nothing more.
+
+       An arrival with no date of its own is the same day as the departure,
        which is true of most journeys and is the only reading that lets her
-       leave the second date box alone. A red-eye is the case where she has to
-       say, and the form says so under the field rather than guessing wrong. */
-    const arriveAt = () => {
-        if (!form.arrive_time) return null;
-        const day = form.arrive_date || form.date;
-        if (!day) return null;
-        return new Date(`${day}T${form.arrive_time}`).toISOString();
-    };
+       leave the second date box alone. */
+    const stamp = (day, time) => (day && time ? `${day}T${time.slice(0, 5)}:00` : null);
+    const arrivesAt = () => stamp(form.arrive_date || form.date, form.arrive_time);
 
     const submit = async (e) => {
         e.preventDefault();
@@ -118,8 +123,9 @@ const TicketBook = ({ embedded = false }) => {
                 number: form.number.trim() || null,
                 from_place: form.from_place.trim() || null,
                 to_place: form.to_place.trim() || null,
-                depart_at: new Date(`${form.date}T${form.time || '09:00'}`).toISOString(),
-                arrive_at: arriveAt(),
+                departs: stamp(form.date, form.time || '09:00'),
+                arrives: arrivesAt(),
+                duration: form.duration.trim() || null,
                 confirmation: form.confirmation.trim() || null,
                 cost: form.cost,
                 currency: form.cost ? form.currency : null,
@@ -176,7 +182,7 @@ const TicketBook = ({ embedded = false }) => {
 
             <div className="ticketbook__stats">
                 <Stat
-                    value={next ? countdown(next.depart_at) : '—'}
+                    value={next ? countdown(next.departs) : '—'}
                     label={next ? (routeLabel(next) || labelOf(next)) : 'Nothing booked'}
                     icon={<GiClockwork />}
                 />
@@ -212,7 +218,7 @@ const TicketBook = ({ embedded = false }) => {
                         ) : (
                             <ul className="ticketbook__slips">
                                 {upcoming.map((j) => {
-                                    const soon = daysAway(j.depart_at) <= 3;
+                                    const soon = daysAway(j.departs) <= 3;
                                     return (
                                         <li key={j.id}>
                                             <Card
@@ -221,9 +227,9 @@ const TicketBook = ({ embedded = false }) => {
                                                 className={`slip${soon ? ' slip--soon' : ''}`}
                                             >
                                                 <div className="slip__when">
-                                                    <span className="slip__day">{fmtDay(j.depart_at)}</span>
-                                                    <span className="slip__time">{fmtTime(j.depart_at)}</span>
-                                                    <span className="slip__count">{countdown(j.depart_at)}</span>
+                                                    <span className="slip__day">{fmtDay(j.departs)}</span>
+                                                    <span className="slip__time">{clockLabel(j.departs)}</span>
+                                                    <span className="slip__count">{countdown(j.departs)}</span>
                                                 </div>
 
                                                 <div className="slip__body">
@@ -235,13 +241,22 @@ const TicketBook = ({ embedded = false }) => {
                                                     {/* The two clocks, said once. An arrival is
                                                         the thing you plan the evening around, so
                                                         it earns a line rather than a tag. */}
-                                                    {j.arrive_at && (
+                                                    {j.arrives && (
                                                         <p className="slip__where ticketbook__arrive">
-                                                            Arrives {fmtTime(j.arrive_at)}
+                                                            Lands {clockLabel(j.arrives)}
                                                             {crossesMidnight(j) && (
                                                                 <em className="ticketbook__overnight"> next day</em>
                                                             )}
-                                                            {durationLabel(j) ? ` · ${durationLabel(j)}` : ''}
+                                                            {/* Said out loud, because it is the whole
+                                                                point: this is the clock where she gets
+                                                                off, not the clock she left on. */}
+                                                            <span className="ticketbook__local"> local</span>
+                                                            {/* The ticket's own flying time when she
+                                                                copied it across. Never subtracted from
+                                                                the two clocks — SF 9am to NYC 6pm is a
+                                                                six-hour flight and a nine-hour span,
+                                                                and only one of those is on the ticket. */}
+                                                            {j.duration ? ` · ${j.duration}` : ''}
                                                         </p>
                                                     )}
 
@@ -306,7 +321,7 @@ const TicketBook = ({ embedded = false }) => {
                                             <th scope="col">Date</th>
                                             <th scope="col">Route</th>
                                             <th scope="col">Service</th>
-                                            <th scope="col">Took</th>
+                                            <th scope="col">Off the day</th>
                                             <th scope="col">Cost</th>
                                             <th scope="col">Outcome</th>
                                         </tr>
@@ -314,7 +329,7 @@ const TicketBook = ({ embedded = false }) => {
                                     <tbody>
                                         {past.map((j) => (
                                             <tr key={j.id}>
-                                                <td className="ledger__date">{fmtShort(j.depart_at)}</td>
+                                                <td className="ledger__date">{fmtShort(j.departs)}</td>
                                                 <td>
                                                     <strong>{routeLabel(j) || labelOf(j)}</strong>
                                                     {j.notes && <span className="ledger__sub">{j.notes}</span>}
@@ -322,7 +337,9 @@ const TicketBook = ({ embedded = false }) => {
                                                 <td className="ledger__plat">
                                                     <span aria-hidden="true">{faceOf(j)}</span> {serviceLabel(j) || labelOf(j)}
                                                 </td>
-                                                <td>{durationLabel(j) || '—'}</td>
+                                                <td title="Clock to clock, not flying time">
+                                                    {j.duration || clockSpanLabel(j) || '—'}
+                                                </td>
                                                 <td>{j.cost != null ? formatMoney(j.cost, j.currency || currency) : '—'}</td>
                                                 <td>
                                                     <span className={`outcome outcome--${j.status}`}>
@@ -393,10 +410,10 @@ const TicketBook = ({ embedded = false }) => {
                         onChange={(e) => setForm({ ...form, time: e.target.value })}
                     />
                     <Field
-                        label="Arrives"
+                        label="Lands"
                         type="time"
                         value={form.arrive_time}
-                        hint="Same day unless you say otherwise"
+                        hint="The clock where you land, straight off the ticket"
                         onChange={(e) => setForm({ ...form, arrive_time: e.target.value })}
                     />
                     <Field
@@ -406,6 +423,17 @@ const TicketBook = ({ embedded = false }) => {
                         hint="Only for a red-eye"
                         onChange={(e) => setForm({ ...form, arrive_date: e.target.value })}
                     />
+                    {/* Said before she saves rather than discovered on the
+                        timeline afterwards. */}
+                    {form.arrive_time && form.date && !drawsAsBlock({
+                        departs: stamp(form.date, form.time), arrives: arrivesAt(),
+                    }) && (
+                        <p className="ticketbook__warn">
+                            {localDate(arrivesAt()) > form.date
+                                ? 'Lands the next day — it will sit on the departure day as a start time, with the landing in the note.'
+                                : 'That lands at or before it leaves on the same date. If it is a red-eye, give it the arrival date; if it crosses the date line westward, leave it — the landing goes in the note.'}
+                        </p>
+                    )}
                     <Field
                         label="Confirmation"
                         placeholder="XQ7R2P"

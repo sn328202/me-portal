@@ -29,7 +29,7 @@ export const useJourneys = () => {
                 .from('journeys')
                 .select('*')
                 .eq('user_id', user.id)
-                .order('depart_at', { ascending: false });
+                .order('departs', { ascending: false });
             if (err) throw err;
             setJourneys(data || []);
             setError(null);
@@ -66,8 +66,12 @@ export const useJourneys = () => {
             number: fields.number || null,
             from_place: fields.from_place || null,
             to_place: fields.to_place || null,
-            depart_at: fields.depart_at,
-            arrive_at: fields.arrive_at || null,
+            /* Wall clocks, exactly as printed on the ticket — no `Z`, no
+               offset, nothing that would let Postgres or the browser decide
+               which zone they belong to. See utils/journeys for why. */
+            departs: fields.departs,
+            arrives: fields.arrives || null,
+            duration: fields.duration || null,
             confirmation: fields.confirmation || null,
             /* An empty cost box is "she did not say", not zero. A free flight
                and an unrecorded one are different facts and the ledger should

@@ -59,60 +59,111 @@ export const guessMode = (text) => {
 
 const two = (n) => String(n).padStart(2, '0');
 
-/* `new Date(null)` is the epoch, not an invalid date, so an absent value has
-   to be turned away before it becomes 1 Jan 1970 at midnight. */
-const when = (value) => {
-    if (value === null || value === undefined || value === '') return null;
-    const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? null : d;
+/**
+ * A ticket's two times, read exactly as printed.
+ *
+ * This is the whole model, and it is worth saying plainly: **a journey's two
+ * times are wall clocks at two different places, and neither is an instant.**
+ *
+ * A flight leaving San Francisco at 9am and landing in New York at 6pm was six
+ * hours in the air and moved three forward. Stored as instants, the pair can
+ * tell you it took six hours and can no longer tell you the arrivals board
+ * says six o'clock — the local clock is gone the moment you normalise, and the
+ * zone was never asked for. But six o'clock is the fact she plans around: it
+ * is what time it will be where she is standing when she gets off.
+ *
+ * So both ends are strings, and every reading below is a substring. No `Date`
+ * is constructed for anything shown on screen, because constructing one
+ * re-applies whichever zone the browser happens to be in and quietly undoes
+ * the point of all of this.
+ */
+const parts = (value) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(value || ''));
+    if (!m) return null;
+    return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}` };
+};
+
+/** The date printed on that end of the ticket. */
+export const localDate = (value) => parts(value)?.date || null;
+
+/** The time printed on it, with the seconds Postgres wants. */
+export const localTime = (value) => {
+    const p = parts(value);
+    return p ? `${p.time}:00` : null;
+};
+
+/** "6:15 PM" — the clock at whichever end this is, for reading. */
+export const clockLabel = (value) => {
+    const p = parts(value);
+    if (!p) return null;
+    const [h, m] = p.time.split(':').map(Number);
+    const suffix = h < 12 ? 'AM' : 'PM';
+    const twelve = h % 12 === 0 ? 12 : h % 12;
+    return `${twelve}:${two(m)} ${suffix}`;
 };
 
 /**
- * The date a timestamp falls on, *where the reader is*.
+ * Does the ticket say she lands on a later date than she left?
  *
- * The same trap `reservationToDay` documents: `toISOString().slice(0,10)` gives
- * the date in UTC, and a 9pm departure from San Francisco is the next day in
- * UTC. Every reading below is local.
+ * The dates as *written*, not as computed. A red-eye leaving on the 16th and
+ * landing on the 17th says so on the ticket, and that is the only place the
+ * answer can honestly come from now.
  */
-export const localDate = (value) => {
-    const d = when(value);
-    if (!d) return null;
-    return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
-};
-
-/** The time it happens, on a 24-hour clock, with the seconds Postgres wants. */
-export const localTime = (value) => {
-    const d = when(value);
-    if (!d) return null;
-    return `${two(d.getHours())}:${two(d.getMinutes())}:00`;
-};
-
-/** Does it land on a later date than it left? */
 export const crossesMidnight = (journey) => {
-    const from = localDate(journey?.depart_at);
-    const to = localDate(journey?.arrive_at);
+    const from = localDate(journey?.departs);
+    const to = localDate(journey?.arrives);
     return Boolean(from && to && to > from);
 };
 
 /**
- * How long it takes, in minutes.
+ * Can this be drawn as one block on the day it leaves?
  *
- * Straight subtraction of two `timestamptz` values, which is the whole reason
- * both ends are stored as instants rather than as wall clocks: a flight from
- * Tokyo landing in Los Angeles "before it left" is nine hours, not minus
- * eight, and only an absolute instant knows that.
+ * Only when the ticket lands on the same date at a later clock time. Two cases
+ * say no, and both would otherwise draw a block that ends before it starts:
+ *
+ *   - a red-eye, landing on tomorrow's date;
+ *   - and the strange one — Tokyo 5pm to Los Angeles 10am *the same calendar
+ *     day*, which is a real eleven-hour flight backwards across the date line.
  */
-export const minutesOf = (journey) => {
-    const from = when(journey?.depart_at);
-    const to = when(journey?.arrive_at);
-    if (!from || !to) return null;
-    const mins = Math.round((to - from) / 60000);
-    return mins >= 0 ? mins : null;
+export const drawsAsBlock = (journey) => {
+    const from = parts(journey?.departs);
+    const to = parts(journey?.arrives);
+    return Boolean(from && to && to.date === from.date && to.time > from.time);
 };
 
-/** "7h 20m", "45m", or null when there is no arrival to measure to. */
-export const durationLabel = (journey) => {
-    const mins = minutesOf(journey);
+/**
+ * How much of the day it eats, by the clocks at each end.
+ *
+ * Deliberately *not* called a duration, and deliberately not shown as one.
+ * San Francisco 9am to New York 6pm is nine hours of her day and a six-hour
+ * flight, and printing "9h" beside a flight number is printing something the
+ * ticket contradicts.
+ *
+ * What it is good for is the block: nine hours is exactly how much of the
+ * timeline the journey should occupy, because she is unavailable from nine
+ * until she lands and it is six o'clock when she does.
+ */
+export const clockMinutes = (journey) => {
+    const from = parts(journey?.departs);
+    const to = parts(journey?.arrives);
+    if (!from || !to) return null;
+
+    const mins = (t) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    };
+    const days = Math.round(
+        (Date.parse(`${to.date}T00:00:00Z`) - Date.parse(`${from.date}T00:00:00Z`)) / 86400000
+    );
+    if (!Number.isFinite(days)) return null;
+
+    const span = days * 1440 + mins(to.time) - mins(from.time);
+    return span >= 0 ? span : null;
+};
+
+/** "9h 20m", "45m", or null. Always labelled as clock time where it is shown. */
+export const clockSpanLabel = (journey) => {
+    const mins = clockMinutes(journey);
     if (mins === null) return null;
     const h = Math.floor(mins / 60);
     const m = mins % 60;
@@ -153,21 +204,23 @@ export const titleOf = (journey) => {
 /**
  * The line under the name: what you would want to read in a taxi.
  *
- * The confirmation earns its place — it is the one thing that cannot be
- * worked out again from anywhere else — and so does the arrival, because a
- * journey you know the end of is a journey you can plan the evening around.
+ * The arrival leads, because it is the fact the rest of the day hangs off —
+ * what time it will be where she is standing when she gets off. Then the
+ * confirmation, which is the one thing that cannot be worked out again from
+ * anywhere else.
  *
- * The carrier and number are deliberately *not* here. Everywhere this note is
- * drawn, `titleOf` is drawn directly above it, and the title already ends in
- * them — so including them read "SFO → BOM · Air India AI 174 · Air India AI
- * 174 · 8h 35m", which is the sort of thing you stop seeing after a week and
- * a stranger notices in a second.
+ * The carrier and number are deliberately absent: everywhere this note is
+ * drawn, `titleOf` is drawn directly above it and already ends in them.
+ *
+ * And `duration` is whatever the ticket said, never a subtraction. Two wall
+ * clocks in two zones cannot be subtracted into a flying time, and a number
+ * that contradicts the boarding pass is worse than no number.
  */
 export const journeyNote = (j) => {
     const bits = [];
-    const dur = durationLabel(j);
-    if (dur) bits.push(dur);
-    if (crossesMidnight(j)) bits.push('Arrives next day');
+    const lands = clockLabel(j?.arrives);
+    if (lands) bits.push(`Lands ${lands}${crossesMidnight(j) ? ' next day' : ''} local`);
+    if (j?.duration) bits.push(String(j.duration).trim());
     if (j?.confirmation) bits.push(`Confirmation ${j.confirmation}`);
     if (j?.baggage) bits.push(j.baggage);
     if (j?.notes) bits.push(j.notes);
@@ -175,11 +228,11 @@ export const journeyNote = (j) => {
 };
 
 /**
- * How long to draw it when there is nothing to measure.
+ * How long to draw it when the ticket does not say where it ends.
  *
- * Only used for a journey with no arrival time. Ninety minutes is not a guess
- * at the journey — it is a guess at how much of her day it will eat, which is
- * the question the timeline is actually asking.
+ * Only used for a journey with no arrival time at all. Ninety minutes is not a
+ * guess at the journey — it is a guess at how much of her day it will eat,
+ * which is the question the timeline is actually asking.
  */
 export const DEFAULT_LEG = 90;
 
@@ -195,15 +248,18 @@ export const plus = (time, minutes) => {
 /**
  * A journey as a row of `atlas_day_items`, on the day it departs.
  *
- * One block, running departure to arrival — which means an overnight flight
- * ends at an earlier clock time than it starts. That is not a bug being
- * tolerated: the timeline draws a day, and 23:40 → 06:15 is exactly what a
- * red-eye does to one. The note says "Arrives next day" so the card admits it
- * in words as well.
+ * One block, running from the clock she leaves on to the clock she lands on —
+ * her own words for why: *"if a flight leaves 9 am sf and arrives 6pm nyc time
+ * … on the timeline it should show as a block from 9 am to 6pm since i land
+ * 6pm time nyc and that helps me to plan around the timezone that i land
+ * in."*
+ *
+ * Which means the block is nine hours long for a six-hour flight, on purpose.
+ * It is not measuring the flight. It is measuring how much of her day is gone,
+ * and it ends where the evening starts.
  */
 export const asAtlasItem = (j) => {
-    const start = localTime(j?.depart_at);
-    const sameDay = !crossesMidnight(j);
+    const start = localTime(j?.departs);
     return {
         title: titleOf(j),
         kind: 'transport',
@@ -213,10 +269,14 @@ export const asAtlasItem = (j) => {
         booking: 'booked',
         journey_id: j?.id || null,
         start_time: start,
-        /* An arrival on a later date cannot be an end time on this day's
-           clock, so it is left off rather than drawn wrong: an item ending
-           before it starts is a negative-height block on the timeline. */
-        end_time: sameDay ? (localTime(j?.arrive_at) || plus(start, DEFAULT_LEG)) : null,
+        /* Only when the ticket lands the same day at a later clock. A red-eye
+           landing tomorrow, and the rarer Tokyo-to-Los-Angeles case that lands
+           at an earlier clock on the same date, would both draw a block that
+           ends before it starts — a negative-height row on the timeline. Those
+           get no end time, and the note says where they land in words. */
+        end_time: drawsAsBlock(j)
+            ? localTime(j?.arrives)
+            : (localTime(j?.arrives) ? null : plus(start, DEFAULT_LEG)),
         location: routeLabel(j),
         link: null,
         notes: journeyNote(j) || null,
@@ -228,21 +288,30 @@ export const asAtlasItem = (j) => {
  * Held and gone, split on the clock rather than on status.
  *
  * A journey in the past that was never ticked off is still 'booked' in the
- * database and is history to a reader — the same reasoning `useReservations`
- * uses, and the same reason it lives in a pure function: "is this trip still
- * ahead of me" is worth being able to test without a database.
+ * database and is history to a reader.
+ *
+ * This is the one place a `Date` is built from a departure, and the only place
+ * it is defensible: "is this still ahead of me" tolerates being a few hours
+ * out, which is the most a missing zone can cost. Nothing displayed goes
+ * through here.
  */
+const roughly = (value) => {
+    const p = parts(value);
+    if (!p) return null;
+    const t = Date.parse(`${p.date}T${p.time}:00Z`);
+    return Number.isNaN(t) ? null : t;
+};
+
 export const splitByClock = (journeys = [], now = Date.now()) => {
     const live = journeys.filter((j) => j.status === 'booked');
+    const at = (j) => roughly(j.departs);
     return {
         upcoming: live
-            .filter((j) => when(j.depart_at) && when(j.depart_at).getTime() >= now)
-            .sort((a, b) => when(a.depart_at) - when(b.depart_at)),
+            .filter((j) => at(j) !== null && at(j) >= now)
+            .sort((a, b) => at(a) - at(b)),
         past: journeys
-            .filter((j) => j.status !== 'booked'
-                || !when(j.depart_at)
-                || when(j.depart_at).getTime() < now)
-            .sort((a, b) => when(b.depart_at) - when(a.depart_at)),
+            .filter((j) => j.status !== 'booked' || at(j) === null || at(j) < now)
+            .sort((a, b) => at(b) - at(a)),
     };
 };
 
