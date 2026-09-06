@@ -161,3 +161,115 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* --- Pasting a confirmation ------------------------------- */
+
+.ticketbook__paste {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+}
+
+.ticketbook__paste > p {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    max-width: 60ch;
+}
+
+.ticketbook__paste textarea {
+    width: 100%;
+    resize: vertical;
+    padding: var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug);
+}
+
+.ticketbook__paste textarea:focus-visible {
+    outline: none;
+    border-color: var(--border-gold);
+}
+
+.ticketbook__paste-why {
+    margin: 0;
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.ticketbook__paste-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+}
+
+/* --- The legs it found ------------------------------------ */
+
+.ticketbook__legs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    /* A booking with eight legs is rare and real; the list scrolls rather
+       than pushing the save button off the bottom of the modal. */
+    max-height: 22rem;
+    overflow-y: auto;
+}
+
+.ticketbook__leg {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.ticketbook__leg:hover {
+    border-color: var(--border-gold);
+}
+
+/* An unticked leg reads as set aside rather than as missing. */
+.ticketbook__leg:has(input:not(:checked)) {
+    opacity: 0.5;
+}
+
+.ticketbook__leg input {
+    margin-top: 3px;
+    accent-color: var(--accent-gold);
+    flex-shrink: 0;
+}
+
+.ticketbook__leg-face {
+    flex-shrink: 0;
+    line-height: 1.3;
+}
+
+.ticketbook__leg-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ticketbook__leg-body strong {
+    font-size: var(--text-sm);
+    color: var(--text-main);
+    font-weight: var(--weight-bold);
+}
+
+.ticketbook__leg-day {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    color: var(--text-muted);
+}

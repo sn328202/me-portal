@@ -341,3 +341,99 @@ export const totalsByCurrency = (journeys = [], fallback = 'USD') => {
         .map(([currency, total]) => ({ currency, total }))
         .sort((a, b) => b.total - a.total);
 };
+
+/**
+ * The add-a-journey form, empty.
+ *
+ * Lives here rather than in the page so the two things that fill it — a person
+ * typing, and a pasted confirmation — can be tested against the same shape.
+ * The form is two boxes per end (a date and a clock) because that is how a
+ * ticket is printed and how a browser's date and time inputs work; `stamp`
+ * puts them back together.
+ */
+export const BLANK_FORM = {
+    mode: 'flight', carrier: '', number: '',
+    from_place: '', to_place: '',
+    date: '', time: '09:00', arrive_date: '', arrive_time: '',
+    confirmation: '', duration: '', cost: '', currency: 'USD', baggage: '', notes: '',
+};
+
+/** Two boxes back into one wall clock. No `Date`, no zone, no `Z`. */
+export const stamp = (day, time) => (day && time ? `${day}T${String(time).slice(0, 5)}:00` : null);
+
+/**
+ * A parsed leg as the form holds it.
+ *
+ * The arrival date is only carried across when it differs from the departure
+ * date: leaving the second date box blank is what "same day" looks like in the
+ * form, and pre-filling it with the same date makes every ordinary flight look
+ * like it needed the red-eye field.
+ */
+export const formFromLeg = (leg = {}) => ({
+    ...BLANK_FORM,
+    mode: leg.mode || 'flight',
+    carrier: leg.carrier || '',
+    number: leg.number || '',
+    from_place: leg.from_place || '',
+    to_place: leg.to_place || '',
+    date: leg.depart_date || '',
+    time: leg.depart_time || '09:00',
+    arrive_date: leg.arrive_date && leg.arrive_date !== leg.depart_date ? leg.arrive_date : '',
+    arrive_time: leg.arrive_time || '',
+    confirmation: leg.confirmation || '',
+    duration: leg.duration || '',
+    cost: leg.cost === null || leg.cost === undefined ? '' : String(leg.cost),
+    currency: leg.currency || 'USD',
+    baggage: leg.baggage || '',
+    notes: leg.notes || '',
+});
+
+/**
+ * The form as a row for the database.
+ *
+ * The one place the form's two-box ends become the two stored wall clocks, so
+ * there is exactly one answer to "what gets written" whether she typed it or
+ * pasted it.
+ */
+export const journeyFromForm = (form = {}) => ({
+    mode: form.mode || 'flight',
+    carrier: String(form.carrier || '').trim() || null,
+    number: String(form.number || '').trim() || null,
+    from_place: String(form.from_place || '').trim() || null,
+    to_place: String(form.to_place || '').trim() || null,
+    departs: stamp(form.date, form.time || '09:00'),
+    /* An arrival with no date of its own is the same day it left. */
+    arrives: stamp(form.arrive_date || form.date, form.arrive_time),
+    confirmation: String(form.confirmation || '').trim() || null,
+    duration: String(form.duration || '').trim() || null,
+    /* An empty cost box is "she did not say", not zero. A free flight and an
+       unrecorded one are different facts. */
+    cost: form.cost === '' || form.cost === null || form.cost === undefined
+        ? null : Number(form.cost),
+    currency: form.cost ? (form.currency || null) : null,
+    baggage: String(form.baggage || '').trim() || null,
+    notes: String(form.notes || '').trim() || null,
+});
+
+/**
+ * One line describing a parsed leg, for the list she ticks before saving.
+ *
+ * Everything load-bearing in one glance: which day, both clocks, the route and
+ * the service. If a line here is wrong she unticks it — which is the entire
+ * reason the parser does not save anything itself.
+ */
+export const legSummary = (leg = {}) => {
+    const shaped = {
+        ...leg,
+        departs: stamp(leg.depart_date, leg.depart_time),
+        arrives: stamp(leg.arrive_date, leg.arrive_time),
+    };
+    const bits = [routeLabel(shaped) || 'Somewhere', clockLabel(shaped.departs)];
+    const lands = clockLabel(shaped.arrives);
+    if (lands) {
+        bits.push(`→ ${lands}${crossesMidnight(shaped) ? ' next day' : ''}`);
+    }
+    const service = serviceLabel(shaped);
+    if (service) bits.push(service);
+    return bits.filter(Boolean).join(' · ');
+};

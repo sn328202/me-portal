@@ -1,30 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import {
     GiCommercialAirplane, GiCheckMark, GiTrashCan, GiQuill,
-    GiClockwork, GiPathDistance, GiArchiveResearch, GiSuitcase,
+    GiClockwork, GiPathDistance, GiArchiveResearch, GiSuitcase, GiEnvelope,
 } from 'react-icons/gi';
 import {
     Button, Card, PageHeader, Tabs, TabPanel, Modal, Field, Tag, Stat,
     ConfirmButton, EmptyState,
 } from '../components/ui';
 import { useJourneys } from '../hooks/useJourneys';
+import { supabase } from '../lib/supabase';
 import AddBookingToDay from '../components/AddBookingToDay';
 import { JOURNEY } from '../utils/placeable';
 import {
     MODES, faceOf, labelOf, guessMode, routeLabel, serviceLabel,
     clockLabel, clockSpanLabel, crossesMidnight, drawsAsBlock,
     localDate, titleOf, totalsByCurrency,
+    BLANK_FORM, stamp, formFromLeg, journeyFromForm, legSummary,
 } from '../utils/journeys';
 import { formatMoney } from '../utils/tripCosts';
 import '../styles/BookingSlip.css';
 import '../styles/TicketBook.css';
-
-const EMPTY_FORM = {
-    mode: 'flight', carrier: '', number: '',
-    from_place: '', to_place: '',
-    date: '', time: '09:00', arrive_date: '', arrive_time: '',
-    confirmation: '', duration: '', cost: '', currency: 'USD', baggage: '', notes: '',
-};
 
 const STATUS_LABEL = {
     booked: 'Booked', travelled: 'Travelled', cancelled: 'Cancelled', missed: 'Missed',
@@ -82,8 +77,25 @@ const TicketBook = ({ embedded = false }) => {
 
     const [tab, setTab] = useState('held');
     const [formOpen, setFormOpen] = useState(false);
-    const [form, setForm] = useState(EMPTY_FORM);
+    const [form, setForm] = useState(BLANK_FORM);
     const [saving, setSaving] = useState(false);
+
+    /* Pasting a confirmation. Kept beside the form rather than replacing it:
+       one leg fills the form in and she presses save, exactly as the Table
+       Book does, because a flight on the wrong Tuesday that saved itself is
+       worse than no parser at all.
+
+       Several legs — which is most airline bookings, once there is a return —
+       get a list with a tick against each instead. Same principle, more of it:
+       nothing is written until she says so, and she can drop the leg it got
+       wrong without losing the three it got right. */
+    const [pasting, setPasting] = useState(false);
+    const [paste, setPaste] = useState('');
+    const [reading, setReading] = useState(false);
+    const [readError, setReadError] = useState(null);
+    const [legs, setLegs] = useState([]);
+    const [chosen, setChosen] = useState([]);
+    const [adding, setAdding] = useState(false);
 
     const travelled = useMemo(
         () => journeys.filter((j) => j.status === 'travelled').length, [journeys]
@@ -104,12 +116,8 @@ const TicketBook = ({ embedded = false }) => {
     /* Both ends written down exactly as the form has them — no `Date`, no
        `toISOString`, nothing that would stamp a zone onto a clock that belongs
        to somewhere else. `2026-09-16T18:00:00` means six in the evening where
-       she lands, and Postgres stores that and nothing more.
-
-       An arrival with no date of its own is the same day as the departure,
-       which is true of most journeys and is the only reading that lets her
-       leave the second date box alone. */
-    const stamp = (day, time) => (day && time ? `${day}T${time.slice(0, 5)}:00` : null);
+       she lands, and Postgres stores that and nothing more. See
+       `journeyFromForm`, which is the one place that mapping happens. */
     const arrivesAt = () => stamp(form.arrive_date || form.date, form.arrive_time);
 
     const submit = async (e) => {
@@ -117,22 +125,8 @@ const TicketBook = ({ embedded = false }) => {
         if (!form.date || saving) return;
         setSaving(true);
         try {
-            await addJourney({
-                mode: form.mode,
-                carrier: form.carrier.trim() || null,
-                number: form.number.trim() || null,
-                from_place: form.from_place.trim() || null,
-                to_place: form.to_place.trim() || null,
-                departs: stamp(form.date, form.time || '09:00'),
-                arrives: arrivesAt(),
-                duration: form.duration.trim() || null,
-                confirmation: form.confirmation.trim() || null,
-                cost: form.cost,
-                currency: form.cost ? form.currency : null,
-                baggage: form.baggage.trim() || null,
-                notes: form.notes.trim() || null,
-            });
-            setForm(EMPTY_FORM);
+            await addJourney(journeyFromForm(form));
+            setForm(BLANK_FORM);
             setFormOpen(false);
         } catch (err) {
             console.error(err);
@@ -141,8 +135,87 @@ const TicketBook = ({ embedded = false }) => {
         }
     };
 
+    /**
+     * Read a pasted confirmation.
+     *
+     * One leg goes straight into the form — the Table Book's flow, and the
+     * right one when there is a single thing to check. More than one gets the
+     * review list, because filling the form with the outbound would silently
+     * drop the return, which is the failure this whole endpoint exists to
+     * avoid.
+     */
+    const readPaste = async () => {
+        const text = paste.trim();
+        if (text.length < 20 || reading) return;
+        setReading(true);
+        setReadError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/journey-parse', {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    Authorization: `Bearer ${session?.access_token || ''}`,
+                },
+                body: JSON.stringify({ text }),
+            });
+            const json = await res.json();
+            if (!json.ok) { setReadError(json.error || 'Could not read that one.'); return; }
+
+            const found = json.legs || [];
+            if (found.length === 1) {
+                setForm(formFromLeg(found[0]));
+                setPaste('');
+                setPasting(false);
+                setFormOpen(true);
+                return;
+            }
+            setLegs(found);
+            setChosen(found.map((_, i) => i));
+        } catch (err) {
+            console.error(err);
+            setReadError('Could not read that one.');
+        } finally {
+            setReading(false);
+        }
+    };
+
+    const toggleLeg = (i) => setChosen((prev) => (
+        prev.includes(i) ? prev.filter((n) => n !== i) : [...prev, i]
+    ));
+
+    /** Save the legs she left ticked, in the order they are travelled. */
+    const keepLegs = async () => {
+        if (adding || !chosen.length) return;
+        setAdding(true);
+        try {
+            const wanted = legs.filter((_, i) => chosen.includes(i));
+            /* One at a time, in order. A burst of inserts arrives in whatever
+               order the network feels like, and the list is sorted by
+               departure anyway — but the realtime feed prepends as they land,
+               and out-of-order is a list that looks shuffled for a second. */
+            for (const leg of wanted) {
+                await addJourney(journeyFromForm(formFromLeg(leg)));
+            }
+            closePaste();
+        } catch (err) {
+            console.error(err);
+            setReadError('Some of those did not save. Nothing was lost — try again.');
+        } finally {
+            setAdding(false);
+        }
+    };
+
+    const closePaste = () => {
+        setPasting(false);
+        setPaste('');
+        setLegs([]);
+        setChosen([]);
+        setReadError(null);
+    };
+
     const next = upcoming[0];
-    const bookOne = () => { setForm(EMPTY_FORM); setFormOpen(true); };
+    const bookOne = () => { setForm(BLANK_FORM); setFormOpen(true); };
 
     /* Typing the carrier is usually enough to know what it is. A wrong guess
        is one click to fix, and she can always click a mode herself first —
@@ -155,6 +228,9 @@ const TicketBook = ({ embedded = false }) => {
 
     const acts = (
         <div className="ticketbook__acts">
+            <Button onClick={() => { setReadError(null); setPasting(true); }}>
+                <GiEnvelope /> Paste a confirmation
+            </Button>
             <Button variant="solid" onClick={bookOne}><GiQuill /> Add a journey</Button>
         </div>
     );
@@ -356,6 +432,100 @@ const TicketBook = ({ embedded = false }) => {
                 </>
             )}
 
+            <Modal
+                open={pasting}
+                onClose={closePaste}
+                title={legs.length ? 'What it found' : 'Paste a confirmation'}
+            >
+                {legs.length ? (
+                    <div className="ticketbook__paste">
+                        {/* One row per flight, because that is what the ticket
+                            is. A connection is two flights with a wait in
+                            between, and collapsing them would hide the wait —
+                            which is the part of the day she has to plan. */}
+                        <p>
+                            {legs.length} legs on this booking. Untick anything you don’t want —
+                            nothing is saved until you press the button.
+                        </p>
+
+                        <ul className="ticketbook__legs">
+                            {legs.map((leg, i) => (
+                                <li key={`${leg.depart_date}-${leg.depart_time}-${leg.number || i}`}>
+                                    <label className="ticketbook__leg">
+                                        <input
+                                            type="checkbox"
+                                            checked={chosen.includes(i)}
+                                            onChange={() => toggleLeg(i)}
+                                        />
+                                        <span className="ticketbook__leg-face" aria-hidden="true">
+                                            {faceOf(leg)}
+                                        </span>
+                                        <span className="ticketbook__leg-body">
+                                            <strong>{legSummary(leg)}</strong>
+                                            <span className="ticketbook__leg-day">
+                                                {fmtDay(leg.depart_date)}
+                                                {leg.duration ? ` · ${leg.duration}` : ''}
+                                                {leg.confirmation ? ` · #${leg.confirmation}` : ''}
+                                            </span>
+                                        </span>
+                                    </label>
+                                </li>
+                            ))}
+                        </ul>
+
+                        {/* Said here as well as in the prompt, because it is
+                            the thing that is easy to get wrong and hard to
+                            spot: these are the clocks at each end, not one
+                            clock converted twice. */}
+                        <p className="ticketbook__paste-why">
+                            Times are as printed on the ticket — the clock where you leave and
+                            the clock where you land.
+                        </p>
+
+                        {readError && <p className="ticketbook__error">{readError}</p>}
+
+                        <div className="ticketbook__paste-acts">
+                            <Button onClick={closePaste}>Cancel</Button>
+                            <Button
+                                variant="solid"
+                                disabled={!chosen.length || adding}
+                                onClick={keepLegs}
+                            >
+                                {adding
+                                    ? 'Writing them down…'
+                                    : `Hold ${chosen.length} ${chosen.length === 1 ? 'ticket' : 'tickets'}`}
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="ticketbook__paste">
+                        <p>
+                            The whole confirmation — subject line and all. It reads every leg,
+                            including the return; nothing is saved until you say so.
+                        </p>
+                        <textarea
+                            rows={12}
+                            autoFocus
+                            aria-label="The confirmation email"
+                            placeholder="Your booking is confirmed — SFO to JFK…"
+                            value={paste}
+                            onChange={(e) => setPaste(e.target.value)}
+                        />
+                        {readError && <p className="ticketbook__error">{readError}</p>}
+                        <div className="ticketbook__paste-acts">
+                            <Button onClick={closePaste}>Cancel</Button>
+                            <Button
+                                variant="solid"
+                                disabled={paste.trim().length < 20 || reading}
+                                onClick={readPaste}
+                            >
+                                {reading ? 'Reading…' : 'Read it'}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
             <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Add a journey">
                 <form className="ticketbook__form" onSubmit={submit}>
                     <div className="ticketbook__modes" role="radiogroup" aria-label="How you are getting there">
@@ -439,6 +609,17 @@ const TicketBook = ({ embedded = false }) => {
                         placeholder="XQ7R2P"
                         value={form.confirmation}
                         onChange={(e) => setForm({ ...form, confirmation: e.target.value })}
+                    />
+                    {/* The ticket's own flying time, copied not computed.
+                        Subtracting the two clocks gives nine hours for a
+                        six-hour flight, because they are clocks in two
+                        different places. */}
+                    <Field
+                        label="How long"
+                        placeholder="6h 05m"
+                        hint="Off the ticket — not worked out from the clocks"
+                        value={form.duration}
+                        onChange={(e) => setForm({ ...form, duration: e.target.value })}
                     />
                     <Field
                         label="Cost"
