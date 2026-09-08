@@ -13,7 +13,7 @@ import AddBookingToDay from '../components/AddBookingToDay';
 import { JOURNEY } from '../utils/placeable';
 import {
     MODES, faceOf, labelOf, guessMode, routeLabel, serviceLabel,
-    clockLabel, clockSpanLabel, crossesMidnight, drawsAsBlock,
+    clockLabel, clockSpanLabel, drawsAsBlock, landsLabel,
     localDate, titleOf, totalsByCurrency,
     BLANK_FORM, stamp, formFromLeg, journeyFromForm, legSummary,
 } from '../utils/journeys';
@@ -95,6 +95,11 @@ const TicketBook = ({ embedded = false }) => {
     const [readError, setReadError] = useState(null);
     const [legs, setLegs] = useState([]);
     const [chosen, setChosen] = useState([]);
+    /* How many it could not read. Said out loud rather than swallowed: a leg
+       with no date it can find is a leg that cannot be saved, and a four-leg
+       booking quietly becoming a two-leg one is the sort of thing you discover
+       at an airport. */
+    const [dropped, setDropped] = useState(0);
     const [adding, setAdding] = useState(false);
 
     const travelled = useMemo(
@@ -163,7 +168,8 @@ const TicketBook = ({ embedded = false }) => {
             if (!json.ok) { setReadError(json.error || 'Could not read that one.'); return; }
 
             const found = json.legs || [];
-            if (found.length === 1) {
+            setDropped(json.dropped || 0);
+            if (found.length === 1 && !json.dropped) {
                 setForm(formFromLeg(found[0]));
                 setPaste('');
                 setPasting(false);
@@ -211,6 +217,7 @@ const TicketBook = ({ embedded = false }) => {
         setPaste('');
         setLegs([]);
         setChosen([]);
+        setDropped(0);
         setReadError(null);
     };
 
@@ -320,8 +327,8 @@ const TicketBook = ({ embedded = false }) => {
                                                     {j.arrives && (
                                                         <p className="slip__where ticketbook__arrive">
                                                             Lands {clockLabel(j.arrives)}
-                                                            {crossesMidnight(j) && (
-                                                                <em className="ticketbook__overnight"> next day</em>
+                                                            {landsLabel(j) && (
+                                                                <em className="ticketbook__overnight"> {landsLabel(j)}</em>
                                                             )}
                                                             {/* Said out loud, because it is the whole
                                                                 point: this is the clock where she gets
@@ -444,9 +451,21 @@ const TicketBook = ({ embedded = false }) => {
                             between, and collapsing them would hide the wait —
                             which is the part of the day she has to plan. */}
                         <p>
-                            {legs.length} legs on this booking. Untick anything you don’t want —
-                            nothing is saved until you press the button.
+                            {legs.length === 1 ? 'One leg' : `${legs.length} legs`} on this booking.
+                            Untick anything you don’t want — nothing is saved until you press
+                            the button.
                         </p>
+
+                        {/* The count that would otherwise be invisible. */}
+                        {dropped > 0 && (
+                            <p className="ticketbook__warn">
+                                {dropped === 1 ? 'One more leg was' : `${dropped} more legs were`} in
+                                there without a date it could find, so {dropped === 1 ? 'it is' : 'they are'} not
+                                listed. Some airlines print the times in one place and the dates in
+                                another — check the email, and add {dropped === 1 ? 'it' : 'them'} by
+                                hand if you need to.
+                            </p>
+                        )}
 
                         <ul className="ticketbook__legs">
                             {legs.map((leg, i) => (

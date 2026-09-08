@@ -38,7 +38,7 @@ const LEG = {
             enum: ['flight', 'train', 'bus', 'ferry', 'car', 'other'],
         },
         carrier: { type: 'string', description: 'The airline or operator, by name. "British Airways", not "BA" — unless the name is only ever written short, like "SNCF".' },
-        number: { type: 'string', description: 'The flight or service number as printed, e.g. "BA 286", "9024", "AI 174".' },
+        number: { type: 'string', description: 'The flight or service number as printed, e.g. "BA 286", "9024", "AI 174". If this entry covers a connection the confirmation did not time separately, list them together: "LH 453 / LH 766".' },
         from_place: { type: 'string', description: 'Where this leg leaves from, as the ticket writes it — an airport code like "SFO" if that is what it says, a station name like "St Pancras" if that is.' },
         to_place: { type: 'string', description: 'Where this leg arrives, written the same way.' },
         depart_date: { type: 'string', description: 'Departure date as YYYY-MM-DD.' },
@@ -50,7 +50,7 @@ const LEG = {
         cost: { type: 'number', description: 'What this leg cost, as a number. Only if the confirmation prices legs separately; a single trip total goes on the first leg alone.' },
         currency: { type: 'string', description: 'Three-letter code for that amount, e.g. USD, GBP, EUR, INR.' },
         baggage: { type: 'string', description: 'The allowance in the words the confirmation uses, e.g. "1 checked 23kg + cabin".' },
-        notes: { type: 'string', description: 'Anything else worth keeping — seat number, terminal, cabin, check-in window, a layover warning. Not a restatement of the fields above.' },
+        notes: { type: 'string', description: 'Anything else worth keeping. Lead with the stop if there is one ("1 stop: 22h 0m in MUC"), then seat, terminal, cabin, fare class, check-in window. Not a restatement of the fields above.' },
     },
     required: ['mode', 'depart_date', 'depart_time'],
 };
@@ -83,22 +83,51 @@ confirmation labels the times with zones (PDT, EDT, GMT+1), that labelling is
 your confirmation that they are already local. Strip the label and keep the
 digits. Do not add an offset to anything.
 
+HOW MANY ENTRIES:
+Split by what the confirmation TIMES, not by what it mentions.
+
+- If it prints a departure and arrival time for each individual flight, make
+  one entry per flight. SFO 09:00 to JFK 17:35, then JFK 19:15 to LHR 07:30,
+  is two entries.
+- If it prints only the two ends of a direction — "05:30 pm LAX to 11:55 pm
+  BOM, 40h 55m, 1 Stop (MUC 22h 0m)" — that is ONE entry, LAX to BOM. The
+  individual flights have no times printed anywhere, and inventing them would
+  put departures on her calendar that are not on her ticket. List every flight
+  number for that entry together in 'number' ("LH 453 / LH 766") and put the
+  stop at the front of 'notes' ("1 stop: 22h 0m in MUC").
+- A round trip is always at least two entries. Never drop the return.
+- Layovers, ground time and self-transfer waits are never entries of their own.
+- Order the entries as they are travelled, earliest departure first.
+
+FINDING THE DATE:
+The date is often nowhere near the time. Airline and travel-agency emails
+routinely print the clock times in an itinerary block and the dates somewhere
+else entirely — a trip header, a fare summary, or a cancellation-rules table
+at the very bottom that reads "LAX to BOM   Wed, Dec 23, 2026 - Fri, Dec 25,
+2026". Read the WHOLE email and match those by route. An entry you cannot
+date is an entry that will be thrown away, so look before you give up.
+
+ARRIVAL DATE NOTATION:
+"+1", "(+1)", "next day", "arrives next day" mean the arrival is one calendar
+day after the departure. "2nd day arrival" and "+2" mean two days after. A
+range like "Wed, Dec 23, 2026 - Fri, Dec 25, 2026" for one direction means it
+leaves on the 23rd and lands on the 25th.
+
+TWELVE-HOUR CLOCKS:
+"05:30 pm" is 17:30. "11:55 pm" is 23:55. "01:35 am" is 01:35. "12:15 am" is
+00:15 and "12:15 pm" is 12:15. This is a change of notation, not of zone — the
+clock is still the local one at that end.
+
 Other rules:
 - Report only what the confirmation states. A field you cannot find is left
   out, never guessed.
-- ONE ENTRY PER SEGMENT. A round trip is two entries. A connection is two
-  entries — SFO to JFK is one leg and JFK to LHR is another, each with its own
-  flight number and its own two times. Never merge a connection into a single
-  leg, and never drop the return.
-- Order the legs as they are travelled, earliest departure first.
-- Layovers, ground time and self-transfer waits are not legs. They are the gaps
-  between legs, and they need no entry of their own.
 - The year matters. If a date is given without one, choose the year that puts
   the journey in the future relative to today's date, given below.
 - 'duration' is only ever copied from the confirmation. If it does not state a
   flying time, leave it out. Do not subtract the two clocks — they are in
   different zones and subtracting them gives a number the ticket contradicts.
 - The booking reference usually applies to every leg. Put it on each one.
+- A single trip total goes on the first entry only, never repeated onto each.
 - If the text is not a travel confirmation at all, return an empty legs array.`;
 
 /** A leg the form can actually use, or null. */
@@ -152,24 +181,47 @@ export const cleanLeg = (raw = {}) => {
     };
 };
 
-/** The legs, cleaned, deduplicated and in travel order. */
+/**
+ * The legs, cleaned, deduplicated and in travel order — and a count of what
+ * had to be thrown away.
+ *
+ * The count is the point. A leg with no date cannot be saved, but dropping it
+ * without a word is how a four-leg booking becomes a two-leg one and nobody
+ * finds out until the airport. She gets told how many did not survive, so a
+ * confirmation this cannot read looks like a confirmation this cannot read.
+ */
 export const cleanLegs = (legs = []) => {
     const out = [];
     const seen = new Set();
+    let dropped = 0;
     for (const raw of Array.isArray(legs) ? legs : []) {
         const leg = cleanLeg(raw);
-        if (!leg) continue;
+        if (!leg) {
+            /* Only count it as a loss if it was trying to be a leg. An entry
+               naming a route or a flight number and lacking a date is a leg
+               this could not read, and she should hear about it. An entry
+               with neither — a layover the model volunteered despite being
+               told not to — is noise, and warning her about noise trains her
+               to ignore the warning that matters. */
+            const named = ['from_place', 'to_place', 'carrier', 'number']
+                .some((k) => String(raw?.[k] || '').trim());
+            if (named) dropped += 1;
+            continue;
+        }
         /* The same flight listed twice — itineraries repeat themselves in a
            summary block at the bottom, and two identical rows in the review
            list is two identical journeys in her book. */
         const key = [leg.depart_date, leg.depart_time, leg.from_place, leg.to_place, leg.number]
             .join('|').toLowerCase();
+        // A repeat of a leg already kept is not a loss — itineraries restate
+        // themselves in a summary block — so it is not counted as dropped.
         if (seen.has(key)) continue;
         seen.add(key);
         out.push(leg);
         if (out.length >= MAX_LEGS) break;
     }
-    return out.sort((a, b) => `${a.depart_date}T${a.depart_time}`.localeCompare(`${b.depart_date}T${b.depart_time}`));
+    out.sort((a, b) => `${a.depart_date}T${a.depart_time}`.localeCompare(`${b.depart_date}T${b.depart_time}`));
+    return { legs: out, dropped };
 };
 
 export default async function handler(req, res) {
@@ -229,13 +281,18 @@ export default async function handler(req, res) {
 
         const reply = await r.json();
         const call = (reply.content || []).find((c) => c.type === 'tool_use');
-        const legs = cleanLegs(call?.input?.legs);
+        const { legs, dropped } = cleanLegs(call?.input?.legs);
 
         if (!legs.length) {
-            return res.status(200).json({ ok: false, error: 'That does not look like a travel confirmation.' });
+            return res.status(200).json({
+                ok: false,
+                error: dropped
+                    ? 'It found travel in there but no dates it could read. Check the email has the dates in it, or add this one by hand.'
+                    : 'That does not look like a travel confirmation.',
+            });
         }
 
-        return res.status(200).json({ ok: true, legs });
+        return res.status(200).json({ ok: true, legs, dropped });
     } catch (err) {
         console.error('journey-parse threw', err?.name, err?.message);
         return res.status(502).json({ error: 'Could not read that one.' });

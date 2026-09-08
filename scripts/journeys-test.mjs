@@ -22,7 +22,7 @@ process.env.TZ = 'Asia/Kolkata';
 
 const {
     MODES, modeOf, faceOf, labelOf, guessMode,
-    localDate, localTime, clockLabel, crossesMidnight, drawsAsBlock,
+    localDate, localTime, clockLabel, crossesMidnight, drawsAsBlock, daysLater, landsLabel,
     clockMinutes, clockSpanLabel,
     routeLabel, serviceLabel, titleOf, journeyNote,
     plus, asAtlasItem, splitByClock, totalCost, totalsByCurrency, DEFAULT_LEG,
@@ -87,12 +87,25 @@ check('and it does not cross midnight', crossesMidnight(sfToNyc), false);
 /* A red-eye: the ticket itself says the 17th. */
 const redEye = { departs: '2026-09-16T21:40:00', arrives: '2026-09-17T06:15:00' };
 check('a red-eye knows it lands tomorrow', crossesMidnight(redEye), true);
+check('and says so in one day', [daysLater(redEye), landsLabel(redEye)], [1, 'next day']);
+/* Los Angeles to Mumbai via a 22-hour layover in Munich leaves on the 23rd and
+   lands on the 25th. "Next day" — all a boolean can say — is wrong by a whole
+   day on the journey where a day matters most. */
+check('two days later is two days, not "next day"',
+    [daysLater({ departs: '2026-12-23T17:30:00', arrives: '2026-12-25T23:55:00' }),
+        landsLabel({ departs: '2026-12-23T17:30:00', arrives: '2026-12-25T23:55:00' })],
+    [2, '+2 days']);
+check('landing the day it left says nothing at all',
+    [daysLater(sfToNyc), landsLabel(sfToNyc)], [0, null]);
+
 check('and cannot be one block on the departure day', drawsAsBlock(redEye), false);
 
 /* The strange one, and a real ticket: eleven hours backwards across the date
    line, landing at an earlier clock on the same calendar day. */
 const tokyoToLa = { departs: '2026-09-16T17:00:00', arrives: '2026-09-16T10:00:00' };
 check('landing earlier on the same date is not a block', drawsAsBlock(tokyoToLa), false);
+check('and landing at an earlier clock the same day is not "days later"',
+    [daysLater(tokyoToLa), landsLabel(tokyoToLa)], [0, null]);
 check('and it is not "next day" either', crossesMidnight(tokyoToLa), false);
 check('a ticket with no landing time cannot be a block',
     drawsAsBlock({ departs: '2026-09-16T09:00:00' }), false);

@@ -116,6 +116,31 @@ export const crossesMidnight = (journey) => {
 };
 
 /**
+ * How many calendar days later it lands. 0 for most journeys, 1 for a red-eye.
+ *
+ * Two exists and is not exotic: Los Angeles to Mumbai via a twenty-two hour
+ * layover in Munich leaves on the 23rd and lands on the 25th, and calling that
+ * "next day" — which is what a boolean can say — is wrong by a whole day on
+ * the one journey where being wrong by a day matters most.
+ */
+export const daysLater = (journey) => {
+    const from = localDate(journey?.departs);
+    const to = localDate(journey?.arrives);
+    if (!from || !to) return 0;
+    const days = Math.round(
+        (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000
+    );
+    return Number.isFinite(days) && days > 0 ? days : 0;
+};
+
+/** "next day", "+2 days", or null when it lands the day it left. */
+export const landsLabel = (journey) => {
+    const days = daysLater(journey);
+    if (!days) return null;
+    return days === 1 ? 'next day' : `+${days} days`;
+};
+
+/**
  * Can this be drawn as one block on the day it leaves?
  *
  * Only when the ticket lands on the same date at a later clock time. Two cases
@@ -219,7 +244,10 @@ export const titleOf = (journey) => {
 export const journeyNote = (j) => {
     const bits = [];
     const lands = clockLabel(j?.arrives);
-    if (lands) bits.push(`Lands ${lands}${crossesMidnight(j) ? ' next day' : ''} local`);
+    if (lands) {
+        const later = landsLabel(j);
+        bits.push(`Lands ${lands}${later ? ` ${later}` : ''} local`);
+    }
     if (j?.duration) bits.push(String(j.duration).trim());
     if (j?.confirmation) bits.push(`Confirmation ${j.confirmation}`);
     if (j?.baggage) bits.push(j.baggage);
@@ -431,7 +459,8 @@ export const legSummary = (leg = {}) => {
     const bits = [routeLabel(shaped) || 'Somewhere', clockLabel(shaped.departs)];
     const lands = clockLabel(shaped.arrives);
     if (lands) {
-        bits.push(`→ ${lands}${crossesMidnight(shaped) ? ' next day' : ''}`);
+        const later = landsLabel(shaped);
+        bits.push(`→ ${lands}${later ? ` ${later}` : ''}`);
     }
     const service = serviceLabel(shaped);
     if (service) bits.push(service);

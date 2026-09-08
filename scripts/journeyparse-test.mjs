@@ -18,7 +18,7 @@ process.env.TZ = 'Asia/Kolkata';
 
 import fs from 'node:fs';
 const { cleanLeg, cleanLegs } = await import('../api/journey-parse.js');
-const { formFromLeg, journeyFromForm, legSummary, BLANK_FORM, stamp } =
+const { formFromLeg, journeyFromForm, legSummary, BLANK_FORM, stamp, asAtlasItem } =
     await import('../src/utils/journeys.js');
 
 let failed = 0;
@@ -77,7 +77,7 @@ console.log('\ncleaning a whole booking:');
 {
     /* A real round trip with a connection on the way out, handed back out of
        order — models list the summary block in whatever order it appears. */
-    const booking = cleanLegs([
+    const { legs: booking, dropped } = cleanLegs([
         { ...sfToNyc, number: 'UA 512' },
         { mode: 'flight', carrier: 'United', number: 'UA 934', from_place: 'JFK', to_place: 'LHR',
             depart_date: '2026-09-16', depart_time: '21:15', arrive_date: '2026-09-17',
@@ -104,11 +104,95 @@ console.log('\ncleaning a whole booking:');
         booking[1].arrive_date, '2026-09-17');
     check('the reference is on every leg',
         booking.every((l) => l.confirmation === 'XQ7R2P'), true);
+    check('and nothing was quietly lost', dropped, 0);
 }
-check('nothing found is an empty list, not a crash', cleanLegs(), []);
-check('and so is something that is not a list', cleanLegs('legs'), []);
-check('a booking of nothing but layovers finds nothing',
-    cleanLegs([{ mode: 'other', notes: 'wait' }]), []);
+check('nothing found is an empty list, not a crash', cleanLegs(), { legs: [], dropped: 0 });
+check('and so is something that is not a list', cleanLegs('legs'), { legs: [], dropped: 0 });
+
+/* The count that stops "it didn't capture all the legs" from being a mystery.
+   A leg with no date cannot be saved; dropping it without a word is how a
+   four-leg booking quietly becomes a two-leg one. */
+/* A layover the model volunteered despite being told not to is noise, not a
+   lost leg. Warning her about noise trains her to ignore the warning. */
+check('a nameless entry is noise, not a loss',
+    cleanLegs([{ mode: 'other', notes: 'wait' }]), { legs: [], dropped: 0 });
+// But one that named a route and had no date it could read is exactly the
+// failure worth reporting — this is the Chase email's failure mode.
+check('an undateable leg that named a route is counted, not swallowed',
+    cleanLegs([
+        { mode: 'flight', depart_date: '2026-12-23', depart_time: '17:30' },
+        { mode: 'flight', from_place: 'MUC', to_place: 'BOM' },
+    ]).dropped, 1);
+check('and so is one that only named a flight number',
+    cleanLegs([{ mode: 'flight', number: 'LH 766' }]).dropped, 1);
+// A restated leg is not a loss — itineraries repeat themselves in a summary.
+check('a duplicate is not counted as a loss',
+    cleanLegs([{ ...sfToNyc }, { ...sfToNyc }]), { legs: [cleanLeg(sfToNyc)], dropped: 0 });
+
+console.log('\nthe Chase Travel shape — the one that failed:');
+{
+    /* A real booking that this parser got wrong, kept as a fixture because it
+       breaks the rule the first version was built on.
+     *
+     * It prints "05:30 pm LAX to 11:55 pm BOM · 2nd day arrival · 40h 55m ·
+     * 1 Stop (MUC — 22h 0m)" and names two flight numbers — but gives no times
+     * for either of them, and puts the dates two hundred lines away in the
+     * cancellation-rules table. Four segments, timed nowhere.
+     *
+     * So "one entry per segment" is impossible here without inventing four
+     * departures that are not on the ticket. The rule is now: split by what
+     * the confirmation *times*. This is what the model should hand back. */
+    const chase = cleanLegs([
+        {
+            mode: 'flight', carrier: 'Lufthansa', number: 'LH 453 / LH 766',
+            from_place: 'LAX', to_place: 'BOM',
+            depart_date: '2026-12-23', depart_time: '17:30',
+            arrive_date: '2026-12-25', arrive_time: '23:55',
+            confirmation: 'AW39KT', duration: '40h 55m',
+            cost: 1621.39, currency: 'USD',
+            baggage: 'Checked bags, carry-on bag included',
+            notes: '1 stop: 22h 0m in MUC. Economy Comfort, class H.',
+        },
+        {
+            mode: 'flight', carrier: 'Lufthansa', number: 'LH 767 / LH 458',
+            from_place: 'BOM', to_place: 'SFO',
+            depart_date: '2027-01-07', depart_time: '01:35',
+            arrive_date: '2027-01-07', arrive_time: '19:35',
+            confirmation: 'AW39KT', duration: '31h 30m',
+            notes: '1 stop: 10h 45m in MUC. Economy Comfort, class K.',
+        },
+    ]);
+
+    check('two entries, one per direction', chase.legs.length, 2);
+    check('and nothing dropped', chase.dropped, 0);
+    check('both flight numbers ride on the entry that covers them',
+        chase.legs[0].number, 'LH 453 / LH 766');
+    check('"2nd day arrival" is two days later, not one',
+        chase.legs[0].arrive_date, '2026-12-25');
+    check('the pm clock is 24-hour and unconverted',
+        [chase.legs[0].depart_time, chase.legs[0].arrive_time], ['17:30', '23:55']);
+    check('the trip total sits on the first entry alone',
+        chase.legs.map((l) => l.cost), [1621.39, null]);
+
+    const out = chase.legs.map((l) => journeyFromForm(formFromLeg(l)));
+    check('the outbound writes both wall clocks as printed',
+        [out[0].departs, out[0].arrives], ['2026-12-23T17:30:00', '2026-12-25T23:55:00']);
+    /* Thirty-one and a half hours, landing on the date it left. The block
+       still draws, because both ends are on one calendar day. */
+    check('and the return lands on the same date it left',
+        [out[1].departs, out[1].arrives], ['2027-01-07T01:35:00', '2027-01-07T19:35:00']);
+    check('the outbound crosses two midnights, so it gets no end time',
+        asAtlasItem({ ...out[0] }).end_time, null);
+    check('the return does draw as a block',
+        asAtlasItem({ ...out[1] }).end_time, '19:35:00');
+    check('the layover leads the note she reads',
+        chase.legs[0].notes.startsWith('1 stop: 22h 0m in MUC'), true);
+    /* Leaving on the 23rd and landing on the 25th is +2 days. "Next day" is
+       what a boolean says, and it is wrong by a whole day here. */
+    check('and the summary says two days, not next day',
+        legSummary(chase.legs[0]),
+        'LAX → BOM · 5:30 PM · → 11:55 PM +2 days · Lufthansa LH 453 / LH 766');
+}
 
 console.log('\na leg into the form and out again:');
 {
@@ -179,8 +263,19 @@ console.log('\nthe instruction that keeps the clocks honest:');
         /Never convert a time between zones/.test(src), true);
     check('and still spells the example out in digits',
         /09:00.*18:00/s.test(src), true);
-    check('it still asks for one entry per segment',
-        /ONE ENTRY PER SEGMENT/.test(src), true);
+    /* The rule that replaced "one entry per segment", and the three notations
+       the Chase email needed. Each of these is here because its absence
+       produced a wrong answer on a real booking. */
+    check('it splits by what the confirmation times, not what it mentions',
+        /Split by what the confirmation TIMES/.test(src), true);
+    check('it still refuses to drop the return',
+        /Never drop the return/.test(src), true);
+    check('it knows the date can be nowhere near the time',
+        /FINDING THE DATE/.test(src), true);
+    check('it reads "2nd day arrival" as two days',
+        /"2nd day arrival" and "\+2" mean two days after/.test(src), true);
+    check('and it converts a twelve-hour clock without converting the zone',
+        /change of notation, not of zone/.test(src), true);
     check('and still refuses to subtract the two clocks',
         /Do not subtract the two clocks/.test(src), true);
     /* A stray backtick inside a prompt template literal broke `api/capture.js`
