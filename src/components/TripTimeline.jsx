@@ -7,7 +7,7 @@ import { HUES, blockPalette, blockStyle } from '../utils/blockColour';
 import { describeCode } from '../utils/weather';
 import { formatMoney, nightsOf } from '../utils/tripCosts';
 import { cityLabelOn, isTravelLeg } from '../utils/tripLegs';
-import { HOURS, rowsFor, dragRange, timesFromDrag, movedTo, timeLabel } from '../utils/timeline';
+import { hoursFor, rowsFor, dragRange, timesFromDrag, movedTo, timeLabel } from '../utils/timeline';
 
 /**
  * The spreadsheet's own grid: a column per day, an hour per row.
@@ -55,6 +55,17 @@ const TripTimeline = ({
     /* The whole window, for a trip too wide for a column. Fifteen days at a
        readable width is wider than any page that also has a sidebar, and the
        answer to "where are the gaps" is one you want to see all of. */
+    /* The rows this trip needs. Six in the morning is right for almost every
+       day, so the grid keeps that shape until something asks for more — a
+       flight out of Mumbai at 1:35am, say, which on a grid starting at six
+       did not draw at all. Computed across every day on screen, because one
+       column starting at 6 and its neighbour at 1 would put the same hour on
+       two different rows. */
+    const hours = useMemo(
+        () => hoursFor(Object.values(items || {}).flat()),
+        [items]
+    );
+
     const [full, setFull] = useState(false);
     /* Which block has its swatches open. One at a time: two palettes on
        screen is two questions and no answer. */
@@ -226,7 +237,7 @@ const TripTimeline = ({
                 {/* The cells are the drag surface and nothing else; the things
                     planned are drawn over them, so a block can span hours
                     without the row it starts in having to contain it. */}
-                {HOURS.map((hour, row) => (
+                {hours.map((hour, row) => (
                     <React.Fragment key={hour}>
                         <div
                             className="timeline__rowlabel"
@@ -282,11 +293,13 @@ const TripTimeline = ({
                     className="timeline__blocks"
                     style={{
                         '--days': days.length,
-                        gridRow: `${FIRST_HOUR_ROW} / span ${HOURS.length}`,
+                        gridRow: `${FIRST_HOUR_ROW} / span ${hours.length}`,
+                        // The subgrid fallback cannot read the parent's tracks.
+                        '--rows': hours.length,
                     }}
                 >
                     {days.map((day, column) => (items[day.id] || []).map((item) => {
-                        const box = rowsFor(item, HOURS);
+                        const box = rowsFor(item, hours);
                         if (!box) return null;
                         const open = painting === item.id;
                         const when = timeLabel(item);
@@ -426,7 +439,7 @@ const TripTimeline = ({
                     would vanish from this view entirely. */}
                 <div
                     className="timeline__rowlabel"
-                    style={{ gridRow: FIRST_HOUR_ROW + HOURS.length, gridColumn: 1 }}
+                    style={{ gridRow: FIRST_HOUR_ROW + hours.length, gridColumn: 1 }}
                 >
                     Unscheduled
                 </div>
@@ -436,7 +449,7 @@ const TripTimeline = ({
                         <div
                             key={`${day.id}-loose`}
                             className="timeline__cell"
-                            style={{ gridRow: FIRST_HOUR_ROW + HOURS.length, gridColumn: column + 2 }}
+                            style={{ gridRow: FIRST_HOUR_ROW + hours.length, gridColumn: column + 2 }}
                         >
                             {loose.map((item) => (
                                 <span
@@ -453,7 +466,7 @@ const TripTimeline = ({
 
                 <div
                     className="timeline__rowlabel timeline__rowlabel--total"
-                    style={{ gridRow: FIRST_HOUR_ROW + HOURS.length + 1, gridColumn: 1 }}
+                    style={{ gridRow: FIRST_HOUR_ROW + hours.length + 1, gridColumn: 1 }}
                 >
                     Per person
                 </div>
@@ -461,7 +474,7 @@ const TripTimeline = ({
                     <div
                         key={`${day.id}-cost`}
                         className="timeline__cost"
-                        style={{ gridRow: FIRST_HOUR_ROW + HOURS.length + 1, gridColumn: column + 2 }}
+                        style={{ gridRow: FIRST_HOUR_ROW + hours.length + 1, gridColumn: column + 2 }}
                     >
                         {formatMoney(byId[day.id]?.total || 0, currency)}
                         <em>{formatMoney(byId[day.id]?.runningTotal || 0, currency)}</em>

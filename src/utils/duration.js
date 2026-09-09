@@ -38,5 +38,16 @@ export const joinDuration = (hours, minutes) => {
 /** The choices in the minutes box. Five is fine enough for a day. */
 export const MINUTE_STEPS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
-/** The choices in the hours box. Nothing on a day plan runs half a day. */
-export const HOUR_STEPS = Array.from({ length: 13 }, (_, i) => i);
+/**
+ * The choices in the hours box.
+ *
+ * It stopped at twelve, on the reasoning that nothing on a day plan runs half
+ * a day. Long-haul does. A flight that is in the air when midnight passes now
+ * arrives as a card filling a whole day, and a picker that could not say more
+ * than twelve hours could not describe what the Ticket Book had already
+ * written — open it to edit anything else and the length was silently halved.
+ *
+ * Twenty-three is the true ceiling: `joinDuration` clamps there, and a day
+ * item's start and end are times *of day*, so a day is all one can hold.
+ */
+export const HOUR_STEPS = Array.from({ length: 24 }, (_, i) => i);

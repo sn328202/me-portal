@@ -17,7 +17,7 @@
 import { localDate, asAtlasItem as itemFromBooking, bookingNote } from './reservationToDay.js';
 import {
     localDate as journeyDate, asAtlasItem as itemFromJourney,
-    journeyNote, titleOf as journeyTitle,
+    journeyNote, titleOf as journeyTitle, planDays,
 } from './journeys.js';
 
 /** A table, a tasting, a show — anything in the Table Book. */
@@ -30,7 +30,13 @@ export const BOOKING = {
     itemOf: itemFromBooking,
 };
 
-/** A flight, a train, a ferry — anything in the Ticket Book. */
+/**
+ * A flight, a train, a ferry — anything in the Ticket Book.
+ *
+ * The one that has a `spreadOf`. A day item's times are times *of day*, so a
+ * flight that outlives a day cannot be one row — it becomes one per day it
+ * eats, and the picker places all of them on the trip she chose.
+ */
 export const JOURNEY = {
     table: 'journeys',
     noun: 'journey',
@@ -38,4 +44,5 @@ export const JOURNEY = {
     nameOf: journeyTitle,
     noteOf: journeyNote,
     itemOf: itemFromJourney,
+    spreadOf: planDays,
 };

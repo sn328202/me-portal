@@ -71,3 +71,32 @@ export const nearestDays = (choices, date, within = 3) => {
         .filter((d) => Math.abs(d.away) <= within)
         .sort((a, b) => Math.abs(a.away) - Math.abs(b.away));
 };
+
+/**
+ * Which day of a trip each of a spread's dates lands on, and which have none.
+ *
+ * A journey that eats three days needs three days to land on, and a trip that
+ * ends before the flight does has only some of them. Saying which ones are
+ * missing is the difference between "two of three days were added, the 25th
+ * is not in this trip" and a card she never finds because it was never
+ * written.
+ *
+ * Pure, because the interesting half is the missing half and it deserves a
+ * test rather than a look.
+ */
+export const spreadOnto = (choices, tripId, dates = []) => {
+    const inTrip = (choices || []).filter((d) => String(d.tripId) === String(tripId));
+    const byDate = new Map();
+    // First wins: a trip should not have two days on one date, but if it does,
+    // the earlier one in the sorted list is the one she would point at.
+    for (const day of inTrip) if (!byDate.has(day.date)) byDate.set(day.date, day);
+
+    const placed = [];
+    const missing = [];
+    for (const date of dates) {
+        const day = byDate.get(asDay(date));
+        if (day) placed.push({ date: asDay(date), day });
+        else missing.push(asDay(date));
+    }
+    return { placed, missing: missing.filter(Boolean) };
+};

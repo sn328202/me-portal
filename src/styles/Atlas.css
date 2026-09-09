@@ -2074,7 +2074,10 @@ textarea.ideas__spill-text {
         grid-template-columns: repeat(var(--days), minmax(9rem, 1fr));
     }
 
-    .timeline__blocks { grid-template-rows: repeat(19, 1fr); }
+    /* Nineteen was the grid's only shape. It stretches earlier now for a day
+       with something in the small hours, so the count comes from the component
+       rather than from here — with 19 as the fallback's fallback. */
+    .timeline__blocks { grid-template-rows: repeat(var(--rows, 19), 1fr); }
 }
 
 

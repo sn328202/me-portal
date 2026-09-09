@@ -28,6 +28,33 @@ export const timeToHour = (time) => {
 };
 
 /**
+ * Which hour a start sits on, resolving midnight's two meanings.
+ *
+ * 00:00 is ambiguous and the end time is what tells the two apart.
+ *
+ * On its own — a thing dragged onto the last row, no end, or ending at
+ * midnight too — it means late: the bottom of the day it was put on, hour 24.
+ * Left as hour 0 it would sort six hours before the grid begins and never be
+ * drawn at all, which is where that reading came from.
+ *
+ * But a card that starts at 00:00 and ends later the same day *began* the day
+ * — a flight already in the air when midnight passed. That is hour 0.
+ *
+ * Lives here, alone, because both the block's geometry and its label need the
+ * answer and they were each deciding it for themselves. They disagreed: a
+ * day-long transit card drew full height and read "12am", with no end and no
+ * length, because the label had put its start at hour 24 and its end at 23:59
+ * and concluded the thing finished before it started.
+ */
+export const startHour = (item) => {
+    const raw = timeToHour(item?.start_time);
+    if (raw === null) return null;
+    if (raw !== 0) return raw;
+    const rawTo = timeToHour(item?.end_time);
+    return rawTo !== null && rawTo > 0 ? 0 : 24;
+};
+
+/**
  * The rows an item occupies: `from` inclusive, `to` exclusive.
  *
  * An item with no end is one row — that is what everything typed in by hand
@@ -37,12 +64,9 @@ export const spanOf = (item) => {
     const raw = timeToHour(item?.start_time);
     if (raw === null) return null;
 
-    // The grid's last row is midnight, and midnight is stored as 00:00. Left
-    // as hour 0 it sorts six hours *before* the grid starts and never renders,
-    // so anything at midnight belongs at the bottom of the day it was put on.
-    const from = raw === 0 ? 24 : raw;
-
     const rawTo = timeToHour(item?.end_time);
+    const from = startHour(item);
+
     // Midnight as an end means the end of the day, not six hours before the
     // start; and an end at or before the start is a row of one.
     const to = rawTo === null ? from + 1 : (rawTo === 0 ? 24 : rawTo);
@@ -66,6 +90,35 @@ export const rowsFor = (item, hours = HOURS) => {
     if (to <= from) return null;
 
     return { start: from - first, span: to - from };
+};
+
+/**
+ * The rows to draw for a set of days, stretched earlier when something needs it.
+ *
+ * Six in the morning is the right first row for almost every day of almost
+ * every trip, and six empty rows above every one of them to accommodate the
+ * rare early start would be a worse grid for the sake of a better edge case.
+ *
+ * But her flight out of Mumbai leaves at 1:35am, and on a grid that begins at
+ * six it did not draw at all — `rowsFor` correctly returns null for something
+ * entirely above the first row, so the card existed and was nowhere. A day
+ * with something in the small hours gets the rows it needs, and every other
+ * day keeps the shape it has.
+ *
+ * The grid is shared across the days on screen, so this takes all of them at
+ * once: a column that started at 6 and its neighbour at 1 would put the same
+ * hour on two different rows.
+ */
+export const hoursFor = (items = [], base = HOURS) => {
+    let earliest = base[0];
+    for (const item of items) {
+        const span = spanOf(item);
+        if (span && span.from < earliest) earliest = span.from;
+    }
+    if (earliest >= base[0]) return base;
+
+    const last = base[base.length - 1];
+    return Array.from({ length: last - earliest + 1 }, (_, i) => i + earliest);
 };
 
 /**
@@ -145,17 +198,19 @@ export const lengthLabel = (minutes) => {
  * prints nothing and the absence is the honest answer.
  */
 export const timeLabel = (item) => {
-    const fromHour = timeToHour(item?.start_time);
+    // The same reading of midnight the block's geometry uses, so the two
+    // cannot disagree about whether a card fills a day or ends before it began.
+    const fromHour = startHour(item);
     if (fromHour === null) return null;
 
     const fromMin = timeToMinutes(item?.start_time);
-    const at = clockLabel(fromHour === 0 ? 24 : fromHour, fromMin);
+    const at = clockLabel(fromHour === 24 ? 24 : fromHour, fromMin);
 
     const toHour = timeToHour(item?.end_time);
     if (toHour === null) return { at, till: null, length: null, range: at };
 
     const toMin = timeToMinutes(item?.end_time);
-    const start = (fromHour === 0 ? 24 : fromHour) * 60 + fromMin;
+    const start = fromHour * 60 + fromMin;
     const end = (toHour === 0 ? 24 : toHour) * 60 + toMin;
     if (end <= start) return { at, till: null, length: null, range: at };
 

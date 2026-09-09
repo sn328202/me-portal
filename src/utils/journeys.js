@@ -285,6 +285,9 @@ export const plus = (time, minutes) => {
  * Which means the block is nine hours long for a six-hour flight, on purpose.
  * It is not measuring the flight. It is measuring how much of her day is gone,
  * and it ends where the evening starts.
+ *
+ * This is the single-day shape. A journey that outlives a day goes through
+ * `planDays` below, which is most long-haul.
  */
 export const asAtlasItem = (j) => {
     const start = localTime(j?.departs);
@@ -297,11 +300,10 @@ export const asAtlasItem = (j) => {
         booking: 'booked',
         journey_id: j?.id || null,
         start_time: start,
-        /* Only when the ticket lands the same day at a later clock. A red-eye
-           landing tomorrow, and the rarer Tokyo-to-Los-Angeles case that lands
-           at an earlier clock on the same date, would both draw a block that
-           ends before it starts — a negative-height row on the timeline. Those
-           get no end time, and the note says where they land in words. */
+        /* Only when the ticket lands the same day at a later clock. The Tokyo
+           to Los Angeles case — landing at an *earlier* clock on the same
+           date, across the date line — would draw a block that ends before it
+           starts, so it gets no end and the note says where it lands. */
         end_time: drawsAsBlock(j)
             ? localTime(j?.arrives)
             : (localTime(j?.arrives) ? null : plus(start, DEFAULT_LEG)),
@@ -310,6 +312,89 @@ export const asAtlasItem = (j) => {
         notes: journeyNote(j) || null,
         cost: j?.cost === null || j?.cost === undefined || j?.cost === '' ? null : Number(j.cost),
     };
+};
+
+/** Midnight, and the last minute before it. A day's two ends. */
+const DAY_STARTS = '00:00:00';
+const DAY_ENDS = '23:59:00';
+
+/** Every date from one to the other, inclusive. */
+const datesBetween = (from, to) => {
+    const out = [];
+    let cursor = Date.parse(`${from}T00:00:00Z`);
+    const last = Date.parse(`${to}T00:00:00Z`);
+    if (!Number.isFinite(cursor) || !Number.isFinite(last) || last < cursor) return out;
+    while (cursor <= last && out.length < 32) {
+        out.push(new Date(cursor).toISOString().slice(0, 10));
+        cursor += 86400000;
+    }
+    return out;
+};
+
+/**
+ * A journey as one row per day it eats.
+ *
+ * `atlas_day_items` stores `start_time` and `end_time` as times *of day*, so
+ * one row can never be longer than one day. That is not a limit worth fighting
+ * — it is what a day plan is — but it does mean a flight leaving Los Angeles
+ * on the 23rd and landing in Mumbai on the 25th cannot be one row. Squeezed
+ * into one it became a card with no end at all: "RUNS FOR 0 hr 00 min", on a
+ * journey of forty-one hours.
+ *
+ * So it becomes three, the way a calendar handles a multi-day event:
+ *
+ *     Dec 23   17:30 → midnight   "LAX → BOM · departs"
+ *     Dec 24   all day            "LAX → BOM · in transit"
+ *     Dec 25   midnight → 23:55   "LAX → BOM · lands 11:55 PM"
+ *
+ * The middle days matter most. Twenty-two hours of that journey is a layover
+ * in Munich — a whole day of her trip that looked free on the calendar and is
+ * not, and is in fact a day she might want to plan something in.
+ *
+ * Every row carries the same `journey_id`, so they are one booking wearing
+ * three cards; the cost sits on the first alone so the trip is not billed
+ * three times for one ticket.
+ */
+export const planDays = (j) => {
+    const from = localDate(j?.departs);
+    if (!from) return [];
+
+    const base = asAtlasItem(j);
+    const to = localDate(j?.arrives);
+
+    // The ordinary case, and still most journeys: it ends the day it began.
+    if (!to || to <= from) return [{ ...base, date: from }];
+
+    const dates = datesBetween(from, to);
+    if (dates.length < 2) return [{ ...base, date: from }];
+
+    const lands = clockLabel(j?.arrives);
+    const route = routeLabel(j) || labelOf(j);
+
+    return dates.map((date, i) => {
+        const first = i === 0;
+        const last = i === dates.length - 1;
+
+        return {
+            ...base,
+            date,
+            /* Named by what that day actually is. Three identical titles down
+               three days tells her nothing about which one she is looking at,
+               and the middle one is the day she most needs to recognise. */
+            title: first ? `${route} · departs`
+                : last ? `${route} · lands ${lands}`
+                    : `${route} · in transit`,
+            start_time: first ? localTime(j?.departs) : DAY_STARTS,
+            end_time: last ? localTime(j?.arrives) : DAY_ENDS,
+            /* The whole note on the first, where the confirmation and the
+               baggage are worth having; a short one after, because the same
+               four sentences three days running is wallpaper. */
+            notes: first ? (journeyNote(j) || null)
+                : `${serviceLabel(j) ? `${serviceLabel(j)} · ` : ''}Day ${i + 1} of ${dates.length}`,
+            // One ticket, one price. Repeating it would treble the trip total.
+            cost: first ? base.cost : null,
+        };
+    });
 };
 
 /**

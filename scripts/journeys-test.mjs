@@ -25,8 +25,10 @@ const {
     localDate, localTime, clockLabel, crossesMidnight, drawsAsBlock, daysLater, landsLabel,
     clockMinutes, clockSpanLabel,
     routeLabel, serviceLabel, titleOf, journeyNote,
-    plus, asAtlasItem, splitByClock, totalCost, totalsByCurrency, DEFAULT_LEG,
+    plus, asAtlasItem, planDays, splitByClock, totalCost, totalsByCurrency, DEFAULT_LEG,
 } = await import('../src/utils/journeys.js');
+
+const { spanOf } = await import('../src/utils/timeline.js');
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -184,6 +186,80 @@ console.log('\nputting it on a day:');
 check('an unpriced journey is null, not zero',
     asAtlasItem({ departs: '2026-09-16T09:00:00', cost: '' }).cost, null);
 check('midnight is 00:00, never 24:00', plus('23:30:00', 30), '00:00:00');
+
+console.log('\na journey longer than a day:');
+{
+    /* Her Chase booking, and the reason this exists. `atlas_day_items` stores
+       start and end as times *of day*, so one row can never outlive a day —
+       and this is forty-one hours across three dates. Squeezed into one it
+       became a card reading "RUNS FOR 0 hr 00 min" on a journey of nearly two
+       days. */
+    const chase = {
+        id: 'lax-bom', mode: 'flight',
+        carrier: 'Lufthansa German Airlines', number: 'LH 453 / LH 766',
+        from_place: 'LAX', to_place: 'BOM',
+        departs: '2026-12-23T17:30:00', arrives: '2026-12-25T23:55:00',
+        confirmation: 'AW39KT', duration: '40h 55m', cost: 1621.39, currency: 'USD',
+        notes: '1 stop: 22h 0m in MUC.',
+    };
+    const days = planDays(chase);
+
+    check('three dates, three cards', days.map((d) => d.date),
+        ['2026-12-23', '2026-12-24', '2026-12-25']);
+    check('the first runs from the departure clock to midnight',
+        [days[0].start_time, days[0].end_time], ['17:30:00', '23:59:00']);
+    /* The day that matters most: twenty-two of those hours are a layover in
+       Munich, which is a whole day of her trip that looked free and is not. */
+    check('the middle is a whole day',
+        [days[1].start_time, days[1].end_time], ['00:00:00', '23:59:00']);
+    check('and the last runs from midnight to the landing clock',
+        [days[2].start_time, days[2].end_time], ['00:00:00', '23:55:00']);
+
+    check('each is named by what that day is',
+        days.map((d) => d.title), [
+            'LAX → BOM · departs',
+            'LAX → BOM · in transit',
+            'LAX → BOM · lands 11:55 PM',
+        ]);
+    // One booking wearing three cards.
+    check('all three point at the same ticket',
+        days.every((d) => d.journey_id === 'lax-bom'), true);
+    check('all three are transport, and booked',
+        days.every((d) => d.kind === 'transport' && d.booking === 'booked'), true);
+    /* One ticket, one price. Repeating it would treble the trip total. */
+    check('the price is on the first day alone',
+        days.map((d) => d.cost), [1621.39, null, null]);
+    check('the confirmation is on the day she needs it',
+        days[0].notes.includes('AW39KT'), true);
+    check('and the days after say which day of it they are',
+        days[1].notes, 'Lufthansa German Airlines LH 453 / LH 766 · Day 2 of 3');
+
+    /* A day-long block is drawn from the top of the day, not the bottom.
+       `spanOf` used to send every midnight start to hour 24 — right for a
+       thing typed at midnight with no end, wrong for a flight already in the
+       air when midnight passed. */
+    check('the middle day fills the grid rather than sitting at the bottom',
+        spanOf(days[1]), { from: 0, to: 23 });
+}
+{
+    // The ordinary case is still one card, and still the common one.
+    const hop = { id: 'h', departs: '2026-09-16T09:00:00', arrives: '2026-09-16T18:00:00' };
+    const days = planDays(hop);
+    check('a journey inside one day is one card', days.length, 1);
+    check('running from the clock she leaves to the clock she lands',
+        [days[0].start_time, days[0].end_time], ['09:00:00', '18:00:00']);
+    check('and it carries the date it is for', days[0].date, '2026-09-16');
+}
+check('a red-eye is two cards, not one',
+    planDays({ id: 'r', ...redEye }).map((d) => d.date), ['2026-09-16', '2026-09-17']);
+/* Tokyo to Los Angeles lands at an earlier clock on the same date. One day,
+   one card — and no end time, because a block ending before it starts is a
+   negative-height row. */
+check('crossing the date line westward is still one card',
+    planDays({ id: 't', ...tokyoToLa }).length, 1);
+check('a journey with no landing time at all is one card',
+    planDays({ id: 'n', departs: '2026-09-16T09:00:00' }).length, 1);
+check('and nothing to depart on is no cards', planDays({}), []);
 
 console.log('\nheld and gone:');
 {

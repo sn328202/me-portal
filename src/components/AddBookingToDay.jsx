@@ -4,7 +4,7 @@ import { GiCalendar } from 'react-icons/gi';
 import { Button, Modal } from './ui';
 import { supabase } from '../lib/supabase';
 import { BOOKING } from '../utils/placeable';
-import { dayChoices, daysOn, labelDay, nearestDays } from '../utils/bookingDay';
+import { dayChoices, daysOn, labelDay, nearestDays, spreadOnto } from '../utils/bookingDay';
 import '../styles/SendToDay.css';
 
 /**
@@ -43,6 +43,16 @@ const AddBookingToDay = ({ reservation, onPlaced, spec = BOOKING }) => {
     const name = spec.nameOf(reservation);
     const note = spec.noteOf(reservation);
 
+    /* A day item's times are times *of day*, so one row can never outlive a
+       day — and a flight leaving Los Angeles on the 23rd and landing in Mumbai
+       on the 25th is forty-one hours. It arrives here as one row per day it
+       eats, and every one of them goes onto the trip she picks. */
+    const spread = useMemo(
+        () => (spec.spreadOf ? spec.spreadOf(reservation) : null),
+        [spec, reservation]
+    );
+    const spans = spread && spread.length > 1 ? spread : null;
+
     useEffect(() => {
         if (!open) return undefined;
         let alive = true;
@@ -78,16 +88,49 @@ const AddBookingToDay = ({ reservation, onPlaced, spec = BOOKING }) => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not signed in.');
 
+            const label = labelDay(target, pretty);
+
+            if (spans) {
+                /* Every day of the journey, onto the days of the trip she just
+                   chose. Days the trip does not reach are reported rather than
+                   dropped — a card that was never written is a card she will
+                   look for and not find. */
+                const { placed, missing } = spreadOnto(
+                    choices, target.tripId, spans.map((r) => r.date)
+                );
+                if (!placed.length) throw new Error('none of the days are in that trip');
+
+                const rows = placed.map(({ date, day }) => {
+                    const { date: _date, ...item } = spans.find((r) => r.date === date);
+                    return { ...item, day_id: day.id, user_id: user.id };
+                });
+
+                const { error: e } = await supabase.from('atlas_day_items').insert(rows);
+                if (e) throw e;
+
+                await supabase.from(spec.table)
+                    .update({ placed_at: new Date().toISOString(), placed_where: label })
+                    .eq('id', reservation.id);
+
+                setDone({
+                    label,
+                    days: placed.length,
+                    total: spans.length,
+                    missing,
+                });
+                onPlaced?.(label);
+                return;
+            }
+
             const { error: e } = await supabase.from('atlas_day_items')
                 .insert([{ ...spec.itemOf(reservation), day_id: target.id, user_id: user.id }]);
             if (e) throw e;
 
-            const label = labelDay(target, pretty);
             await supabase.from(spec.table)
                 .update({ placed_at: new Date().toISOString(), placed_where: label })
                 .eq('id', reservation.id);
 
-            setDone(label);
+            setDone({ label });
             onPlaced?.(label);
         } catch (err) {
             console.error(`Error placing the ${spec.noun}:`, err);
@@ -108,7 +151,28 @@ const AddBookingToDay = ({ reservation, onPlaced, spec = BOOKING }) => {
             <Modal open={open} onClose={close} title={`Put this ${spec.noun} on a day`}>
                 {done ? (
                     <div className="send-atlas">
-                        <p><strong>{name}</strong> is on {done}.</p>
+                        <p><strong>{name}</strong> is on {done.label}.</p>
+
+                        {/* A journey that ate three days says so, because
+                            three cards appearing where one was expected is
+                            confusing until you know why. */}
+                        {done.days > 1 && (
+                            <p className="send-atlas__why">
+                                It runs across {done.total} days, so there is a card on each
+                                of them — the day it leaves, the days in the air, and the day
+                                it lands.
+                            </p>
+                        )}
+
+                        {done.missing?.length > 0 && (
+                            <p className="send-atlas__warn">
+                                {done.missing.length === 1
+                                    ? `${pretty(done.missing[0])} is not in that trip, so nothing was put there.`
+                                    : `${done.missing.map((d) => pretty(d)).join(' and ')} are not in that trip, so nothing was put there.`}
+                                {' '}Stretch the trip’s dates and add it again if you want it shown.
+                            </p>
+                        )}
+
                         <div className="send-atlas__acts">
                             <Button variant="solid" onClick={close}>Done</Button>
                         </div>
@@ -129,6 +193,13 @@ const AddBookingToDay = ({ reservation, onPlaced, spec = BOOKING }) => {
                         </p>
 
                         {loading && <p className="send-atlas__why">Looking through your trips…</p>}
+
+                        {spans && (
+                            <p className="send-atlas__why">
+                                This one runs {spans.length} days. It goes on as {spans.length} cards
+                                — one for each day it takes up — all on the trip below.
+                            </p>
+                        )}
 
                         {!loading && settled && (
                             <p className="send-atlas__matched">
