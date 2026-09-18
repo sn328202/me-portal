@@ -240,7 +240,7 @@ const Larder = () => {
         deleteIngredient, ingredientsByName, matcher, addManyIngredients, addAlias,
         removeAlias, ingredients, updateIngredient,
     } = useIngredients();
-    const { menus, addMenu, updateMenu, deleteMenu } = useMenus();
+    const { menus, addMenu, updateMenu, deleteMenu, setServeTime, savePlan } = useMenus();
 
     // The Hearth: which day a picked formula lands on
     const [picker, setPicker] = useState({ open: false, day: null });
@@ -619,6 +619,8 @@ const Larder = () => {
                         onSaveMenu={addMenu}
                         onUpdateMenu={updateMenu}
                         onDeleteMenu={deleteMenu}
+                        onSetServeTime={setServeTime}
+                        onSavePlan={savePlan}
                         creating={isBuildingMenu}
                         onCreatingChange={setIsBuildingMenu}
                     />

@@ -1,6 +1,25 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { replanFor } from '../../api/_cookPlan.js';
+
+/**
+ * One row of a menu, whether it is cooked or bought.
+ *
+ * A course can hold the Diet Coke and the Whole Foods cookies as readily as it
+ * holds a recipe: same table, same ordering, recipe_id simply null and a name
+ * in its place. Anything with neither is dropped rather than saved as a blank
+ * line on a menu.
+ */
+const entryRow = (mr, index, menuId, userId) => ({
+    menu_id: menuId,
+    recipe_id: mr.recipe_id || null,
+    item_name: mr.recipe_id ? null : (mr.item_name || '').trim() || null,
+    item_note: mr.recipe_id ? null : (mr.item_note || '').trim() || null,
+    course_name: mr.course_name || 'Main Course',
+    order_index: mr.order_index ?? index,
+    user_id: userId,
+});
 
 export const useMenus = () => {
     const { user } = useAuth();
@@ -62,13 +81,7 @@ export const useMenus = () => {
 
             // 2. Insert Menu Recipes
             if (menuRecipes && menuRecipes.length > 0) {
-                const recipesToInsert = menuRecipes.map((mr, index) => ({
-                    menu_id: menuData.id,
-                    recipe_id: mr.recipe_id,
-                    course_name: mr.course_name || 'Main Course',
-                    order_index: mr.order_index ?? index,
-                    user_id: user.id
-                }));
+                const recipesToInsert = menuRecipes.map((mr, index) => entryRow(mr, index, menuData.id, user.id));
 
                 const { error: mrError } = await supabase
                     .from('user_larder_menu_recipes')
@@ -127,13 +140,7 @@ export const useMenus = () => {
             if (deleteError) throw deleteError;
 
             if (menuRecipes && menuRecipes.length > 0) {
-                const recipesToInsert = menuRecipes.map((mr, index) => ({
-                    menu_id: id,
-                    recipe_id: mr.recipe_id,
-                    course_name: mr.course_name || 'Main Course',
-                    order_index: mr.order_index ?? index,
-                    user_id: user.id
-                }));
+                const recipesToInsert = menuRecipes.map((mr, index) => entryRow(mr, index, id, user.id));
 
                 const { error: mrError } = await supabase
                     .from('user_larder_menu_recipes')
@@ -149,6 +156,44 @@ export const useMenus = () => {
         }
     };
 
+    /**
+     * When it is being served.
+     *
+     * A plan that has already been built moves with it rather than going
+     * stale: every step keeps its distance from the food going out, and the
+     * clocks are worked out again. Moving dinner an hour earlier should not
+     * mean asking for the whole plan a second time.
+     */
+    const setServeTime = async (id, { serve_date: serveDate, serve_time: serveTime }) => {
+        if (!user) return null;
+        const menu = menus.find((m) => m.id === id);
+        const plan = replanFor(menu?.plan, { serve_date: serveDate, serve_time: serveTime });
+
+        const patch = { serve_date: serveDate || null, serve_time: serveTime || null, plan: plan || null };
+        const { error: saveError } = await supabase
+            .from('user_larder_menus')
+            .update(patch)
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        if (saveError) throw saveError;
+        setMenus((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+        return plan;
+    };
+
+    /** The plan itself — built, edited, or ticked off a step at a time. */
+    const savePlan = async (id, plan) => {
+        if (!user) return;
+        const { error: saveError } = await supabase
+            .from('user_larder_menus')
+            .update({ plan: plan || null })
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        if (saveError) throw saveError;
+        setMenus((prev) => prev.map((m) => (m.id === id ? { ...m, plan: plan || null } : m)));
+    };
+
     return {
         menus,
         loading,
@@ -156,6 +201,8 @@ export const useMenus = () => {
         addMenu,
         updateMenu,
         deleteMenu,
+        setServeTime,
+        savePlan,
         refreshMenus: fetchMenus
     };
 };

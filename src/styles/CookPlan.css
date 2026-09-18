@@ -1,0 +1,235 @@
+/* The cook plan: a menu read backwards from dinner, a day at a time. */
+
+.cookplan {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    max-width: 52rem;
+    margin: 0 auto;
+    padding: var(--space-4) 0;
+}
+
+.cookplan__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.cookplan__title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
+    color: var(--accent-gold);
+}
+
+.cookplan__sub {
+    margin: var(--space-1) 0 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+}
+
+.cookplan__when {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    padding: var(--space-4);
+    background: var(--bg-panel);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+}
+
+.cookplan__when .field { min-width: 10rem; }
+.cookplan__when-time { min-width: 10rem; }
+
+.cookplan__hint,
+.cookplan__note,
+.cookplan__error {
+    margin: 0;
+    font-size: var(--text-sm);
+}
+
+.cookplan__hint { color: var(--text-muted); }
+.cookplan__error { color: var(--accent-alarm, #c0392b); }
+
+/* What has to happen before the day itself — the part worth reading alone. */
+.cookplan__note {
+    padding: var(--space-3) var(--space-4);
+    border-left: 2px solid var(--accent-gold);
+    background: var(--bg-hover);
+    color: var(--text-main);
+    font-style: italic;
+}
+
+.cookplan__days {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.cookplan__day-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-3);
+    padding-bottom: var(--space-1);
+    border-bottom: var(--rule-hair);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-heading);
+    text-transform: var(--case-heading);
+    color: var(--accent-gold);
+}
+
+.cookplan__day-date {
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.cookplan__steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.cookplan__step {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    background: var(--bg-panel);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+}
+
+.cookplan__tick {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: inherit;
+    font-family: var(--font-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.cookplan__box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin-top: 2px;
+    border: 1px solid var(--text-gold, var(--accent-gold));
+    border-radius: 3px;
+    color: var(--accent-gold);
+    font-size: 0.7rem;
+}
+
+/* The clock is the column she reads down, so it keeps its own width and does
+   not shuffle left and right as the times change length. */
+.cookplan__at {
+    flex-shrink: 0;
+    width: 5rem;
+    color: var(--accent-gold);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+}
+
+.cookplan__what {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    font-size: var(--text-sm);
+    overflow-wrap: break-word;
+}
+
+.cookplan__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+}
+
+.cookplan__dish {
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-dim);
+    border-radius: 999px;
+}
+
+/* Waiting is not working, and it should not read like work. */
+.cookplan__waiting { font-style: italic; text-transform: none; letter-spacing: normal; }
+
+.cookplan__step--done { opacity: 0.85; }
+.cookplan__step--done .cookplan__what { color: var(--text-muted); text-decoration: line-through; }
+.cookplan__step--done .cookplan__box { background: var(--bg-hover); }
+
+.cookplan__step-actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.cookplan__editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3);
+    background: var(--bg-hover);
+    border-radius: var(--radius-sm);
+}
+
+.cookplan__editor-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--space-3);
+}
+
+.cookplan__waiting-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.cookplan__editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+}
+
+/* On a phone, in a kitchen: the clock goes above the step rather than
+   squeezing it into a column three words wide. */
+@media (max-width: 40rem) {
+    .cookplan__tick { flex-wrap: wrap; }
+    .cookplan__at { width: auto; }
+    .cookplan__what { flex-basis: 100%; }
+}
