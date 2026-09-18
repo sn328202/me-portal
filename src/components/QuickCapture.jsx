@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GiQuillInk, GiCancel, GiPhotoCamera } from 'react-icons/gi';
 import { useCapture } from '../contexts/CaptureContext';
-import { pickPhotos, asDataUrl, ACCEPT, MAX_PHOTOS } from '../utils/photoPick';
+import { pickPhotos, shrinkAll, base64Length, ACCEPT, MAX_PHOTOS } from '../utils/photoPick';
 import '../styles/QuickCapture.css';
 
 /**
@@ -34,6 +34,8 @@ const QuickCapture = () => {
     const [photos, setPhotos] = useState([]);
     const [photoNote, setPhotoNote] = useState(null);
     const [over, setOver] = useState(false);
+    // Reading and re-encoding a few megapixels takes a visible moment.
+    const [shrinking, setShrinking] = useState(false);
     const inputRef = useRef(null);
     const fileRef = useRef(null);
 
@@ -61,20 +63,31 @@ const QuickCapture = () => {
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
-    /* Paste, drop or the camera button, all landing in one place. */
+    /* Paste, drop or the camera button, all landing in one place.
+     *
+       Shrinking happens here, not on the server: a photograph off a phone is
+       three to five megabytes and the request body stops at about four and a
+       half. The first real photograph anybody took came back "too big", which
+       is a limit reported rather than a problem solved. */
     const take = useCallback(async (files) => {
         const { files: wanted, problems } = pickPhotos(files, photos.length);
-        setPhotoNote(problems.length ? problems.join(' · ') : null);
-        if (!wanted.length) return;
-        try {
-            const read = await Promise.all(wanted.map(asDataUrl));
-            setPhotos((prev) => [...prev, ...read.map((data, i) => ({
-                data, name: wanted[i].name, url: URL.createObjectURL(wanted[i]),
-            }))]);
-        } catch (err) {
-            setPhotoNote(err.message);
+        if (!wanted.length) {
+            setPhotoNote(problems.length ? problems.join(' · ') : null);
+            return;
         }
-    }, [photos.length]);
+
+        setShrinking(true);
+        try {
+            const already = photos.reduce((n, p) => n + base64Length(p.data), 0);
+            const { photos: done, problems: bad } = await shrinkAll(wanted, already);
+            setPhotoNote([...problems, ...bad].join(' · ') || null);
+            setPhotos((prev) => [...prev, ...done.map(({ file, data }) => ({
+                data, name: file.name, url: URL.createObjectURL(file),
+            }))]);
+        } finally {
+            setShrinking(false);
+        }
+    }, [photos]);
 
     const drop = (e) => {
         e.preventDefault();
@@ -156,7 +169,7 @@ const QuickCapture = () => {
                     title={`Add a photo — a recipe page, a label (up to ${MAX_PHOTOS})`}
                     aria-label="Add a photo"
                     onClick={() => fileRef.current?.click()}
-                    disabled={pending || photos.length >= MAX_PHOTOS}
+                    disabled={pending || shrinking || photos.length >= MAX_PHOTOS}
                 >
                     <GiPhotoCamera />
                 </button>
@@ -164,13 +177,13 @@ const QuickCapture = () => {
                 <button
                     type="submit"
                     className="quick-capture__send"
-                    disabled={(!text.trim() && !photos.length) || pending}
+                    disabled={(!text.trim() && !photos.length) || pending || shrinking}
                 >
-                    {pending ? 'Filing…' : 'Add'}
+                    {pending ? 'Filing…' : shrinking ? 'Reading…' : 'Add'}
                 </button>
             </form>
 
-            {(photos.length > 0 || photoNote) && (
+            {(photos.length > 0 || photoNote || shrinking) && (
                 <div className="quick-capture__photos">
                     {photos.map((p, i) => (
                         <span className="quick-capture__photo" key={p.url}>
@@ -192,6 +205,7 @@ const QuickCapture = () => {
                             Read together, in this order, as one thing.
                         </span>
                     )}
+                    {shrinking && <span className="quick-capture__photo-note">Resizing…</span>}
                     {photoNote && <span className="quick-capture__photo-bad">{photoNote}</span>}
                 </div>
             )}
