@@ -9,7 +9,7 @@
 
 import {
     readPhoto, readPhotos, sniff, photoPath, asContent, photoPreamble,
-    imageType, boundaryOf, parseMultipart, bodyFrom,
+    imageType, boundaryOf, parseMultipart, bodyFrom, sniffBytes,
     MAX_PHOTOS, MAX_ONE, MAX_ALL,
 } from '../api/_photo.js';
 
@@ -168,6 +168,32 @@ check('nor nothing at all', imageType(undefined), null);
 check('a boundary is found', boundaryOf('multipart/form-data; boundary=abc123'), 'abc123');
 check('and one in quotes', boundaryOf('multipart/form-data; boundary="a b c"'), 'a b c');
 check('no boundary is null, not a crash', boundaryOf('multipart/form-data'), null);
+
+console.log('\nbelieving the bytes when the label is unhelpful:');
+/* Shortcuts will call a photograph `application/octet-stream` depending on
+   where the image came from. Refusing it on the label is the same silent
+   nothing this feature has already failed with twice. */
+const JPEG_BYTES = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(16)]);
+const PNG_BYTES = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)]);
+const WEBP_BYTES = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP'), Buffer.alloc(8)]);
+check('a JPEG is known by its bytes', sniffBytes(JPEG_BYTES), 'image/jpeg');
+check('and a PNG', sniffBytes(PNG_BYTES), 'image/png');
+check('and a WebP, which needs bytes 8 to 12 as well', sniffBytes(WEBP_BYTES), 'image/webp');
+check('and a GIF', sniffBytes(Buffer.concat([Buffer.from('GIF89a'), Buffer.alloc(8)])), 'image/gif');
+check('something that is not a picture is not one', sniffBytes(Buffer.from('{"text":"hello there"}')), null);
+check('and nor is a buffer too short to tell', sniffBytes(Buffer.from([0xff, 0xd8])), null);
+check('nor a string', sniffBytes('/9j/4AAQ'), null);
+
+check('an octet-stream photograph is read anyway',
+    bodyFrom({ contentType: 'application/octet-stream', raw: JPEG_BYTES }).images.length, 1);
+check('and labelled by what it really is',
+    bodyFrom({ contentType: 'application/octet-stream', raw: JPEG_BYTES })
+        .images[0].startsWith('data:image/jpeg;base64,'), true);
+/* But a JSON body is never sniffed at: it is text, it will not match, and
+   trying would only make the JSON path harder to reason about. */
+check('a JSON body is not mistaken for a picture',
+    bodyFrom({ contentType: 'application/json', json: { text: 'hi' }, raw: Buffer.from('{"text":"hi"}') }),
+    { text: 'hi' });
 
 console.log('\nsplitting a form apart:');
 {

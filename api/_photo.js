@@ -170,6 +170,24 @@ export const photoPreamble = (count, text) => {
  * mistype. Two shapes arrive that way and both are read here.
  */
 
+/**
+ * What a buffer really is, from its first bytes.
+ *
+ * The label is not to be trusted and sometimes is not even offered: Shortcuts
+ * will send a photograph as `application/octet-stream` depending on where the
+ * image came from, and a content-type check alone would then refuse a
+ * perfectly good JPEG — which is the same silent nothing this whole feature
+ * has already failed with twice.
+ */
+export const sniffBytes = (buf) => {
+    if (!Buffer.isBuffer(buf) || buf.length < 12) return null;
+    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+    if (buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+    if (buf.slice(0, 6).toString('latin1') === 'GIF89a' || buf.slice(0, 6).toString('latin1') === 'GIF87a') return 'image/gif';
+    if (buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+    return null;
+};
+
 /** The image types we accept, as a content-type rather than as magic bytes. */
 export const imageType = (contentType) => {
     const m = /^(image\/(?:jpeg|jpg|png|gif|webp))\b/i.exec(String(contentType || '').trim());
@@ -245,7 +263,10 @@ export const parseMultipart = (buf, boundary) => {
 export const bodyFrom = ({ contentType, raw, json, query = {} }) => {
     const ct = String(contentType || '');
 
-    const direct = imageType(ct);
+    /* The label first, the bytes second. Believing only the label refuses a
+       JPEG that Shortcuts happened to call octet-stream; believing only the
+       bytes would try to read a JSON body as a picture. */
+    const direct = imageType(ct) || (!/^(application\/json|multipart\/)/i.test(ct) ? sniffBytes(raw) : null);
     if (direct && Buffer.isBuffer(raw) && raw.length) {
         return {
             text: String(query.text || '').trim(),
@@ -259,7 +280,7 @@ export const bodyFrom = ({ contentType, raw, json, query = {} }) => {
         const images = [];
         const fields = {};
         for (const part of parts) {
-            const kind = imageType(part.type);
+            const kind = imageType(part.type) || (part.filename ? sniffBytes(part.data) : null);
             if (kind && part.data.length) {
                 images.push(`data:${kind};base64,${part.data.toString('base64')}`);
             } else if (part.name && !part.filename) {
