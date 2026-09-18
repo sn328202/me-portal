@@ -22,21 +22,13 @@ const SIGNATURES = [
     { media_type: 'image/webp', prefix: 'UklGR', ext: 'webp' },
 ];
 
-/** How many photographs one capture may carry. */
-export const MAX_PHOTOS = 4;
-
-/* The ceiling is not ours: a serverless request body is capped at about 4.5MB,
-   and the base64 sits in that body one character to the byte — so the budget is
-   ~4.5 million characters for everything, JSON and all. Four million leaves
-   room for the rest of the request and for being wrong about the exact limit.
-   A photograph that arrives truncated is worse than one refused, because a
-   truncated one reads as a corrupt image and is reported as nothing to file.
-
-   Base64 is four characters to every three bytes, so 2.6M characters is about
-   a 1.9MB photograph — generous for one. A camera photo resized to 1600px is
-   nearer 400KB, and four of those fit comfortably inside the total. */
-export const MAX_ONE = 2_600_000;
-export const MAX_ALL = 4_000_000;
+/* The limits live next door, in a file with no Node in it, because the
+   browser's picker needs the same numbers and this module builds a Buffer the
+   moment it is imported. A photograph that arrives truncated is worse than one
+   refused, because a truncated one reads as a corrupt image and is reported as
+   nothing to file. */
+export { MAX_PHOTOS, MAX_ONE, MAX_ALL } from './_photoLimits.js';
+import { MAX_PHOTOS, MAX_ONE, MAX_ALL } from './_photoLimits.js';
 
 /** The `data:` wrapper a browser adds, and Shortcuts does not. */
 const unwrap = (value) => {

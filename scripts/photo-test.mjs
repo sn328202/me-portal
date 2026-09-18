@@ -262,5 +262,54 @@ check('JSON is left alone',
 check('and so is a body that is nothing at all',
     bodyFrom({ contentType: 'application/json', json: null }), {});
 
+console.log('\nnothing the browser loads may need Node:');
+{
+    /* This exists because it shipped. `photoPick.js` imported three constants
+       from `_photo.js` — which builds a Buffer at module scope — so
+       `Buffer.from` ran on the first line the browser executed and the whole
+       portal white-screened with "Buffer is not defined". Lint passed. The
+       build passed. Nothing loaded the page.
+     *
+       The shape of the mistake is general: anything under src/ reaching into
+       api/ is code written for a server being handed to a browser. So the
+       check is general too. */
+    const fs2 = await import('node:fs');
+    const path = await import('node:path');
+
+    const walk = (dir) => fs2.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+        const full = path.join(dir, e.name);
+        return e.isDirectory() ? walk(full) : (/\.(jsx?|mjs)$/.test(e.name) ? [full] : []);
+    });
+
+    /* Comments stripped first, or the check reads the paragraph in
+       `_photoLimits.js` explaining why it has no Buffer in it and concludes it
+       has a Buffer in it. Which is what happened. */
+    const code = (file) => fs2.readFileSync(file, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+    const NODE_ONLY = (file) => /\bBuffer\b|\bprocess\.|from 'node:|require\(/.test(code(file));
+    const offenders = [];
+
+    for (const file of walk('src')) {
+        for (const m of code(file).matchAll(/from\s+'([^']*\/api\/[^']+)'/g)) {
+            const target = path.resolve(path.dirname(file), m[1]);
+            if (!fs2.existsSync(target)) { offenders.push(`${file} -> ${m[1]} (missing)`); continue; }
+            if (NODE_ONLY(target)) {
+                offenders.push(`${file} imports ${path.basename(target)}, which needs Node`);
+            }
+        }
+    }
+
+    check('no browser file imports a server module that needs Node', offenders, []);
+    // And the specific pairing, named, so the fix is obvious if it regresses.
+    check('the picker takes its limits from the file with no Node in it',
+        fs2.readFileSync('src/utils/photoPick.js', 'utf8').includes("api/_photoLimits.js"), true);
+    check('and that file has no Node in it', NODE_ONLY('api/_photoLimits.js'), false);
+    // The guard has teeth only if it still catches the module that broke it.
+    check('while the module that did break it is still caught',
+        NODE_ONLY('api/_photo.js'), true);
+}
+
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);

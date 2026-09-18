@@ -8,7 +8,10 @@
  * after it.
  */
 
-import { MAX_PHOTOS, MAX_ONE, MAX_ALL } from '../../api/_photo.js';
+/* `_photoLimits`, never `_photo` — that one builds a Buffer at module scope,
+   and importing it here for three numbers put `Buffer.from` on the first line
+   the browser ran. */
+import { MAX_PHOTOS, MAX_ONE, MAX_ALL } from '../../api/_photoLimits.js';
 
 export { MAX_PHOTOS };
 
