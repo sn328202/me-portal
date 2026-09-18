@@ -218,4 +218,116 @@ t('an aisle the app has never heard of still gets one', () => {
     assert.equal(faceOf(''), '\u{1F4CE}');
 });
 
+console.log('\ncopied, it still knows the aisles:');
+
+t('the copy is laid out in sections, not one flat run', () => {
+    /* It used to paste as two blocks — what she typed, then what the plan
+       implied — which is neither what you read in a shop nor what you hand
+       to someone else. */
+    const text = listAsText({
+        items: [{ id: 'm1', text: 'Milk', checked: false }],
+        planned: plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat }),
+        matcher: cat,
+    });
+    assert.match(text, /SHOPPING LIST/);
+    assert.match(text, /PRODUCE/);
+    assert.match(text, /DAIRY/);
+    assert.equal(text.includes('FROM THE HEARTH'), false, 'the old two-block shape is gone');
+});
+
+t('each line sits under the aisle it belongs to', () => {
+    const text = listAsText({
+        items: [],
+        planned: plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat }),
+        matcher: cat,
+    });
+    const section = (name) => text.split(/\n\n/).find((b) => b.includes(name)) || '';
+    assert.match(section('PRODUCE'), /Basil/);
+    assert.match(section('DAIRY'), /Butter/);
+    assert.equal(section('PRODUCE').includes('Butter'), false);
+});
+
+t('and the sections come in the order you walk them', () => {
+    const text = listAsText({
+        items: [{ id: 'm1', text: 'birthday candles' }],
+        planned: plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat }),
+        matcher: cat,
+    });
+    assert.ok(text.indexOf('PRODUCE') < text.indexOf('DAIRY'));
+    assert.ok(text.indexOf('DAIRY') < text.indexOf('ANYTHING ELSE'), 'unmatched last');
+});
+
+t('every heading carries its face', () => {
+    const text = listAsText({ items: [], planned: [{ key: 'b', label: 'Basil', category: 'Produce' }] });
+    assert.match(text, /\u{1F96C} PRODUCE/u);
+});
+
+t('what is typed and what is cooked are one line in the copy too', () => {
+    const text = listAsText({
+        items: [{ id: 'm1', text: 'garlic', checked: false }],
+        planned: plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat }),
+        matcher: cat,
+    });
+    assert.equal(text.match(/garlic/gi).length, 1, 'one garlic, not two');
+    assert.match(text, /- \[ \] 6 garlic/);
+});
+
+t('a ticked line and a pantry line are both left out of the copy', () => {
+    const text = listAsText({
+        items: [{ id: 'm1', text: 'Bin bags', checked: true }],
+        planned: plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat, pantryStock: { garlic: true } }),
+        matcher: cat,
+        pantryStock: { garlic: true },
+    });
+    assert.equal(text.includes('Bin bags'), false);
+    assert.equal(/garlic/i.test(text), false);
+});
+
+t('an empty list says so rather than pasting a bare heading', () => {
+    assert.match(listAsText({ items: [], planned: [] }), /Nothing to buy/);
+});
+
+console.log('\ntwo units is two lines, all the way to the basket:');
+
+t('200g of butter and 2 tbsp of butter do not become 202 of nothing', () => {
+    /* plannedFrom had always kept them apart; mergeList keyed on the
+       ingredient alone and added them back together, and the page showed
+       "202 g Butter". */
+    const merged = mergeList({
+        items: [],
+        planned: plannedFrom({ plan: PLAN, recipes: RECIPES, matcher: cat }),
+        matcher: cat,
+    });
+    const butter = merged.filter((l) => l.label === 'Butter');
+    assert.deepEqual(butter.map((b) => [b.amount, b.unit]).sort(), [[2, 'tbsp'], [200, 'g']]);
+});
+
+t('a line she typed adopts the first unit, and does not then split', () => {
+    // "butter" typed by hand, then 200g from one recipe and 100g from another:
+    // one line of 300g, not a 200 and a 100.
+    const merged = mergeList({
+        items: [{ id: 'm1', text: 'butter', checked: false }],
+        planned: [
+            { key: 'p1', label: 'Butter', amount: 200, unit: 'g', ingredientId: 'butter', notes: [] },
+            { key: 'p2', label: 'Butter', amount: 100, unit: 'g', ingredientId: 'butter', notes: [] },
+        ],
+        matcher: cat,
+    });
+    const butter = merged.filter((l) => /butter/i.test(l.label));
+    assert.equal(butter.length, 1);
+    assert.equal(butter[0].amount, 300);
+    assert.equal(butter[0].unit, 'g');
+    assert.equal(butter[0].itemId, 'm1', 'and it is still the row she can tick');
+});
+
+t('the same thing written down twice is still one line', () => {
+    const merged = mergeList({
+        items: [{ id: 'm1', text: 'Garlic' }, { id: 'm2', text: 'garlic' }],
+        planned: [],
+        matcher: cat,
+    });
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].label, 'Garlic', 'the first spelling is the one she will recognise');
+});
+
 console.log(`\nshoppingList: ${n} passed`);

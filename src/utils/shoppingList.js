@@ -69,30 +69,38 @@ export const plannedFrom = ({ plan, recipes, matcher, pantryStock = {} } = {}) =
 /**
  * The list as something you can paste into a message or read in a shop.
  *
+ * It used to paste flat, in two blocks — what she typed, then what the meal
+ * plan implied — which is neither of the two things a copied list is for. In
+ * a shop you walk aisles, and in a message you hand someone a list they can
+ * read; a hundred lines in arrival order is neither. So the text is built the
+ * same way the page is: merged, so nothing is asked for twice, and grouped
+ * into the aisles in the order you walk them.
+ *
  * What is ticked and what is already in the pantry are both left out: this is
  * the list of things to put in the basket, and a line you do not need is a
  * line you have to read past while holding a basket.
  */
-export const listAsText = ({ items = [], planned = [], title = 'SHOPPING', hearth = 'FROM THE HEARTH' } = {}) => {
-    let text = `${title} LIST\n\n`;
+export const listAsText = ({
+    items = [], planned = [], matcher, pantryStock = {}, title = 'SHOPPING',
+} = {}) => {
+    const { aisles } = byAisle(mergeList({ items, planned, matcher, pantryStock }));
 
-    const needed = items.filter((i) => !i.checked);
-    if (needed.length) {
-        text += `${title}:\n`;
-        needed.forEach((i) => { text += `- [ ] ${i.text}\n`; });
-        text += '\n';
-    }
+    const head = `${title} LIST\n`;
+    if (!aisles.length) return `${head}\nNothing to buy.\n`;
 
-    const toBuy = planned.filter((i) => !i.inStock);
-    if (toBuy.length) {
-        text += `${hearth}:\n`;
-        toBuy.forEach((ing) => {
-            const amount = ing.amount > 0 ? `${ing.amount} ${ing.unit} `.replace(/\s+/g, ' ') : '';
-            text += `- [ ] ${amount}${ing.label}\n`;
+    // One section per aisle, and its heading carries the face the page shows —
+    // in a shop the shape is read a whole word before the word is.
+    const sections = aisles.map(({ name, face, lines }) => {
+        const rows = lines.map((line) => {
+            const amount = line.amount > 0
+                ? `${line.amount}${line.unit ? ` ${line.unit}` : ''} `
+                : '';
+            return `- [ ] ${amount}${line.label}`;
         });
-    }
+        return [`${face} ${name.toUpperCase()}`, ...rows].join('\n');
+    });
 
-    return text;
+    return `${head}\n${sections.join('\n\n')}\n`;
 };
 
 /** How many lines are actually still to buy, for a count on a heading. */
@@ -116,7 +124,12 @@ export const stillToBuy = (items = [], planned = []) => items.filter((i) => !i.c
  * she wrote it, not as the pantry's tidy name for it.
  */
 export const mergeList = ({ items = [], planned = [], matcher, pantryStock = {} } = {}) => {
-    const out = new Map();
+    // Rows in the order they were first seen, plus an index onto them. The
+    // index is not the list: one row can be findable under two keys (see the
+    // typed line adopting a unit, below) and it must still be one row.
+    const rows = [];
+    const index = new Map();
+    const put = (key, row) => { index.set(key, row); return row; };
 
     for (const item of items) {
         const text = String(item?.text || '').trim();
@@ -125,7 +138,7 @@ export const mergeList = ({ items = [], planned = [], matcher, pantryStock = {} 
         const match = resolved.item;
         const key = match ? `ing-${match.id}` : `raw-${resolved.normalised || text.toLowerCase()}`;
 
-        out.set(key, {
+        const row = {
             key,
             label: text,
             amount: 0,
@@ -137,12 +150,33 @@ export const mergeList = ({ items = [], planned = [], matcher, pantryStock = {} 
             notes: [],
             itemId: item.id,
             checked: !!item.checked,
-        });
+        };
+        // Written down twice is still one line, and the first spelling of it
+        // is the one she will recognise.
+        if (index.has(key)) continue;
+        rows.push(put(key, row));
     }
 
     for (const ing of planned) {
-        const key = ing.ingredientId ? `ing-${ing.ingredientId}` : `raw-${String(ing.label || '').toLowerCase()}`;
-        const had = out.get(key);
+        const base = ing.ingredientId
+            ? `ing-${ing.ingredientId}`
+            : `raw-${String(ing.label || '').toLowerCase()}`;
+        // Same thing in a different unit is a different line: 200g of butter
+        // and 2 tbsp of butter are one shop but not one number, and adding
+        // them makes 202 of nothing. plannedFrom keeps those apart and this
+        // used to put them back together again.
+        const unit = ing.unit || '';
+        const key = unit ? `${base}@${unit}` : base;
+
+        let had = index.get(key);
+        if (!had) {
+            // A line she typed has no unit of its own, so the first recipe
+            // amount to arrive is free to give it one — and from then on that
+            // row answers to the unit key too, or the next 200g of butter
+            // would start a second butter.
+            const typed = index.get(base);
+            if (typed && !typed.unit && !typed.amount) had = put(key, typed);
+        }
         if (had) {
             // Same thing, said twice. Keep her label, take the recipe's amount
             // and the reason it is needed.
@@ -153,10 +187,10 @@ export const mergeList = ({ items = [], planned = [], matcher, pantryStock = {} 
             had.category = had.category || ing.category;
             continue;
         }
-        out.set(key, { ...ing, key, itemId: null, checked: false, notes: ing.notes || [] });
+        rows.push(put(key, { ...ing, key, itemId: null, checked: false, notes: ing.notes || [] }));
     }
 
-    return [...out.values()];
+    return rows;
 };
 
 /** Where in a shop it lives. Unmatched things go to the end, not into Produce. */
