@@ -197,3 +197,98 @@
         flex-wrap: wrap;
     }
 }
+
+/* --- A photograph on the way in --------------------------------------
+   The camera is the same size and weight as the send hint beside it: a
+   cookbook page is a normal thing to file, not a special mode to enter. */
+
+.quick-capture__file { display: none; }
+
+.quick-capture__camera {
+    display: inline-flex;
+    align-items: center;
+    /* The bar stretches its children, and the textarea grows to several rows
+       — without this the camera floats up to the top of a tall bar while ⌘K
+       and Add, which both say `align-self: center`, stay put. */
+    align-self: center;
+    flex-shrink: 0;
+    padding: 0 var(--space-1);
+    border: 0;
+    background: none;
+    color: var(--text-muted);
+    font-size: var(--text-lg);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.quick-capture__camera:hover:not(:disabled) { color: var(--text-gold); }
+.quick-capture__camera:disabled { opacity: 0.4; cursor: default; }
+
+/* Dragging a file anywhere over the bar. The whole bar lights, because the
+   drop target being smaller than the thing you are aiming at is how a photo
+   ends up opening in a new tab instead. */
+.quick-capture__bar.is-over {
+    border-color: var(--text-gold);
+    background: var(--bg-hover);
+}
+
+.quick-capture__photos {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.quick-capture__photo {
+    position: relative;
+    display: inline-flex;
+    width: 56px;
+    height: 56px;
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.quick-capture__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Which page this is. Only drawn when there is more than one, because a lone
+   "1" on a single photo is a question nobody asked. */
+.quick-capture__photo em {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 0 4px;
+    background: var(--bg-panel);
+    color: var(--text-gold);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-style: normal;
+}
+
+.quick-capture__photo button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 1px 2px;
+    border: 0;
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    font-size: var(--text-2xs);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.quick-capture__photo button:hover { color: var(--accent-red); }
+
+.quick-capture__photo-note,
+.quick-capture__photo-bad {
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
+}
+
+.quick-capture__photo-bad { color: var(--accent-red); }

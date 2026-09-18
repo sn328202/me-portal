@@ -33,9 +33,10 @@ export const CaptureProvider = ({ children }) => {
     // double-filing the same thought is the one mistake with no undo path.
     const inFlight = useRef(false);
 
-    const submit = useCallback(async (text) => {
+    const submit = useCallback(async (text, images = []) => {
         const trimmed = (text || '').trim();
-        if (!trimmed || inFlight.current) return null;
+        // A photograph on its own is a capture. A cookbook page needs no caption.
+        if ((!trimmed && !images.length) || inFlight.current) return null;
 
         inFlight.current = true;
         setPending(true);
@@ -51,7 +52,11 @@ export const CaptureProvider = ({ children }) => {
                     'content-type': 'application/json',
                     Authorization: `Bearer ${session.access_token}`,
                 },
-                body: JSON.stringify({ text: trimmed, source: 'web' }),
+                body: JSON.stringify({
+                    text: trimmed,
+                    images: images.length ? images : undefined,
+                    source: 'web',
+                }),
             });
 
             const data = await response.json();
