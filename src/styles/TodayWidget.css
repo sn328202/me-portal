@@ -30,6 +30,14 @@
     }
 }
 
+/* Each list is the container the rows measure themselves against — not the
+   window. The widget is three columns on a wide screen and one on a phone, so
+   "is there room for the words" is a question about this column and nothing
+   else. */
+.today__group {
+    container-type: inline-size;
+}
+
 .today__group-title {
     display: flex;
     align-items: center;
@@ -198,10 +206,14 @@
     list-style: none;
 }
 
+/* Wrapping, so the badge has somewhere to go. Without it the row was one
+   fixed line and the name was the only thing on it that could give way — see
+   the note on the label below. */
 .today__planned {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: var(--space-1);
+    gap: 2px var(--space-1);
     padding: 2px 0;
     color: var(--text-muted);
     font-size: var(--text-xs);
@@ -215,7 +227,22 @@
     color: var(--text-dim);
 }
 
-.today__planned-label { overflow-wrap: anywhere; }
+/* `break-word`, not `anywhere`, and the difference is the whole bug.
+ *
+   Both break a word that cannot fit. Only `anywhere` lets the browser count
+   that break when it works out the element's *minimum* width — which told
+   flexbox this label could be squeezed to one character. It was the only item
+   on the line able to shrink (the amount and the badge both say
+   `flex-shrink: 0`), so in a narrow column it took the whole squeeze and
+   "coconut milk" came out as a vertical column of letters.
+
+   `break-word` keeps the longest word as the floor. `min-width: 0` is still
+   needed because a flex item will not shrink below its content's minimum
+   unless it is told it may. */
+.today__planned-label {
+    min-width: 0;
+    overflow-wrap: break-word;
+}
 
 /* Already in the cupboard: shown, because "you have this" is worth knowing in
    a shop, and faded, because it is not something to pick up. */
@@ -230,4 +257,15 @@
     color: var(--text-gold);
     font-size: var(--text-2xs);
     letter-spacing: var(--tracking-label);
+}
+
+/* "in the pantry" is fourteen characters spent on the least important thing
+   in the row. Where the column is too narrow to hold them beside the name,
+   the house says it on its own and the words step back — the badge keeps its
+   label for a screen reader and its tooltip for a mouse either way.
+
+   Twenty rem is where "1 pcs coconut milk" and the full badge stop fitting on
+   one line; below it, keeping the words costs a line per row. */
+@container (max-width: 20rem) {
+    .today__stocked-text { display: none; }
 }

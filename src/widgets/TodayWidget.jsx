@@ -259,8 +259,13 @@ const TodayWidget = ({ plan, recipes }) => {
                                         )}
                                         <span className="today__planned-label">{ing.label}</span>
                                         {ing.inStock && (
-                                            <span className="today__stocked" title="Already in the pantry">
-                                                <GiHouse /> in the pantry
+                                            <span
+                                                className="today__stocked"
+                                                title="Already in the pantry"
+                                                aria-label="Already in the pantry"
+                                            >
+                                                <GiHouse aria-hidden="true" />
+                                                <span className="today__stocked-text">in the pantry</span>
                                             </span>
                                         )}
                                     </li>
