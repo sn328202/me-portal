@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { extractRecipe, parseIngredient } from './_recipe.js';
 import { extractProduct } from './_link.js';
 import { resolvePlace } from './_place.js';
 import { readPost, platformOf, firstUrl, expand } from './_social.js';
+import { readPhotos, photoPath, asContent, photoPreamble } from './_photo.js';
 import {
     CATS, DRESS, WARMTH, STYLES, addGarments, describeAdded, buildLook, addLook,
 } from './_garment.js';
@@ -34,6 +35,9 @@ export const config = { maxDuration: 60 };
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 const MAX_TEXT = 4000;
+/* Where a photographed page is kept. Public bucket, unguessable path —
+   see the migration for why that trade was made. */
+const PHOTO_BUCKET = 'capture-photos';
 
 /**
  * Anthropic runs this one itself — no implementation on our side, the results
@@ -412,8 +416,13 @@ const TOOLS = [
                 },
                 instructions: { type: 'string' },
                 servings: { type: 'string' },
+                /* A cookbook page prints these and a person dictating almost
+                   never says them, so they arrived with the camera. */
+                prep_time: { type: 'string', description: 'Only if it is printed, e.g. "15 min".' },
+                cook_time: { type: 'string', description: 'Only if it is printed.' },
+                total_time: { type: 'string', description: 'Only if it is printed.' },
                 tags: { type: 'array', items: { type: 'string' } },
-                source: { type: 'string', description: 'Where it came from, e.g. "New York Times Cooking".' },
+                source: { type: 'string', description: 'Where it came from, e.g. "New York Times Cooking", or the cookbook\'s name if the page shows it.' },
             },
             required: ['title'],
         },
@@ -914,7 +923,9 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
                 price_currency: meta.price_currency || null,
                 description: meta.description || null,
                 brand: meta.brand || null,
-                image_url: meta.image_url || null,
+                // The shop's own photograph first; the one she took only
+                // when there is no page to take one from.
+                image_url: meta.image_url || ctx.photos?.[0] || null,
                 priority: input.priority || 'Low',
                 link: meta.link || input.link || null,
                 status: 'desired',
@@ -1091,6 +1102,9 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
                 creator: input.creator || null,
                 type: input.type,
                 status: input.status || 'Not Started',
+                // A photographed cover is a better cover than none; the cover
+                // lookup will overwrite it if it finds the real one.
+                image_url: ctx.photos?.[0] || null,
                 user_id: userId,
             }]);
             push('library_items', r.id, title);
@@ -1172,12 +1186,20 @@ async function runTool(sb, userId, name, input, actions, ctx, dupes) {
             const title = once('recipes', input.title, 'in the Larder');
             if (!title) return null;
 
-            const tags = [...new Set(['Dictated', ...(input.tags || [])])];
+            const tags = [...new Set([ctx.photos?.length ? 'Photographed' : 'Dictated', ...(input.tags || [])])];
             const { ingredientCount } = await writeRecipe(sb, userId, {
                 title,
                 instructions: input.instructions || '',
                 ingredients: (input.ingredients || []).map(parseIngredient),
                 servings: input.servings || null,
+                prep_time: input.prep_time || null,
+                cook_time: input.cook_time || null,
+                total_time: input.total_time || null,
+                /* The page she photographed, kept on the recipe. It is the
+                   only way to check what was read against what was printed,
+                   and for a cookbook it is the nicest picture of the dish
+                   there is going to be. */
+                image_url: ctx.photos?.[0] || null,
                 tags,
                 source_url: null,
             }, actions, name);
@@ -1525,8 +1547,21 @@ export default async function handler(req, res) {
     // it is kept as her own words.
     const shared = (body.url || '').toString().trim() || firstUrl(text) || '';
 
-    if (!text && !shared) {
-        return res.status(400).json({ error: 'Nothing to file — say something first.' });
+    /* Photographs. Read before anything else touches the network, so a HEIC or
+       a filename is refused in a sentence that says what to do about it rather
+       than after a model has been paid to look at nothing.
+
+       Her first attempt at this arrived as the text "IMG_1628" — the Shortcut
+       had sent the file's *name*. That now fails loudly. */
+    const { photos, problems } = readPhotos(body);
+
+    if (!text && !shared && !photos.length) {
+        return res.status(400).json({
+            error: problems.length
+                ? `That photo could not be used: ${problems.join('; ')}.`
+                : 'Nothing to file — say something first.',
+            photoProblems: problems,
+        });
     }
 
     const sb = db();
@@ -1548,10 +1583,41 @@ export default async function handler(req, res) {
     const done = [];
     const toolErrors = [];
     let skipped = null;
+    // Declared out here for the same reason `done` is: the response is built
+    // after the try, and the photographs were kept inside it.
+    let ctxPhotos = [];
 
     try {
         const ctx = await loadContext(sb, userId);
-        const messages = [{ role: 'user', content: text }];
+
+        /* Keep the originals before reading them. If the upload fails the
+           capture still goes ahead — a recipe with no picture of its page is
+           worth far more than no recipe — and the failure is reported rather
+           than swallowed. */
+        if (photos.length) {
+            const id = randomUUID();
+            const kept = await Promise.all(photos.map(async (photo, i) => {
+                const path = photoPath(userId, id, i, photo.ext);
+                const { error } = await sb.storage
+                    .from(PHOTO_BUCKET)
+                    .upload(path, Buffer.from(photo.data, 'base64'), {
+                        contentType: photo.media_type,
+                        upsert: false,
+                    });
+                if (error) {
+                    problems.push(`photo ${i + 1} could not be kept: ${errText(error)}`);
+                    return null;
+                }
+                return sb.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
+            }));
+            ctx.photos = kept.filter(Boolean);
+            ctxPhotos = ctx.photos;
+        }
+
+        const messages = [{
+            role: 'user',
+            content: photos.length ? asContent(photos, photoPreamble(photos.length, text)) : text,
+        }];
         const system = systemPrompt(ctx, new Date());
 
         // A page carrying real schema.org Recipe data needs no interpretation:
@@ -1697,9 +1763,23 @@ export default async function handler(req, res) {
         summary = 'Nothing was filed. Say it again with a bit more detail?';
     }
 
+    /* What the log should say she sent. A photograph has no transcript, and an
+       empty one reads in the history as a capture that never happened — so it
+       says how many pictures, and her words after them if there were any. */
+    const sent = [
+        photos.length ? `📷 ${photos.length} photo${photos.length > 1 ? 's' : ''}` : null,
+        text || shared || null,
+    ].filter(Boolean).join(' · ');
+
+    // A photo that could not be kept is not a failed capture, but it is not
+    // nothing either: the recipe is filed and the page is gone.
+    if (problems.length) {
+        failure = [failure, problems.join('; ')].filter(Boolean).join('; ');
+    }
+
     const { data: logRow, error: logError } = await sb.from('captures').insert([{
         user_id: userId,
-        transcript: text || shared,
+        transcript: sent,
         summary,
         actions,
         model: MODEL,
@@ -1719,6 +1799,8 @@ export default async function handler(req, res) {
         // The web app needs this to offer undo without refetching the log.
         captureId: logRow?.id || null,
         actions,
+        photos: ctxPhotos.length ? ctxPhotos : undefined,
+        photoProblems: problems.length ? problems : undefined,
         duplicates: dupes.length ? dupes.map((d) => d.item) : undefined,
         error: failure,
         toolErrors: allToolErrors.length ? allToolErrors : undefined,
