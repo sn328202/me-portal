@@ -131,8 +131,9 @@ const TodayWidget = ({ plan, recipes }) => {
         const text = listAsText({
             items,
             planned,
+            matcher,
+            pantryStock,
             title: (getLabel('provisions') || 'Shopping').toUpperCase(),
-            hearth: (getLabel('fromTheHearth') || 'From the hearth').toUpperCase(),
         });
         try {
             await navigator.clipboard.writeText(text);

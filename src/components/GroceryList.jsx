@@ -98,6 +98,8 @@ const GroceryList = ({ plan, recipes, inputRef }) => {
         const text = listAsText({
             items,
             planned: plannedFrom({ plan, recipes, matcher, pantryStock }),
+            matcher,
+            pantryStock,
             title: 'SHOPPING',
         });
         try {
