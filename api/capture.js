@@ -81,7 +81,12 @@ const db = () =>
  */
 const readRaw = async (req) => {
     if (Buffer.isBuffer(req.body)) return req.body;
-    if (typeof req.body === 'string') return Buffer.from(req.body);
+    /* `latin1`, not the default `utf8`. If the platform ever hands a binary
+       body back as a string, every byte above 0x7f is a lone invalid sequence
+       and utf8 turns each one into U+FFFD — which is to say it destroys the
+       photograph on the way in, and leaves something that still looks like a
+       string. latin1 is a byte-for-byte mapping and cannot do that. */
+    if (typeof req.body === 'string') return Buffer.from(req.body, 'latin1');
     // A stream that has already been consumed gives nothing, quietly — the
     // check is what stops this hanging on a body somebody else has read.
     if (req.readableEnded || req.readable === false) return null;
