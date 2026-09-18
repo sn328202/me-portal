@@ -9,6 +9,7 @@
 
 import {
     readPhoto, readPhotos, sniff, photoPath, asContent, photoPreamble,
+    imageType, boundaryOf, parseMultipart, bodyFrom,
     MAX_PHOTOS, MAX_ONE, MAX_ALL,
 } from '../api/_photo.js';
 
@@ -149,6 +150,91 @@ check('it is told not to invent what it cannot read',
 check('her words ride along', photoPreamble(1, 'mum’s dal').includes('She also said: mum’s dal'), true);
 check('and no photographs leaves the words exactly as they were',
     photoPreamble(0, 'just a note'), 'just a note');
+
+console.log('\ngetting a picture in without base64:');
+/* The first attempt failed because base64-into-JSON is three Shortcut actions
+   and a hand-typed body, and an image variable dropped into a text field
+   quietly becomes its own filename. Posting the file is one action. */
+check('a JPEG body is a JPEG', imageType('image/jpeg'), 'image/jpeg');
+check('and so is one with a charset stuck on it',
+    imageType('image/png; charset=binary'), 'image/png');
+/* Shortcuts says "image/jpg", which is not a real media type and which the
+   model rejects outright. */
+check('"image/jpg" is corrected, not refused', imageType('image/jpg'), 'image/jpeg');
+check('a HEIC content-type is not one we take', imageType('image/heic'), null);
+check('and neither is JSON', imageType('application/json'), null);
+check('nor nothing at all', imageType(undefined), null);
+
+check('a boundary is found', boundaryOf('multipart/form-data; boundary=abc123'), 'abc123');
+check('and one in quotes', boundaryOf('multipart/form-data; boundary="a b c"'), 'a b c');
+check('no boundary is null, not a crash', boundaryOf('multipart/form-data'), null);
+
+console.log('\nsplitting a form apart:');
+{
+    /* Built as real bytes, with a byte that is not valid UTF-8 inside the
+       "file", because the parts are JPEG data and a parser that round-trips
+       through a string corrupts every photograph it touches. */
+    const B = 'X-BOUND-42';
+    const bin = Buffer.from([0xff, 0xd8, 0xff, 0x00, 0x0d, 0x0a, 0x80, 0xfe]);
+    const body = Buffer.concat([
+        Buffer.from(`--${B}\r\nContent-Disposition: form-data; name="text"\r\n\r\nmum's dal\r\n`),
+        Buffer.from(`--${B}\r\nContent-Disposition: form-data; name="photo"; filename="p.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`),
+        bin,
+        Buffer.from(`\r\n--${B}--\r\n`),
+    ]);
+    const parts = parseMultipart(body, B);
+    check('both parts are found', parts.length, 2);
+    check('a plain field keeps its name and value',
+        [parts[0].name, parts[0].data.toString('utf8')], ['text', "mum's dal"]);
+    check('a file keeps its name, filename and type',
+        [parts[1].name, parts[1].filename, parts[1].type], ['photo', 'p.jpg', 'image/jpeg']);
+    /* The two bytes before a boundary belong to the boundary, not to the file.
+       Keeping them truncates nothing and corrupts the tail; dropping the wrong
+       two truncates the image. Byte-for-byte or it is broken. */
+    check('the file is byte-for-byte what went in',
+        parts[1].data.equals(bin), true);
+    check('including the CRLF that is inside it, not around it',
+        [...parts[1].data], [...bin]);
+}
+check('a body with no boundary in it finds nothing',
+    parseMultipart(Buffer.from('nothing here'), 'X'), []);
+check('and a body that is not a buffer is not a crash', parseMultipart('str', 'X'), []);
+check('nor is a missing boundary', parseMultipart(Buffer.from('x'), null), []);
+
+console.log('\nwhichever way it arrived:');
+{
+    // One Shortcut action: post the file, content-type says what it is.
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+    const b = bodyFrom({ contentType: 'image/jpeg', raw: jpeg, query: { text: 'from mum' } });
+    check('a raw image body becomes one photograph', b.images.length, 1);
+    check('carried as a data url the reader already understands',
+        b.images[0].startsWith('data:image/jpeg;base64,'), true);
+    check('and it survives the trip', readPhotos(b).photos.length, 1);
+    // Words ride in the query string, because a Shortcut can put them in a URL
+    // far more easily than it can build a JSON body.
+    check('her words come off the query string', b.text, 'from mum');
+}
+{
+    const B = 'Y';
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const body = Buffer.concat([
+        Buffer.from(`--${B}\r\nContent-Disposition: form-data; name="text"\r\n\r\ntwo pages\r\n`),
+        Buffer.from(`--${B}\r\nContent-Disposition: form-data; name="a"; filename="1.png"\r\nContent-Type: image/png\r\n\r\n`),
+        png,
+        Buffer.from(`\r\n--${B}\r\nContent-Disposition: form-data; name="b"; filename="2.png"\r\nContent-Type: image/png\r\n\r\n`),
+        png,
+        Buffer.from(`\r\n--${B}--\r\n`),
+    ]);
+    const b = bodyFrom({ contentType: `multipart/form-data; boundary=${B}`, raw: body });
+    check('a form gives up both photographs, in order', b.images.length, 2);
+    check('and the field beside them', b.text, 'two pages');
+    check('and they are readable', readPhotos(b).photos.length, 2);
+}
+// The web app and the old Shortcut still work exactly as they did.
+check('JSON is left alone',
+    bodyFrom({ contentType: 'application/json', json: { text: 'hi' } }), { text: 'hi' });
+check('and so is a body that is nothing at all',
+    bodyFrom({ contentType: 'application/json', json: null }), {});
 
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);

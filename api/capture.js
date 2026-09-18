@@ -4,7 +4,7 @@ import { extractRecipe, parseIngredient } from './_recipe.js';
 import { extractProduct } from './_link.js';
 import { resolvePlace } from './_place.js';
 import { readPost, platformOf, firstUrl, expand } from './_social.js';
-import { readPhotos, photoPath, asContent, photoPreamble } from './_photo.js';
+import { readPhotos, photoPath, asContent, photoPreamble, bodyFrom } from './_photo.js';
 import {
     CATS, DRESS, WARMTH, STYLES, addGarments, describeAdded, buildLook, addLook,
 } from './_garment.js';
@@ -71,6 +71,29 @@ const db = () =>
 // Supabase hands back several error shapes — PostgrestError, a fetch failure,
 // or a bare object. Reading `.message` alone yields "undefined" for some of
 // them, which is how a real failure ended up reported as nothing at all.
+/**
+ * The request body as bytes, whoever buffered it.
+ *
+ * The platform parses what it recognises — JSON, form-urlencoded — and for
+ * everything else it may hand over a Buffer, or may leave the stream alone.
+ * Which of those happens is not worth betting a feature on, so both are
+ * handled: the already-read body if there is one, the stream if there is not.
+ */
+const readRaw = async (req) => {
+    if (Buffer.isBuffer(req.body)) return req.body;
+    if (typeof req.body === 'string') return Buffer.from(req.body);
+    // A stream that has already been consumed gives nothing, quietly — the
+    // check is what stops this hanging on a body somebody else has read.
+    if (req.readableEnded || req.readable === false) return null;
+    try {
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        return chunks.length ? Buffer.concat(chunks) : null;
+    } catch {
+        return null;
+    }
+};
+
 const errText = (e) => {
     if (!e) return null;
     if (typeof e === 'string') return e;
@@ -1538,7 +1561,22 @@ export default async function handler(req, res) {
         });
     }
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+    /* Three ways a body arrives, and two of them are new because the first
+       one was too hard to send. A Shortcut posting a file needs one action;
+       building base64 into JSON needs three and a hand-typed body, and the
+       way that goes wrong is silent — an image variable in a text field
+       becomes its own filename, which is exactly what happened. */
+    const raw = await readRaw(req);
+
+    const body = bodyFrom({
+        contentType: req.headers['content-type'],
+        raw,
+        json: typeof req.body === 'string'
+            ? (() => { try { return JSON.parse(req.body || '{}'); } catch { return {}; } })()
+            : req.body || {},
+        query: req.query || {},
+    });
+
     const text = (body.text || '').toString().trim().slice(0, MAX_TEXT);
 
     // The share sheet sends a link instead of speech. It rarely sends a bare

@@ -157,3 +157,122 @@ export const photoPreamble = (count, text) => {
         text ? `She also said: ${text}` : null,
     ].filter(Boolean).join('\n\n');
 };
+
+
+/* ---------- getting a picture in without base64 ----------------------------
+ *
+ * Base64 inside JSON is what a Shortcut *can* do, and it is three actions and
+ * a hand-built JSON body to do it. It is also how the first attempt failed:
+ * an image variable dropped into a text field stringifies to its filename, so
+ * the endpoint received the six characters "IMG_1628" and filed nothing.
+ *
+ * Shortcuts can post a file directly, and that is one action with nothing to
+ * mistype. Two shapes arrive that way and both are read here.
+ */
+
+/** The image types we accept, as a content-type rather than as magic bytes. */
+export const imageType = (contentType) => {
+    const m = /^(image\/(?:jpeg|jpg|png|gif|webp))\b/i.exec(String(contentType || '').trim());
+    if (!m) return null;
+    // "image/jpg" is not a real media type, and the model rejects it.
+    return m[1].toLowerCase().replace('image/jpg', 'image/jpeg');
+};
+
+/** The boundary out of a multipart content-type header. */
+export const boundaryOf = (contentType) => {
+    const m = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(String(contentType || ''));
+    return m ? (m[1] || m[2]) : null;
+};
+
+const CRLF2 = Buffer.from('\r\n\r\n');
+
+/**
+ * A multipart body, split into its parts.
+ *
+ * Written rather than installed: the alternative was a dependency for forty
+ * lines, and forty lines of boundary arithmetic is exactly the sort of thing
+ * that is cheap to test and impossible to eyeball. Binary-safe throughout —
+ * the parts are JPEG bytes, and a byte-for-byte slice is the whole job.
+ */
+export const parseMultipart = (buf, boundary) => {
+    if (!Buffer.isBuffer(buf) || !boundary) return [];
+    const sep = Buffer.from(`--${boundary}`);
+    const parts = [];
+
+    let at = buf.indexOf(sep);
+    if (at < 0) return parts;
+    at += sep.length;
+
+    while (at < buf.length && parts.length < 32) {
+        // "--" straight after a boundary is the end of the body.
+        if (buf[at] === 0x2d && buf[at + 1] === 0x2d) break;
+        if (buf[at] === 0x0d && buf[at + 1] === 0x0a) at += 2;
+
+        const headEnd = buf.indexOf(CRLF2, at);
+        if (headEnd < 0) break;
+        const headers = buf.slice(at, headEnd).toString('utf8');
+        const start = headEnd + CRLF2.length;
+
+        let next = buf.indexOf(sep, start);
+        if (next < 0) next = buf.length;
+        // Every part's content is followed by a CRLF that belongs to the
+        // boundary, not to the file. Keeping it corrupts the last two bytes.
+        const end = Math.max(start, next - 2);
+
+        const name = /name="([^"]*)"/i.exec(headers)?.[1] || '';
+        const filename = /filename="([^"]*)"/i.exec(headers)?.[1] || null;
+        const type = /content-type:\s*([^\r\n;]+)/i.exec(headers)?.[1]?.trim() || null;
+
+        parts.push({ name, filename, type, data: buf.slice(start, end) });
+        at = next + sep.length;
+    }
+
+    return parts;
+};
+
+/**
+ * Whatever arrived, as the body the handler already knows how to read.
+ *
+ * Three ways in, and the two new ones are the ones a Shortcut can do in a
+ * single action:
+ *
+ *   - `image/jpeg` and the raw file as the body. One action. Words, if there
+ *     are any, ride in the `text` query parameter.
+ *   - `multipart/form-data`, which is what "Request Body: Form" sends. Any
+ *     field holding a file is a photograph; a field called text is her words.
+ *   - `application/json`, which is what the web app and the old Shortcut send.
+ */
+export const bodyFrom = ({ contentType, raw, json, query = {} }) => {
+    const ct = String(contentType || '');
+
+    const direct = imageType(ct);
+    if (direct && Buffer.isBuffer(raw) && raw.length) {
+        return {
+            text: String(query.text || '').trim(),
+            source: query.source || 'shortcut',
+            images: [`data:${direct};base64,${raw.toString('base64')}`],
+        };
+    }
+
+    if (/^multipart\/form-data/i.test(ct) && Buffer.isBuffer(raw)) {
+        const parts = parseMultipart(raw, boundaryOf(ct));
+        const images = [];
+        const fields = {};
+        for (const part of parts) {
+            const kind = imageType(part.type);
+            if (kind && part.data.length) {
+                images.push(`data:${kind};base64,${part.data.toString('base64')}`);
+            } else if (part.name && !part.filename) {
+                fields[part.name] = part.data.toString('utf8').trim();
+            }
+        }
+        return {
+            text: fields.text || String(query.text || '').trim(),
+            url: fields.url || undefined,
+            source: fields.source || query.source || 'shortcut',
+            images,
+        };
+    }
+
+    return json || {};
+};
