@@ -47,6 +47,8 @@ If a dish has a step like that and you leave it out, the plan is worse than usel
 
 HOW TO WRITE IT
 - Assume one cook, one oven, one stove, unless the recipes plainly need otherwise. Do not have her in two places at once, and do not put two dishes in the oven at different temperatures at the same time.
+- A waiting step must be FINISHED before the step that depends on it starts. If the dal soaks for 12 hours, the step that drains and blitzes it starts at least 12 hours later — not seven. Check every waiting step against the one that follows it: start plus minutes must not land after the next step for that dish.
+- Nobody is in the kitchen between 11pm and 6am. If a soak or a rise has to run overnight, start it in the evening and pick it up in the morning; only put a step in the small hours if the food genuinely cannot be made any other way, and say why in the step itself.
 - Work backwards from serving. A dish that needs to rest after cooking must finish resting at serve time, not finish cooking at serve time.
 - Group sensibly: chopping for three dishes can be one step if it happens at one time. A plan is what to do when, not a retyping of the recipes.
 - 8 to 25 steps for a normal menu. Fewer for a simple one. Never more than 40.

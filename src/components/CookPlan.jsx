@@ -6,7 +6,6 @@ import {
 import { supabase } from '../lib/supabase';
 import { Button, Field, Modal, EmptyState, Stat } from './ui';
 import DateField from './DateField';
-import SmartTimeInput from './SmartTimeInput';
 import {
     groupByDay, planLoad, clockLabel, lengthLabel, offsetFrom, minutesBefore,
     readDate, readClock,
@@ -234,14 +233,13 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                             onCommit={(v) => commitServe(v, serveTime)}
                         />
                     </Field>
-                    <div className="cookplan__when-time">
-                        <SmartTimeInput
-                            label="At"
-                            value={serveTime}
-                            onChange={(v) => setServeTime(v)}
-                            onBlur={(v) => commitServe(serveDate, v ?? serveTime)}
-                        />
-                    </div>
+                    <Field
+                        className="cookplan__when-time"
+                        label="At"
+                        type="time"
+                        value={serveTime}
+                        onChange={(e) => commitServe(serveDate, e.target.value)}
+                    />
                     <Button
                         variant="solid"
                         onClick={build}
