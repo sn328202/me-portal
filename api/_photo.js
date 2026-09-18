@@ -289,3 +289,28 @@ export const bodyFrom = ({ contentType, raw, json, query = {} }) => {
 
     return json || {};
 };
+
+
+/**
+ * Does this "text" look like a photograph's name rather than a thought?
+ *
+ * Because it was, four times. A Shortcut that puts an image into a text field
+ * sends the filename — `IMG_1628` — and the classifier does the only sensible
+ * thing with six characters and files nothing. That answer is correct and
+ * completely unhelpful: it describes the message rather than the mistake, and
+ * the mistake is two rooms away in an app on a phone.
+ *
+ * So the endpoint recognises its own most common failure and says what to do
+ * about it. Deliberately narrow — one token, no spaces, and either a camera's
+ * naming convention or an image extension — because a real note that happens
+ * to be one word must still file.
+ */
+const CAMERA = /^(img|pxl|dsc|dcim|mvimg|photo|image|fullsizerender|screenshot|signal|whatsapp)[-_ ]?[\d-]*$/i;
+const IMAGE_EXT = /\.(jpe?g|png|heic|heif|gif|webp|tiff?)$/i;
+
+export const looksLikeFilename = (text) => {
+    const said = String(text || '').trim();
+    if (!said || /\s/.test(said)) return false;
+    const bare = said.replace(IMAGE_EXT, '');
+    return IMAGE_EXT.test(said) || CAMERA.test(bare);
+};

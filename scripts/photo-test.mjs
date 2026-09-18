@@ -9,7 +9,7 @@
 
 import {
     readPhoto, readPhotos, sniff, photoPath, asContent, photoPreamble,
-    imageType, boundaryOf, parseMultipart, bodyFrom, sniffBytes,
+    imageType, boundaryOf, parseMultipart, bodyFrom, sniffBytes, looksLikeFilename,
     MAX_PHOTOS, MAX_ONE, MAX_ALL,
 } from '../api/_photo.js';
 
@@ -261,6 +261,22 @@ check('JSON is left alone',
     bodyFrom({ contentType: 'application/json', json: { text: 'hi' } }), { text: 'hi' });
 check('and so is a body that is nothing at all',
     bodyFrom({ contentType: 'application/json', json: null }), {});
+
+console.log('\nrecognising its own most common failure:');
+/* Four separate attempts arrived as the six characters "IMG_1628" — a
+   shortcut putting an image into a text field sends the filename. "Nothing to
+   file" is true of what arrived and says nothing about why, and the why is in
+   an app two rooms away. */
+check('a camera filename is recognised', looksLikeFilename('IMG_1628'), true);
+check('with an extension too', looksLikeFilename('IMG_1628.HEIC'), true);
+check('and a Pixel one', looksLikeFilename('PXL_20260918_221530.jpg'), true);
+check('and anything ending in an image extension', looksLikeFilename('recipe.jpg'), true);
+/* Narrow on purpose: a real note that happens to be one word must still file,
+   or the cure is worse than the disease. */
+check('a one-word note still files', looksLikeFilename('milk'), false);
+check('and a sentence certainly does', looksLikeFilename('buy milk and eggs'), false);
+check('and a todo', looksLikeFilename('todo: call mum'), false);
+check('nothing at all is not a filename', looksLikeFilename(''), false);
 
 console.log('\nnothing the browser loads may need Node:');
 {

@@ -4,7 +4,7 @@ import { extractRecipe, parseIngredient } from './_recipe.js';
 import { extractProduct } from './_link.js';
 import { resolvePlace } from './_place.js';
 import { readPost, platformOf, firstUrl, expand } from './_social.js';
-import { readPhotos, photoPath, asContent, photoPreamble, bodyFrom } from './_photo.js';
+import { readPhotos, photoPath, asContent, photoPreamble, bodyFrom, looksLikeFilename } from './_photo.js';
 import {
     CATS, DRESS, WARMTH, STYLES, addGarments, describeAdded, buildLook, addLook,
 } from './_garment.js';
@@ -1597,6 +1597,19 @@ export default async function handler(req, res) {
        Her first attempt at this arrived as the text "IMG_1628" — the Shortcut
        had sent the file's *name*. That now fails loudly. */
     const { photos, problems } = readPhotos(body);
+
+    /* The failure this endpoint has had more than any other, named rather than
+       described. "Nothing to file" is true of the six characters that arrived
+       and says nothing about why they arrived, which is a shortcut two rooms
+       away putting a picture into a text box. */
+    if (!photos.length && looksLikeFilename(text)) {
+        return res.status(400).json({
+            error: `That arrived as the text "${text}" — the name of the photo rather than the photo. `
+                + 'The shortcut is putting the image into a text field. Use the "Photo To Portal" '
+                + 'shortcut instead, or set Request Body to File.',
+            wasFilename: true,
+        });
+    }
 
     if (!text && !shared && !photos.length) {
         return res.status(400).json({
