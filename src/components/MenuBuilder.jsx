@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import {
     GiCook, GiMeal, GiClockwork, GiTrashCan, GiScrollQuill,
-    GiMagicPotion, GiPencil, GiThirdEye
+    GiMagicPotion, GiPencil, GiThirdEye, GiShop, GiHourglass
 } from 'react-icons/gi';
 import MenuView from './MenuView';
+import CookPlan from './CookPlan';
 import { Button, Card, ConfirmButton, EmptyState, Field, Stat } from './ui';
 
 const COURSES = ['Appetizer', 'Starter', 'Main Course', 'Side', 'Dessert', 'Potable'];
@@ -14,16 +15,20 @@ const MenuBuilder = ({
     onSaveMenu,
     onUpdateMenu,
     onDeleteMenu,
+    onSetServeTime,
+    onSavePlan,
     creating,
     onCreatingChange
 }) => {
     const [viewingMenu, setViewingMenu] = useState(null);
+    const [planningId, setPlanningId] = useState(null);
     const [editingId, setEditingId] = useState(null);
     const [newMenu, setNewMenu] = useState({ title: '', occasion: '', notes: '' });
     const [titleError, setTitleError] = useState('');
     const [selectedRecipes, setSelectedRecipes] = useState([]); // Array of { recipe_id, course_name, title, image_url }
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCourse, setActiveCourse] = useState('Main Course');
+    const [bought, setBought] = useState({ name: '', note: '' });
 
     // Aggregate stats calculation
     const stats = useMemo(() => {
@@ -80,6 +85,27 @@ const MenuBuilder = ({
         }]);
     };
 
+    /**
+     * Something she is not cooking.
+     *
+     * Half of a menu is often bought: the Diet Coke, the cookies from Whole
+     * Foods, the bread. A menu that can only hold recipes makes her either
+     * write a fake recipe for a bottle of Coke or leave the drinks off the
+     * menu entirely, and the drinks are on the table either way.
+     */
+    const handleAddBought = (e) => {
+        e?.preventDefault?.();
+        const name = bought.name.trim();
+        if (!name) return;
+        setSelectedRecipes([...selectedRecipes, {
+            recipe_id: null,
+            item_name: name,
+            item_note: bought.note.trim(),
+            course_name: activeCourse,
+        }]);
+        setBought({ name: '', note: '' });
+    };
+
     const handleRemoveRecipe = (index) => {
         setSelectedRecipes(selectedRecipes.filter((_, i) => i !== index));
     };
@@ -109,7 +135,9 @@ const MenuBuilder = ({
             recipe_id: mr.recipe_id,
             course_name: mr.course_name,
             title: mr.recipes?.title,
-            image_url: mr.recipes?.image_url
+            image_url: mr.recipes?.image_url,
+            item_name: mr.item_name,
+            item_note: mr.item_note,
         })) || [];
         setSelectedRecipes(mRecipes);
         onCreatingChange(true);
@@ -122,6 +150,7 @@ const MenuBuilder = ({
         setTitleError('');
         setSelectedRecipes([]);
         setSearchQuery('');
+        setBought({ name: '', note: '' });
     };
 
     const groupedSelection = selectedRecipes.reduce((acc, mr) => {
@@ -179,6 +208,30 @@ const MenuBuilder = ({
                             />
                         )}
                     </div>
+
+                    {/* Not everything on a menu is cooked. */}
+                    <form className="menu-builder__bought" onSubmit={handleAddBought}>
+                        <h4 className="menu-builder__bought-title">
+                            <GiShop /> BOUGHT, NOT COOKED
+                        </h4>
+                        <Field
+                            label={`Name — goes under ${activeCourse}`}
+                            type="text"
+                            placeholder="Diet Coke, Whole Foods cookies..."
+                            value={bought.name}
+                            onChange={(e) => setBought({ ...bought, name: e.target.value })}
+                        />
+                        <Field
+                            label="Note (optional)"
+                            type="text"
+                            placeholder="2 bottles, chill Friday"
+                            value={bought.note}
+                            onChange={(e) => setBought({ ...bought, note: e.target.value })}
+                        />
+                        <Button type="submit" size="sm" block disabled={!bought.name.trim()}>
+                            Add to {activeCourse}
+                        </Button>
+                    </form>
                 </div>
 
                 {/* Right: Menu Canvas */}
@@ -243,22 +296,32 @@ const MenuBuilder = ({
                             <div key={course} className="menu-builder__course-group">
                                 <h4 className="menu-builder__course-title">{course}</h4>
                                 <div className="menu-builder__course-grid">
-                                    {groupedSelection[course].map((mr, idx) => (
-                                        <div key={idx} className="menu-builder__dish">
-                                            <span className="menu-builder__thumb">
-                                                {mr.image_url && <img src={mr.image_url} alt="" />}
-                                            </span>
-                                            <span className="menu-builder__dish-title">{mr.title}</span>
-                                            <Button
-                                                icon
-                                                size="sm"
-                                                label={`Remove ${mr.title} from menu`}
-                                                onClick={() => handleRemoveRecipe(selectedRecipes.indexOf(mr))}
-                                            >
-                                                <GiTrashCan />
-                                            </Button>
-                                        </div>
-                                    ))}
+                                    {groupedSelection[course].map((mr, idx) => {
+                                        const name = mr.title || mr.item_name;
+                                        return (
+                                            <div key={idx} className="menu-builder__dish">
+                                                <span className="menu-builder__thumb">
+                                                    {mr.image_url
+                                                        ? <img src={mr.image_url} alt="" />
+                                                        : !mr.recipe_id && <GiShop size={16} />}
+                                                </span>
+                                                <span className="menu-builder__dish-title">
+                                                    {name}
+                                                    {mr.item_note && (
+                                                        <span className="menu-builder__dish-note">{mr.item_note}</span>
+                                                    )}
+                                                </span>
+                                                <Button
+                                                    icon
+                                                    size="sm"
+                                                    label={`Remove ${name} from menu`}
+                                                    onClick={() => handleRemoveRecipe(selectedRecipes.indexOf(mr))}
+                                                >
+                                                    <GiTrashCan />
+                                                </Button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}
@@ -297,6 +360,14 @@ const MenuBuilder = ({
                                     <Button
                                         icon
                                         size="sm"
+                                        label={`Plan the cooking of ${menu.title}`}
+                                        onClick={() => setPlanningId(menu.id)}
+                                    >
+                                        <GiHourglass />
+                                    </Button>
+                                    <Button
+                                        icon
+                                        size="sm"
                                         label={`Edit menu ${menu.title}`}
                                         onClick={() => handleEdit(menu)}
                                     >
@@ -320,7 +391,7 @@ const MenuBuilder = ({
                                             {mr.recipes?.image_url && <img src={mr.recipes.image_url} alt="" />}
                                         </span>
                                         <span className="muted">{mr.course_name}:</span>
-                                        <span>{mr.recipes?.title}</span>
+                                        <span>{mr.recipes?.title || mr.item_name}</span>
                                     </div>
                                 ))}
                                 {(menu.user_larder_menu_recipes?.length || 0) > 3 && (
@@ -332,7 +403,11 @@ const MenuBuilder = ({
 
                             <div className="menu-card__foot">
                                 <span><GiMagicPotion /> {menu.user_larder_menu_recipes?.length || 0} Dishes</span>
-                                <span>{new Date(menu.created_at).toLocaleDateString()}</span>
+                                {menu.plan?.steps?.length ? (
+                                    <span><GiHourglass /> {menu.plan.steps.length} step plan</span>
+                                ) : (
+                                    <span>{new Date(menu.created_at).toLocaleDateString()}</span>
+                                )}
                             </div>
                         </Card>
                     ))}
@@ -344,6 +419,18 @@ const MenuBuilder = ({
                     menu={viewingMenu}
                     recipes={recipes}
                     onClose={() => setViewingMenu(null)}
+                />
+            )}
+
+            {/* Read from the live list rather than a copy: ticking a step saves
+                and re-renders, and a copy taken on open would show the plan as
+                it was before the tick. */}
+            {planningId && menus.find(m => m.id === planningId) && (
+                <CookPlan
+                    menu={menus.find(m => m.id === planningId)}
+                    onClose={() => setPlanningId(null)}
+                    onSetServeTime={onSetServeTime}
+                    onSavePlan={onSavePlan}
                 />
             )}
         </div>

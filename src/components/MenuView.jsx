@@ -8,18 +8,20 @@ const COURSES = ['Appetizer', 'Starter', 'Main Course', 'Side', 'Dessert', 'Pota
 const MenuView = ({ menu, recipes, onClose }) => {
     const [includeRecipes, setIncludeRecipes] = useState(false);
 
-    // Group recipes by course
+    /* By course, and a course holds both kinds: the thing she cooked and the
+       thing she bought. A printed menu that silently drops the drinks because
+       no recipe answers to "Diet Coke" is a menu with no drinks on it. */
     const groupedRecipes = useMemo(() => {
         const grouped = {};
         menu.user_larder_menu_recipes?.forEach(mr => {
             const course = mr.course_name || 'General';
+            const fullRecipe = mr.recipe_id ? recipes.find(r => r.id === mr.recipe_id) : null;
+            const entry = fullRecipe
+                ? { key: fullRecipe.id, title: fullRecipe.title, tags: fullRecipe.tags, recipe: fullRecipe }
+                : (mr.item_name ? { key: `item-${mr.id || mr.item_name}`, title: mr.item_name, note: mr.item_note } : null);
+            if (!entry) return;
             if (!grouped[course]) grouped[course] = [];
-
-            // Find full recipe data
-            const fullRecipe = recipes.find(r => r.id === mr.recipe_id);
-            if (fullRecipe) {
-                grouped[course].push(fullRecipe);
-            }
+            grouped[course].push(entry);
         });
         return grouped;
     }, [menu, recipes]);
@@ -76,11 +78,11 @@ const MenuView = ({ menu, recipes, onClose }) => {
                                 </h2>
 
                                 <div className="menu-paper__dishes">
-                                    {groupedRecipes[course].map(recipe => (
-                                        <div key={recipe.id} className="recipe-item">
-                                            <h3 className="menu-paper__dish">{recipe.title}</h3>
+                                    {groupedRecipes[course].map(entry => (
+                                        <div key={entry.key} className="recipe-item">
+                                            <h3 className="menu-paper__dish">{entry.title}</h3>
                                             <div className="menu-paper__dish-tags">
-                                                {recipe.tags?.join(' • ')}
+                                                {entry.tags?.join(' • ') || entry.note}
                                             </div>
                                         </div>
                                     ))}
@@ -99,7 +101,7 @@ const MenuView = ({ menu, recipes, onClose }) => {
                 {/* Full Recipe Pages (Optional) */}
                 {includeRecipes && (
                     <div className="menu-view__pages">
-                        {Object.values(groupedRecipes).flat().map(recipe => (
+                        {Object.values(groupedRecipes).flat().map(({ recipe }) => recipe && (
                             <div key={recipe.id} className="recipe-page">
                                 <h2 className="recipe-page__title">{recipe.title}</h2>
 
