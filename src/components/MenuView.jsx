@@ -5,6 +5,23 @@ import '../styles/MenuPrint.css';
 
 const COURSES = ['Appetizer', 'Starter', 'Main Course', 'Side', 'Dessert', 'Potable'];
 
+/**
+ * The courses to draw, in order.
+ *
+ * Renaming the course list is not allowed to hide anything already saved: a
+ * menu built when the options were "Appetizer" and "Potable" still has dishes
+ * filed under those words, and a printed menu that quietly drops them is worse
+ * than an untidy one. Known courses first, in the order they are eaten;
+ * anything else after, in the order it turns up.
+ */
+const coursesToShow = (names = []) => {
+    const found = [...new Set(names.filter(Boolean))];
+    return [
+        ...COURSES.filter((c) => found.includes(c)),
+        ...found.filter((c) => !COURSES.includes(c)),
+    ];
+};
+
 const MenuView = ({ menu, recipes, onClose }) => {
     const [includeRecipes, setIncludeRecipes] = useState(false);
 
@@ -69,7 +86,7 @@ const MenuView = ({ menu, recipes, onClose }) => {
 
                     {/* Courses */}
                     <div className="menu-paper__body">
-                        {COURSES.map(course => groupedRecipes[course] && (
+                        {coursesToShow(Object.keys(groupedRecipes)).map(course => groupedRecipes[course] && (
                             <div key={course} className="course-section">
                                 <h2 className="menu-paper__course">
                                     <span className="menu-paper__rule" />

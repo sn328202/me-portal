@@ -14,6 +14,23 @@ import { Button, Card, ConfirmButton, EmptyState, Field, Stat } from './ui';
    it finds on one. */
 const COURSES = ['Starter', 'Main Course', 'Side', 'Dessert', 'Drinks'];
 
+/**
+ * The courses to draw, in order.
+ *
+ * Renaming the course list is not allowed to hide anything already saved: a
+ * menu built when the options were "Appetizer" and "Potable" still has dishes
+ * filed under those words, and a printed menu that quietly drops them is worse
+ * than an untidy one. Known courses first, in the order they are eaten;
+ * anything else after, in the order it turns up.
+ */
+const coursesToShow = (names = []) => {
+    const found = [...new Set(names.filter(Boolean))];
+    return [
+        ...COURSES.filter((c) => found.includes(c)),
+        ...found.filter((c) => !COURSES.includes(c)),
+    ];
+};
+
 const MenuBuilder = ({
     recipes,
     menus,
@@ -312,7 +329,7 @@ const MenuBuilder = ({
                                 hint="Pick recipes from the list on the left, or add something you're buying."
                             />
                         )}
-                        {COURSES.map(course => groupedSelection[course] && (
+                        {coursesToShow(Object.keys(groupedSelection)).map(course => groupedSelection[course] && (
                             <div key={course} className="menu-builder__course-group">
                                 <h4 className="menu-builder__course-title">{course}</h4>
                                 <div className="menu-builder__course-grid">
