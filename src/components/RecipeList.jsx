@@ -3,14 +3,24 @@ import RecipeCard from './RecipeCard';
 import { GiCauldron } from 'react-icons/gi';
 import { EmptyState } from './ui';
 
-const RecipeList = ({ recipes, matcher, onEdit, onDelete, onAddToPlan, onView, onCreate }) => {
+const RecipeList = ({ recipes, matcher, onEdit, onDelete, onAddToPlan, onView, onCreate, searching }) => {
     if (recipes.length === 0) {
-        return (
+        /* Two different nothings. Searching for a word that matches no recipe
+           used to be reported as "the Larder is empty", which is both untrue
+           and unhelpful — the fix is to clear the search, not to write a
+           recipe. */
+        return searching ? (
             <EmptyState
                 icon={<GiCauldron />}
-                message="The Larder is empty."
-                hint="Add a new formula to begin."
-                actionLabel={onCreate ? 'New Formula' : undefined}
+                message="No recipes match that search."
+                hint="Try a different word, or clear the search to see everything."
+            />
+        ) : (
+            <EmptyState
+                icon={<GiCauldron />}
+                message="No recipes yet."
+                hint="Add your first recipe, or import one from a link."
+                actionLabel={onCreate ? 'New recipe' : undefined}
                 onAction={onCreate}
             />
         );

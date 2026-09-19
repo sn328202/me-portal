@@ -63,10 +63,11 @@ const Row = ({ line, onToggle }) => {
 };
 
 const GroceryList = ({ plan, recipes, inputRef }) => {
-    const { items, addItem, toggleItem, clearChecked } = useProvisions();
+    const { items, addItem, toggleItem, clearChecked, loading, notice, clearNotice } = useProvisions();
     const { matcher, pantryStock, togglePantryStock } = useIngredients();
     const [typed, setTyped] = useState('');
     const [copied, setCopied] = useState(false);
+    const [copyFailed, setCopyFailed] = useState(false);
 
     const lines = useMemo(
         () => mergeList({
@@ -100,14 +101,18 @@ const GroceryList = ({ plan, recipes, inputRef }) => {
             planned: plannedFrom({ plan, recipes, matcher, pantryStock }),
             matcher,
             pantryStock,
-            title: 'SHOPPING',
+            title: 'Shopping list',
         });
         try {
             await navigator.clipboard.writeText(text);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            // On screen already; not worth a dialog.
+            /* A browser can refuse the clipboard — a private window, an insecure
+               origin, a dismissed permission prompt. The button used to do
+               nothing at all, which reads as broken. */
+            setCopyFailed(true);
+            setTimeout(() => setCopyFailed(false), 4000);
         }
     };
 
@@ -137,11 +142,26 @@ const GroceryList = ({ plan, recipes, inputRef }) => {
                 )}
             </div>
 
-            {lines.length === 0 ? (
+            {copyFailed && (
+                <p className="shop__copy-failed" role="status">
+                    Your browser wouldn’t let me copy it — select the list and copy it by hand.
+                </p>
+            )}
+
+            {notice && (
+                <p className="shop__copy-failed" role="status">
+                    {notice}{' '}
+                    <button type="button" className="shop__dismiss" onClick={clearNotice}>Dismiss</button>
+                </p>
+            )}
+
+            {/* Nothing is not the same as not-loaded-yet: this flashed
+                "nothing to buy" at her on every visit to the tab. */}
+            {loading ? null : lines.length === 0 ? (
                 <EmptyState
                     icon={<GiBasket />}
                     message="Nothing to buy."
-                    hint="Type something above, or plan meals in the Hearth and everything they need lands here."
+                    hint="Type something above, or plan meals for the week and everything they need lands here."
                 />
             ) : (
                 <>

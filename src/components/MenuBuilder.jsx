@@ -7,11 +7,17 @@ import MenuView from './MenuView';
 import CookPlan from './CookPlan';
 import { Button, Card, ConfirmButton, EmptyState, Field, Stat } from './ui';
 
-const COURSES = ['Appetizer', 'Starter', 'Main Course', 'Side', 'Dessert', 'Potable'];
+/* One name per course. "Appetizer" and "Starter" were both here and both
+   printed, so the same course could appear twice on one menu; "Potable" was
+   flavour for the thing the shopping list already calls Drinks. Old menus keep
+   whatever they were saved with, and the sheet still renders any course name
+   it finds on one. */
+const COURSES = ['Starter', 'Main Course', 'Side', 'Dessert', 'Drinks'];
 
 const MenuBuilder = ({
     recipes,
     menus,
+    loading,
     onSaveMenu,
     onUpdateMenu,
     onDeleteMenu,
@@ -29,6 +35,9 @@ const MenuBuilder = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCourse, setActiveCourse] = useState('Main Course');
     const [bought, setBought] = useState({ name: '', note: '' });
+    // Saving takes a round trip, and the button used to stay pressable for all
+    // of it — two taps on a slow connection saved the menu twice.
+    const [saving, setSaving] = useState(false);
 
     // Aggregate stats calculation
     const stats = useMemo(() => {
@@ -112,16 +121,25 @@ const MenuBuilder = ({
 
     const handleSave = async () => {
         if (!newMenu.title) {
-            setTitleError('A theme requires a title.');
+            setTitleError('Give the menu a title before saving.');
             return;
         }
+        if (saving) return;
         setTitleError('');
-        if (editingId) {
-            await onUpdateMenu(editingId, newMenu, selectedRecipes);
-        } else {
-            await onSaveMenu(newMenu, selectedRecipes);
+        setSaving(true);
+        try {
+            if (editingId) {
+                await onUpdateMenu(editingId, newMenu, selectedRecipes);
+            } else {
+                await onSaveMenu(newMenu, selectedRecipes);
+            }
+            handleClose();
+        } catch {
+            // The hook has already said what went wrong; keep her edits on
+            // screen rather than closing over a save that did not happen.
+        } finally {
+            setSaving(false);
         }
-        handleClose();
     };
 
     const handleEdit = (menu) => {
@@ -165,12 +183,12 @@ const MenuBuilder = ({
                 {/* Left: Recipe Archive */}
                 <div className="menu-builder__archive">
                     <h3 className="section-title">
-                        <GiScrollQuill /> THE ARCHIVES
+                        <GiScrollQuill /> Your recipes
                     </h3>
                     <Field
-                        label="Seek formula"
+                        label="Search recipes"
                         type="search"
-                        placeholder="Seek formula..."
+                        placeholder="Search by name or tag"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => {
@@ -204,7 +222,7 @@ const MenuBuilder = ({
                         {filteredRecipes.length === 0 && (
                             <EmptyState
                                 icon={<GiScrollQuill />}
-                                message="No formulae answer to that name."
+                                message="No recipes match that search."
                             />
                         )}
                     </div>
@@ -212,12 +230,13 @@ const MenuBuilder = ({
                     {/* Not everything on a menu is cooked. */}
                     <form className="menu-builder__bought" onSubmit={handleAddBought}>
                         <h4 className="menu-builder__bought-title">
-                            <GiShop /> BOUGHT, NOT COOKED
+                            <GiShop /> Bought, not cooked
                         </h4>
                         <Field
-                            label={`Name — goes under ${activeCourse}`}
+                            label="Name"
+                            hint={`Goes under ${activeCourse}`}
                             type="text"
-                            placeholder="Diet Coke, Whole Foods cookies..."
+                            placeholder="Diet Coke, Whole Foods cookies"
                             value={bought.name}
                             onChange={(e) => setBought({ ...bought, name: e.target.value })}
                         />
@@ -241,7 +260,7 @@ const MenuBuilder = ({
                             <Field
                                 label="Title"
                                 type="text"
-                                placeholder="A Menu for..."
+                                placeholder="Sunday lunch"
                                 value={newMenu.title}
                                 error={titleError}
                                 onChange={(e) => setNewMenu({ ...newMenu, title: e.target.value })}
@@ -250,23 +269,23 @@ const MenuBuilder = ({
                             <Field
                                 label="Occasion"
                                 type="text"
-                                placeholder="The Occasion (Optional)"
+                                placeholder="Mum's birthday"
                                 value={newMenu.occasion}
                                 onChange={(e) => setNewMenu({ ...newMenu, occasion: e.target.value })}
                             />
                         </div>
                         <div className="menu-builder__canvas-actions">
-                            <Button variant="ghost" onClick={handleClose}>ABANDON</Button>
-                            <Button variant="solid" onClick={handleSave}>
-                                {editingId ? 'UPDATED SEAL' : 'SEAL MENU'}
+                            <Button variant="ghost" onClick={handleClose}>Cancel</Button>
+                            <Button variant="solid" onClick={handleSave} disabled={saving}>
+                                {saving ? 'Saving…' : editingId ? 'Save changes' : 'Save menu'}
                             </Button>
                         </div>
                     </div>
 
                     {/* Stats Ribbon */}
                     <div className="stat-row">
-                        <Stat icon={<GiClockwork />} value={stats.total} label="Total Labor" />
-                        <Stat icon={<GiMeal />} value={stats.count} label="Components" />
+                        <Stat icon={<GiClockwork />} value={stats.total} label="Total time" />
+                        <Stat icon={<GiMeal />} value={stats.count} label={stats.count === 1 ? 'Dish' : 'Dishes'} />
                     </div>
 
                     {/* Course Selection */}
@@ -289,7 +308,8 @@ const MenuBuilder = ({
                         {Object.keys(groupedSelection).length === 0 && (
                             <EmptyState
                                 icon={<GiMeal />}
-                                message="The page is blank. Select formulae from the archive to begin."
+                                message="Nothing on this menu yet."
+                                hint="Pick recipes from the list on the left, or add something you're buying."
                             />
                         )}
                         {COURSES.map(course => groupedSelection[course] && (
@@ -302,7 +322,7 @@ const MenuBuilder = ({
                                             <div key={idx} className="menu-builder__dish">
                                                 <span className="menu-builder__thumb">
                                                     {mr.image_url
-                                                        ? <img src={mr.image_url} alt="" />
+                                                        ? <img src={mr.image_url} alt="" loading="lazy" decoding="async" />
                                                         : !mr.recipe_id && <GiShop size={16} />}
                                                 </span>
                                                 <span className="menu-builder__dish-title">
@@ -333,11 +353,14 @@ const MenuBuilder = ({
 
     return (
         <div className="menu-list">
-            {menus.length === 0 ? (
+            {/* Nothing is not the same as not-yet-loaded: this used to flash
+                "no menus" at her for as long as the fetch took. */}
+            {loading ? null : menus.length === 0 ? (
                 <EmptyState
                     icon={<GiMeal />}
-                    message="No menus have been curated yet."
-                    actionLabel="New Menu"
+                    message="No menus yet."
+                    hint="Build one for a dinner party and the Larder can work out when to start cooking."
+                    actionLabel="New menu"
                     onAction={() => onCreatingChange(true)}
                 />
             ) : (
@@ -360,7 +383,7 @@ const MenuBuilder = ({
                                     <Button
                                         icon
                                         size="sm"
-                                        label={`Plan the cooking of ${menu.title}`}
+                                        label={`Cooking schedule for ${menu.title}`}
                                         onClick={() => setPlanningId(menu.id)}
                                     >
                                         <GiHourglass />
@@ -375,20 +398,22 @@ const MenuBuilder = ({
                                     </Button>
                                     <ConfirmButton
                                         label={`Delete menu ${menu.title}`}
-                                        confirmLabel="Confirm Erasure?"
+                                        confirmLabel="Confirm delete"
                                         icon={<GiTrashCan />}
                                         onConfirm={() => onDeleteMenu(menu.id)}
                                     />
                                 </>
                             )}
                         >
-                            <p className="menu-card__occasion">{menu.occasion || 'General Feast'}</p>
+                            <p className="menu-card__occasion">{menu.occasion || 'No occasion set'}</p>
 
                             <div className="menu-card__dishes">
                                 {menu.user_larder_menu_recipes?.slice(0, 3).map((mr, idx) => (
                                     <div key={idx} className="menu-card__dish">
                                         <span className="menu-builder__thumb menu-builder__thumb--sm">
-                                            {mr.recipes?.image_url && <img src={mr.recipes.image_url} alt="" />}
+                                            {mr.recipes?.image_url
+                                                ? <img src={mr.recipes.image_url} alt="" loading="lazy" decoding="async" />
+                                                : !mr.recipe_id && <GiShop size={14} />}
                                         </span>
                                         <span className="muted">{mr.course_name}:</span>
                                         <span>{mr.recipes?.title || mr.item_name}</span>
@@ -396,15 +421,23 @@ const MenuBuilder = ({
                                 ))}
                                 {(menu.user_larder_menu_recipes?.length || 0) > 3 && (
                                     <span className="menu-card__more">
-                                        + {menu.user_larder_menu_recipes.length - 3} more formulae...
+                                        + {menu.user_larder_menu_recipes.length - 3} more
                                     </span>
                                 )}
                             </div>
 
                             <div className="menu-card__foot">
-                                <span><GiMagicPotion /> {menu.user_larder_menu_recipes?.length || 0} Dishes</span>
+                                <span>
+                                    <GiMagicPotion />{' '}
+                                    {(menu.user_larder_menu_recipes?.length || 0) === 1
+                                        ? '1 dish'
+                                        : `${menu.user_larder_menu_recipes?.length || 0} dishes`}
+                                </span>
                                 {menu.plan?.steps?.length ? (
-                                    <span><GiHourglass /> {menu.plan.steps.length} step plan</span>
+                                    <span>
+                                        <GiHourglass />{' '}
+                                        {menu.plan.steps.length === 1 ? '1 step' : `${menu.plan.steps.length} steps`}
+                                    </span>
                                 ) : (
                                     <span>{new Date(menu.created_at).toLocaleDateString()}</span>
                                 )}

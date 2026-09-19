@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, Suspense, lazy } from 'react';
 import { format, parseISO, isToday, isTomorrow } from 'date-fns';
 import { useRecipes } from '../hooks/useRecipes';
 import { useIngredients } from '../hooks/useIngredients';
@@ -16,7 +16,9 @@ import {
     GiHerbsBundle, GiScrollQuill, GiScrollUnfurled, GiCauldron, GiTrashCan,
     GiSpellBook
 } from 'react-icons/gi';
-import EmojiPicker from 'emoji-picker-react';
+// The emoji dataset is ~200KB and lives behind three separate clicks. Loaded
+// at module scope it was part of the Larder's first paint.
+const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import { readToken, isLight } from '../utils/mapStyle';
 import {
     Button, Card, ConfirmButton, EmptyState, Field, Modal, PageHeader, Tabs, TabPanel, Tag
@@ -32,15 +34,18 @@ import '../styles/Larder.css';
    herbs on its "New Provision" button, the Menu Builder's the quill on its
    "New Menu" - so the button and the tab that leads to it are one thing. */
 const TABS = [
-    { id: 'collection', label: 'Recipe Collection', icon: <GiSpellBook /> },
+    { id: 'collection', label: 'Recipes', icon: <GiSpellBook /> },
     { id: 'pantry', label: 'Pantry', icon: <GiHerbsBundle /> },
-    { id: 'hearth', label: 'The Hearth', icon: <GiCauldron /> },
-    { id: 'menus', label: 'Menu Builder', icon: <GiScrollQuill /> }
+    { id: 'hearth', label: 'Meal plan', icon: <GiCauldron /> },
+    { id: 'menus', label: 'Menus', icon: <GiScrollQuill /> }
 ];
 
+/* All four, or the header changes height every time she switches tab. */
 const TAB_SUBTITLES = {
-    hearth: 'What you are cooking this week, and what it means you need to buy.',
-    menus: 'Curate your grandest menus for the most exceptional occasions.'
+    collection: 'Everything you can cook, and how much of it is already in the cupboard.',
+    pantry: 'What you keep in, so a recipe can tell you what you are missing.',
+    hearth: "What you're cooking this week, and what to buy for it.",
+    menus: "Menus you've built, and the cooking schedule for each."
 };
 
 const PROVISION_CATEGORIES = ['Pantry', 'Produce', 'Dairy', 'Protein', 'Spices'];
@@ -58,15 +63,15 @@ const planDayLabel = (iso) => {
 };
 
 const RECIPE_SORTS = [
-    { value: 'newest', label: 'Newest First' },
-    { value: 'title', label: 'Alphabetical' },
-    { value: 'match', label: '% Pantry Match' }
+    { value: 'newest', label: 'Newest first' },
+    { value: 'title', label: 'A–Z' },
+    { value: 'match', label: 'Pantry match' }
 ];
 
 const PANTRY_SORTS = [
-    { value: 'category', label: 'Category (Groups)' },
-    { value: 'name', label: 'Name (A-Z)' },
-    { value: 'stocked', label: 'In Stock First' }
+    { value: 'category', label: 'Category' },
+    { value: 'name', label: 'Name (A–Z)' },
+    { value: 'stocked', label: 'In stock first' }
 ];
 
 const EMPTY_PROVISION = { name: '', category: 'Pantry', icon: '🍽️' };
@@ -106,11 +111,14 @@ const LarderFilters = ({
     </div>
 );
 
-const PantryItem = ({
-    item, pantryStock, togglePantryStock, deleteIngredient,
+/* Memoised, and handed a boolean rather than the whole stock map: the pantry
+   draws 260 of these, and every tap on one of them used to re-render all of
+   them. The actions come from the pantry store and are stable, which is what
+   makes the memo hold. */
+const PantryItem = React.memo(({
+    item, inStock, togglePantryStock, deleteIngredient,
     removeAlias, addAlias, updateIngredient,
 }) => {
-    const inStock = !!pantryStock[item.id];
     const aliases = item.aliases || [];
 
     const [picking, setPicking] = useState(false);
@@ -141,6 +149,7 @@ const PantryItem = ({
 
             {picking && (
                 <div className="pantry-item__picker">
+                    <Suspense fallback={<span className="muted">Loading symbols…</span>}>
                     <EmojiPicker
                         width={280}
                         height={340}
@@ -153,6 +162,7 @@ const PantryItem = ({
                             setPicking(false);
                         }}
                     />
+                    </Suspense>
                 </div>
             )}
 
@@ -164,7 +174,7 @@ const PantryItem = ({
             >
                 <span className="pantry-item__text">
                     <span className="pantry-item__label">{item.label}</span>
-                    <Tag tone={inStock ? 'gold' : 'default'}>{inStock ? 'IN STOCK' : 'OUT'}</Tag>
+                    <Tag tone={inStock ? 'gold' : 'default'}>{inStock ? 'In stock' : 'Out of stock'}</Tag>
                 </span>
             </button>
 
@@ -179,10 +189,11 @@ const PantryItem = ({
                             type="button"
                             className="pantry-item__alias"
                             title={`Stop matching "${alias}" to ${item.label}`}
+                            aria-label={`Stop matching "${alias}" to ${item.label}`}
                             onClick={() => removeAlias?.(item.id, alias)}
                         >
                             {alias} <span aria-hidden="true">×</span>
-                            <span className="visually-hidden">remove this alias</span>
+                            <span className="visually-hidden">remove this name</span>
                         </button>
                     </li>
                 ))}
@@ -212,14 +223,16 @@ const PantryItem = ({
             </ul>
 
             <ConfirmButton
-                label={`Remove ${item.label} from the larder`}
-                confirmLabel="CONFIRM"
+                label={`Delete ${item.label} from your pantry`}
+                confirmLabel="Confirm delete"
                 icon={<GiTrashCan />}
                 onConfirm={() => deleteIngredient(item.id)}
             />
         </div>
     );
-};
+});
+
+PantryItem.displayName = 'PantryItem';
 
 const Larder = () => {
     const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'hearth', 'menus', 'pantry'
@@ -234,13 +247,20 @@ const Larder = () => {
     const [filterTag, setFilterTag] = useState('');
     const [sortBy, setSortBy] = useState('newest'); // 'newest', 'title', 'match'
 
-    const { recipes, loading, error, addRecipe, deleteRecipe, updateRecipe, mealPlan, addToPlan, clearDay, importRecipe } = useRecipes();
+    const {
+        recipes, loading, error, notice: recipeNotice, clearNotice: clearRecipeNotice,
+        addRecipe, deleteRecipe, updateRecipe, mealPlan, addToPlan, clearDay, importRecipe,
+    } = useRecipes();
     const {
         ingredientsByCategory, pantryStock, togglePantryStock, addCustomIngredient,
         deleteIngredient, ingredientsByName, matcher, addManyIngredients, addAlias,
         removeAlias, ingredients, updateIngredient,
+        loading: pantryLoading, error: pantryNotice, clearError: clearPantryNotice,
     } = useIngredients();
-    const { menus, addMenu, updateMenu, deleteMenu, setServeTime, savePlan } = useMenus();
+    const {
+        menus, loading: menusLoading, notice: menuNotice, clearNotice: clearMenuNotice,
+        addMenu, updateMenu, deleteMenu, setServeTime, savePlan,
+    } = useMenus();
 
     // The Hearth: which day a picked formula lands on
     const [picker, setPicker] = useState({ open: false, day: null });
@@ -275,9 +295,21 @@ const Larder = () => {
      * RecipeDetail and ProvisionsWidget each had. All three now share one
      * matcher, so a recipe cannot report 20% here and 60% when opened.
      */
-    const calculatePantryMatch = useCallback((recipe) => {
+    /**
+     * Pantry match for the recipe list.
+     *
+     * This was a third hand-rolled copy of the same exact-string lookup that
+     * RecipeDetail and ProvisionsWidget each had. All three now share one
+     * matcher, so a recipe cannot report 20% here and 60% when opened.
+     *
+     * The matcher remembers every line it has already been asked about for as
+     * long as the pantry stands still, so calling this again for a recipe it
+     * has already seen costs a map lookup per ingredient.
+     */
+    const withPantryMatch = useCallback((recipe) => {
         const result = matcher.matchRecipe(recipe.ingredients || []);
         return {
+            ...recipe,
             percentage: result.percent,
             // "Missing" in the list has always meant "not in the cupboard right
             // now", which includes things the pantry knows about but has run
@@ -285,15 +317,20 @@ const Larder = () => {
             missing: result.lines.filter((l) => !l.inStock),
             unknown: result.missing,
             total: result.total,
+            // Handed to the card so it does not match the same six ingredients
+            // a second time to draw its cover.
+            lines: result.lines,
         };
     }, [matcher]);
 
     const filteredRecipes = useMemo(() => {
-        // First map all to include match data
-        let result = recipes.map(r => ({
-            ...r,
-            ...calculatePantryMatch(r) // adds percentage, missing, total
-        }));
+        /* Search and filter first, match second.
+           Matching a recipe is the most expensive thing on the page, and this
+           used to do it to all of them before reading the search box — so
+           typing five letters matched the whole collection five times over and
+           threw almost all of it away. Now a search that leaves three recipes
+           costs three matches. */
+        let result = recipes;
 
         // Search
         if (searchQuery) {
@@ -308,6 +345,8 @@ const Larder = () => {
         if (filterTag) {
             result = result.filter(r => r.tags?.includes(filterTag));
         }
+
+        result = result.map(withPantryMatch);
 
         // Sort
         if (sortBy === 'title') {
@@ -328,7 +367,7 @@ const Larder = () => {
         }
 
         return result;
-    }, [recipes, searchQuery, filterTag, sortBy, calculatePantryMatch]);
+    }, [recipes, searchQuery, filterTag, sortBy, withPantryMatch]);
 
     // Derived Pantry List (Filtered & Sorted)
     const processedPantry = useMemo(() => {
@@ -367,7 +406,37 @@ const Larder = () => {
         return allIngredients;
     }, [ingredientsByCategory, pantrySearch, pantryFilter, pantrySort, pantryStock]);
 
-    const showFlatPantry = pantrySort !== 'category' || pantrySearch !== '';
+    /**
+     * The same rows, in their categories.
+     *
+     * Searching used to swap the grouped pantry for a flat one on the first
+     * keystroke and swap it back on the last — the headings appeared and
+     * vanished under her thumb. It filters inside the groups now, and only the
+     * sort decides whether there are groups at all.
+     */
+    const groupedPantry = useMemo(() => {
+        const groups = new Map();
+        for (const item of processedPantry) {
+            const category = item.category || 'Uncategorized';
+            if (!groups.has(category)) groups.set(category, []);
+            groups.get(category).push(item);
+        }
+        return [...groups.entries()];
+    }, [processedPantry]);
+
+    const showFlatPantry = pantrySort !== 'category';
+
+    /* Something a write failed at, said once, at the top of the page. These
+       were console.error alone — the row sprang back and nothing said why. */
+    const notice = recipeNotice || menuNotice || pantryNotice || null;
+    const dismissNotice = () => { clearRecipeNotice(); clearMenuNotice(); clearPantryNotice(); };
+
+    /* A tab is a different page. Landing halfway down the pantry because the
+       recipe list had been scrolled is disorienting every single time. */
+    const contentRef = useRef(null);
+    useEffect(() => {
+        if (contentRef.current) contentRef.current.scrollTop = 0;
+    }, [activeTab]);
 
     const pickerResults = useMemo(() => {
         const q = pickerQuery.toLowerCase().trim();
@@ -464,7 +533,7 @@ const Larder = () => {
         return (
             <div className="larder-loading">
                 <span className="spin"><GiHourglass size={48} /></span>
-                <p>Consulting the archives...</p>
+                <p>Loading your recipes…</p>
             </div>
         );
     }
@@ -474,8 +543,10 @@ const Larder = () => {
             <div className="larder-error">
                 <EmptyState
                     icon={<GiCauldron />}
-                    message="The pantry is locked."
-                    hint={<>Error connecting to the archives: {error}<br />Did you run the SQL setup script?</>}
+                    message="Couldn't load the Larder."
+                    /* The raw Supabase message used to be printed here, along
+                       with an instruction to run a SQL script. */
+                    hint="Check your connection and reload. If it keeps failing, the Larder's tables may not be set up yet."
                 />
             </div>
         );
@@ -486,32 +557,32 @@ const Larder = () => {
         if (activeTab === 'collection') {
             return view === 'list' ? (
                 <Button variant="primary" onClick={handleCreate}>
-                    <GiQuill /> New Formula
+                    <GiQuill /> New recipe
                 </Button>
             ) : (
                 <Button variant="ghost" onClick={handleCancel}>
-                    <GiScrollUnfurled /> Back to the Archives
+                    <GiScrollUnfurled /> Back to recipes
                 </Button>
             );
         }
         if (activeTab === 'hearth') {
             return (
                 <Button variant="primary" onClick={() => openPicker(null)}>
-                    <GiCookingPot /> Plan a Meal
+                    <GiCookingPot /> Add a meal
                 </Button>
             );
         }
         if (activeTab === 'menus') {
             return isBuildingMenu ? null : (
                 <Button variant="primary" onClick={() => setIsBuildingMenu(true)}>
-                    <GiScrollQuill /> New Menu
+                    <GiScrollQuill /> New menu
                 </Button>
             );
         }
         if (activeTab === 'pantry') {
             return (
                 <Button variant="primary" onClick={() => setIsProvisionModalOpen(true)}>
-                    <GiHerbsBundle /> New Provision
+                    <GiHerbsBundle /> Add ingredient
                 </Button>
             );
         }
@@ -533,14 +604,21 @@ const Larder = () => {
                 label="The Larder"
             />
 
-            <div className="larder__content">
+            {notice && (
+                <div className="larder__notice" role="status">
+                    <span>{notice}</span>
+                    <Button size="sm" variant="ghost" onClick={dismissNotice}>Dismiss</Button>
+                </div>
+            )}
+
+            <div className="larder__content" ref={contentRef}>
                 <TabPanel id="collection" active={activeTab}>
                     {view === 'list' ? (
                         <div className="stack">
                             <LarderFilters
                                 search={searchQuery}
                                 onSearch={setSearchQuery}
-                                searchPlaceholder="Search formulas..."
+                                searchPlaceholder="Search recipes…"
                                 filter={filterTag}
                                 onFilter={setFilterTag}
                                 filterLabel="Tag"
@@ -558,6 +636,7 @@ const Larder = () => {
                                 onAddToPlan={handleAddToPlan}
                                 onView={handleView}
                                 onCreate={handleCreate}
+                                searching={Boolean(searchQuery || filterTag)}
                             />
                         </div>
                     ) : view === 'form' ? (
@@ -616,6 +695,7 @@ const Larder = () => {
                     <MenuBuilder
                         recipes={recipes}
                         menus={menus}
+                        loading={menusLoading}
                         onSaveMenu={addMenu}
                         onUpdateMenu={updateMenu}
                         onDeleteMenu={deleteMenu}
@@ -631,7 +711,7 @@ const Larder = () => {
                         <LarderFilters
                             search={pantrySearch}
                             onSearch={setPantrySearch}
-                            searchPlaceholder="Search provisions..."
+                            searchPlaceholder="Search ingredients…"
                             filter={pantryFilter}
                             onFilter={setPantryFilter}
                             filterLabel="Category"
@@ -642,63 +722,61 @@ const Larder = () => {
                             sortOptions={PANTRY_SORTS}
                         />
 
-                        {showFlatPantry ? (
-                            processedPantry.length === 0 ? (
+                        {pantryLoading ? null : processedPantry.length === 0 ? (
+                            /* Three different nothings, and they want three
+                               different sentences: an empty pantry, a search
+                               that found none of it, and a category with
+                               nothing in it. */
+                            ingredients.length === 0 ? (
                                 <EmptyState
                                     icon={<GiHerbsBundle />}
-                                    message="No provisions match your criteria."
-                                    actionLabel="New Provision"
+                                    message="Your pantry is empty."
+                                    hint="Add the things you usually keep in, and recipes can tell you what you're missing."
+                                    actionLabel="Add ingredient"
                                     onAction={() => setIsProvisionModalOpen(true)}
                                 />
                             ) : (
-                                <div className="pantry-grid">
-                                    {processedPantry.map(item => (
-                                        <PantryItem
-                                            key={item.id}
-                                            item={item}
-                                            pantryStock={pantryStock}
-                                            removeAlias={removeAlias}
-                                            addAlias={addAlias}
-                                            updateIngredient={updateIngredient}
-                                            togglePantryStock={togglePantryStock}
-                                            deleteIngredient={deleteIngredient}
-                                        />
-                                    ))}
-                                </div>
+                                <EmptyState
+                                    icon={<GiHerbsBundle />}
+                                    message="No ingredients match that search."
+                                    hint="Try a different word, or change the category filter."
+                                />
                             )
-                        ) : Object.keys(ingredientsByCategory).length === 0 ? (
-                            <EmptyState
-                                icon={<GiHerbsBundle />}
-                                message="The pantry stands empty."
-                                hint="Catalogue a provision to begin."
-                                actionLabel="New Provision"
-                                onAction={() => setIsProvisionModalOpen(true)}
-                            />
+                        ) : showFlatPantry ? (
+                            <div className="pantry-grid">
+                                {processedPantry.map(item => (
+                                    <PantryItem
+                                        key={item.id}
+                                        item={item}
+                                        inStock={!!pantryStock[item.id]}
+                                        removeAlias={removeAlias}
+                                        addAlias={addAlias}
+                                        updateIngredient={updateIngredient}
+                                        togglePantryStock={togglePantryStock}
+                                        deleteIngredient={deleteIngredient}
+                                    />
+                                ))}
+                            </div>
                         ) : (
-                            Object.entries(ingredientsByCategory).map(([category, items]) => {
-                                // If filtering by category, only show that category
-                                if (pantryFilter && category !== pantryFilter) return null;
-
-                                return (
-                                    <section key={category} className="pantry-group">
-                                        <h3 className="section-title">{category}</h3>
-                                        <div className="pantry-grid">
-                                            {items.map(item => (
-                                                <PantryItem
-                                                    key={item.id}
-                                                    item={item}
-                                                    pantryStock={pantryStock}
-                                                    removeAlias={removeAlias}
-                                                    addAlias={addAlias}
-                                                    updateIngredient={updateIngredient}
-                                                    togglePantryStock={togglePantryStock}
-                                                    deleteIngredient={deleteIngredient}
-                                                />
-                                            ))}
-                                        </div>
-                                    </section>
-                                );
-                            })
+                            groupedPantry.map(([category, items]) => (
+                                <section key={category} className="pantry-group">
+                                    <h3 className="section-title">{category}</h3>
+                                    <div className="pantry-grid">
+                                        {items.map(item => (
+                                            <PantryItem
+                                                key={item.id}
+                                                item={item}
+                                                inStock={!!pantryStock[item.id]}
+                                                removeAlias={removeAlias}
+                                                addAlias={addAlias}
+                                                updateIngredient={updateIngredient}
+                                                togglePantryStock={togglePantryStock}
+                                                deleteIngredient={deleteIngredient}
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            ))
                         )}
                     </div>
                 </TabPanel>
@@ -715,15 +793,15 @@ const Larder = () => {
             <Modal
                 open={picker.open}
                 onClose={closePicker}
-                title={picker.day ? `Plan for ${planDayLabel(picker.day)}` : 'Plan a Meal'}
+                title={picker.day ? `Add to ${planDayLabel(picker.day)}` : 'Choose a recipe'}
                 footer={<Button variant="ghost" onClick={closePicker}>Cancel</Button>}
             >
                 <Field
-                    label="Seek formula"
+                    label="Search recipes"
                     type="search"
                     value={pickerQuery}
                     onChange={(e) => setPickerQuery(e.target.value)}
-                    placeholder="Search formulas..."
+                    placeholder="Search by name"
                 />
                 <div className="recipe-picker">
                     {pickerResults.map(recipe => (
@@ -740,8 +818,8 @@ const Larder = () => {
                     {pickerResults.length === 0 && (
                         <EmptyState
                             icon={<GiCauldron />}
-                            message="No formulae answer to that name."
-                            hint="Add a new formula to begin."
+                            message="No recipes match that search."
+                            hint="Try a different word, or close this and add the recipe first."
                         />
                     )}
                 </div>
@@ -751,12 +829,12 @@ const Larder = () => {
             <Modal
                 open={isProvisionModalOpen}
                 onClose={closeProvisionModal}
-                title="NEW PROVISION"
+                title="Add an ingredient"
                 footer={(
                     <>
                         <Button variant="ghost" onClick={closeProvisionModal}>Cancel</Button>
                         <Button variant="solid" onClick={handleAddProvision} disabled={!newProvision.name.trim()}>
-                            ADD TO PANTRY
+                            Add to pantry
                         </Button>
                     </>
                 )}
@@ -766,7 +844,7 @@ const Larder = () => {
                     type="text"
                     value={newProvision.name}
                     onChange={(e) => setNewProvision(p => ({ ...p, name: e.target.value }))}
-                    placeholder="Name (e.g. Saffron)"
+                    placeholder="e.g. saffron"
                 />
                 <div className="field-row">
                     <Field label="Category">
@@ -781,7 +859,7 @@ const Larder = () => {
                     <div className="field larder-symbol">
                         <span className="field__label" id="provision-symbol">Symbol</span>
                         <Button
-                            label="Choose provision symbol"
+                            label="Choose a symbol"
                             aria-describedby="provision-symbol"
                             aria-expanded={showEmojiPicker}
                             className="larder-symbol__btn"
@@ -791,14 +869,18 @@ const Larder = () => {
                         </Button>
                         {showEmojiPicker && (
                             <div className="larder-symbol__picker">
+                                <Suspense fallback={<span className="muted">Loading symbols…</span>}>
                                 <EmojiPicker
-                                    theme="dark"
+                                    // Was pinned to dark: a black slab of
+                                    // unreadable emoji on every light skin.
+                                    theme={isLight(readToken('--bg-panel', '#ffffff')) ? 'light' : 'dark'}
                                     width={300}
                                     onEmojiClick={(emojiData) => {
                                         setNewProvision(p => ({ ...p, icon: emojiData.emoji }));
                                         setShowEmojiPicker(false);
                                     }}
                                 />
+                                </Suspense>
                             </div>
                         )}
                     </div>

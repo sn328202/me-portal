@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import EmojiPicker from 'emoji-picker-react';
+import React, { useState, Suspense, lazy } from 'react';
+
+// Behind a click, and a whole emoji dataset: loaded when she opens it, not
+// when the Larder does.
+const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import { Button, Modal } from './ui';
 import { guessCategory, iconFor, labelFor } from '../utils/ingredientMatch';
 import { readToken, isLight } from '../utils/mapStyle';
@@ -22,10 +25,19 @@ const MissingIngredients = ({ open, lines, categories, onCancel, onConfirm }) =>
     const [picking, setPicking] = useState(null);
     const [saving, setSaving] = useState(false);
 
-    // Re-seed whenever the sheet is opened, so a cancelled pass does not leave
-    // its edits behind for the next one.
-    useEffect(() => {
-        if (!open) return;
+    /* Seed the rows when the sheet opens, and when what it is being asked
+       about actually changes — not on every render of the recipe behind it.
+       `lines` is rebuilt by the parent each time it renders, so an effect
+       keyed on it threw away every rename, refile and dropped row the moment
+       anything else on the page moved: teaching an alias, a pantry update
+       landing. The join is the content, which is the thing that decides
+       whether to start again. Adjusting state during render rather than in an
+       effect is deliberate — an effect paints her edits, then wipes them. */
+    const seed = open ? (lines || []).join('\u0000') : null;
+    const [seeded, setSeeded] = useState(null);
+
+    if (open && seeded !== seed) {
+        setSeeded(seed);
         setRows((lines || []).map((raw, i) => {
             const category = guessCategory(raw);
             return {
@@ -37,7 +49,7 @@ const MissingIngredients = ({ open, lines, categories, onCancel, onConfirm }) =>
             };
         }));
         setPicking(null);
-    }, [open, lines]);
+    }
 
     const update = (key, patch) => setRows((prev) => prev.map((r) => (
         r.key === key
@@ -67,11 +79,13 @@ const MissingIngredients = ({ open, lines, categories, onCancel, onConfirm }) =>
         <Modal
             open={open}
             onClose={onCancel}
-            size="lg"
-            title={`Add ${rows.length} to the pantry`}
+            size="wide"
+            title={rows.length === 1
+                ? 'Add 1 ingredient to your pantry'
+                : `Add ${rows.length} ingredients to your pantry`}
             footer={(
                 <>
-                    <Button onClick={onCancel}>Cancel</Button>
+                    <Button variant="ghost" onClick={onCancel}>Cancel</Button>
                     <Button variant="solid" disabled={saving || !rows.length} onClick={confirm}>
                         {saving ? 'Adding…' : `Add ${rows.length}`}
                     </Button>
@@ -97,6 +111,7 @@ const MissingIngredients = ({ open, lines, categories, onCancel, onConfirm }) =>
 
                         {picking === row.key && (
                             <div className="missing__picker">
+                                <Suspense fallback={<span className="muted">Loading symbols…</span>}>
                                 <EmojiPicker
                                     width={280}
                                     height={320}
@@ -106,6 +121,7 @@ const MissingIngredients = ({ open, lines, categories, onCancel, onConfirm }) =>
                                         setPicking(null);
                                     }}
                                 />
+                                </Suspense>
                             </div>
                         )}
 
@@ -129,7 +145,7 @@ const MissingIngredients = ({ open, lines, categories, onCancel, onConfirm }) =>
                         <button
                             type="button"
                             className="missing__drop"
-                            aria-label={`Don’t add ${row.label}`}
+                            aria-label={`Remove ${row.label} from this list`}
                             onClick={() => drop(row.key)}
                         >
                             ×
@@ -139,7 +155,7 @@ const MissingIngredients = ({ open, lines, categories, onCancel, onConfirm }) =>
             </ul>
 
             {!rows.length && (
-                <p className="missing__empty">Nothing left to add.</p>
+                <p className="missing__empty">Nothing left to add — close this when you’re done.</p>
             )}
         </Modal>
     );
