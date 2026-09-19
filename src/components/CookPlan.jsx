@@ -59,7 +59,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
             await onSetServeTime(menu.id, { serve_date: nextDate, serve_time: nextTime });
         } catch (err) {
             console.error(err);
-            setError('That did not save.');
+            setError("Couldn't save that. Check your connection and try again.");
         }
     };
 
@@ -78,11 +78,11 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                 body: JSON.stringify({ menu_id: menu.id, serve_date: serveDate, serve_time: serveTime }),
             });
             const json = await res.json();
-            if (!json.ok) { setError(json.error || 'Could not work that one out.'); return; }
+            if (!json.ok) { setError(json.error || "Couldn't build the schedule. Try again."); return; }
             await onSavePlan(menu.id, json.plan);
         } catch (err) {
             console.error(err);
-            setError('Could not work that one out.');
+            setError("Couldn't build the schedule. Check your connection and try again.");
         } finally {
             setBuilding(false);
         }
@@ -93,7 +93,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
             await onSavePlan(menu.id, { ...plan, steps: next });
         } catch (err) {
             console.error(err);
-            setError('That did not save.');
+            setError("Couldn't save that. Check your connection and try again.");
         }
     };
 
@@ -126,7 +126,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
         if (!what) return;
         const serve = { serve_date: plan.serve_date, serve_time: plan.serve_time };
         const ahead = offsetFrom(serve, { date: draft.date, time: draft.time });
-        if (ahead === null) { setError('That is not a time it can count back from.'); return; }
+        if (ahead === null) { setError("That time is after you're serving — pick an earlier one."); return; }
 
         const edited = {
             what,
@@ -183,7 +183,8 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                     onChange={(e) => setDraft({ ...draft, time: e.target.value })}
                 />
                 <Field
-                    label="Takes (min)"
+                    label="Takes"
+                    hint="minutes"
                     type="number"
                     min="0"
                     value={draft.minutes}
@@ -201,7 +202,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
             <div className="cookplan__editor-actions">
                 <Button size="sm" onClick={() => { setEditing(null); setError(null); }}>Cancel</Button>
                 <Button size="sm" variant="solid" onClick={saveEdit} disabled={!draft.what.trim()}>
-                    Keep it
+                    Save step
                 </Button>
             </div>
         </div>
@@ -221,7 +222,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                         </p>
                     </div>
                     <Button variant="ghost" onClick={onClose}>
-                        <GiCancel /> CLOSE
+                        <GiCancel /> Close
                     </Button>
                 </div>
 
@@ -245,7 +246,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                         onClick={build}
                         disabled={!ready || building || !dishes}
                     >
-                        {building ? 'Working it out…' : plan ? 'BUILD IT AGAIN' : 'BUILD THE PLAN'}
+                        {building ? 'Working it out…' : plan ? 'Build it again' : 'Build the schedule'}
                     </Button>
                 </div>
 
@@ -269,7 +270,8 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                 {!plan && !building && (
                     <EmptyState
                         icon={<GiSandsOfTime />}
-                        message="No plan yet. It will read the recipes and work backwards from your serve time — including the soaking, marinating and resting that has to start the day before."
+                        message="No schedule yet."
+                        hint="It will read the recipes and work backwards from your serve time — including the soaking, marinating and resting that has to start the day before."
                     />
                 )}
 
@@ -356,7 +358,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
 
                         {editing === 'new'
                             ? <div className="cookplan__day">{editor}</div>
-                            : <Button size="sm" onClick={startNew}>Add a step of your own</Button>}
+                            : <Button size="sm" onClick={startNew}>Add a step</Button>}
                     </>
                 )}
             </div>

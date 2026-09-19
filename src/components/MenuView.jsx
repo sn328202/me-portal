@@ -36,11 +36,11 @@ const MenuView = ({ menu, recipes, onClose }) => {
                 {/* Control Bar - Hidden in Print */}
                 <div className="menu-actions">
                     <Button variant="ghost" onClick={onClose}>
-                        <GiCancel /> BACK TO ARCHIVE
+                        <GiCancel /> Back to menus
                     </Button>
 
                     <div className="menu-actions__right">
-                        <Field label="INCLUDE FULL RECIPES" className="menu-actions__toggle">
+                        <Field label="Include full recipes" className="menu-actions__toggle">
                             <input
                                 type="checkbox"
                                 checked={includeRecipes}
@@ -48,7 +48,7 @@ const MenuView = ({ menu, recipes, onClose }) => {
                             />
                         </Field>
                         <Button variant="solid" onClick={handlePrint}>
-                            <GiScrollUnfurled /> PRINT / EXPORT
+                            <GiScrollUnfurled /> Print
                         </Button>
                     </div>
                 </div>
@@ -108,12 +108,12 @@ const MenuView = ({ menu, recipes, onClose }) => {
                                 <div className="recipe-page__meta">
                                     <div><strong>Prep:</strong> {recipe.prep_time}</div>
                                     <div><strong>Cook:</strong> {recipe.cook_time}</div>
-                                    <div><strong>Yield:</strong> {recipe.servings}</div>
+                                    <div><strong>Servings:</strong> {recipe.servings}</div>
                                 </div>
 
                                 <div className="recipe-page__columns">
                                     <div>
-                                        <h4 className="recipe-page__label">Provisions</h4>
+                                        <h4 className="recipe-page__label">Ingredients</h4>
                                         <ul className="provisions-list">
                                             {recipe.ingredients?.map((ing, i) => (
                                                 <li key={i}>

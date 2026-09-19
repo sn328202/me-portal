@@ -96,7 +96,7 @@ const IngredientLink = ({ line, matcher, ingredients, onLink, onCreate }) => {
         <span className="ing-link" ref={boxRef}>
             {saved ? (
                 <span className="ing-link__saved" role="status">
-                    ✓ saved — “{line.normalised}” now means {saved}
+                    Saved — “{line.normalised}” now means {saved}
                 </span>
             ) : (
                 <button
@@ -105,7 +105,7 @@ const IngredientLink = ({ line, matcher, ingredients, onLink, onCreate }) => {
                     aria-expanded={open}
                     onClick={() => setOpen((v) => !v)}
                 >
-                    <GiLinkedRings /> {line.match ? 'not this?' : 'link'}
+                    <GiLinkedRings /> {line.match ? 'Not this?' : 'Link to pantry'}
                 </button>
             )}
 
@@ -134,7 +134,7 @@ const IngredientLink = ({ line, matcher, ingredients, onLink, onCreate }) => {
                                     <span className="ing-link__option-name">
                                         {item.label || item.name}
                                     </span>
-                                    {!item.in_stock && <span className="ing-link__out">out</span>}
+                                    {!item.in_stock && <span className="ing-link__out">out of stock</span>}
                                 </button>
                             </li>
                         ))}

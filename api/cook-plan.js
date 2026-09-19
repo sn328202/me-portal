@@ -137,16 +137,17 @@ export const matchDish = (name, entries = []) => {
 export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
 
-    if (req.method !== 'POST') return res.status(405).json({ error: 'POST a menu.' });
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Something went wrong sending that. Try again.' });
     if (!process.env.ANTHROPIC_API_KEY) {
-        return res.status(500).json({ error: 'Not configured: ANTHROPIC_API_KEY.' });
+        // Never name the variable: this string is rendered on her screen.
+        return res.status(500).json({ error: "The cooking schedule isn't set up on the server yet." });
     }
     if (!SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        return res.status(500).json({ error: 'Not configured.' });
+        return res.status(500).json({ error: "The cooking schedule isn't available right now." });
     }
 
     const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-    if (!bearer) return res.status(401).json({ error: 'Sign in first.' });
+    if (!bearer) return res.status(401).json({ error: 'Sign in again to build the schedule.' });
 
     const sb = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
         auth: { persistSession: false, autoRefreshToken: false },
@@ -161,7 +162,7 @@ export default async function handler(req, res) {
     const serveTime = String(body.serve_time || '').trim();
     const menuId = String(body.menu_id || '').trim();
 
-    if (!menuId) return res.status(400).json({ error: 'Which menu?' });
+    if (!menuId) return res.status(400).json({ error: "Couldn't tell which menu that was — reopen it and try again." });
     if (!readDate(serveDate) || readClock(serveTime) === null) {
         return res.status(400).json({ error: 'Say when you are serving it first.' });
     }
@@ -175,7 +176,7 @@ export default async function handler(req, res) {
         .eq('user_id', auth.user.id)
         .single();
 
-    if (menuError || !menu) return res.status(404).json({ error: 'That menu is not there.' });
+    if (menuError || !menu) return res.status(404).json({ error: 'That menu has been deleted.' });
 
     const entries = (menu.user_larder_menu_recipes || [])
         .slice()
@@ -218,7 +219,7 @@ export default async function handler(req, res) {
 
         if (!r.ok) {
             console.error('cook-plan: Anthropic', r.status, (await r.text()).slice(0, 300));
-            return res.status(502).json({ error: 'Could not work that one out.' });
+            return res.status(502).json({ error: "Couldn't build the schedule. Try again in a moment." });
         }
 
         const reply = await r.json();
@@ -230,7 +231,10 @@ export default async function handler(req, res) {
 
         const steps = normaliseSteps(raw, { serve_date: serveDate, serve_time: serveTime });
         if (!steps.length) {
-            return res.status(200).json({ ok: false, error: 'It could not find an order to cook that in.' });
+            return res.status(200).json({
+                ok: false,
+                error: "Couldn't work out an order for those dishes. Adding prep and cook times to the recipes usually fixes it.",
+            });
         }
 
         return res.status(200).json({
@@ -244,6 +248,6 @@ export default async function handler(req, res) {
         });
     } catch (err) {
         console.error('cook-plan threw', err?.name, err?.message);
-        return res.status(502).json({ error: 'Could not work that one out.' });
+        return res.status(502).json({ error: "Couldn't build the schedule. Try again in a moment." });
     }
 }

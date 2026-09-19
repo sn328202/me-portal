@@ -40,14 +40,14 @@ const CookMode = ({ recipe, onClose }) => {
     const isFinished = currentStep === steps.length;
 
     return (
-        <Modal open onClose={onClose} size="full">
+        <Modal open onClose={onClose} size="full" labelledBy="cook-mode-title">
             <div className="cook-mode">
                 <div className="cook-mode__head">
-                    <h2 className="cook-mode__title">
+                    <h2 id="cook-mode-title" className="cook-mode__title">
                         <GiCookingPot /> {recipe.title}
                     </h2>
                     <Button onClick={onClose}>
-                        Exit Ritual <GiCancel />
+                        Close <GiCancel />
                     </Button>
                 </div>
 
@@ -62,7 +62,7 @@ const CookMode = ({ recipe, onClose }) => {
                     {!isFinished ? (
                         <>
                             <div className="cook-mode__step-count">
-                                STEP {currentStep + 1} OF {steps.length}
+                                Step {currentStep + 1} of {steps.length}
                             </div>
                             <div className="cook-mode__step">
                                 {steps[currentStep]}
@@ -71,9 +71,11 @@ const CookMode = ({ recipe, onClose }) => {
                     ) : (
                         <div className="cook-mode__done">
                             <div className="cook-mode__done-mark"><GiCheckMark /></div>
-                            <h1 className="cook-mode__done-title">Ritual Complete</h1>
+                            <h1 className="cook-mode__done-title">All done</h1>
                             <p className="cook-mode__done-copy">The dish is ready to serve.</p>
-                            <Button variant="solid" onClick={onClose}>Finish</Button>
+                            {/* "Finish" belongs to the last step; this one
+                                leaves the screen. */}
+                            <Button variant="solid" onClick={onClose}>Close</Button>
                         </div>
                     )}
                 </div>

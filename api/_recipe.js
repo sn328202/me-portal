@@ -177,5 +177,5 @@ export function parseRecipeHtml(html, sourceUrl) {
         };
     }
 
-    throw new Error('no recipe was found on that page');
+    throw new Error("We couldn't find a recipe on that page.");
 }

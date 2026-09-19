@@ -44,7 +44,7 @@ const RecipeDetail = ({
         try {
             return new URL(recipe.source_url).hostname;
         } catch {
-            return 'External Link';
+            return 'the original site';
         }
     })();
 
@@ -55,7 +55,7 @@ const RecipeDetail = ({
                 <div className="recipe-detail__identity">
                     <h1 className="recipe-detail__title">{recipe.title}</h1>
                     <div className="recipe-detail__meta">
-                        <Tag tone="gold">Pantry Match: {matchData.percent}%</Tag>
+                        <Tag tone="gold">{matchData.percent}% in your pantry</Tag>
                         {matchData.outOfStock.length > 0 && (
                             <Tag>{matchData.outOfStock.length} out of stock</Tag>
                         )}
@@ -66,14 +66,16 @@ const RecipeDetail = ({
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
-                                <GiWorld /> Original Formula ({sourceHost})
+                                <GiWorld /> View on {sourceHost}
                             </a>
                         )}
                     </div>
                 </div>
                 <div className="recipe-detail__actions">
                     <Button onClick={onEdit}><GiQuill /> Edit</Button>
-                    <Button variant="danger" onClick={onClose}><GiCancel /> Close</Button>
+                    {/* Not danger: closing a recipe destroys nothing, and a
+                        red button beside a "Back" button reads as Delete. */}
+                    <Button variant="ghost" onClick={onClose}><GiCancel /> Close</Button>
                 </div>
             </div>
 
@@ -88,7 +90,7 @@ const RecipeDetail = ({
             <div className="recipe-detail__columns">
                 {/* Ingredients Column */}
                 <div>
-                    <h3 className="section-title">Provisions</h3>
+                    <h3 className="section-title">Ingredients</h3>
                     <ul className="recipe-detail__provisions">
                         {matchData.lines.map((ing, i) => (
                             <li
@@ -107,7 +109,10 @@ const RecipeDetail = ({
                                             <button
                                                 type="button"
                                                 className="recipe-detail__resolved"
-                                                title={`Matched to "${ing.resolvedAs}" in your pantry. Click to make it permanent.`}
+                                                /* The explanation was in a title attribute, which
+                                                   on a phone does not exist. Now the button says it. */
+                                                aria-label={`Always treat this line as ${ing.resolvedAs}`}
+                                                title={`Matched to "${ing.resolvedAs}" in your pantry. Tap to make it permanent.`}
                                                 onClick={() => onTeachAlias?.(ing.match.id, ing.normalised)}
                                             >
                                                 <GiLinkedRings /> {ing.resolvedAs}
@@ -120,7 +125,7 @@ const RecipeDetail = ({
                                             never heard of - and a freshly linked
                                             line looked like nothing had happened. */}
                                         {!ing.match && (
-                                            <span className="recipe-detail__unknown">not in pantry</span>
+                                            <span className="recipe-detail__unknown">not in your pantry</span>
                                         )}
                                         {ing.match && !ing.inStock && (
                                             <span className="recipe-detail__unknown">out of stock</span>
@@ -151,12 +156,14 @@ const RecipeDetail = ({
                             onClick={() => setReviewing(true)}
                         >
                             <GiBasket />{' '}
-                            Add {matchData.missing.length} missing to the pantry…
+                            Add {matchData.missing.length === 1
+                                ? '1 ingredient'
+                                : `${matchData.missing.length} ingredients`} to your pantry…
                         </Button>
                     )}
                     {added > 0 && matchData.missing.length === 0 && (
                         <p className="recipe-detail__added">
-                            {added} added to your pantry, out of stock.
+                            Added {added} to your pantry, marked out of stock.
                         </p>
                     )}
                 </div>
@@ -165,17 +172,23 @@ const RecipeDetail = ({
                 <div className="recipe-detail__method-col">
                     {recipe.image_url && (
                         <div className="recipe-detail__image">
-                            <img src={recipe.image_url} alt={recipe.title} />
+                            <img
+                                src={recipe.image_url}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
                         </div>
                     )}
 
-                    <h3 className="section-title">The Ritual</h3>
-                    <div className="recipe-detail__method prose">
+                    <h3 className="section-title">Method</h3>
+                    <div className="recipe-detail__method">
                         {recipe.instructions}
                     </div>
 
                     <Button variant="solid" block className="recipe-detail__cook" onClick={onCook}>
-                        <GiCookingPot size={28} /> Commence Cooking
+                        <GiCookingPot size={28} /> Start cooking
                     </Button>
                 </div>
             </div>

@@ -33,7 +33,7 @@ const RecipeCard = ({ recipe, matcher, onEdit, onDelete, onAddToPlan, onView }) 
                     </h3>
                     {recipe.percentage !== undefined && (
                         <Tag tone={matchTone(recipe.percentage)}>
-                            {recipe.percentage}% Pantry Match
+                            {recipe.percentage}% in your pantry
                         </Tag>
                     )}
                 </div>
@@ -59,7 +59,7 @@ const RecipeCard = ({ recipe, matcher, onEdit, onDelete, onAddToPlan, onView }) 
                             </Button>
                             <ConfirmButton
                                 label="Delete"
-                                confirmLabel="Confirm Erasure?"
+                                confirmLabel="Confirm delete"
                                 onConfirm={() => { onDelete(recipe.id); setIsMenuOpen(false); }}
                             >
                                 Delete
@@ -88,7 +88,7 @@ const RecipeCard = ({ recipe, matcher, onEdit, onDelete, onAddToPlan, onView }) 
                 block
                 onClick={(e) => { e.stopPropagation(); onAddToPlan(recipe); }}
             >
-                <GiCookingPot /> Add to Plan
+                <GiCookingPot /> Add to meal plan
             </Button>
         </Card>
     );

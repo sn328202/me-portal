@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { GiSave, GiCancel, GiTrashCan, GiCheckMark, GiWorld } from 'react-icons/gi';
-import EmojiPicker from 'emoji-picker-react';
+import { readToken, isLight } from '../utils/mapStyle';
+
+// A whole emoji dataset, behind a button inside a dialog inside this form.
+// Imported at module scope it was part of the Larder's first paint.
+const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import { INGREDIENT_LIBRARY } from '../data/ingredients';
 import { Button, Card, Field, Modal, Tag } from './ui';
 
@@ -61,7 +65,8 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
             setCookTime(data.cook_time || '');
             setTotalTime(data.total_time || '');
         } catch (e) {
-            setImportError('Failed to transcribe from the aether: ' + e.message);
+            // The hook's messages are written to be read; the exception is not.
+            setImportError(e.message || "Couldn't import that recipe. Check the link and try again.");
         } finally {
             setIsImporting(false);
         }
@@ -164,19 +169,19 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
             as="form"
             onSubmit={handleSubmit}
             className="recipe-form"
-            title={recipe ? 'Edit Formula' : 'New Culinary Formula'}
+            title={recipe ? 'Edit recipe' : 'New recipe'}
         >
             {/* Import Section (Only for new recipes) */}
             {!recipe && (
                 <div className="recipe-form__import">
                     <h4 className="recipe-form__import-title">
-                        <GiWorld /> Import from Aether (Web)
+                        <GiWorld /> Import from a link
                     </h4>
                     <div className="recipe-form__import-row">
                         <Field
                             label="Recipe URL"
                             type="text"
-                            placeholder="Paste recipe URL here..."
+                            placeholder="https://…"
                             value={importUrl}
                             error={importError}
                             onChange={(e) => setImportUrl(e.target.value)}
@@ -186,7 +191,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                             onClick={handleImport}
                             disabled={isImporting || !importUrl}
                         >
-                            {isImporting ? 'Transcribing...' : 'Import'}
+                            {isImporting ? 'Importing…' : 'Import'}
                         </Button>
                     </div>
                 </div>
@@ -199,7 +204,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                 name="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="E.g., Moonlight Soufflé"
+                placeholder="Chana masala"
                 required
             />
 
@@ -214,7 +219,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                 />
                 {imageUrl && (
                     <div className="recipe-form__thumb">
-                        <img src={imageUrl} alt="Preview" />
+                        <img src={imageUrl} alt="" aria-hidden="true" loading="lazy" decoding="async" />
                     </div>
                 )}
             </div>
@@ -229,7 +234,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
 
             <div className="field-row">
                 <Field
-                    label="Yield"
+                    label="Servings"
                     type="text"
                     value={servings}
                     onChange={(e) => setServings(e.target.value)}
@@ -267,20 +272,20 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                             <div className="recipe-form__ing-row">
                                 <Field
                                     label="Amount"
-                                    placeholder="Amount"
+                                    placeholder="2"
                                     value={ing.amount}
                                     onChange={e => handleIngredientChange(i, 'amount', e.target.value)}
                                 />
                                 <Field
                                     label="Unit"
-                                    placeholder="Unit"
+                                    placeholder="tbsp"
                                     value={ing.unit}
                                     onChange={e => handleIngredientChange(i, 'unit', e.target.value)}
                                 />
                                 <div className="recipe-form__ing-item">
                                     <Field
                                         label="Item"
-                                        placeholder="Item"
+                                        placeholder="olive oil"
                                         value={ing.item}
                                         onChange={e => handleItemChange(i, e.target.value)}
                                         onFocus={() => setActiveIngIndex(i)}
@@ -305,13 +310,13 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                                 </div>
                                 <Field
                                     label="Notes"
-                                    placeholder="Notes (e.g. diced)"
+                                    placeholder="diced"
                                     value={ing.notes || ''}
                                     onChange={e => handleIngredientChange(i, 'notes', e.target.value)}
                                 />
                                 <Button
                                     icon
-                                    label={`Remove ingredient ${i + 1}`}
+                                    label={`Remove ${ing.item || 'this ingredient'}`}
                                     className="recipe-form__ing-remove"
                                     onClick={() => removeIngredient(i)}
                                 >
@@ -322,7 +327,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                             {/* New Ingredient Warning/Action */}
                             {isIngredientUnknown(ing.item) && (
                                 <div className="recipe-form__unknown">
-                                    <Tag tone="gold">❓ UNREGISTERED PROVISION</Tag>
+                                    <Tag tone="gold">Not in your pantry</Tag>
                                     <Button
                                         size="sm"
                                         onClick={() => setNewIngModal({
@@ -330,14 +335,14 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                                             icon: '🍽️', category: 'Pantry', showPicker: false
                                         })}
                                     >
-                                        CATALOGUE
+                                        Add to pantry
                                     </Button>
                                 </div>
                             )}
                         </div>
                     ))}
                     <Button variant="ghost" size="sm" onClick={addIngredient}>
-                        + Add Component
+                        + Add ingredient
                     </Button>
                 </div>
             </fieldset>
@@ -348,7 +353,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                 name="instructions"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                placeholder="Describe the ritual..."
+                placeholder="One step per line."
             />
 
             {/* Tags - Standardized Selection */}
@@ -392,24 +397,24 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
             <Modal
                 open={newIngModal.open}
                 onClose={closeIngModal}
-                title="Catalog Provision"
+                title="Add an ingredient"
                 footer={(
                     <>
-                        <Button variant="ghost" onClick={closeIngModal}>Discard</Button>
+                        <Button variant="ghost" onClick={closeIngModal}>Cancel</Button>
                         <Button variant="solid" onClick={inscribeIngredient}>
-                            <GiCheckMark /> Inscribe
+                            <GiCheckMark /> Save
                         </Button>
                     </>
                 )}
             >
                 <Field
-                    label="ITEM NAME"
+                    label="Name"
                     value={newIngModal.name}
                     onChange={e => setNewIngModal(p => ({ ...p, name: e.target.value }))}
                 />
 
                 <div className="recipe-form__catalog-row">
-                    <Field label="CLASSIFICATION">
+                    <Field label="Category">
                         <select
                             className="select"
                             value={newIngModal.category}
@@ -419,7 +424,7 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                         </select>
                     </Field>
                     <div className="field recipe-form__symbol">
-                        <span className="field__label" id="provision-symbol-label">SYMBOL</span>
+                        <span className="field__label" id="provision-symbol-label">Symbol</span>
                         <Button
                             className="recipe-form__symbol-btn"
                             label="Choose ingredient symbol"
@@ -431,11 +436,16 @@ const RecipeForm = ({ recipe, onSave, onCancel, ingredientsByName, matcher, onAd
                         </Button>
                         {newIngModal.showPicker && (
                             <div className="recipe-form__symbol-picker">
+                                <Suspense fallback={<span className="muted">Loading symbols…</span>}>
                                 <EmojiPicker
-                                    theme="dark"
+                                    // Was pinned to dark, which on the light
+                                    // skins drew a black slab of unreadable
+                                    // emoji in a cream dialog.
+                                    theme={isLight(readToken('--bg-panel', '#ffffff')) ? 'light' : 'dark'}
                                     width={300}
                                     onEmojiClick={(d) => setNewIngModal(p => ({ ...p, icon: d.emoji, showPicker: false }))}
                                 />
+                                </Suspense>
                             </div>
                         )}
                     </div>
@@ -510,7 +520,12 @@ const TagSelector = ({ existingTags, onAddTag, allRecipeSourceTags = [] }) => {
                 value={input}
                 onChange={handleInput}
                 onFocus={() => input && setIsOpen(true)}
-                placeholder="Search or Create Tag..."
+                /* The list had no way to close except picking something: type
+                   two letters, click elsewhere, and it stayed open on top of
+                   the Save button. The delay lets a click on a suggestion land
+                   first — the same trick the ingredient field already uses. */
+                onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                placeholder="Search or add a tag"
                 autoComplete="off"
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -543,7 +558,7 @@ const TagSelector = ({ existingTags, onAddTag, allRecipeSourceTags = [] }) => {
                             className="recipe-form__suggestion recipe-form__suggestion--create"
                             onClick={createTag}
                         >
-                            + Create "{input}"
+                            + Add "{input}"
                         </button>
                     )}
                 </div>

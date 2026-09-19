@@ -36,15 +36,15 @@ const MealPlanner = ({ plan, recipes, onAddToDay, onClearDay }) => {
                         className={['plan-day', isToday ? 'plan-day--today' : ''].filter(Boolean).join(' ')}
                         actions={dayPlan.length > 0 && (
                             <Button variant="ghost" size="sm" onClick={() => onClearDay(iso)}>
-                                Clear
+                                Clear day
                             </Button>
                         )}
                     >
                         {dayPlan.length === 0 ? (
                             <EmptyState
                                 icon={<GiEmptyHourglass />}
-                                message="No sustenance planned."
-                                actionLabel="Add a Formula"
+                                message="Nothing planned."
+                                actionLabel="Add a recipe"
                                 onAction={() => onAddToDay(iso)}
                             />
                         ) : (
@@ -67,7 +67,7 @@ const MealPlanner = ({ plan, recipes, onAddToDay, onClearDay }) => {
                                     block
                                     onClick={() => onAddToDay(iso)}
                                 >
-                                    <GiKnifeFork /> Add a Formula
+                                    <GiKnifeFork /> Add a recipe
                                 </Button>
                             </div>
                         )}
