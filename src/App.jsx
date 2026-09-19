@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { CaptureProvider } from './contexts/CaptureContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import PantryProvider from './contexts/PantryProvider';
 import LoadingScreen from './components/LoadingScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -68,6 +69,10 @@ function App() {
                 />
                 <Route path="/*" element={
                   <ProtectedRoute>
+                    {/* One pantry above the routes: the Larder and the
+                        dashboard's shopping list used to hold a copy each and
+                        disagree about what was in stock. */}
+                    <PantryProvider>
                     <AppShell>
                       <ErrorBoundary>
                         <Suspense fallback={<LoadingScreen />}>
@@ -109,6 +114,7 @@ function App() {
                         </Suspense>
                       </ErrorBoundary>
                     </AppShell>
+                    </PantryProvider>
                   </ProtectedRoute>
                 } />
               </Routes>
