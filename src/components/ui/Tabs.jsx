@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 /**
  * One tab strip, two variants. There were five mutually exclusive designs —
@@ -10,8 +10,21 @@ import React from 'react';
  *
  * tabs: [{ id, label, icon?, count? }]
  */
-const Tabs = ({ tabs, active, onChange, variant = 'underline', label = 'Sections', className = '' }) => (
+const Tabs = ({ tabs, active, onChange, variant = 'underline', label = 'Sections', className = '' }) => {
+    /* The strip scrolls sideways on a phone with the scrollbar hidden, so a
+       fourth tab could sit off the edge with nothing to say it was there.
+       Keeping the selected one in view means moving between them always
+       reveals its neighbours. */
+    const strip = useRef(null);
+    useEffect(() => {
+        strip.current
+            ?.querySelector('[aria-selected="true"]')
+            ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }, [active]);
+
+    return (
     <div
+        ref={strip}
         role="tablist"
         aria-label={label}
         className={['tabs', variant === 'segmented' ? 'tabs--segmented' : '', className]
@@ -52,7 +65,8 @@ const Tabs = ({ tabs, active, onChange, variant = 'underline', label = 'Sections
             </button>
         ))}
     </div>
-);
+    );
+};
 
 export const TabPanel = ({ id, active, children }) =>
     active === id ? (

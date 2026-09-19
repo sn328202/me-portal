@@ -219,6 +219,12 @@
     border-right: var(--ornament-width) solid var(--accent-gold);
 }
 
+/* A card with a click handler should say so before it is clicked. The pointer
+   stayed an arrow everywhere except over the title. */
+.card--interactive {
+    cursor: pointer;
+}
+
 .card--interactive:hover {
     transform: var(--lift);
     box-shadow: var(--shadow-md), var(--glow-gold);
@@ -496,6 +502,17 @@
 
 /* ---------- Tabs ------------------------------------------- */
 
+/* A hint that there is more of the strip off to the right. Without it, four
+   tabs in a 328px phone simply looked like three. */
+.tabs {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+}
+
+@media (min-width: 40rem) {
+    .tabs { -webkit-mask-image: none; mask-image: none; }
+}
+
 .tabs {
     display: flex;
     align-items: center;
@@ -725,6 +742,10 @@
 
 .modal__panel {
     position: relative;
+    /* Scrolling inside a dialog used to chain to the page behind it, so a
+       swipe over the dialog moved the list underneath and it was somewhere
+       else when the dialog closed. */
+    overscroll-behavior: contain;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);

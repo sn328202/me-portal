@@ -20,16 +20,13 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding-right: var(--space-2);
 }
 
 .larder__pane {
     max-width: 1200px;
     margin: 0 auto;
-}
-
-.larder__pane--narrow {
-    max-width: 800px;
 }
 
 /* The week and its shopping list, side by side.
@@ -48,6 +45,10 @@
 .hearth__shop {
     position: sticky;
     top: var(--space-4);
+    /* Once the list is taller than the window it sticks at the top and its
+       last items cannot be reached. */
+    max-height: calc(100dvh - var(--space-8));
+    overflow-y: auto;
     padding: var(--space-4);
     border: var(--rule);
     border-radius: var(--radius-md);
@@ -210,25 +211,7 @@
     box-shadow: var(--shadow-md);
 }
 
-.recipe-card__ingredients {
-    flex: 1;
-    padding-top: var(--space-3);
-    border-top: var(--rule-hair);
-    color: var(--text-muted);
-    font-family: var(--font-body);
-    font-size: var(--text-sm);
-}
 
-.recipe-card__ingredients ul {
-    margin: 0;
-    padding-left: var(--space-5);
-}
-
-.recipe-card__more {
-    list-style: none;
-    margin-top: var(--space-1);
-    font-style: italic;
-}
 
 
 /* ---------- Recipe detail ---------------------------------- */
@@ -236,6 +219,11 @@
 .recipe-detail {
     max-width: 900px;
     margin: 0 auto;
+    /* `.card` hides its overflow, which cut the ingredient-link popover off at
+       the card's edge — on a phone the pantry list you are meant to pick from
+       was half missing. The recipe card and the form both override this for
+       the same reason. */
+    overflow: visible;
 }
 
 .recipe-detail__head {
@@ -399,6 +387,15 @@
 
 .recipe-form__import-row .field {
     flex: 1;
+}
+
+.recipe-form__import-row .btn {
+    flex-shrink: 0;
+}
+
+@media (max-width: 30rem) {
+    .recipe-form__import-row { flex-wrap: wrap; }
+    .recipe-form__import-row .btn { width: 100%; }
 }
 
 .recipe-form__title .input {
@@ -590,11 +587,34 @@
 }
 
 .recipe-form__symbol-picker,
-.larder-symbol__picker {
+.larder-symbol__picker,
+.missing__picker,
+.pantry-item__picker {
     position: absolute;
     top: 100%;
     right: 0;
     z-index: 1100;
+    /* The picker is 300px wide and these dialogs are narrower than that on a
+       phone, so anchored to the right edge it spilled past the panel and was
+       clipped. */
+    max-width: min(300px, calc(100vw - 2 * var(--space-4)));
+}
+
+@media (max-width: 30rem) {
+    .recipe-form__symbol-picker,
+    .larder-symbol__picker,
+    .missing__picker,
+    .pantry-item__picker {
+        right: auto;
+        left: 0;
+    }
+}
+
+.recipe-form__symbol-picker .EmojiPickerReact,
+.larder-symbol__picker .EmojiPickerReact,
+.missing__picker .EmojiPickerReact,
+.pantry-item__picker .EmojiPickerReact {
+    max-width: 100%;
 }
 
 
@@ -691,6 +711,13 @@
     justify-content: space-between;
 }
 
+/* `is-today` was set in the JSX and styled nowhere, so the day she picks most
+   often looked like all the others. */
+.day-selector__day.is-today {
+    border-color: var(--accent-gold);
+    color: var(--text-gold);
+}
+
 .day-selector__date {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
@@ -734,6 +761,8 @@
 .pantry-item__toggle {
     flex: 1;
     min-width: 0;
+    border-radius: var(--radius-sm);
+    transition: background var(--dur-fast) var(--ease);
     display: flex;
     align-items: center;
     gap: var(--space-3);
@@ -851,7 +880,10 @@
     display: flex;
     align-items: baseline;
     gap: var(--space-2);
-    padding: 0;
+    /* Ticked off in a shop, one-handed. This was a 24px target; everything
+       else in the app that gets tapped is --tap-min. */
+    min-height: var(--tap-min);
+    padding: var(--space-1) 0;
     font: inherit;
     text-align: left;
     color: var(--text-main);
@@ -950,7 +982,7 @@
 .menu-builder__archive-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-2);
     padding: var(--space-2);
     background: var(--bg-panel);
     border: var(--rule-hair);
@@ -1074,8 +1106,8 @@
 .menu-builder__dish {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
+    gap: var(--space-2);
+    padding: var(--space-2);
     background: var(--bg-panel);
     border: var(--rule-hair);
     border-radius: var(--radius-sm);
@@ -1117,7 +1149,9 @@
 
 .menu-list__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    /* min() or `auto-fill` still lays a 350px track in a 328px column and the
+       cards run off the side of the phone. */
+    grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
     gap: var(--space-5);
 }
 
@@ -1141,7 +1175,7 @@
 .menu-card__dish {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-2);
 }
 
 .menu-card__dish .muted {
@@ -1713,6 +1747,14 @@
     transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
+/* A phone has no hover, so on a touch screen this was a zero-opacity
+   target sitting on every ingredient line: invisible, and tappable by
+   accident. If a line matched the wrong thing there was no way to see the
+   control that corrects it. */
+@media (hover: none) {
+    .ing-link__trigger { opacity: 1; }
+}
+
 .recipe-detail__provision:hover .ing-link__trigger,
 .ing-link__trigger:focus-visible,
 .ing-link__trigger[aria-expanded='true'],
@@ -1780,7 +1822,8 @@
     cursor: pointer;
 }
 
-.ing-link__option:hover {
+.ing-link__option:hover,
+.ing-link__option:focus-visible {
     background: var(--bg-hover);
 }
 
@@ -2070,4 +2113,47 @@
     .recipe-card:hover .recipe-cover img {
         transform: none;
     }
+}
+
+
+/* The row's primary action — the thing that empties or fills the cupboard —
+   had no hover or focus style at all, while the little symbol button beside it
+   did. */
+.pantry-item__toggle:hover,
+.pantry-item__toggle:focus-visible {
+    background: var(--bg-hover);
+}
+
+/* Something that failed, said once, where she is looking. Before this, nine
+   different writes could fail with nothing on screen but a console line. */
+.larder__notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-hover);
+    border: var(--rule-hair);
+    border-left: 3px solid var(--accent-crimson, var(--accent-gold));
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+    font-size: var(--text-sm);
+}
+
+.shop__copy-failed {
+    margin: 0 0 var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.shop__dismiss {
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--text-gold);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
 }
