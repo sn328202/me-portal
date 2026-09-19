@@ -26,6 +26,7 @@ export const useMenus = () => {
     const [menus, setMenus] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [notice, setNotice] = useState(null);
 
     useEffect(() => {
         fetchMenus();
@@ -41,11 +42,17 @@ export const useMenus = () => {
 
             const { data, error } = await supabase
                 .from('user_larder_menus')
+                /* Only what a menu card and the builder draw. `recipes (*)`
+                   dragged every dish's whole method through here, once per
+                   menu that mentions it, for a list that shows a title and a
+                   thumbnail. Anything needing the full recipe — the printed
+                   menu, the cooking schedule — already has the recipe list or
+                   re-reads it on the server. */
                 .select(`
                     *,
                     user_larder_menu_recipes (
                         *,
-                        recipes (*)
+                        recipes (id, title, image_url)
                     )
                 `)
                 .eq('user_id', user.id)
@@ -94,6 +101,7 @@ export const useMenus = () => {
             return menuData;
         } catch (err) {
             console.error('Error adding menu:', err);
+            setNotice("Couldn't save that menu. Try again.");
             throw err;
         }
     };
@@ -111,6 +119,7 @@ export const useMenus = () => {
             setMenus(prev => prev.filter(m => m.id !== id));
         } catch (err) {
             console.error('Error deleting menu:', err);
+            setNotice("Couldn't delete that menu. Try again.");
         }
     };
 
@@ -131,11 +140,17 @@ export const useMenus = () => {
 
             if (menuError) throw menuError;
 
-            // 2. Sync Recipes (Delete then re-insert for simplicity)
+            /* 2. Sync the dishes: delete, then re-insert.
+               The delete lands first, so if the insert fails the menu is empty
+               in the database while the page still shows every dish — which is
+               why the catch below refetches rather than only complaining. The
+               owner filter is the one this table was missing; RLS was doing
+               the work alone. */
             const { error: deleteError } = await supabase
                 .from('user_larder_menu_recipes')
                 .delete()
-                .eq('menu_id', id);
+                .eq('menu_id', id)
+                .eq('user_id', user.id);
 
             if (deleteError) throw deleteError;
 
@@ -152,6 +167,11 @@ export const useMenus = () => {
             fetchMenus();
         } catch (err) {
             console.error('Error updating menu:', err);
+            setNotice("Couldn't save that menu — reopen it and check the dishes are all still there.");
+            // The old rows may already be gone. Put the page back in step with
+            // what actually survived rather than leaving it showing a menu
+            // that no longer exists.
+            fetchMenus();
             throw err;
         }
     };
@@ -198,6 +218,8 @@ export const useMenus = () => {
         menus,
         loading,
         error,
+        notice,
+        clearNotice: () => setNotice(null),
         addMenu,
         updateMenu,
         deleteMenu,

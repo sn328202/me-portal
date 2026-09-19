@@ -9,6 +9,9 @@ export const useProvisions = () => {
     const revision = useCaptureRevision();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    // A write that failed, in a sentence the page can show her. These all used
+    // to be console.error alone: the row simply sprang back and nothing said why.
+    const [notice, setNotice] = useState(null);
 
     const fetchItems = async () => {
         if (!user) {
@@ -49,6 +52,7 @@ export const useProvisions = () => {
 
         if (error) {
             console.error('Error toggling item:', error);
+            setNotice("Couldn't save that. Check your connection and try again.");
             fetchItems();
         }
     };
@@ -69,6 +73,7 @@ export const useProvisions = () => {
 
         if (error) {
             console.error('Error adding provision:', error);
+            setNotice(`Couldn't add ${text.trim()} to the list. Try again.`);
             setItems(prev => prev.filter(i => i.id !== tempId));
         } else {
             setItems(prev => prev.map(i => i.id === tempId ? data : i));
@@ -77,8 +82,14 @@ export const useProvisions = () => {
 
     const deleteItem = async (id) => {
         if (!user) return;
+        const before = items.find((i) => i.id === id);
         setItems(prev => prev.filter(i => i.id !== id));
-        await supabase.from('provisions').delete().eq('id', id).eq('user_id', user.id);
+        const { error } = await supabase.from('provisions').delete().eq('id', id).eq('user_id', user.id);
+        if (error) {
+            console.error('Error deleting provision:', error);
+            setNotice("Couldn't remove that. Try again.");
+            if (before) setItems((prev) => [...prev, before]);
+        }
     };
 
     const clearChecked = async () => {
@@ -87,9 +98,17 @@ export const useProvisions = () => {
         setItems(prev => prev.filter(i => !i.checked));
 
         if (checkedIds.length > 0) {
-            await supabase.from('provisions').delete().in('id', checkedIds).eq('user_id', user.id);
+            const { error } = await supabase.from('provisions').delete().in('id', checkedIds).eq('user_id', user.id);
+            if (error) {
+                console.error('Error clearing bought items:', error);
+                setNotice("Couldn't clear those. Try again.");
+                fetchItems();
+            }
         }
     };
 
-    return { items, toggleItem, addItem, deleteItem, clearChecked, loading };
+    return {
+        items, toggleItem, addItem, deleteItem, clearChecked, loading,
+        notice, clearNotice: () => setNotice(null),
+    };
 };

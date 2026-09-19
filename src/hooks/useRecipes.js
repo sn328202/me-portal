@@ -19,6 +19,11 @@ export const useRecipes = () => {
     const [mealPlan, setMealPlan] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    /* Something that went wrong which the page can say out loud. `error` is
+       the fatal kind that replaces the page; this is the kind that happens
+       while she is working and needs a sentence, not a native alert() with a
+       Postgres message in it. */
+    const [notice, setNotice] = useState(null);
 
     // Fetch Recipes
     useEffect(() => {
@@ -26,9 +31,16 @@ export const useRecipes = () => {
         fetchMealPlan();
     }, [user]);
 
-    const fetchRecipes = async () => {
+    /**
+     * `quiet` is what a refetch after a save passes.
+     *
+     * The page shows a full-screen spinner while `loading` is true, so every
+     * save used to replace the whole Larder with "loading" and then rebuild
+     * it — for a change she had just watched herself make.
+     */
+    const fetchRecipes = async ({ quiet = false } = {}) => {
         try {
-            setLoading(true);
+            if (!quiet) setLoading(true);
             if (!user) {
                 setRecipes([]);
                 return;
@@ -45,8 +57,19 @@ export const useRecipes = () => {
             console.error('Error fetching recipes:', err);
             setError(err.message);
         } finally {
-            setLoading(false);
+            if (!quiet) setLoading(false);
         }
+    };
+
+    /** One recipe, read back with its ingredients so local state has the real ids. */
+    const readOne = async (id) => {
+        const { data } = await supabase
+            .from('recipes')
+            .select('*, ingredients(*)')
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .single();
+        return data || null;
     };
 
     const fetchMealPlan = async () => {
@@ -95,8 +118,29 @@ export const useRecipes = () => {
 
             if (error) throw error;
             setRecipes(prev => prev.filter(r => r.id !== id));
+
+            /* And whatever days it was planned for. The plan rows used to
+               outlive the recipe, and a day holding nothing but a deleted
+               recipe rendered as a planned day with nothing in it — no dish,
+               no empty state, just a Clear button for a meal that no longer
+               existed. */
+            await supabase
+                .from('meal_plans')
+                .delete()
+                .eq('recipe_id', id)
+                .eq('user_id', user.id);
+
+            setMealPlan((prev) => {
+                const next = {};
+                for (const [date, ids] of Object.entries(prev)) {
+                    const kept = ids.filter((r) => r !== id);
+                    if (kept.length) next[date] = kept;
+                }
+                return next;
+            });
         } catch (err) {
             console.error('Error deleting recipe:', err);
+            setNotice("Couldn't delete that recipe. Try again.");
         }
     };
 
@@ -119,10 +163,10 @@ export const useRecipes = () => {
 
             if (error) throw error;
 
-            // Optimistic update or Refetch
-            fetchMealPlan();
+            setMealPlan(prev => ({ ...prev, [date]: [...(prev[date] || []), recipeId] }));
         } catch (err) {
             console.error('Error adding to plan:', err);
+            setNotice("Couldn't add that to the meal plan. Try again.");
         }
     };
 
@@ -144,6 +188,7 @@ export const useRecipes = () => {
             });
         } catch (err) {
             console.error('Error clearing day:', err);
+            setNotice("Couldn't clear that day. Try again.");
         }
     };
 
@@ -197,9 +242,8 @@ export const useRecipes = () => {
             }
 
             if (!htmlContent) {
-                const msg = lastError?.message || 'Connection timeout';
-                console.error("🚫 Recipe Import: All proxies failed.", lastError);
-                throw new Error(`Could not fetch recipe content. The aether is thick today (Last attempt failed with: ${msg}).`);
+                console.error('Recipe import: every proxy failed.', lastError);
+                throw new Error("Couldn't read that page. Some sites block it — try the recipe's print view, or paste the details in by hand.");
             }
 
             const parser = new DOMParser();
@@ -221,7 +265,7 @@ export const useRecipes = () => {
                         const found = json['@graph'].find(item => item['@type'] === 'Recipe');
                         if (found) recipeData = found;
                     }
-                } catch (e) {
+                } catch {
                     // ignore invalid json snippets
                 }
             });
@@ -377,7 +421,10 @@ export const useRecipes = () => {
             if (ogTitle) {
                 return {
                     title: ogTitle,
-                    instructions: "Could not auto-extract instructions. Please fill manually.",
+                    // Left blank on purpose: whatever goes in here becomes a
+                    // step in cook mode and prints on the menu, so an apology
+                    // would be read out as an instruction.
+                    instructions: '',
                     ingredients: [],
                     image_url: ogImage,
                     source_url: url,
@@ -385,7 +432,7 @@ export const useRecipes = () => {
                 };
             }
 
-            throw new Error("No recipe data found on page.");
+            throw new Error("That page doesn't have a recipe we can read. You can still paste the details in by hand.");
 
         } catch (err) {
             console.error("Import failed:", err);
@@ -395,7 +442,7 @@ export const useRecipes = () => {
 
     const addRecipe = async (recipe) => {
         try {
-            if (!user) throw new Error("Not authenticated");
+            if (!user) throw new Error('signed out');
 
             // 1. Insert Recipe
             const { data: recipeData, error: recipeError } = await supabase
@@ -447,11 +494,16 @@ export const useRecipes = () => {
                     .upsert(tagsToSync, { onConflict: 'name, user_id' });
             }
 
-            // Refresh local state or refetch
-            fetchRecipes();
+            // Read back the one recipe rather than the whole collection: the
+            // ingredient rows need their server ids, and nothing else on the
+            // page has changed.
+            const fresh = await readOne(recipeData.id);
+            setRecipes(prev => (fresh ? [...prev, fresh] : prev));
+            return fresh || recipeData;
         } catch (err) {
             console.error('Error adding recipe:', err);
-            alert('Failed to save recipe: ' + err.message);
+            setNotice("Couldn't save that recipe. Nothing was lost — try again.");
+            return null;
         }
     };
 
@@ -519,13 +571,18 @@ export const useRecipes = () => {
                     .upsert(tagsToSync, { onConflict: 'name, user_id' });
             }
 
-            fetchRecipes();
+            const fresh = await readOne(updatedRecipe.id);
+            if (fresh) setRecipes(prev => prev.map(r => (r.id === fresh.id ? fresh : r)));
+            return fresh;
         } catch (err) {
             console.error('Error updating recipe:', err);
-            // Don't swallow: the ingredient rows may already be deleted,
-            // so the user has to know the save didn't complete.
-            alert('Failed to save recipe: ' + err.message);
-            fetchRecipes();
+            /* Don't swallow: the ingredient rows are deleted before the new
+               ones go in, so a failure here can leave the recipe without its
+               ingredients and she has to know. The quiet refetch puts the
+               page back in step with whatever actually survived. */
+            setNotice("Couldn't save that recipe — check its ingredients before you close it.");
+            fetchRecipes({ quiet: true });
+            return null;
         }
     };
 
@@ -533,6 +590,8 @@ export const useRecipes = () => {
         recipes,
         loading,
         error,
+        notice,
+        clearNotice: () => setNotice(null),
         mealPlan,
         addRecipe,
         deleteRecipe,
