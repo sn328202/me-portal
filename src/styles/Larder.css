@@ -2157,3 +2157,27 @@
     text-decoration: underline;
     cursor: pointer;
 }
+
+/* What the day's schedule says, on the day card: when to start, and how much
+   of it is already ticked off. */
+.plan-day__schedule {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    width: 100%;
+    padding: var(--space-2);
+    background: var(--bg-hover);
+    border: 1px dashed var(--border-dim);
+    border-radius: var(--radius-sm);
+    color: var(--text-gold);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.plan-day__schedule:hover,
+.plan-day__schedule:focus-visible {
+    border-color: var(--accent-gold);
+}

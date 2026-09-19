@@ -34,7 +34,7 @@ const MAX_DISHES = 16;
 const MAX_METHOD = 6000;        // per recipe
 const MAX_INGREDIENTS = 60;     // per recipe
 
-const SYSTEM = `You plan the cooking of a menu so that every dish is ready at the same moment.
+const SYSTEM = `You plan the cooking of a meal so that every dish is ready at the same moment.
 
 You are given the dishes, with their ingredients and their methods, and one serve time. Write the plan as a list of steps. For each step say how many minutes BEFORE SERVING it starts.
 
@@ -51,10 +51,10 @@ HOW TO WRITE IT
 - Nobody is in the kitchen between 11pm and 6am. If a soak or a rise has to run overnight, start it in the evening and pick it up in the morning; only put a step in the small hours if the food genuinely cannot be made any other way, and say why in the step itself.
 - Work backwards from serving. A dish that needs to rest after cooking must finish resting at serve time, not finish cooking at serve time.
 - Group sensibly: chopping for three dishes can be one step if it happens at one time. A plan is what to do when, not a retyping of the recipes.
-- 8 to 25 steps for a normal menu. Fewer for a simple one. Never more than 40.
+- 8 to 25 steps for a full menu, fewer for one or two dishes. Never more than 40.
 - "minutes" is how long that step takes her. "waiting" is true when the time passes without her — soaking, marinating, rising, chilling, roasting unattended — so the plan does not read as an impossible day of solid work.
-- Name the dish each step belongs to, exactly as the dish is named in the menu. Use "Everything" for a step that serves the whole meal (laying the table, warming plates).
-- Some items on the menu are bought, not cooked. Give them a step only if there is something to do: chill the drinks, take the cake out of the box an hour before, plate the cheese.
+- Name the dish each step belongs to, exactly as it is named below. Use "Everything" for a step that serves the whole meal (laying the table, warming plates).
+- Some items are bought, not cooked. Give them a step only if there is something to do: chill the drinks, take the cake out of the box an hour before, plate the cheese.
 - The last steps should be plating and serving.
 
 Write the steps in plain, direct, imperative English, as if leaving instructions for someone competent. Say the thing, not the reason: "Soak the chana in plenty of cold water", not "It is important to soak the chana".
@@ -113,7 +113,7 @@ export const dishBrief = (entry) => {
         .join('\n');
 
     return [
-        `## ${clip(recipe.title, 120)}  (${clip(entry.course_name, 40) || 'Course'})`,
+        `## ${clip(recipe.title, 120)}${entry.course_name ? `  (${clip(entry.course_name, 40)})` : ''}`,
         times && `Times as written: ${times}`,
         ingredients && `Ingredients:\n${ingredients}`,
         `Method:\n${clip(recipe.instructions, MAX_METHOD) || '(none written down)'}`,
@@ -161,42 +161,81 @@ export default async function handler(req, res) {
     const serveDate = String(body.serve_date || '').trim();
     const serveTime = String(body.serve_time || '').trim();
     const menuId = String(body.menu_id || '').trim();
+    const day = String(body.date || '').trim();
 
-    if (!menuId) return res.status(400).json({ error: "Couldn't tell which menu that was — reopen it and try again." });
+    if (!menuId && !readDate(day)) {
+        return res.status(400).json({ error: "Couldn't tell what to plan — reopen it and try again." });
+    }
     if (!readDate(serveDate) || readClock(serveTime) === null) {
         return res.status(400).json({ error: 'Say when you are serving it first.' });
     }
 
-    // Her menu, read as her: the service key is only here to check the token,
-    // and the user filter is what keeps it to her own shelf.
-    const { data: menu, error: menuError } = await sb
-        .from('user_larder_menus')
-        .select('id, title, occasion, notes, user_larder_menu_recipes (course_name, order_index, recipe_id, item_name, item_note, recipes (id, title, prep_time, cook_time, total_time, servings, instructions, ingredients (item, amount, unit, notes)))')
-        .eq('id', menuId)
-        .eq('user_id', auth.user.id)
-        .single();
+    /* Two things can be cooked: a menu she built, or a day on the meal plan.
+       They differ only in how the list of dishes is found — everything after
+       this point is the same, because the question ("what has to start the
+       night before?") is the same. Her rows either way: the service key is
+       only here to check the token, and the user filter is what keeps it to
+       her own shelf. */
+    let heading;
+    let entries;
 
-    if (menuError || !menu) return res.status(404).json({ error: 'That menu has been deleted.' });
+    if (menuId) {
+        const { data: menu, error: menuError } = await sb
+            .from('user_larder_menus')
+            .select('id, title, occasion, notes, user_larder_menu_recipes (course_name, order_index, recipe_id, item_name, item_note, recipes (id, title, prep_time, cook_time, total_time, servings, instructions, ingredients (item, amount, unit, notes)))')
+            .eq('id', menuId)
+            .eq('user_id', auth.user.id)
+            .single();
 
-    const entries = (menu.user_larder_menu_recipes || [])
-        .slice()
-        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-        .filter((e) => e.recipes || String(e.item_name || '').trim())
-        .slice(0, MAX_DISHES);
+        if (menuError || !menu) return res.status(404).json({ error: 'That menu has been deleted.' });
 
-    if (!entries.some((e) => e.recipes)) {
-        return res.status(200).json({
-            ok: false,
-            error: 'There is nothing to cook on this menu yet — add a recipe and it can plan around it.',
-        });
+        heading = [
+            `Menu: ${clip(menu.title, 120)}${menu.occasion ? ` — ${clip(menu.occasion, 120)}` : ''}`,
+            menu.notes ? `Her note on it: ${clip(menu.notes, 400)}` : '',
+        ].filter(Boolean).join('\n');
+
+        entries = (menu.user_larder_menu_recipes || [])
+            .slice()
+            .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+            .filter((e) => e.recipes || String(e.item_name || '').trim())
+            .slice(0, MAX_DISHES);
+
+        if (!entries.some((e) => e.recipes)) {
+            return res.status(200).json({
+                ok: false,
+                error: 'There is nothing to cook on this menu yet — add a recipe and it can plan around it.',
+            });
+        }
+    } else {
+        const { data: planned, error: dayError } = await sb
+            .from('meal_plans')
+            .select('recipe_id, recipes (id, title, prep_time, cook_time, total_time, servings, instructions, ingredients (item, amount, unit, notes))')
+            .eq('date', day)
+            .eq('user_id', auth.user.id);
+
+        if (dayError) {
+            console.error('cook-plan: reading the day', dayError);
+            return res.status(502).json({ error: "Couldn't read that day's meals. Try again." });
+        }
+
+        // A day is a meal, not a menu: no courses, and everything on it is
+        // being cooked rather than bought.
+        entries = (planned || [])
+            .filter((row) => row.recipes)
+            .slice(0, MAX_DISHES)
+            .map((row) => ({ course_name: '', recipe_id: row.recipe_id, recipes: row.recipes }));
+
+        if (!entries.length) {
+            return res.status(200).json({
+                ok: false,
+                error: "Nothing is planned for that day yet — add a recipe to it and the schedule can work around it.",
+            });
+        }
+
+        heading = `A day's cooking: everything below is served as one meal on ${day}.`;
     }
 
-    const brief = [
-        `Menu: ${clip(menu.title, 120)}${menu.occasion ? ` — ${clip(menu.occasion, 120)}` : ''}`,
-        menu.notes ? `Her note on it: ${clip(menu.notes, 400)}` : '',
-        '',
-        ...entries.map(dishBrief),
-    ].filter(Boolean).join('\n\n');
+    const brief = [heading, '', ...entries.map(dishBrief)].filter(Boolean).join('\n\n');
 
     try {
         const r = await fetch('https://api.anthropic.com/v1/messages', {

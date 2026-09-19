@@ -477,10 +477,18 @@ const MenuBuilder = ({
                 it was before the tick. */}
             {planningId && menus.find(m => m.id === planningId) && (
                 <CookPlan
-                    menu={menus.find(m => m.id === planningId)}
+                    title={menus.find(m => m.id === planningId).title}
+                    subtitle={menus.find(m => m.id === planningId).occasion || ''}
+                    dishes={(menus.find(m => m.id === planningId).user_larder_menu_recipes || [])
+                        .filter((mr) => mr.recipe_id).length}
+                    plan={menus.find(m => m.id === planningId).plan || null}
+                    serveDate={menus.find(m => m.id === planningId).serve_date || ''}
+                    serveTime={menus.find(m => m.id === planningId).serve_time || ''}
+                    request={{ menu_id: planningId }}
+                    nothingToCook="There is nothing to cook on this menu yet — add a recipe and it can plan around it."
                     onClose={() => setPlanningId(null)}
-                    onSetServeTime={onSetServeTime}
-                    onSavePlan={onSavePlan}
+                    onSetServeTime={(when) => onSetServeTime(planningId, when)}
+                    onSavePlan={(next) => onSavePlan(planningId, next)}
                 />
             )}
         </div>

@@ -233,3 +233,12 @@
     .cookplan__at { width: auto; }
     .cookplan__what { flex-basis: 100%; }
 }
+
+/* The day a schedule belongs to, when the day is not hers to change. */
+.cookplan__fixed-day {
+    margin: 0;
+    padding: var(--space-3) 0;
+    color: var(--text-main);
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+}

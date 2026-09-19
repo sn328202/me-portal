@@ -13,40 +13,57 @@ import {
 import '../styles/CookPlan.css';
 
 /**
- * How to cook a menu so that all of it is ready at once.
+ * How to cook a set of dishes so that all of them are ready at once.
  *
- * A menu is a list of dishes, and the thing it cannot tell her by looking at
- * it is what has to happen yesterday. Prep and cook times add up to an
- * afternoon; the overnight soak and the dough that has to rest are sentences
- * in the middle of a method, and they are the only steps that cannot be
- * rescued by starting early on the day.
+ * A menu — or a day on the meal plan — is a list of dishes, and the thing it
+ * cannot tell her by looking at it is what has to happen yesterday. Prep and
+ * cook times add up to an afternoon; the overnight soak and the dough that has
+ * to rest are sentences in the middle of a method, and they are the only steps
+ * that cannot be rescued by starting early on the day.
  *
  * So: she says when she is serving, the endpoint reads every method looking
  * for exactly those, and the plan comes back as times on a clock — counted
  * backwards from dinner, over as many days as it takes.
  *
- * It is hers once it is built. Steps tick off while she cooks, and any of
- * them can be reworded, moved or thrown away: a plan she cannot correct is
- * one she stops trusting the first time it is wrong about her kitchen.
+ * It is hers once it is built. Steps tick off while she cooks, and any of them
+ * can be reworded, moved or thrown away: a plan she cannot correct is one she
+ * stops trusting the first time it is wrong about her kitchen.
+ *
+ * This knows nothing about menus or days. It is handed a title, a count, a
+ * plan, a serve time and two callbacks, plus whatever the endpoint needs to
+ * identify the thing being cooked — so a Tuesday works exactly like a dinner
+ * party. When `fixedDate` is set the day is not hers to change (a Tuesday is
+ * Tuesday) and she picks only the time.
  */
 
 const BLANK = { what: '', dish: '', date: '', time: '', minutes: 0, waiting: false };
 
-const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
-    const [serveDate, setServeDate] = useState(menu.serve_date || '');
-    const [serveTime, setServeTime] = useState(menu.serve_time || '');
+const CookPlan = ({
+    title,
+    subtitle,
+    dishes = 0,
+    plan = null,
+    serveDate: initialDate = '',
+    serveTime: initialTime = '',
+    fixedDate = null,
+    fixedDateLabel = '',
+    request = {},
+    nothingToCook = 'There is nothing to cook here yet — add a recipe and it can plan around it.',
+    onClose,
+    onSetServeTime,
+    onSavePlan,
+}) => {
+    const [serveDate, setServeDate] = useState(fixedDate || initialDate || '');
+    const [serveTime, setServeTime] = useState(initialTime || '');
     const [building, setBuilding] = useState(false);
     const [error, setError] = useState(null);
     const [editing, setEditing] = useState(null);   // a step id, or 'new'
     const [draft, setDraft] = useState(BLANK);
 
-    const plan = menu.plan || null;
     const steps = plan?.steps || [];
     const ready = !!readDate(serveDate) && readClock(serveTime) !== null;
     const days = groupByDay(steps, plan?.serve_date || serveDate);
     const load = planLoad(steps);
-
-    const dishes = (menu.user_larder_menu_recipes || []).filter((mr) => mr.recipe_id).length;
 
     /* The serve time is saved the moment it is a time, so a plan built after
        it always counts back from the right dinner — and a plan built before it
@@ -56,7 +73,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
         setServeTime(nextTime);
         if (!readDate(nextDate) || readClock(nextTime) === null) return;
         try {
-            await onSetServeTime(menu.id, { serve_date: nextDate, serve_time: nextTime });
+            await onSetServeTime({ serve_date: nextDate, serve_time: nextTime });
         } catch (err) {
             console.error(err);
             setError("Couldn't save that. Check your connection and try again.");
@@ -75,11 +92,11 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                     'content-type': 'application/json',
                     Authorization: `Bearer ${session?.access_token || ''}`,
                 },
-                body: JSON.stringify({ menu_id: menu.id, serve_date: serveDate, serve_time: serveTime }),
+                body: JSON.stringify({ ...request, serve_date: serveDate, serve_time: serveTime }),
             });
             const json = await res.json();
             if (!json.ok) { setError(json.error || "Couldn't build the schedule. Try again."); return; }
-            await onSavePlan(menu.id, json.plan);
+            await onSavePlan(json.plan);
         } catch (err) {
             console.error(err);
             setError("Couldn't build the schedule. Check your connection and try again.");
@@ -90,7 +107,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
 
     const writeSteps = async (next) => {
         try {
-            await onSavePlan(menu.id, { ...plan, steps: next });
+            await onSavePlan({ ...plan, steps: next });
         } catch (err) {
             console.error(err);
             setError("Couldn't save that. Check your connection and try again.");
@@ -214,11 +231,11 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                 <div className="cookplan__head">
                     <div>
                         <h2 id="cookplan-title" className="cookplan__title">
-                            <GiCookingPot /> {menu.title}
+                            <GiCookingPot /> {title}
                         </h2>
                         <p className="cookplan__sub">
                             {dishes} {dishes === 1 ? 'dish to cook' : 'dishes to cook'}
-                            {menu.occasion ? ` · ${menu.occasion}` : ''}
+                            {subtitle ? ` · ${subtitle}` : ''}
                         </p>
                     </div>
                     <Button variant="ghost" onClick={onClose}>
@@ -227,13 +244,21 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                 </div>
 
                 <div className="cookplan__when">
-                    <Field label="Serving on">
-                        <DateField
-                            className="input"
-                            value={serveDate}
-                            onCommit={(v) => commitServe(v, serveTime)}
-                        />
-                    </Field>
+                    {fixedDate ? (
+                        /* A Tuesday is Tuesday. Only the hour is hers to pick. */
+                        <div className="field">
+                            <span className="field__label">Serving on</span>
+                            <p className="cookplan__fixed-day">{fixedDateLabel || fixedDate}</p>
+                        </div>
+                    ) : (
+                        <Field label="Serving on">
+                            <DateField
+                                className="input"
+                                value={serveDate}
+                                onCommit={(v) => commitServe(v, serveTime)}
+                            />
+                        </Field>
+                    )}
                     <Field
                         className="cookplan__when-time"
                         label="At"
@@ -255,11 +280,7 @@ const CookPlan = ({ menu, onClose, onSetServeTime, onSavePlan }) => {
                         Say when you are serving it and it can count backwards from there.
                     </p>
                 )}
-                {!dishes && (
-                    <p className="cookplan__hint">
-                        There is nothing to cook on this menu yet — add a recipe and it can plan around it.
-                    </p>
-                )}
+                {!dishes && <p className="cookplan__hint">{nothingToCook}</p>}
                 {error && <p className="cookplan__error" role="alert">{error}</p>}
                 {building && (
                     <p className="cookplan__hint">

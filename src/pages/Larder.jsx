@@ -11,6 +11,7 @@ import GroceryList from '../components/GroceryList';
 import DaySelector from '../components/DaySelector';
 import MenuBuilder from '../components/MenuBuilder';
 import { useMenus } from '../hooks/useMenus';
+import { useDayPlans } from '../hooks/useDayPlans';
 import {
     GiQuill, GiMagnifyingGlass, GiFunnel, GiHourglass, GiCookingPot,
     GiHerbsBundle, GiScrollQuill, GiScrollUnfurled, GiCauldron, GiTrashCan,
@@ -261,6 +262,10 @@ const Larder = () => {
         menus, loading: menusLoading, notice: menuNotice, clearNotice: clearMenuNotice,
         addMenu, updateMenu, deleteMenu, setServeTime, savePlan,
     } = useMenus();
+    const {
+        dayPlans, notice: dayNotice, clearNotice: clearDayNotice,
+        setServeTime: setDayServeTime, savePlan: saveDayPlan,
+    } = useDayPlans();
 
     // The Hearth: which day a picked formula lands on
     const [picker, setPicker] = useState({ open: false, day: null });
@@ -428,8 +433,10 @@ const Larder = () => {
 
     /* Something a write failed at, said once, at the top of the page. These
        were console.error alone — the row sprang back and nothing said why. */
-    const notice = recipeNotice || menuNotice || pantryNotice || null;
-    const dismissNotice = () => { clearRecipeNotice(); clearMenuNotice(); clearPantryNotice(); };
+    const notice = recipeNotice || menuNotice || dayNotice || pantryNotice || null;
+    const dismissNotice = () => {
+        clearRecipeNotice(); clearMenuNotice(); clearDayNotice(); clearPantryNotice();
+    };
 
     /* A tab is a different page. Landing halfway down the pantry because the
        recipe list had been scrolled is disorienting every single time. */
@@ -682,6 +689,9 @@ const Larder = () => {
                                 recipes={recipes}
                                 onAddToDay={openPicker}
                                 onClearDay={clearDay}
+                                dayPlans={dayPlans}
+                                onSetServeTime={setDayServeTime}
+                                onSavePlan={saveDayPlan}
                             />
                         </div>
                         <aside className="hearth__shop" aria-label="What to buy">
