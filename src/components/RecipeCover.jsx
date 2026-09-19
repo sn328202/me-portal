@@ -26,15 +26,24 @@ const RecipeCover = ({ recipe, matcher }) => {
 
     const preview = useMemo(() => {
         if (hasImage) return [];
+
+        /* The list has already matched every line of this recipe to work out
+           its pantry percentage, and hands the result down as `lines`. Calling
+           the matcher again here matched the same six ingredients a second
+           time for every card on the page. */
+        const matched = recipe.lines;
+
         return (recipe.ingredients || []).slice(0, PREVIEW_COUNT).map((ing, i) => {
             const raw = ing?.item || ing?.name || '';
-            const match = matcher ? matcher.matchOne(raw).item : null;
+            const known = matched
+                ? matched[i]?.match
+                : (matcher ? matcher.matchOne(raw).item : null);
             return {
                 key: `${i}-${raw}`,
                 // The pantry's own symbol first; a category symbol otherwise.
-                icon: match?.icon || iconFor(guessCategory(raw)),
-                label: match?.label || match?.name || raw,
-                inStock: Boolean(match?.in_stock),
+                icon: known?.icon || iconFor(guessCategory(raw)),
+                label: known?.label || known?.name || raw,
+                inStock: Boolean(matched ? matched[i]?.inStock : known?.in_stock),
             };
         });
     }, [hasImage, recipe, matcher]);

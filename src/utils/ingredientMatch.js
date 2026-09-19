@@ -307,9 +307,7 @@ export const normalise = (raw) => {
     // Some phrases only resolve once the words are settled — "coriander leaf"
     // has to become "cilantro" after singularisation, not before.
     let joined = words.join(' ');
-    for (const [from, to] of Object.entries(SYNONYMS)) {
-        const key = normaliseShallow(from);
-        const target = normaliseShallow(to);
+    for (const [key, target] of SYN_PAIRS) {
         if (joined === key) { joined = target; break; }
 
         // A synonym buried in a longer phrase counts only when the phrase is
@@ -356,6 +354,23 @@ function normaliseShallow(raw) {
         .map(singular)
         .join(' ');
 }
+
+/**
+ * The synonym table, canonicalised once instead of on every line.
+ *
+ * `normalise()` used to run `normaliseShallow` over both halves of all seventy
+ * synonym pairs *inside its own loop* — a hundred and forty flatten/split/
+ * singularise passes over constant strings, per ingredient line, every time.
+ * It was 92% of the function's runtime, and the function runs thousands of
+ * times to draw one screen.
+ *
+ * `normaliseShallow` is a function declaration below, so it is hoisted and
+ * this runs correctly at module load.
+ */
+const SYN_PAIRS = Object.entries(SYNONYMS).map(([from, to]) => [
+    normaliseShallow(from),
+    normaliseShallow(to),
+]);
 
 /* ---------- matching ----------------------------------------------------- */
 
@@ -473,7 +488,24 @@ export const buildMatcher = (pantry = []) => {
      * 'exact' | 'strong' | 'likely' | 'none'. Anything other than 'exact' is
      * worth showing the user, so they can see what was decided on their behalf.
      */
+    /* The same wording comes past again and again — the shopping list, the
+       recipe cards, the pantry page and the recipe form all ask about "2 tbsp
+       olive oil" within a render or two of each other, and ranking a miss
+       means scoring every row in the pantry. The answer cannot change while
+       this matcher lives, because the matcher is rebuilt whenever the pantry
+       does, so remembering it is free and correct. */
+    const remembered = new Map();
+
     const matchOne = (raw) => {
+        const key = String(raw ?? '');
+        const before = remembered.get(key);
+        if (before) return before;
+        const answer = matchOnce(raw);
+        remembered.set(key, answer);
+        return answer;
+    };
+
+    const matchOnce = (raw) => {
         const { text, tokens } = normalise(raw);
         if (!text) return { item: null, confidence: 'none', normalised: '', via: null };
 
