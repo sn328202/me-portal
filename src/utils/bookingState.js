@@ -43,7 +43,7 @@ const BY_ID = Object.fromEntries(STATES.map((s) => [s.id, s]));
  * back to and pretending otherwise would only mislead the next reader.
  */
 export const stateOf = (stop) => {
-    if (stop?.booked_id || stop?.journey_id) return 'booked';
+    if (stop?.booked_id || stop?.journey_id || stop?.gig_id) return 'booked';
     const named = String(stop?.booking || '').trim();
     return BY_ID[named] ? named : 'none';
 };

@@ -30,11 +30,12 @@ import { formatMoney } from '../utils/tripCosts';
    question does not arise. */
 const TableBook = lazy(() => import('./TableBook'));
 const TicketBook = lazy(() => import('./TicketBook'));
+const GigBook = lazy(() => import('./GigBook'));
 
 /* The rooms that are not the default one, so the URL can carry whichever of
    them she is in. Module scope, not the component: it is a constant, and a
    fresh array every render is a fresh dependency for the callback below. */
-const ROOMS = ['table', 'tickets'];
+const ROOMS = ['table', 'tickets', 'gigs'];
 import { todayLocal } from '../utils/today';
 import { legDestination, isTravelLeg } from '../utils/tripLegs';
 import '../styles/Atlas.css';
@@ -569,6 +570,15 @@ const Atlas = () => {
                     >
                         🎫 The Ticket Book
                     </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={room === 'gigs'}
+                        className={`atlas__roomtab${room === 'gigs' ? ' is-on' : ''}`}
+                        onClick={() => chooseRoom('gigs')}
+                    >
+                        🎤 The Gig Book
+                    </button>
                 </div>
             )}
 
@@ -587,6 +597,14 @@ const Atlas = () => {
             {!selectedTrip && room === 'tickets' && (
                 <Suspense fallback={<p className="atlas__waiting">Opening the Ticket Book…</p>}>
                     <TicketBook embedded />
+                </Suspense>
+            )}
+
+            {/* Concert tickets. Its own book for the same reason: a venue,
+                doors, a section and a seat are columns neither other book has. */}
+            {!selectedTrip && room === 'gigs' && (
+                <Suspense fallback={<p className="atlas__waiting">Opening the Gig Book…</p>}>
+                    <GigBook embedded />
                 </Suspense>
             )}
 

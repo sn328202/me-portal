@@ -19,6 +19,9 @@ import {
     localDate as journeyDate, asAtlasItem as itemFromJourney,
     journeyNote, titleOf as journeyTitle, planDays,
 } from './journeys.js';
+import {
+    localDate as gigDate, asAtlasItem as itemFromGig, gigNote, titleOf as gigTitle,
+} from './gigs.js';
 
 /** A table, a tasting, a show — anything in the Table Book. */
 export const BOOKING = {
@@ -45,4 +48,14 @@ export const JOURNEY = {
     noteOf: journeyNote,
     itemOf: itemFromJourney,
     spreadOf: planDays,
+};
+
+/** A concert — anything in the Gig Book. One evening, one card. */
+export const GIG = {
+    table: 'gigs',
+    noun: 'gig',
+    dateOf: (g) => gigDate(g?.starts),
+    nameOf: gigTitle,
+    noteOf: gigNote,
+    itemOf: itemFromGig,
 };

@@ -95,11 +95,13 @@ export const toStop = (row) => ({
     // A ticket from the Ticket Book. A separate column because `booked_id` is
     // a foreign key to `reservations` and a flight is not one.
     journey_id: row.journey_id || null,
+    // A concert from the Gig Book, same idea.
+    gig_id: row.gig_id || null,
     /* Three states, not two: nothing to book, still to book, booked. The
        boolean this replaced could not tell a walk in the park from a
        restaurant she has not rung yet, and its column is gone now — every
        row that carried it was migrated into `booking` first. */
-    booking: (row.booked_id || row.journey_id) ? 'booked' : (row.booking || 'none'),
+    booking: (row.booked_id || row.journey_id || row.gig_id) ? 'booked' : (row.booking || 'none'),
     kind: row.kind || 'other',
     colour: row.colour ?? null,
     sort_order: row.sort_order ?? 0,
@@ -128,7 +130,8 @@ export const toRow = (stop, { dayId, userId, order } = {}) => ({
     place_data: stop.place_data || null,
     booked_id: stop.booked_id || null,
     journey_id: stop.journey_id || null,
-    booking: (stop.booked_id || stop.journey_id) ? 'booked' : (stop.booking || 'none'),
+    gig_id: stop.gig_id || null,
+    booking: (stop.booked_id || stop.journey_id || stop.gig_id) ? 'booked' : (stop.booking || 'none'),
     kind: stop.kind || 'other',
     colour: stop.colour ?? null,
     sort_order: order ?? stop.sort_order ?? 0,

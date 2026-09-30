@@ -225,6 +225,10 @@
 .outcome--cancelled { color: var(--accent-red); }
 .outcome--no_show { color: var(--accent-crimson); }
 .outcome--booked { color: var(--text-gold); }
+.outcome--went { color: var(--accent-green); }
+.outcome--travelled { color: var(--accent-green); }
+.outcome--missed { color: var(--accent-crimson); }
+.outcome--sold { color: var(--text-muted); }
 
 @media (max-width: 900px) {
     .slip__grid {
