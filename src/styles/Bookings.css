@@ -1,0 +1,270 @@
+/* ============================================================
+   Bookings — the one room for every kind of booking, the paste
+   box that sorts any confirmation, and the Bookings panel inside
+   a trip. Slips come from BookingSlip.css.
+   ============================================================ */
+
+.bookings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-top: var(--space-5);
+    max-width: var(--page-max);
+}
+
+.bookings__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    padding-bottom: var(--space-3);
+    border-bottom: var(--rule);
+}
+
+.bookings__head p,
+.bookings__subhead p {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    max-width: 62ch;
+}
+
+.bookings__subhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-3);
+}
+
+/* --- Filter chips ------------------------------------------ */
+
+.bookings__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.bookings__chip {
+    padding: var(--space-1) var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-pill);
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    cursor: pointer;
+}
+
+.bookings__chip:hover { color: var(--text-main); border-color: var(--border-gold); }
+.bookings__chip.is-on { color: var(--text-gold); border-color: var(--border-gold); }
+
+.bookings__count {
+    margin-left: 2px;
+    font-family: var(--font-mono);
+    opacity: 0.7;
+}
+
+/* --- The merged list --------------------------------------- */
+
+.bookings__all {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.bookings__row {
+    display: grid;
+    grid-template-columns: 7.5rem auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+}
+
+.bookings__when {
+    display: flex;
+    flex-direction: column;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.bookings__when strong { color: var(--text-main); font-weight: var(--weight-bold); }
+
+.bookings__face { font-size: 1.15em; line-height: 1; }
+
+.bookings__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.bookings__body strong {
+    font-size: var(--text-sm);
+    color: var(--text-main);
+    overflow-wrap: anywhere;
+}
+
+.bookings__meta {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.bookings__tags {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.bookings__type {
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--text-gold);
+}
+
+@media (max-width: 600px) {
+    .bookings__row {
+        grid-template-columns: 1.75rem minmax(0, 1fr);
+        grid-template-areas: "face body" ". when" ". tags";
+        row-gap: var(--space-1);
+    }
+    .bookings__face { grid-area: face; }
+    .bookings__body { grid-area: body; }
+    .bookings__when { grid-area: when; flex-direction: row; gap: var(--space-2); }
+    .bookings__tags { grid-area: tags; justify-content: flex-start; }
+}
+
+.bookings__slips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+    gap: var(--space-3);
+    align-items: start;
+}
+
+.bookings__past summary {
+    cursor: pointer;
+    margin: var(--space-4) 0 var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+/* --- Paste box --------------------------------------------- */
+
+.bookings__paste {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+}
+
+.bookings__paste > p {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    max-width: 60ch;
+}
+
+.bookings__paste textarea {
+    width: 100%;
+    resize: vertical;
+    padding: var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}
+
+.bookings__paste-acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+}
+
+.bookings__error { margin: 0; color: var(--accent-red); font-size: var(--text-sm); }
+
+.bookings__warn {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-left: 2px solid var(--border-gold);
+    background: var(--bg-sunken, var(--bg-panel));
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.bookings__found {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-height: 24rem;
+    overflow-y: auto;
+}
+
+.bookings__item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.bookings__item:hover { border-color: var(--border-gold); }
+.bookings__item:has(input:not(:checked)) { opacity: 0.5; }
+.bookings__item input { margin-top: 3px; accent-color: var(--accent-gold); flex-shrink: 0; }
+
+.bookings__form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+    padding: var(--space-5);
+}
+
+.bookings__wide { grid-column: 1 / -1; }
+
+@media (max-width: 600px) {
+    .bookings__form { grid-template-columns: 1fr; }
+}
+
+/* --- Inside a trip ----------------------------------------- */
+
+.trip-bookings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin: var(--space-5) 0;
+}
+
+.trip-bookings__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.trip-bookings__head .section-title { margin: 0; }
+.trip-bookings > .muted { margin: 0; font-size: var(--text-sm); }
+.trip-bookings > button { align-self: flex-start; }

@@ -26,6 +26,8 @@ export const useTripDays = (trip) => {
     const [weatherState, setWeatherState] = useState({ busy: false, message: null });
 
     const tripId = trip?.id ?? null;
+    const tripStart = trip?.start_date ? String(trip.start_date).slice(0, 10) : null;
+    const tripEnd = trip?.end_date ? String(trip.end_date).slice(0, 10) : null;
 
     const load = useCallback(async () => {
         if (!user || !tripId) { setDays([]); setItems({}); setStays([]); setLegs([]); return; }
@@ -52,6 +54,15 @@ export const useTripDays = (trip) => {
             }
             setItems(grouped);
 
+            /* A hotel booked before this trip existed waits with no trip.
+               Once a trip's dates cover its check-in, it belongs here. */
+            if (tripStart) {
+                await supabase.from('atlas_stays')
+                    .update({ trip_id: tripId })
+                    .eq('user_id', user.id).is('trip_id', null)
+                    .gte('check_in', tripStart).lte('check_in', tripEnd || tripStart);
+            }
+
             const { data: stayRows } = await supabase
                 .from('atlas_stays').select('*')
                 .eq('trip_id', tripId).eq('user_id', user.id).order('check_in');
@@ -66,7 +77,7 @@ export const useTripDays = (trip) => {
         } finally {
             setLoading(false);
         }
-    }, [user, tripId]);
+    }, [user, tripId, tripStart, tripEnd]);
 
     useEffect(() => { load(); }, [load]);
 

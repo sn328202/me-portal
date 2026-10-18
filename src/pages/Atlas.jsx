@@ -15,6 +15,7 @@ import TripSheet from '../components/TripSheet';
 import TripIdeas from '../components/TripIdeas';
 import TripWardrobe from '../components/TripWardrobe';
 import TripLooseEnds from '../components/TripLooseEnds';
+import TripBookings from '../components/TripBookings';
 import DateField from '../components/DateField';
 import TripCard from '../components/TripCard';
 import TripWhere from '../components/TripWhere';
@@ -28,14 +29,16 @@ import { formatMoney } from '../utils/tripCosts';
 /* Lazily: a chunk both this page and the Table Book pull in statically is a
    chunk they can end up waiting on each other for. Its own chunk, and the
    question does not arise. */
-const TableBook = lazy(() => import('./TableBook'));
-const TicketBook = lazy(() => import('./TicketBook'));
-const GigBook = lazy(() => import('./GigBook'));
+const Bookings = lazy(() => import('./Bookings'));
 
 /* The rooms that are not the default one, so the URL can carry whichever of
    them she is in. Module scope, not the component: it is a constant, and a
    fresh array every render is a fresh dependency for the callback below. */
-const ROOMS = ['table', 'tickets', 'gigs'];
+const ROOMS = ['bookings'];
+/* The three books are one Bookings room now. Their old addresses still land
+   on it, with the matching filter already chosen. */
+const OLD_ROOMS = { table: 'tables', tickets: 'travel', gigs: 'gigs' };
+const SHOWS = ['all', 'tables', 'travel', 'hotels', 'gigs'];
 import { todayLocal } from '../utils/today';
 import { legDestination, isTravelLeg } from '../utils/tripLegs';
 import '../styles/Atlas.css';
@@ -90,16 +93,32 @@ const Atlas = () => {
        Declared here, below `params`, and not up with the other view state:
        reading a `const` from above its own declaration is a temporal dead
        zone, and it took the whole Atlas down rather than just this. */
-    const [room, setRoom] = useState(
-        () => (ROOMS.includes(params.get('tab')) ? params.get('tab') : 'trips')
-    );
+    const [room, setRoom] = useState(() => {
+        const tab = params.get('tab');
+        if (ROOMS.includes(tab) || OLD_ROOMS[tab]) return 'bookings';
+        return 'trips';
+    });
+    const [show, setShowRaw] = useState(() => {
+        const tab = params.get('tab');
+        if (OLD_ROOMS[tab]) return OLD_ROOMS[tab];
+        return SHOWS.includes(params.get('show')) ? params.get('show') : 'all';
+    });
+    const setShow = useCallback((next) => {
+        setShowRaw(next);
+        setParams((prev) => {
+            const p = new URLSearchParams(prev);
+            p.set('tab', 'bookings');
+            if (next === 'all') p.delete('show'); else p.set('show', next);
+            return p;
+        }, { replace: true });
+    }, [setParams]);
 
     const chooseRoom = useCallback((next) => {
         setRoom(next);
         setParams((prev) => {
             const nextParams = new URLSearchParams(prev);
             if (ROOMS.includes(next)) nextParams.set('tab', next);
-            else nextParams.delete('tab');
+            else { nextParams.delete('tab'); nextParams.delete('show'); }
             return nextParams;
         }, { replace: true });
     }, [setParams]);
@@ -555,29 +574,11 @@ const Atlas = () => {
                     <button
                         type="button"
                         role="tab"
-                        aria-selected={room === 'table'}
-                        className={`atlas__roomtab${room === 'table' ? ' is-on' : ''}`}
-                        onClick={() => chooseRoom('table')}
+                        aria-selected={room === 'bookings'}
+                        className={`atlas__roomtab${room === 'bookings' ? ' is-on' : ''}`}
+                        onClick={() => chooseRoom('bookings')}
                     >
-                        📖 The Table Book
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={room === 'tickets'}
-                        className={`atlas__roomtab${room === 'tickets' ? ' is-on' : ''}`}
-                        onClick={() => chooseRoom('tickets')}
-                    >
-                        🎫 The Ticket Book
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={room === 'gigs'}
-                        className={`atlas__roomtab${room === 'gigs' ? ' is-on' : ''}`}
-                        onClick={() => chooseRoom('gigs')}
-                    >
-                        🎤 The Gig Book
+                        🧳 Bookings
                     </button>
                 </div>
             )}
@@ -585,26 +586,11 @@ const Atlas = () => {
             {/* Every booking, held and historic — a table, a tasting, a show,
                 a train. It lives here because it is a thing you do with a
                 trip, and because it existed before the trip did. */}
-            {!selectedTrip && room === 'table' && (
-                <Suspense fallback={<p className="atlas__waiting">Opening the Table Book…</p>}>
-                    <TableBook embedded />
-                </Suspense>
-            )}
-
-            {/* And how she gets there. Its own book rather than a kind inside
-                the Table Book: a journey has two places and two clocks, and
-                none of the Table Book's columns are those columns. */}
-            {!selectedTrip && room === 'tickets' && (
-                <Suspense fallback={<p className="atlas__waiting">Opening the Ticket Book…</p>}>
-                    <TicketBook embedded />
-                </Suspense>
-            )}
-
-            {/* Concert tickets. Its own book for the same reason: a venue,
-                doors, a section and a seat are columns neither other book has. */}
-            {!selectedTrip && room === 'gigs' && (
-                <Suspense fallback={<p className="atlas__waiting">Opening the Gig Book…</p>}>
-                    <GigBook embedded />
+            {/* Every booking of every kind — tables, travel, hotels, gigs —
+                with one paste box that files each where it belongs. */}
+            {!selectedTrip && room === 'bookings' && (
+                <Suspense fallback={<p className="atlas__waiting">Opening Bookings…</p>}>
+                    <Bookings filter={show} onFilter={setShow} />
                 </Suspense>
             )}
 
@@ -949,6 +935,11 @@ const Atlas = () => {
                             of mostly empty paper with the figures flung to one
                             edge. The heading stays here because it is the days
                             that add up. */}
+                        {/* What is booked in these dates, of every kind,
+                            and a paste box that puts a new booking straight
+                            onto its day — without leaving the trip. */}
+                        <TripBookings trip={selectedTrip} planner={planner} />
+
                         <section className="expedition__planner">
                             <h3 className="section-title">The Ledger</h3>
                             <TripPlanner

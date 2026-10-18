@@ -17,7 +17,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const MAX_TEXT = 20000;
 const MAX_GIGS = 8;
 
-const GIG = {
+export const GIG = {
     type: 'object',
     properties: {
         name: { type: 'string', description: 'The headliner or event name as billed, e.g. "Phoebe Bridgers" or "Outside Lands — Day 2".' },
@@ -57,7 +57,7 @@ const SCHEMA = {
     },
 };
 
-const SYSTEM = `You read concert and live-event ticket confirmations and report what they say.
+export const SYSTEM = `You read concert and live-event ticket confirmations and report what they say.
 
 - Times are the venue's local clock, exactly as printed. Never convert between
   zones. "8:00 PM CT" is time "20:00". "Doors 7pm / Show 8pm" is doors "19:00",

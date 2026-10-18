@@ -29,7 +29,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const MAX_TEXT = 20000;   // longer than a restaurant's: itineraries run long
 const MAX_LEGS = 12;      // a booking with more legs than this is a mistake
 
-const LEG = {
+export const LEG = {
     type: 'object',
     properties: {
         mode: {
@@ -71,7 +71,7 @@ const SCHEMA = {
     },
 };
 
-const SYSTEM = `You read travel booking confirmations — airline, rail, ferry, coach — and report what they say.
+export const SYSTEM = `You read travel booking confirmations — airline, rail, ferry, coach — and report what they say.
 
 THE RULE THAT MATTERS MOST:
 Never convert a time between zones. Report the departure time in the departure
