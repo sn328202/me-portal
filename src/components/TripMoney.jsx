@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Button, Modal, Tabs } from './ui';
 import { formatMoney } from '../utils/tripCosts';
 import {
-    rateFor, equalAmong, sharesOf, paidGap, owedGap, BASE, BUCKETS, responsibleFor,
+    rateFor, equalAmong, sharesOf, paidGap, owedGap, BASE, BUCKETS, responsibleFor, statementText,
 } from '../utils/money';
 import '../styles/TripMoney.css';
 
@@ -188,11 +188,81 @@ const Transfer = ({ from, to, amount }) => (
     </li>
 );
 
+/** "$1,055.00" — exact, so a breakdown adds up to the cent. */
+const exact = (n) => new Intl.NumberFormat(undefined, { style: 'currency', currency: BASE, minimumFractionDigits: 2 }).format(Number(n) || 0);
+
+/**
+ * One person's statement: each cost they are charged for (their own share and
+ * anyone they cover), what they already paid, and what that leaves. Built to
+ * be sent — "Copy" puts the same thing in the clipboard as plain text.
+ */
+const Breakdown = ({ s, transfers, tripName }) => {
+    const [copied, setCopied] = useState(false);
+    const out = transfers.filter((t) => t.from === s.name);
+    const back = transfers.filter((t) => t.to === s.name);
+    const copy = async () => {
+        const text = statementText(s, transfers, tripName, exact);
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            window.prompt('Copy this:', text);
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    const headline = s.net < -0.005 ? `owes ${exact(-s.net)}` : s.net > 0.005 ? `gets back ${exact(s.net)}` : 'all square';
+
+    return (
+        <details className="money__statement" open={s.net < -0.005}>
+            <summary>
+                <span className="money__st-name">{s.name}</span>
+                <span className={`money__net${s.net > 0.005 ? ' is-owed' : s.net < -0.005 ? ' is-owing' : ''}`}>{headline}</span>
+            </summary>
+
+            <table className="money__st-table">
+                <tbody>
+                    {s.charges.map((c) => (
+                        <tr key={c.key}>
+                            <td>
+                                {c.title}
+                                <span className="money__st-sub">
+                                    {c.when}
+                                    {c.people.length > 1 || c.people[0]?.name !== s.name
+                                        ? ` · ${c.people.map((p) => `${p.name} ${exact(p.usd)}`).join(', ')}`
+                                        : ` · share of ${exact(c.total)}`}
+                                </span>
+                            </td>
+                            <td>{exact(c.usd)}</td>
+                        </tr>
+                    ))}
+                    <tr className="money__st-total"><td>Total share</td><td>{exact(s.charged)}</td></tr>
+                    {s.payments.map((p) => (
+                        <tr key={`p-${p.key}`} className="money__st-paid">
+                            <td>Paid: {p.title}<span className="money__st-sub">{p.when}</span></td>
+                            <td>−{exact(p.usd)}</td>
+                        </tr>
+                    ))}
+                    <tr className="money__st-total"><td>{s.net < 0 ? 'Still owes' : s.net > 0 ? 'Overpaid by' : 'Balance'}</td><td>{exact(Math.abs(s.net))}</td></tr>
+                </tbody>
+            </table>
+
+            {(out.length > 0 || back.length > 0) && (
+                <p className="money__st-pay">
+                    {out.map((t) => <span key={t.to}>Pays <b>{t.to}</b> {exact(t.usd)}</span>)}
+                    {back.map((t) => <span key={t.from}>Gets <b>{exact(t.usd)}</b> from {t.from}</span>)}
+                </p>
+            )}
+
+            <Button size="sm" type="button" onClick={copy}>{copied ? 'Copied' : 'Copy to send'}</Button>
+        </details>
+    );
+};
+
 /**
  * Settle up: the answer first. Who sends whom how much, then anything that
  * stops the answer being complete, each with a button to go and fix it.
  */
-const SettleUp = ({ summary, costs, onFix }) => {
+const SettleUp = ({ summary, costs, onFix, tripName }) => {
     const noPayer = costs.filter((c) => c.usd > 0 && !(c.split?.paid || []).some((p) => Number(p.usd) > 0));
     return (
         <div className="money__settle">
@@ -202,6 +272,16 @@ const SettleUp = ({ summary, costs, onFix }) => {
                 </ul>
             ) : (
                 <p className="money__even">{summary.people.length ? 'Everyone is even so far.' : 'Add who’s going to start.'}</p>
+            )}
+
+            {summary.statements.some((x) => x.charges.length || x.payments.length) && (
+                <div className="money__statements">
+                    <h4 className="money__sub-head">Why: each person’s breakdown</h4>
+                    {[...summary.statements]
+                        .filter((x) => x.charges.length || x.payments.length)
+                        .sort((a, b) => a.net - b.net)
+                        .map((x) => <Breakdown key={x.name} s={x} transfers={summary.settle} tripName={tripName} />)}
+                </div>
             )}
 
             {(noPayer.length > 0 || summary.unrated > 0) && (
@@ -463,7 +543,7 @@ export const MoneyGlance = ({ money, onOpen }) => {
  * people (grouped by who pays for whom, with the editing list under it), and
  * costs (each one editable: amount, currency, USD, payers and shares).
  */
-const TripMoney = ({ money, onTravelers, onRules }) => {
+const TripMoney = ({ money, onTravelers, onRules, tripName }) => {
     const [tab, setTab] = useState('money-settle');
     const [filter, setFilter] = useState('all');
     const [editing, setEditing] = useState(null);
@@ -491,7 +571,7 @@ const TripMoney = ({ money, onTravelers, onRules }) => {
                 ]}
             />
 
-            {tab === 'money-settle' && <SettleUp summary={summary} costs={costs} onFix={fix} />}
+            {tab === 'money-settle' && <SettleUp summary={summary} costs={costs} onFix={fix} tripName={tripName} />}
 
             {tab === 'money-people' && (
                 <div className="money__people-tab">

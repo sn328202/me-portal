@@ -61,5 +61,19 @@ check('Neha covers Nadia\'s hotel only', [row('Neha').covers, row('Nadia').cover
 check('nets', fam.map((n) => row(n).net), [100, 0, 0, 100, -200]);
 check('settle', m.settleUp(c.people), [{ from: 'Nadia', to: 'Dad', usd: 100 }, { from: 'Nadia', to: 'Neha', usd: 100 }]);
 
+console.log('statements');
+const st2 = m.statements([
+    { key: 'a', title: 'Flights', usd: 1000, row: { kind: 'transport' }, split: { paid: [{ name: 'Dad', usd: 1000 }], owed: null } },
+    { key: 'b', title: 'Hotel', usd: 500, source: 'stay', split: { paid: [{ name: 'Neha', usd: 500 }], owed: null } },
+    { key: 'c', title: 'Unpaid dinner', usd: 100, row: { kind: 'food' }, split: null },
+], fam, rules);
+const sOf = (n) => st2.find((x) => x.name === n);
+check('statement totals match balances', fam.map((n) => sOf(n).net), fam.map((n) => row(n).net));
+check('Dad is charged for his household on the flights', sOf('Dad').charges.map((ch) => [ch.title, ch.usd, ch.people.map((p) => p.name)]), [['Flights', 600, ['Dad', 'Geeta', 'Sanika']], ['Hotel', 300, ['Dad', 'Geeta', 'Sanika']]]);
+check('Neha carries Nadia\'s hotel', sOf('Neha').charges.find((ch) => ch.title === 'Hotel').people.map((p) => p.name), ['Neha', 'Nadia']);
+check('unpaid costs are left out', st2.some((x) => x.charges.some((ch) => ch.title === 'Unpaid dinner')), false);
+const txt = m.statementText(sOf('Nadia'), m.settleUp(c.people), 'Mumbai');
+check('text reads as a message', [txt.startsWith("Mumbai: Nadia's share"), txt.includes('Flights: $200.00'), txt.includes('Nadia pays')], [true, true, true]);
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { usdOf, needsRate, currencyOf, balances, settleUp, bucketOf } from '../utils/money';
+import { usdOf, needsRate, currencyOf, balances, settleUp, bucketOf, statements } from '../utils/money';
 
 const dayLabel = (d) => new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, {
     weekday: 'short', day: 'numeric', month: 'short',
@@ -120,8 +120,16 @@ export const useTripMoney = (trip, planner) => {
     }, [user, tripId, load]);
 
     const summary = useMemo(() => {
-        const b = balances(costs.map((c) => ({ usd: c.usd, split: c.split, bucket: c.bucket })), travelers, rules);
-        return { ...b, settle: settleUp(b.people), unrated: costs.filter((c) => c.usd === null).length };
+        const priced = costs.map((c) => ({
+            key: c.key, title: c.title, when: c.when, usd: c.usd, split: c.split, bucket: c.bucket,
+        }));
+        const b = balances(priced, travelers, rules);
+        return {
+            ...b,
+            settle: settleUp(b.people),
+            statements: statements(priced, travelers, rules),
+            unrated: costs.filter((c) => c.usd === null).length,
+        };
     }, [costs, travelers, rules]);
 
     return { costs, travelers, rules, summary, saveCost, saveSplit, fetchRate, rateNote };

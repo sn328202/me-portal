@@ -190,3 +190,76 @@ export const paidGap = (usd, paid = []) => units(cents(usd) - paid.reduce((s, p)
 
 /** Same, for custom shares. */
 export const owedGap = (usd, owed = []) => units(cents(usd) - (owed || []).reduce((s, o) => s + cents(o?.usd), 0));
+
+/**
+ * Why each person's balance is what it is, cost by cost — the thing to send
+ * someone along with "you owe me $3,875".
+ *
+ * For every person, `charges` lists each cost where who paid is recorded and
+ * the shares they are responsible for in it (their own, and anyone they
+ * cover), and `payments` lists what they put in. Only costs with a payer
+ * recorded are included, so the totals here match the balance exactly.
+ */
+export const statements = (costs = [], travelers = [], rules = []) => {
+    const out = new Map();
+    const touch = (name) => {
+        if (!out.has(name)) out.set(name, { name, charges: [], payments: [], charged: 0, paid: 0 });
+        return out.get(name);
+    };
+    for (const name of travelers) touch(name);
+
+    for (const cost of costs) {
+        if (!(cost.usd > 0)) continue;
+        const paid = (cost.split?.paid || []).filter((p) => p?.name && Number(p.usd) > 0);
+        if (!paid.length) continue;
+        const bucket = cost.bucket || bucketOf(cost);
+
+        const perPayer = new Map();
+        const shares = sharesOf(cost.usd, cost.split?.owed, travelers);
+        for (const [name, c] of Object.entries(shares)) {
+            if (!c) continue;
+            const payer = responsibleFor(name, bucket, rules);
+            if (!perPayer.has(payer)) perPayer.set(payer, []);
+            perPayer.get(payer).push({ name, usd: units(c) });
+        }
+        for (const [payer, people] of perPayer) {
+            const sum = people.reduce((s, p) => s + cents(p.usd), 0);
+            const who = touch(payer);
+            who.charges.push({ key: cost.key, title: cost.title, when: cost.when, total: cost.usd, people, usd: units(sum) });
+            who.charged += sum;
+        }
+        for (const p of paid) {
+            const who = touch(p.name);
+            who.payments.push({ key: cost.key, title: cost.title, when: cost.when, usd: units(cents(p.usd)) });
+            who.paid += cents(p.usd);
+        }
+    }
+
+    return [...out.values()].map((s) => ({
+        ...s, charged: units(s.charged), paid: units(s.paid), net: units(s.paid - s.charged),
+    }));
+};
+
+/** A plain-text version of one person's statement, to paste into a message. */
+export const statementText = (s, transfers = [], tripName = 'the trip', fmt = (n) => `$${n.toFixed(2)}`) => {
+    const lines = [`${tripName}: ${s.name}'s share`, ''];
+    for (const c of s.charges) {
+        const who = c.people.length === 1 && c.people[0].name === s.name
+            ? ''
+            : ` (${c.people.map((p) => `${p.name} ${fmt(p.usd)}`).join(', ')})`;
+        lines.push(`${c.title}: ${fmt(c.usd)}${who}`);
+    }
+    lines.push(`Total share: ${fmt(s.charged)}`);
+    if (s.payments.length) {
+        lines.push('', 'Already paid:');
+        for (const p of s.payments) lines.push(`${p.title}: ${fmt(p.usd)}`);
+        lines.push(`Total paid: ${fmt(s.paid)}`);
+    }
+    lines.push('');
+    const out = transfers.filter((t) => t.from === s.name);
+    const back = transfers.filter((t) => t.to === s.name);
+    for (const t of out) lines.push(`${s.name} pays ${t.to} ${fmt(t.usd)}`);
+    for (const t of back) lines.push(`${t.from} pays ${s.name} ${fmt(t.usd)}`);
+    if (!out.length && !back.length) lines.push('All square.');
+    return lines.join('\n');
+};
