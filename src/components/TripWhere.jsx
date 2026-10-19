@@ -69,50 +69,6 @@ const Bed = ({ stay, partySize, onUpdate, onDelete, onPin }) => {
                     aria-label="Where you are sleeping"
                     onChange={(e) => onUpdate(stay.id, { name: e.target.value })}
                 />
-                <DateRange
-                    from={stay.check_in}
-                    to={stay.check_out}
-                    fromLabel="Check in"
-                    toLabel="Check out"
-                    empty="Which nights?"
-                    onFrom={(v) => onUpdate(stay.id, { check_in: v })}
-                    onTo={(v) => onUpdate(stay.id, { check_out: v })}
-                />
-                <span className="bed__nights">
-                    {nights.length} {nights.length === 1 ? 'night' : 'nights'}
-                </span>
-                <span className="bed__money">
-                    <input
-                        type="number"
-                        inputMode="decimal"
-                        className="bed__cost"
-                        placeholder="0"
-                        value={stay.cost ?? ''}
-                        aria-label={`Total cost in ${code}`}
-                        onChange={(e) => onUpdate(stay.id, { cost: e.target.value === '' ? 0 : e.target.value })}
-                    />
-                    <select
-                        className="bed__cur"
-                        aria-label="Currency"
-                        value={code}
-                        onChange={(e) => onUpdate(stay.id, {
-                            currency: e.target.value === 'USD' ? null : e.target.value,
-                            // A new currency needs its own rate; the trip fetches one.
-                            fx_rate: null,
-                            fx_manual: false,
-                        })}
-                    >
-                        {[...new Set([code, 'USD', 'INR', 'EUR', 'GBP', 'AED', 'THB', 'JPY', 'MXN', 'CAD', 'AUD'])].map((c) => (
-                            <option key={c} value={c}>{c}</option>
-                        ))}
-                    </select>
-                </span>
-                <span className="bed__rate">
-                    {foreign && usd !== null && <span className="bed__usd">≈ {formatMoney(usd, 'USD')} · </span>}
-                    {each === null
-                        ? <span className="bed__norate">needs a USD rate</span>
-                        : `${formatMoney(each, 'USD')} pp/night`}
-                </span>
                 <button
                     type="button"
                     className="bed__drop"
@@ -122,6 +78,66 @@ const Bed = ({ stay, partySize, onUpdate, onDelete, onPin }) => {
                     <GiTrashCan />
                 </button>
             </div>
+
+            {/* Each figure in its own labelled cell, so the dates, the amount
+                it was charged in, the dollars and the per-person rate read as
+                four things rather than one long line of numbers. */}
+            <dl className="bed__facts">
+                <div className="bed__fact bed__fact--dates">
+                    <dt>Nights</dt>
+                    <dd>
+                        <DateRange
+                            from={stay.check_in}
+                            to={stay.check_out}
+                            fromLabel="Check in"
+                            toLabel="Check out"
+                            empty="Which nights?"
+                            onFrom={(v) => onUpdate(stay.id, { check_in: v })}
+                            onTo={(v) => onUpdate(stay.id, { check_out: v })}
+                        />
+                        <span className="bed__nights">{nights.length} {nights.length === 1 ? 'night' : 'nights'}</span>
+                    </dd>
+                </div>
+                <div className="bed__fact">
+                    <dt>Total</dt>
+                    <dd className="bed__money">
+                        <input
+                            type="number"
+                            inputMode="decimal"
+                            className="bed__cost"
+                            placeholder="0"
+                            value={stay.cost ?? ''}
+                            aria-label={`Total cost in ${code}`}
+                            onChange={(e) => onUpdate(stay.id, { cost: e.target.value === '' ? 0 : e.target.value })}
+                        />
+                        <select
+                            className="bed__cur"
+                            aria-label="Currency"
+                            value={code}
+                            onChange={(e) => onUpdate(stay.id, {
+                                currency: e.target.value === 'USD' ? null : e.target.value,
+                                // A new currency needs its own rate; the trip fetches one.
+                                fx_rate: null,
+                                fx_manual: false,
+                            })}
+                        >
+                            {[...new Set([code, 'USD', 'INR', 'EUR', 'GBP', 'AED', 'THB', 'JPY', 'MXN', 'CAD', 'AUD'])].map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                    </dd>
+                </div>
+                {foreign && (
+                    <div className="bed__fact">
+                        <dt>In USD</dt>
+                        <dd className={usd === null ? 'bed__norate' : ''}>{usd === null ? 'needs a rate' : formatMoney(usd, 'USD')}</dd>
+                    </div>
+                )}
+                <div className="bed__fact bed__fact--rate">
+                    <dt>Per person / night</dt>
+                    <dd>{each === null ? '—' : formatMoney(each, 'USD')}</dd>
+                </div>
+            </dl>
 
             <div className="bed__under">
                 {/* A hotel has an address; an Airbnb has a link and no address
