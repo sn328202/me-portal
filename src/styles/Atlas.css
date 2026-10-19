@@ -1316,8 +1316,9 @@
 
 .bed__top {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: var(--space-2);
+    gap: var(--space-1) var(--space-2);
 }
 
 .bed__icon {
@@ -1328,8 +1329,8 @@
 }
 
 .bed__name {
-    flex: 1 1 8em;
-    min-width: 0;
+    flex: 1 1 14em;
+    min-width: 10em;
     padding: 2px 0;
     font-family: inherit;
     font-size: var(--text-sm);
@@ -1350,9 +1351,25 @@
     font-size: var(--text-2xs);
 }
 
+.bed__money { display: inline-flex; align-items: baseline; gap: 2px; flex-shrink: 0; }
+
+.bed__cur {
+    padding: 0 2px;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--text-dim);
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.bed__usd { color: var(--text-dim); }
+.bed__norate { color: var(--accent-crimson); }
+.stretch__cost small { font-size: var(--text-2xs); color: var(--text-dim); font-weight: normal; }
+
 .bed__cost {
-    flex: 0 0 4.5em;
-    width: 4.5em;
+    flex: 0 0 7em;
+    width: 7em;
     padding: 2px var(--space-1);
     text-align: right;
     font-family: var(--font-mono);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GiTrashCan, GiHouse, GiCommercialAirplane, GiPositionMarker, GiSunrise } from 'react-icons/gi';
 import { Button, Card } from './ui';
 import { formatMoney, nightsOf, perPerson } from '../utils/tripCosts';
+import { usdOf, isForeign, currencyOf } from '../utils/money';
 import { summariseLegs, isTravelLeg, legDestination } from '../utils/tripLegs';
 import { whereRows, unhousedNights, legFromStay, describeNewLeg } from '../utils/tripWhere';
 import { cityFrom } from '../utils/placeCity';
@@ -41,11 +42,17 @@ import PlaceField from './PlaceField';
  * build it again — which in a row made of text inputs means the field loses
  * focus after every single keystroke.
  */
-const Bed = ({ stay, currency, partySize, onUpdate, onDelete, onPin }) => {
+const Bed = ({ stay, partySize, onUpdate, onDelete, onPin }) => {
     const nights = nightsOf(stay);
-    const each = nights.length
-        ? perPerson(stay.cost, stay.cost_shared !== false, partySize) / nights.length / 100
-        : 0;
+    /* In dollars. A stay booked in rupees is converted at its rate before it
+       is divided; reading the rupee figure as dollars is what made a
+       ₹2,59,021 villa look like $10,792 a night each. */
+    const usd = usdOf(stay);
+    const foreign = isForeign(stay);
+    const code = currencyOf(stay);
+    const each = nights.length && usd !== null
+        ? perPerson(usd, stay.cost_shared !== false, partySize) / nights.length / 100
+        : null;
     /* The booking link is a field on maybe one stay in three. Empty, it is an
        offer you can ignore rather than a line of placeholder text under every
        single booking. */
@@ -74,16 +81,38 @@ const Bed = ({ stay, currency, partySize, onUpdate, onDelete, onPin }) => {
                 <span className="bed__nights">
                     {nights.length} {nights.length === 1 ? 'night' : 'nights'}
                 </span>
-                <input
-                    type="number"
-                    inputMode="decimal"
-                    className="bed__cost"
-                    placeholder="0"
-                    value={stay.cost ?? ''}
-                    aria-label="Total cost"
-                    onChange={(e) => onUpdate(stay.id, { cost: e.target.value === '' ? 0 : e.target.value })}
-                />
-                <span className="bed__rate">{formatMoney(each, currency)} pp/night</span>
+                <span className="bed__money">
+                    <input
+                        type="number"
+                        inputMode="decimal"
+                        className="bed__cost"
+                        placeholder="0"
+                        value={stay.cost ?? ''}
+                        aria-label={`Total cost in ${code}`}
+                        onChange={(e) => onUpdate(stay.id, { cost: e.target.value === '' ? 0 : e.target.value })}
+                    />
+                    <select
+                        className="bed__cur"
+                        aria-label="Currency"
+                        value={code}
+                        onChange={(e) => onUpdate(stay.id, {
+                            currency: e.target.value === 'USD' ? null : e.target.value,
+                            // A new currency needs its own rate; the trip fetches one.
+                            fx_rate: null,
+                            fx_manual: false,
+                        })}
+                    >
+                        {[...new Set([code, 'USD', 'INR', 'EUR', 'GBP', 'AED', 'THB', 'JPY', 'MXN', 'CAD', 'AUD'])].map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
+                    </select>
+                </span>
+                <span className="bed__rate">
+                    {foreign && usd !== null && <span className="bed__usd">≈ {formatMoney(usd, 'USD')} · </span>}
+                    {each === null
+                        ? <span className="bed__norate">needs a USD rate</span>
+                        : `${formatMoney(each, 'USD')} pp/night`}
+                </span>
                 <button
                     type="button"
                     className="bed__drop"
@@ -298,7 +327,9 @@ const TripWhere = ({
                                     onFrom={(v) => onUpdateLeg(row.leg.id, { start_date: v })}
                                     onTo={(v) => onUpdateLeg(row.leg.id, { end_date: v })}
                                 />
-                                <strong className="stretch__cost">{formatMoney(row.cost, currency)}</strong>
+                                <strong className="stretch__cost" title="Per person, everything on these days">
+                                    {formatMoney(row.cost, currency)} <small>pp</small>
+                                </strong>
                                 <button
                                     type="button"
                                     className="stretch__drop"

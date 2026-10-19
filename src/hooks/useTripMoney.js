@@ -91,9 +91,10 @@ export const useTripMoney = (trip, planner) => {
 
     // Anything charged in another currency gets a rate as soon as it is seen.
     useEffect(() => {
-        const missing = costs.filter((c) => c.needsRate && !asked.current.has(c.key));
+        const tag = (c) => `${c.key}:${c.currency}`;
+        const missing = costs.filter((c) => c.needsRate && !asked.current.has(tag(c)));
         if (!missing.length) return;
-        for (const c of missing) asked.current.add(c.key);
+        for (const c of missing) asked.current.add(tag(c));
         (async () => {
             const failed = [];
             for (const c of missing) {
