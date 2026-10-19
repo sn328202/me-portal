@@ -15,6 +15,8 @@
  * exactly the kind of wrong that erodes trust in the whole feature.
  */
 
+import { usdOf } from './money.js';
+
 const BUCKETS = ['lodging', 'food', 'excursions', 'transport', 'points'];
 
 export const COST_BUCKETS = BUCKETS;
@@ -83,7 +85,9 @@ export const lodgingByNight = (stays = [], partySize = 1) => {
     for (const stay of stays) {
         const nights = nightsOf(stay);
         if (!nights.length) continue;
-        const each = perPerson(stay.cost, stay.cost_shared !== false, partySize) / nights.length;
+        // In USD: a stay booked in rupees is converted, and one with no rate yet
+        // counts nothing rather than counting its rupees as dollars.
+        const each = perPerson(usdOf(stay) ?? 0, stay.cost_shared !== false, partySize) / nights.length;
         for (const night of nights) {
             byDate[night] = (byDate[night] || 0) + each;
         }
@@ -116,9 +120,10 @@ export const dayCost = (day, items = [], partySize = 1, lodgingTonight = 0) => {
     // the day line, so a day can be planned either way round: a lump sum for
     // food, or every meal priced individually, or both.
     for (const item of items) {
-        if (item?.cost === null || item?.cost === undefined || item?.cost === '') continue;
+        const usd = usdOf(item);
+        if (usd === null) continue;
         const bucket = KIND_BUCKET[item.kind] || 'excursions';
-        buckets[bucket] += perPerson(item.cost, item.cost_shared !== false, partySize);
+        buckets[bucket] += perPerson(usd, item.cost_shared !== false, partySize);
     }
 
     // A booking that spans nights lands on each of them, on top of anything

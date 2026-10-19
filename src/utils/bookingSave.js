@@ -112,7 +112,10 @@ export const dayRowsFor = (type, saved, days = []) => {
     const missing = [];
     for (const { date, ...item } of pieces) {
         const day = byDate.get(String(date || '').slice(0, 10));
-        if (day) rows.push({ ...item, day_id: day.id });
+        // The day card keeps the currency the booking was paid in, so the trip's
+        // totals convert it instead of reading rupees as dollars.
+        const currency = item.cost !== null && item.cost !== undefined ? (saved.currency || null) : null;
+        if (day) rows.push({ ...item, currency, day_id: day.id });
         else if (date) missing.push(date);
     }
     return { rows, missing };
