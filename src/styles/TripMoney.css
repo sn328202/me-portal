@@ -1,43 +1,164 @@
-/* Who paid what — the tab beside a trip's totals, and its cost editor. */
+/* ============================================================
+   Who paid — a full-width section of the trip. Settle up first,
+   then people grouped by who pays for them, then every cost.
+   ============================================================ */
 
-.money { display: flex; flex-direction: column; gap: var(--space-3); }
-
-.money-tabs { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
-.money-tabs button {
-    background: none; border: 0; padding: 0; cursor: pointer;
-    font-family: var(--font-display); font-size: var(--text-lg);
-    letter-spacing: var(--tracking-heading); text-transform: var(--case-heading);
-    color: var(--text-muted);
+.money {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin: var(--space-6, 2rem) 0 var(--space-4);
+    scroll-margin-top: var(--space-6, 2rem);
 }
-.money-tabs button.is-on { color: var(--text-gold); }
-.money-tabs i { color: var(--text-muted); font-style: normal; }
 
-.money__travelers { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
-.money__chip {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 2px var(--space-2); border: var(--rule-hair); border-radius: var(--radius-pill);
-    font-size: var(--text-xs); color: var(--text-main); background: var(--bg-panel);
-}
-.money__chip button { background: none; border: 0; color: var(--text-muted); cursor: pointer; padding: 0 2px; }
-.money__add { flex: 1 1 8rem; min-width: 8rem; }
-.money__add .input { width: 100%; font-size: var(--text-xs); }
+.money__head { display: flex; align-items: baseline; gap: var(--space-3); }
+.money__head .section-title { margin: 0; }
+.money__count { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); }
 
-.money__balances { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
-.money__balances th { text-align: left; color: var(--text-muted); font-weight: normal; padding: 2px 4px; }
-.money__balances td { padding: 4px; border-top: var(--rule-hair); font-family: var(--font-mono); }
-.money__balances td:first-child { font-family: var(--font-body); }
-.money__balances .is-owed { color: var(--accent-green); }
-.money__balances .is-owing { color: var(--accent-red); }
-
-.money__settle { list-style: none; margin: 0; padding: 0; font-size: var(--text-sm); }
-.money__settle li { padding: 2px 0; }
-
-.money__warn {
-    margin: 0; padding: var(--space-1) var(--space-2);
-    border-left: 2px solid var(--border-gold); color: var(--text-muted); font-size: var(--text-xs);
-}
 .money__hint { margin: 0; color: var(--text-muted); font-size: var(--text-xs); }
-.money > button { align-self: flex-start; }
+.money__missing { color: var(--text-gold) !important; }
+
+/* --- Settle up --------------------------------------------- */
+
+.money__settle { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.money__transfers {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+    gap: var(--space-3);
+}
+
+.money__transfer {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+}
+.money__who-pays { font-size: var(--text-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.money__who-pays b { color: var(--text-main); font-weight: var(--weight-bold, 700); }
+.money__transfer strong {
+    font-family: var(--font-display);
+    font-size: var(--text-xl, 1.5rem);
+    color: var(--text-gold);
+    white-space: nowrap;
+}
+
+.money__even { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+
+.money__todo { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.money__todo button {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px dashed var(--border-gold);
+    border-radius: var(--radius-md);
+    background: transparent; color: var(--text-main);
+    font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer;
+}
+.money__todo button b { font-weight: var(--weight-bold, 700); }
+.money__todo button span { font-size: var(--text-xs); color: var(--text-muted); }
+.money__todo button:hover { background: var(--bg-panel); }
+
+/* --- People ------------------------------------------------ */
+
+.money__people-tab { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.money__people-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+    gap: var(--space-3);
+    align-items: start;
+}
+
+.money__card {
+    display: flex; flex-direction: column; gap: var(--space-3);
+    padding: var(--space-4);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+}
+.money__card header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.money__card h4 { margin: 0; font-size: var(--text-lg, 1.1rem); color: var(--text-main); }
+
+.money__net { font-size: var(--text-xs); font-family: var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+.money__net.is-owed { color: var(--accent-green); }
+.money__net.is-owing { color: var(--accent-red); }
+
+.money__figures { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin: 0; }
+.money__figures div { display: flex; flex-direction: column; }
+.money__figures dt { font-size: var(--text-2xs, 0.7rem); text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+.money__figures dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-md, 1rem); color: var(--text-main); }
+
+.money__members { list-style: none; margin: 0; padding: var(--space-2) 0 0; border-top: var(--rule-hair); display: flex; flex-direction: column; gap: 4px; }
+.money__members li { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm); }
+.money__members li span:last-child { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+.money__partial { font-style: italic; color: var(--text-muted); }
+
+.money__sub-head {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-xs); font-weight: normal;
+    text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted);
+}
+
+.money__who { display: flex; flex-direction: column; gap: var(--space-2); }
+.money__rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.money__row {
+    display: grid;
+    grid-template-columns: minmax(6rem, 10rem) minmax(10rem, 14rem) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    border-bottom: var(--rule-hair);
+}
+.money__name { font-size: var(--text-sm); color: var(--text-main); }
+.money__row .select { font-size: var(--text-xs); padding-top: 4px; padding-bottom: 4px; }
+.money__parts { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.money__tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px var(--space-2); border-radius: var(--radius-pill);
+    border: var(--rule-hair); font-size: var(--text-xs); color: var(--text-main);
+}
+.money__tag button, .money__x { background: none; border: 0; color: var(--text-muted); cursor: pointer; padding: 0 4px; font-size: var(--text-sm); }
+.money__link { background: none; border: 0; padding: 0; color: var(--text-gold); font: inherit; font-size: var(--text-xs); cursor: pointer; }
+.money__part-form {
+    grid-column: 1 / -1;
+    display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-panel); border-radius: var(--radius-md);
+    font-size: var(--text-xs);
+}
+.money__pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px var(--space-3); border-radius: var(--radius-pill);
+    border: var(--rule-hair); background: transparent;
+    font: inherit; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer;
+}
+.money__pill input { display: none; }
+.money__pill.is-on { color: var(--text-gold); border-color: var(--border-gold); }
+.money__add { max-width: 22rem; }
+.money__add .input { width: 100%; font-size: var(--text-sm); }
+
+/* --- Costs ------------------------------------------------- */
+
+.money__costs-wrap { display: flex; flex-direction: column; gap: var(--space-3); }
+.money__chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* --- The glance in the sidebar ----------------------------- */
+
+.money__glance {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    width: 100%; margin-top: var(--space-3);
+    padding: var(--space-3);
+    border: var(--rule-hair); border-radius: var(--radius-md);
+    background: transparent; color: var(--text-main);
+    font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer;
+}
+.money__glance:hover { border-color: var(--border-gold); }
+.money__glance strong { font-family: var(--font-mono); }
+.money__glance em { margin-top: var(--space-1); font-style: normal; font-size: var(--text-xs); color: var(--text-gold); }
 
 /* --- The full list and the editor -------------------------- */
 
@@ -74,16 +195,8 @@
     .money__when { grid-column: 1 / -1; }
     .money__person { grid-template-columns: minmax(0, 1fr) 6rem; }
     .money__person .btn, .money__person button { grid-column: 1 / -1; justify-self: start; }
+    .money__row { grid-template-columns: minmax(0, 1fr) auto; }
+    .money__row .select { grid-column: 1 / -1; grid-row: 2; }
+    .money__parts { grid-column: 1 / -1; }
+    .money__x { grid-column: 2; grid-row: 1; }
 }
-
-/* --- Paying for someone else ------------------------------- */
-
-.money__covers { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 0; border-top: var(--rule-hair); }
-.money__covers h4 { margin: 0; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); font-weight: normal; }
-.money__covers ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
-.money__covers li button { background: none; border: 0; color: var(--text-muted); cursor: pointer; margin-left: var(--space-1); }
-.money__cover-add { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
-.money__cover-add .select { font-size: var(--text-xs); min-width: 7rem; }
-.money__cover-buckets { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: var(--text-xs); }
-.money__covers > button { align-self: flex-start; }
-.money__sub { display: block; font-size: var(--text-2xs, 0.7rem); color: var(--text-muted); }

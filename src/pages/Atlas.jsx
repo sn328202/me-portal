@@ -16,7 +16,8 @@ import TripIdeas from '../components/TripIdeas';
 import TripWardrobe from '../components/TripWardrobe';
 import TripLooseEnds from '../components/TripLooseEnds';
 import TripBookings from '../components/TripBookings';
-import TripMoney from '../components/TripMoney';
+import TripMoney, { MoneyGlance } from '../components/TripMoney';
+import { useTripMoney } from '../hooks/useTripMoney';
 import DateField from '../components/DateField';
 import TripCard from '../components/TripCard';
 import TripWhere from '../components/TripWhere';
@@ -99,7 +100,6 @@ const Atlas = () => {
         if (ROOMS.includes(tab) || OLD_ROOMS[tab]) return 'bookings';
         return 'trips';
     });
-    const [moneyTab, setMoneyTab] = useState('costs');
     const [show, setShowRaw] = useState(() => {
         const tab = params.get('tab');
         if (OLD_ROOMS[tab]) return OLD_ROOMS[tab];
@@ -143,6 +143,8 @@ const Atlas = () => {
     // and the handoff to the Wardrobe. Fetching them three times would be
     // three answers to one question.
     const planner = useTripDays(selectedTrip);
+    // Who paid what: one instance, shared by the sidebar glance and the full section.
+    const tripMoney = useTripMoney(selectedTrip, planner);
 
     // Lifted for the same reason as the days: the board shows the ideas and
     // the timeline needs to mark one used when it is dragged onto an hour.
@@ -901,44 +903,31 @@ const Atlas = () => {
                         </section>
 
                         <section className="expedition__money">
-                            {/* Two tabs on one column: what the trip costs,
-                                and who paid which part of it. */}
-                            <h3 className="section-title money-tabs" role="tablist">
-                                <button type="button" role="tab" aria-selected={moneyTab === 'costs'}
-                                    className={moneyTab === 'costs' ? 'is-on' : ''} onClick={() => setMoneyTab('costs')}>
-                                    What it costs
-                                </button>
-                                <i aria-hidden="true">·</i>
-                                <button type="button" role="tab" aria-selected={moneyTab === 'paid'}
-                                    className={moneyTab === 'paid' ? 'is-on' : ''} onClick={() => setMoneyTab('paid')}>
-                                    Who paid
-                                </button>
-                            </h3>
-                            {moneyTab === 'costs' && (
-                                <TripLedger
-                                    costs={planner.costs}
-                                    currency="USD"
-                                    party={selectedTrip.party_size || 1}
-                                    onParty={(n) => handleUpdateTrip(selectedTrip.id, { party_size: n })}
-                                />
-                            )}
-                            {/* Mounted even while hidden, so anything charged in
-                                another currency gets its USD rate as soon as
-                                the trip opens and the totals beside it are right. */}
-                            <div hidden={moneyTab !== 'paid'}>
-                                <TripMoney
-                                    trip={selectedTrip}
-                                    planner={planner}
-                                    onTravelers={(list) => handleUpdateTrip(selectedTrip.id, {
-                                        travelers: list,
-                                        // The party is the people going, once they are named.
-                                        ...(list.length ? { party_size: list.length } : {}),
-                                    })}
-                                    onRules={(rules) => handleUpdateTrip(selectedTrip.id, { cover_rules: rules })}
-                                />
-                            </div>
+                            <h3 className="section-title">What it costs</h3>
+                            <TripLedger
+                                costs={planner.costs}
+                                currency="USD"
+                                party={selectedTrip.party_size || 1}
+                                onParty={(n) => handleUpdateTrip(selectedTrip.id, { party_size: n })}
+                            />
+                            {/* Who owes whom, at a glance; the full picture is
+                                its own section below, at full width. */}
+                            <MoneyGlance
+                                money={tripMoney}
+                                onOpen={() => document.getElementById('who-paid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                            />
                         </section>
                         </div>
+
+                        <TripMoney
+                            money={tripMoney}
+                            onTravelers={(list) => handleUpdateTrip(selectedTrip.id, {
+                                travelers: list,
+                                // The party is the people going, once they are named.
+                                ...(list.length ? { party_size: list.length } : {}),
+                            })}
+                            onRules={(rules) => handleUpdateTrip(selectedTrip.id, { cover_rules: rules })}
+                        />
 
                         {/* Open when there is something in it, folded away
                             when there is not — a full-height textarea holding
