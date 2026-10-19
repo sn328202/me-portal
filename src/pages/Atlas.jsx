@@ -934,6 +934,7 @@ const Atlas = () => {
                                         // The party is the people going, once they are named.
                                         ...(list.length ? { party_size: list.length } : {}),
                                     })}
+                                    onRules={(rules) => handleUpdateTrip(selectedTrip.id, { cover_rules: rules })}
                                 />
                             </div>
                         </section>

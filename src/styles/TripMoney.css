@@ -75,3 +75,15 @@
     .money__person { grid-template-columns: minmax(0, 1fr) 6rem; }
     .money__person .btn, .money__person button { grid-column: 1 / -1; justify-self: start; }
 }
+
+/* --- Paying for someone else ------------------------------- */
+
+.money__covers { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 0; border-top: var(--rule-hair); }
+.money__covers h4 { margin: 0; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); font-weight: normal; }
+.money__covers ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); }
+.money__covers li button { background: none; border: 0; color: var(--text-muted); cursor: pointer; margin-left: var(--space-1); }
+.money__cover-add { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
+.money__cover-add .select { font-size: var(--text-xs); min-width: 7rem; }
+.money__cover-buckets { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+.money__covers > button { align-self: flex-start; }
+.money__sub { display: block; font-size: var(--text-2xs, 0.7rem); color: var(--text-muted); }

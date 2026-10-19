@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Button, Modal } from './ui';
 import { useTripMoney } from '../hooks/useTripMoney';
 import { formatMoney } from '../utils/tripCosts';
-import { rateFor, equalAmong, sharesOf, paidGap, owedGap, BASE } from '../utils/money';
+import { rateFor, equalAmong, sharesOf, paidGap, owedGap, BASE, BUCKETS } from '../utils/money';
 import '../styles/TripMoney.css';
 
 const usd = (n) => formatMoney(n, BASE);
@@ -199,6 +199,75 @@ const CostEditor = ({ cost, travelers, onSaveCost, onSaveSplit, fetchRate, onDon
     );
 };
 
+
+const bucketWords = (buckets = []) => (buckets.includes('all')
+    ? 'everything'
+    : buckets.map((b) => BUCKETS.find((x) => x.id === b)?.label.toLowerCase() || b).join(', '));
+
+/**
+ * Who covers whom: "Dad pays for Geeta — everything", "Neha pays for Nadia —
+ * hotels". Each person still has their own share; this decides whose pocket
+ * it comes out of.
+ */
+const Covers = ({ rules, travelers, onChange }) => {
+    const [person, setPerson] = useState('');
+    const [payer, setPayer] = useState('');
+    const [buckets, setBuckets] = useState(['all']);
+    if (travelers.length < 2) return null;
+
+    const toggle = (id) => {
+        if (id === 'all') { setBuckets(['all']); return; }
+        const rest = buckets.filter((b) => b !== 'all');
+        const next = rest.includes(id) ? rest.filter((b) => b !== id) : [...rest, id];
+        setBuckets(next.length ? next : ['all']);
+    };
+    const add = () => {
+        if (!person || !payer || person === payer) return;
+        // One rule per person per bucket set; a newer rule for the same person
+        // and the same buckets replaces the old one.
+        const key = [...buckets].sort().join(',');
+        const kept = rules.filter((r) => !(r.person === person && [...(r.buckets || [])].sort().join(',') === key));
+        onChange([...kept, { person, payer, buckets }]);
+        setPerson(''); setPayer(''); setBuckets(['all']);
+    };
+
+    return (
+        <div className="money__covers">
+            <h4>Paying for someone else</h4>
+            {rules.length > 0 && (
+                <ul>
+                    {rules.map((r, i) => (
+                        <li key={`${r.person}-${r.payer}-${i}`}>
+                            <strong>{r.payer}</strong> pays for <strong>{r.person}</strong>: {bucketWords(r.buckets)}
+                            <button type="button" aria-label="Remove" onClick={() => onChange(rules.filter((_, j) => j !== i))}>×</button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <div className="money__cover-add">
+                <select className="select" value={payer} onChange={(e) => setPayer(e.target.value)} aria-label="Who pays">
+                    <option value="">Who pays…</option>
+                    {travelers.map((n) => <option key={n}>{n}</option>)}
+                </select>
+                <span>pays for</span>
+                <select className="select" value={person} onChange={(e) => setPerson(e.target.value)} aria-label="For whom">
+                    <option value="">whom…</option>
+                    {travelers.filter((n) => n !== payer).map((n) => <option key={n}>{n}</option>)}
+                </select>
+            </div>
+            <div className="money__cover-buckets">
+                <label><input type="checkbox" checked={buckets.includes('all')} onChange={() => toggle('all')} /> Everything</label>
+                {BUCKETS.map((b) => (
+                    <label key={b.id}><input type="checkbox" checked={buckets.includes(b.id)} onChange={() => toggle(b.id)} /> {b.label}</label>
+                ))}
+            </div>
+            <Button size="sm" type="button" disabled={!person || !payer} onClick={add}>Add</Button>
+        </div>
+    );
+};
+
+const names = (obj) => Object.entries(obj || {}).map(([n, v]) => `${n} ${usd(v)}`).join(', ');
+
 const paidLine = (split) => {
     const paid = (split?.paid || []).filter((p) => Number(p.usd) > 0);
     if (!paid.length) return null;
@@ -207,30 +276,46 @@ const paidLine = (split) => {
 
 /**
  * Who paid what on this trip. Sits as a tab beside the trip's totals: who's
- * going, each person's paid / share / balance, and who owes whom. "Every
+ * going, who is paying for whom, each person's share / what they pay for /
+ * paid / balance, and who owes whom. "Every
  * cost" opens the full list, where each cost's amount, currency, USD value,
  * payers and shares can be edited.
  */
-const TripMoney = ({ trip, planner, onTravelers }) => {
+const TripMoney = ({ trip, planner, onTravelers, onRules }) => {
     const money = useTripMoney(trip, planner);
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
-    const { summary, travelers, costs } = money;
+    const { summary, travelers, costs, rules } = money;
     const editingCost = useMemo(() => costs.find((c) => c.key === editing) || null, [costs, editing]);
 
     return (
         <div className="money">
             <Travelers names={travelers} onChange={onTravelers} />
 
+            <Covers rules={rules} travelers={travelers} onChange={onRules} />
+
             {summary.people.length > 0 && (
                 <table className="money__balances">
-                    <thead><tr><th>Who</th><th>Paid</th><th>Share</th><th>Balance</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Who</th>
+                            <th title="What was spent on them, paid yet or not">Their share</th>
+                            <th title="Their own share unless someone covers it, plus anyone they cover">Pays for</th>
+                            <th>Paid</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {summary.people.map((p) => (
                             <tr key={p.name}>
-                                <td>{p.name}</td>
-                                <td>{usd(p.paid)}</td>
+                                <td>
+                                    {p.name}
+                                    {Object.keys(p.coveredBy).length > 0 && <span className="money__sub">covered by {names(p.coveredBy)}</span>}
+                                    {Object.keys(p.covers).length > 0 && <span className="money__sub">covers {names(p.covers)}</span>}
+                                </td>
                                 <td>{usd(p.share)}</td>
+                                <td>{usd(p.responsible)}</td>
+                                <td>{usd(p.paid)}</td>
                                 <td className={p.net > 0.005 ? 'is-owed' : p.net < -0.005 ? 'is-owing' : ''}>
                                     {p.net > 0.005 ? `gets ${usd(p.net)}` : p.net < -0.005 ? `owes ${usd(-p.net)}` : 'even'}
                                 </td>
@@ -238,6 +323,12 @@ const TripMoney = ({ trip, planner, onTravelers }) => {
                         ))}
                     </tbody>
                 </table>
+            )}
+            {summary.people.length > 0 && (
+                <p className="money__hint">
+                    Their share counts every priced cost. Pays for moves covered shares onto whoever covers them.
+                    Balance counts only costs where who paid is recorded.
+                </p>
             )}
 
             {summary.settle.length > 0 && (

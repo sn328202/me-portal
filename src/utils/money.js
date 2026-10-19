@@ -70,18 +70,56 @@ export const equalAmong = (usd, names = []) => {
     return names.map((name) => ({ name, usd: units(shares[name] || 0) }));
 };
 
+/** Which part of the trip a cost belongs to, for "covers only the hotels". */
+export const BUCKETS = [
+    { id: 'lodging', label: 'Hotels' },
+    { id: 'transport', label: 'Flights & travel' },
+    { id: 'food', label: 'Food' },
+    { id: 'excursions', label: 'Activities & other' },
+];
+const KIND_BUCKET = { lodging: 'lodging', transport: 'transport', food: 'food', todo: 'excursions', other: 'excursions' };
+export const bucketOf = (cost) => (cost?.source === 'stay' ? 'lodging' : KIND_BUCKET[cost?.row?.kind || cost?.kind] || 'excursions');
+
 /**
- * Everyone's paid, share and balance across a trip's costs.
+ * Whose wallet a person's share of a cost comes out of.
  *
- * `costs` are `{ key, usd, split }` where split is a cost_splits row or null.
- * A cost nobody has been recorded as paying is left out of the balances —
- * counting its shares with no payer would put everyone in debt to nobody —
- * and counted in `unpaid` instead so the gap is visible.
+ * A rule says "payer covers person" for everything or for some buckets.
+ * Followed through (Dad covers Neha, who covers Nadia's hotels: Nadia's hotel
+ * lands on Dad). A loop leaves the share with the person themselves.
  */
-export const balances = (costs = [], travelers = []) => {
+export const responsibleFor = (name, bucket, rules = []) => {
+    const seen = new Set([name]);
+    let who = name;
+    for (;;) {
+        const rule = rules.find((r) => r?.person === who && r?.payer && r.payer !== who
+            && (r.buckets || []).some((b) => b === 'all' || b === bucket));
+        if (!rule) return who;
+        // A loop (A covers B covers A) means nobody really covers it.
+        if (seen.has(rule.payer)) return name;
+        seen.add(rule.payer);
+        who = rule.payer;
+    }
+};
+
+/**
+ * Everyone's share, who covers it, what they paid, and where they stand.
+ *
+ * `costs` are `{ usd, split, bucket }` (split is a cost_splits row or null).
+ *
+ * - `share`: what was spent on this person — every priced cost, paid yet or not.
+ * - `responsible`: what comes out of their pocket — their own share unless
+ *   someone covers it, plus the shares of the people they cover.
+ * - `coveredBy` / `covers`: who picked up whose share, by name.
+ * - `net`: paid minus what they are responsible for, counting only costs
+ *   that have a payer recorded. A cost nobody has paid yet would otherwise
+ *   put everyone in debt to nobody; it is counted in `unpaid` instead.
+ */
+export const balances = (costs = [], travelers = [], rules = []) => {
     const people = new Map();
     const touch = (name) => {
-        if (!people.has(name)) people.set(name, { name, paid: 0, share: 0 });
+        if (!people.has(name)) {
+            people.set(name, { name, paid: 0, share: 0, responsible: 0, due: 0, coveredBy: {}, covers: {} });
+        }
         return people.get(name);
     };
     for (const name of travelers) touch(name);
@@ -90,15 +128,36 @@ export const balances = (costs = [], travelers = []) => {
     let unpaidCount = 0;
     for (const cost of costs) {
         if (!(cost.usd > 0)) continue;
+        const bucket = cost.bucket || bucketOf(cost);
         const paid = (cost.split?.paid || []).filter((p) => p?.name && Number(p.usd) > 0);
-        if (!paid.length) { unpaid += cents(cost.usd); unpaidCount += 1; continue; }
+        const settled = paid.length > 0;
+        if (!settled) { unpaid += cents(cost.usd); unpaidCount += 1; }
         for (const p of paid) touch(p.name).paid += cents(p.usd);
+
         const shares = sharesOf(cost.usd, cost.split?.owed, travelers);
-        for (const [name, c] of Object.entries(shares)) touch(name).share += c;
+        for (const [name, c] of Object.entries(shares)) {
+            const who = touch(name);
+            who.share += c;
+            const payer = responsibleFor(name, bucket, rules);
+            const resp = touch(payer);
+            resp.responsible += c;
+            if (settled) resp.due += c;
+            if (payer !== name) {
+                who.coveredBy[payer] = (who.coveredBy[payer] || 0) + c;
+                resp.covers[name] = (resp.covers[name] || 0) + c;
+            }
+        }
     }
 
+    const asUnits = (obj) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, units(v)]));
     const rows = [...people.values()].map((p) => ({
-        name: p.name, paid: units(p.paid), share: units(p.share), net: units(p.paid - p.share),
+        name: p.name,
+        share: units(p.share),
+        responsible: units(p.responsible),
+        paid: units(p.paid),
+        net: units(p.paid - p.due),
+        coveredBy: asUnits(p.coveredBy),
+        covers: asUnits(p.covers),
     }));
     return { people: rows, unpaid: units(unpaid), unpaidCount };
 };

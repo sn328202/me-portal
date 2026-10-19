@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { usdOf, needsRate, currencyOf, balances, settleUp } from '../utils/money';
+import { usdOf, needsRate, currencyOf, balances, settleUp, bucketOf } from '../utils/money';
 
 const dayLabel = (d) => new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, {
     weekday: 'short', day: 'numeric', month: 'short',
@@ -36,6 +36,7 @@ export const costsOf = (days = [], itemsByDay = {}, stays = []) => {
             currency: currencyOf(c.row),
             usd: usdOf(c.row),
             needsRate: needsRate(c.row),
+            bucket: bucketOf(c),
         }))
         .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 };
@@ -52,6 +53,7 @@ export const useTripMoney = (trip, planner) => {
     const asked = useRef(new Set());
     const tripId = trip?.id ?? null;
     const travelers = useMemo(() => (trip?.travelers || []).filter(Boolean), [trip?.travelers]);
+    const rules = useMemo(() => (Array.isArray(trip?.cover_rules) ? trip.cover_rules : []), [trip?.cover_rules]);
 
     const load = useCallback(async () => {
         if (!user || !tripId) return;
@@ -118,9 +120,9 @@ export const useTripMoney = (trip, planner) => {
     }, [user, tripId, load]);
 
     const summary = useMemo(() => {
-        const b = balances(costs.map((c) => ({ usd: c.usd, split: c.split })), travelers);
+        const b = balances(costs.map((c) => ({ usd: c.usd, split: c.split, bucket: c.bucket })), travelers, rules);
         return { ...b, settle: settleUp(b.people), unrated: costs.filter((c) => c.usd === null).length };
-    }, [costs, travelers]);
+    }, [costs, travelers, rules]);
 
-    return { costs, travelers, summary, saveCost, saveSplit, fetchRate, rateNote };
+    return { costs, travelers, rules, summary, saveCost, saveSplit, fetchRate, rateNote };
 };
