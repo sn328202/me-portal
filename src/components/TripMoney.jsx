@@ -180,23 +180,55 @@ const CostEditor = ({ cost, travelers, onSaveCost, onSaveSplit, fetchRate, onDon
 
 
 
-/** One transfer in the settle-up list. */
-const Transfer = ({ from, to, amount }) => (
-    <li className="money__transfer">
-        <span className="money__who-pays"><b>{from}</b> pays <b>{to}</b></span>
-        <strong>{usd0(amount)}</strong>
-    </li>
-);
-
 /** "$1,055.00" — exact, so a breakdown adds up to the cent. */
 const exact = (n) => new Intl.NumberFormat(undefined, { style: 'currency', currency: BASE, minimumFractionDigits: 2 }).format(Number(n) || 0);
+
+/**
+ * One transfer, with what it is for right on the card: each cost the payer is
+ * being charged for (their own share and anyone they cover), less what they
+ * already paid. "See the full breakdown" opens the per-person detail.
+ */
+const Transfer = ({ t, st, onWhy }) => {
+    const splitAcross = st && Math.abs(-st.net - t.usd) > 0.005;
+    return (
+        <li className="money__transfer">
+            <div className="money__transfer-top">
+                <span className="money__who-pays"><b>{t.from}</b> pays <b>{t.to}</b></span>
+                <strong>{usd0(t.usd)}</strong>
+            </div>
+            {st && (
+                <ul className="money__for">
+                    {st.charges.map((c) => (
+                        <li key={c.key}>
+                            <span>
+                                {c.title}
+                                {(c.people.length > 1 || c.people[0]?.name !== st.name) && (
+                                    <em> · {c.people.map((p) => p.name).join(', ')}</em>
+                                )}
+                            </span>
+                            <span>{exact(c.usd)}</span>
+                        </li>
+                    ))}
+                    {st.paid > 0 && (
+                        <li className="money__for-paid"><span>Already paid</span><span>−{exact(st.paid)}</span></li>
+                    )}
+                    <li className="money__for-total">
+                        <span>{splitAcross ? `Owes ${exact(-st.net)} in all; this part to ${t.to}` : 'Owes'}</span>
+                        <span>{exact(splitAcross ? t.usd : -st.net)}</span>
+                    </li>
+                </ul>
+            )}
+            {st && <button type="button" className="money__link" onClick={() => onWhy(t.from)}>See the full breakdown and copy it →</button>}
+        </li>
+    );
+};
 
 /**
  * One person's statement: each cost they are charged for (their own share and
  * anyone they cover), what they already paid, and what that leaves. Built to
  * be sent — "Copy" puts the same thing in the clipboard as plain text.
  */
-const Breakdown = ({ s, transfers, tripName }) => {
+const Breakdown = ({ s, transfers, tripName, open }) => {
     const [copied, setCopied] = useState(false);
     const out = transfers.filter((t) => t.from === s.name);
     const back = transfers.filter((t) => t.to === s.name);
@@ -213,7 +245,7 @@ const Breakdown = ({ s, transfers, tripName }) => {
     const headline = s.net < -0.005 ? `owes ${exact(-s.net)}` : s.net > 0.005 ? `gets back ${exact(s.net)}` : 'all square';
 
     return (
-        <details className="money__statement" open={s.net < -0.005}>
+        <details className="money__statement" id={`statement-${s.name}`} open={open || undefined}>
             <summary>
                 <span className="money__st-name">{s.name}</span>
                 <span className={`money__net${s.net > 0.005 ? ' is-owed' : s.net < -0.005 ? ' is-owing' : ''}`}>{headline}</span>
@@ -264,24 +296,20 @@ const Breakdown = ({ s, transfers, tripName }) => {
  */
 const SettleUp = ({ summary, costs, onFix, tripName }) => {
     const noPayer = costs.filter((c) => c.usd > 0 && !(c.split?.paid || []).some((p) => Number(p.usd) > 0));
+    const byName = Object.fromEntries(summary.statements.map((x) => [x.name, x]));
+    const [opened, setOpened] = useState(null);
+    const why = (name) => {
+        setOpened(name);
+        setTimeout(() => document.getElementById(`statement-${name}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    };
     return (
         <div className="money__settle">
             {summary.settle.length ? (
                 <ul className="money__transfers">
-                    {summary.settle.map((s) => <Transfer key={`${s.from}-${s.to}`} from={s.from} to={s.to} amount={s.usd} />)}
+                    {summary.settle.map((t) => <Transfer key={`${t.from}-${t.to}`} t={t} st={byName[t.from]} onWhy={why} />)}
                 </ul>
             ) : (
                 <p className="money__even">{summary.people.length ? 'Everyone is even so far.' : 'Add who’s going to start.'}</p>
-            )}
-
-            {summary.statements.some((x) => x.charges.length || x.payments.length) && (
-                <div className="money__statements">
-                    <h4 className="money__sub-head">Why: each person’s breakdown</h4>
-                    {[...summary.statements]
-                        .filter((x) => x.charges.length || x.payments.length)
-                        .sort((a, b) => a.net - b.net)
-                        .map((x) => <Breakdown key={x.name} s={x} transfers={summary.settle} tripName={tripName} />)}
-                </div>
             )}
 
             {(noPayer.length > 0 || summary.unrated > 0) && (
@@ -300,6 +328,16 @@ const SettleUp = ({ summary, costs, onFix, tripName }) => {
                     )}
                 </div>
             )}
+            {summary.statements.some((x) => x.charges.length || x.payments.length) && (
+                <div className="money__statements">
+                    <h4 className="money__sub-head">Everyone’s breakdown</h4>
+                    {[...summary.statements]
+                        .filter((x) => x.charges.length || x.payments.length)
+                        .sort((a, b) => a.net - b.net)
+                        .map((x) => <Breakdown key={x.name} s={x} transfers={summary.settle} tripName={tripName} open={opened === x.name} />)}
+                </div>
+            )}
+
         </div>
     );
 };
