@@ -209,9 +209,12 @@ const Transfer = ({ t, st, onWhy }) => {
                             <span>{exact(c.usd)}</span>
                         </li>
                     ))}
-                    {st.paid > 0 && (
-                        <li className="money__for-paid"><span>Already paid</span><span>−{exact(st.paid)}</span></li>
-                    )}
+                    {st.payments.map((p) => (
+                        <li key={p.key} className={p.usd < 0 ? 'money__for-got' : 'money__for-paid'}>
+                            <span>{p.usd < 0 ? p.title : `Paid: ${p.title}`}</span>
+                            <span>{p.usd < 0 ? `+${exact(-p.usd)}` : `−${exact(p.usd)}`}</span>
+                        </li>
+                    ))}
                     <li className="money__for-total">
                         <span>{splitAcross ? `Owes ${exact(-st.net)} in all; this part to ${t.to}` : 'Owes'}</span>
                         <span>{exact(splitAcross ? t.usd : -st.net)}</span>
@@ -269,9 +272,9 @@ const Breakdown = ({ s, transfers, tripName, open }) => {
                     ))}
                     <tr className="money__st-total"><td>Total share</td><td>{exact(s.charged)}</td></tr>
                     {s.payments.map((p) => (
-                        <tr key={`p-${p.key}`} className="money__st-paid">
-                            <td>Paid: {p.title}<span className="money__st-sub">{p.when}</span></td>
-                            <td>−{exact(p.usd)}</td>
+                        <tr key={`p-${p.key}`} className={p.usd < 0 ? 'money__st-got' : 'money__st-paid'}>
+                            <td>{p.usd < 0 ? p.title : `Paid: ${p.title}`}<span className="money__st-sub">{p.when}</span></td>
+                            <td>{p.usd < 0 ? `+${exact(-p.usd)}` : `−${exact(p.usd)}`}</td>
                         </tr>
                     ))}
                     <tr className="money__st-total"><td>{s.net < 0 ? 'Still owes' : s.net > 0 ? 'Overpaid by' : 'Balance'}</td><td>{exact(Math.abs(s.net))}</td></tr>
@@ -294,7 +297,145 @@ const Breakdown = ({ s, transfers, tripName, open }) => {
  * Settle up: the answer first. Who sends whom how much, then anything that
  * stops the answer being complete, each with a button to go and fix it.
  */
-const SettleUp = ({ summary, costs, onFix, tripName }) => {
+/**
+ * Money that has already changed hands outside any booking ("Dad sent me
+ * $2,200"). Each one counts toward settling up: the sender has paid that much
+ * in, and the person who got it has that much less coming back.
+ */
+const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const SentMoney = ({ sent, travelers, onSent, fetchRate }) => {
+    const [adding, setAdding] = useState(false);
+    const [from, setFrom] = useState('');
+    const [to, setTo] = useState('');
+    const [amount, setAmount] = useState('');
+    const [currency, setCurrency] = useState(BASE);
+    const [rate, setRate] = useState('');
+    const [date, setDate] = useState(today());
+    const [note, setNote] = useState('');
+    const [msg, setMsg] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const cur = currency.trim().toUpperCase() || BASE;
+    const foreign = cur !== BASE;
+    const usdValue = Number(amount) > 0 ? round2(Number(amount) * (foreign ? Number(rate) || 0 : 1)) : 0;
+    const ok = from && to && from !== to && usdValue > 0;
+    const list = [...(sent || [])].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+    const clear = () => {
+        setAdding(false); setFrom(''); setTo(''); setAmount(''); setCurrency(BASE);
+        setRate(''); setDate(today()); setNote(''); setMsg(null);
+    };
+    const lookUp = async (c = cur) => {
+        if (c === BASE) return;
+        setMsg('Looking up the rate…');
+        try {
+            const r = await fetchRate(c, date);
+            setRate(r.rate);
+            setMsg(null);
+        } catch {
+            setMsg(`No rate found for ${c}. Type how many USD one ${c} is.`);
+        }
+    };
+    const save = async (e) => {
+        e.preventDefault();
+        if (!ok || busy) return;
+        setBusy(true);
+        const entry = {
+            id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+            from, to, amount: Number(amount), currency: cur,
+            fx_rate: foreign ? Number(rate) : 1, usd: usdValue,
+            date: date || null, note: note.trim() || null,
+        };
+        try {
+            await onSent([...(sent || []), entry]);
+            clear();
+        } catch {
+            setMsg('That did not save. Try again.');
+        } finally {
+            setBusy(false);
+        }
+    };
+    const remove = (id) => onSent((sent || []).filter((t) => t.id !== id));
+
+    return (
+        <div className="money__sent">
+            <div className="money__sent-head">
+                <h4 className="money__sub-head">Money already sent</h4>
+                {!adding && travelers.length > 1 && (
+                    <Button size="sm" type="button" onClick={() => { setAdding(true); setTo(travelers[0] || ''); }}>+ Record a payment</Button>
+                )}
+            </div>
+            {!list.length && !adding && (
+                <p className="money__hint">
+                    {travelers.length > 1
+                        ? 'If someone has already sent money toward the trip, record it here and it comes off what they owe.'
+                        : 'Add who’s going first, on the People tab.'}
+                </p>
+            )}
+            {list.length > 0 && (
+                <ul className="money__sent-list">
+                    {list.map((t) => (
+                        <li key={t.id}>
+                            <span className="money__sent-who"><b>{t.from}</b> sent <b>{t.to}</b></span>
+                            <span className="money__sent-meta">
+                                {t.date ? new Date(`${t.date}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'No date'}
+                                {t.note ? ` · ${t.note}` : ''}
+                                {t.currency && t.currency !== BASE ? ` · ${formatMoney(t.amount, t.currency)}` : ''}
+                            </span>
+                            <strong>{exact(t.usd)}</strong>
+                            <button type="button" className="money__sent-x" aria-label={`Remove ${t.from} to ${t.to} ${exact(t.usd)}`} onClick={() => remove(t.id)}>×</button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {adding && (
+                <form className="money__sent-form" onSubmit={save}>
+                    <label><span>From</span>
+                        <select className="select" value={from} onChange={(e) => setFrom(e.target.value)} required>
+                            <option value="">Who sent it?</option>
+                            {travelers.map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                    </label>
+                    <label><span>To</span>
+                        <select className="select" value={to} onChange={(e) => setTo(e.target.value)} required>
+                            {travelers.map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                    </label>
+                    <label><span>Amount</span>
+                        <input className="input" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+                    </label>
+                    <label><span>Currency</span>
+                        <select className="select" value={cur} onChange={(e) => { setCurrency(e.target.value); setRate(''); lookUp(e.target.value); }}>
+                            {[BASE, 'INR', 'EUR', 'GBP', 'AED', 'CAD', 'AUD', 'SGD'].map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </label>
+                    {foreign && (
+                        <label><span>USD per {cur}</span>
+                            <input className="input" type="number" min="0" step="any" value={rate} onChange={(e) => setRate(e.target.value)} />
+                        </label>
+                    )}
+                    <label><span>Date</span>
+                        <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                    </label>
+                    <label className="is-wide"><span>Note</span>
+                        <input className="input" type="text" placeholder="e.g. Zelle, toward flights" value={note} onChange={(e) => setNote(e.target.value)} />
+                    </label>
+                    {from && to && from === to && <p className="money__hint is-wide">Pick two different people.</p>}
+                    {msg && <p className="money__hint is-wide">{msg}</p>}
+                    <div className="money__sent-acts is-wide">
+                        {foreign && usdValue > 0 && <span className="money__hint">= {exact(usdValue)}</span>}
+                        <Button size="sm" type="button" onClick={clear}>Cancel</Button>
+                        <Button size="sm" variant="solid" type="submit" disabled={!ok || busy}>{busy ? 'Saving…' : 'Save'}</Button>
+                    </div>
+                </form>
+            )}
+        </div>
+    );
+};
+
+const SettleUp = ({ summary, costs, onFix, tripName, sent, travelers, onSent, fetchRate }) => {
     const noPayer = costs.filter((c) => c.usd > 0 && !(c.split?.paid || []).some((p) => Number(p.usd) > 0));
     const byName = Object.fromEntries(summary.statements.map((x) => [x.name, x]));
     const [opened, setOpened] = useState(null);
@@ -337,6 +478,8 @@ const SettleUp = ({ summary, costs, onFix, tripName }) => {
                         .map((x) => <Breakdown key={x.name} s={x} transfers={summary.settle} tripName={tripName} open={opened === x.name} />)}
                 </div>
             )}
+
+            <SentMoney sent={sent} travelers={travelers} onSent={onSent} fetchRate={fetchRate} />
 
         </div>
     );
@@ -581,7 +724,7 @@ export const MoneyGlance = ({ money, onOpen }) => {
  * people (grouped by who pays for whom, with the editing list under it), and
  * costs (each one editable: amount, currency, USD, payers and shares).
  */
-const TripMoney = ({ money, onTravelers, onRules, tripName }) => {
+const TripMoney = ({ money, onTravelers, onRules, onSent, tripName }) => {
     const [tab, setTab] = useState('money-settle');
     const [filter, setFilter] = useState('all');
     const [editing, setEditing] = useState(null);
@@ -609,7 +752,12 @@ const TripMoney = ({ money, onTravelers, onRules, tripName }) => {
                 ]}
             />
 
-            {tab === 'money-settle' && <SettleUp summary={summary} costs={costs} onFix={fix} tripName={tripName} />}
+            {tab === 'money-settle' && (
+                <SettleUp
+                    summary={summary} costs={costs} onFix={fix} tripName={tripName}
+                    sent={money.sent} travelers={travelers} onSent={onSent} fetchRate={money.fetchRate}
+                />
+            )}
 
             {tab === 'money-people' && (
                 <div className="money__people-tab">

@@ -922,6 +922,7 @@ const Atlas = () => {
                         <TripMoney
                             money={tripMoney}
                             tripName={selectedTrip.destination || 'The trip'}
+                            onSent={(list) => handleUpdateTrip(selectedTrip.id, { transfers: list })}
                             onTravelers={(list) => handleUpdateTrip(selectedTrip.id, {
                                 travelers: list,
                                 // The party is the people going, once they are named.

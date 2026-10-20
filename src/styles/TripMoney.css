@@ -235,3 +235,47 @@
     .money__parts { grid-column: 1 / -1; }
     .money__x { grid-column: 2; grid-row: 1; }
 }
+
+/* --- Money already sent between people ----------------------- */
+.money__for-got,
+.money__st-got td { color: var(--text-gold); }
+.money__sent { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-4); }
+.money__sent-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.money__sent-head .money__sub-head { margin: 0; }
+.money__sent-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.money__sent-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "who amt x" "meta amt x";
+    align-items: center;
+    column-gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+}
+.money__sent-who { grid-area: who; font-size: var(--text-sm); }
+.money__sent-meta { grid-area: meta; font-size: var(--text-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.money__sent-list strong { grid-area: amt; font-family: var(--font-mono); }
+.money__sent-x {
+    grid-area: x; border: 0; background: transparent; color: var(--text-muted);
+    font-size: 1.2em; line-height: 1; cursor: pointer; padding: 0 var(--space-1);
+}
+.money__sent-x:hover { color: var(--accent-red); }
+.money__sent-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--border-gold);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+}
+.money__sent-form label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.money__sent-form label > span {
+    font-size: var(--text-2xs); text-transform: uppercase;
+    letter-spacing: var(--tracking-label); color: var(--text-muted);
+}
+.money__sent-form .input, .money__sent-form .select { width: 100%; }
+.money__sent-form .is-wide { grid-column: 1 / -1; margin: 0; }
+.money__sent-acts { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); }

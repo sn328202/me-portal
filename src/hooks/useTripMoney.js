@@ -54,6 +54,7 @@ export const useTripMoney = (trip, planner) => {
     const tripId = trip?.id ?? null;
     const travelers = useMemo(() => (trip?.travelers || []).filter(Boolean), [trip?.travelers]);
     const rules = useMemo(() => (Array.isArray(trip?.cover_rules) ? trip.cover_rules : []), [trip?.cover_rules]);
+    const sent = useMemo(() => (Array.isArray(trip?.transfers) ? trip.transfers : []), [trip?.transfers]);
 
     const load = useCallback(async () => {
         if (!user || !tripId) return;
@@ -124,14 +125,14 @@ export const useTripMoney = (trip, planner) => {
         const priced = costs.map((c) => ({
             key: c.key, title: c.title, when: c.when, usd: c.usd, split: c.split, bucket: c.bucket,
         }));
-        const b = balances(priced, travelers, rules);
+        const b = balances(priced, travelers, rules, sent);
         return {
             ...b,
             settle: settleUp(b.people),
-            statements: statements(priced, travelers, rules),
+            statements: statements(priced, travelers, rules, sent),
             unrated: costs.filter((c) => c.usd === null).length,
         };
-    }, [costs, travelers, rules]);
+    }, [costs, travelers, rules, sent]);
 
-    return { costs, travelers, rules, summary, saveCost, saveSplit, fetchRate, rateNote };
+    return { costs, travelers, rules, sent, summary, saveCost, saveSplit, fetchRate, rateNote };
 };

@@ -75,5 +75,28 @@ check('unpaid costs are left out', st2.some((x) => x.charges.some((ch) => ch.tit
 const txt = m.statementText(sOf('Nadia'), m.settleUp(c.people), 'Mumbai');
 check('text reads as a message', [txt.startsWith("Mumbai: Nadia's share"), txt.includes('Flights: $200.00'), txt.includes('Nadia pays')], [true, true, true]);
 
+console.log('money already sent');
+const costs3 = [
+    { key: 'h', title: 'Hotel', usd: 500, source: 'stay', split: { paid: [{ name: 'Neha', usd: 500 }], owed: null } },
+    { key: 'f', title: 'Flights', usd: 1000, row: { kind: 'transport' }, split: { paid: [{ name: 'Dad', usd: 1000 }], owed: null } },
+];
+const sent = [
+    { id: 'x1', from: 'Nadia', to: 'Neha', usd: 150, date: '2026-10-01', note: 'Zelle' },
+    { id: 'bad', from: 'Neha', to: 'Neha', usd: 99 },
+    { id: 'zero', from: 'Dad', to: 'Neha', usd: 0 },
+];
+const c3 = m.balances(costs3, fam, rules, sent);
+const r3 = (n) => c3.people.find((p) => p.name === n);
+check('sent money moves the balance', fam.map((n) => r3(n).net), [100, 0, 0, -50, -50]);
+check('settle after money sent', m.settleUp(c3.people), [{ from: 'Neha', to: 'Dad', usd: 50 }, { from: 'Nadia', to: 'Dad', usd: 50 }]);
+const st3 = m.statements(costs3, fam, rules, sent);
+check('statements still match balances', fam.map((n) => st3.find((x) => x.name === n).net), fam.map((n) => r3(n).net));
+check('both sides listed', [st3.find((x) => x.name === 'Nadia').payments.map((p) => p.usd), st3.find((x) => x.name === 'Neha').payments.map((p) => p.usd)], [[150], [500, -150]]);
+check('self and zero transfers ignored', m.sentList(sent).map((t) => t.id), ['x1']);
+const dad = m.balances(costs3, fam, rules, [{ id: 'd', from: 'Dad', to: 'Neha', usd: 2200 }]);
+check('Dad sent Neha $2,200', [dad.people.find((p) => p.name === 'Dad').net, dad.people.find((p) => p.name === 'Neha').net], [2300, -2100]);
+const t3 = m.statementText(st3.find((x) => x.name === 'Neha'), m.settleUp(c3.people), 'Goa');
+check('text shows money received', t3.includes('Received from Nadia (Zelle): -$150.00'), true);
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

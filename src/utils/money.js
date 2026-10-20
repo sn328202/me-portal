@@ -114,7 +114,7 @@ export const responsibleFor = (name, bucket, rules = []) => {
  *   that have a payer recorded. A cost nobody has paid yet would otherwise
  *   put everyone in debt to nobody; it is counted in `unpaid` instead.
  */
-export const balances = (costs = [], travelers = [], rules = []) => {
+export const balances = (costs = [], travelers = [], rules = [], sent = []) => {
     const people = new Map();
     const touch = (name) => {
         if (!people.has(name)) {
@@ -147,6 +147,14 @@ export const balances = (costs = [], travelers = [], rules = []) => {
                 resp.covers[name] = (resp.covers[name] || 0) + c;
             }
         }
+    }
+
+    /* Money sent between people outside any cost ("Dad has already sent me
+       $2,200"): it counts as paid in by the sender and taken out by the
+       person who received it, so settling up shrinks by exactly that much. */
+    for (const t of sentList(sent)) {
+        touch(t.from).paid += cents(t.usd);
+        touch(t.to).paid -= cents(t.usd);
     }
 
     const asUnits = (obj) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, units(v)]));
@@ -200,7 +208,7 @@ export const owedGap = (usd, owed = []) => units(cents(usd) - (owed || []).reduc
  * cover), and `payments` lists what they put in. Only costs with a payer
  * recorded are included, so the totals here match the balance exactly.
  */
-export const statements = (costs = [], travelers = [], rules = []) => {
+export const statements = (costs = [], travelers = [], rules = [], sent = []) => {
     const out = new Map();
     const touch = (name) => {
         if (!out.has(name)) out.set(name, { name, charges: [], payments: [], charged: 0, paid: 0 });
@@ -235,9 +243,29 @@ export const statements = (costs = [], travelers = [], rules = []) => {
         }
     }
 
+    for (const t of sentList(sent)) {
+        const c = cents(t.usd);
+        const when = t.date ? shortDay(t.date) : '';
+        const from = touch(t.from);
+        from.payments.push({ key: `sent-${t.id}`, title: `Sent to ${t.to}${t.note ? ` (${t.note})` : ''}`, when, usd: units(c) });
+        from.paid += c;
+        const to = touch(t.to);
+        to.payments.push({ key: `got-${t.id}`, title: `Received from ${t.from}${t.note ? ` (${t.note})` : ''}`, when, usd: units(-c) });
+        to.paid -= c;
+    }
+
     return [...out.values()].map((s) => ({
         ...s, charged: units(s.charged), paid: units(s.paid), net: units(s.paid - s.charged),
     }));
+};
+
+/** Money sent between people, cleaned: a sender, a different receiver, and a positive USD amount. */
+export const sentList = (sent = []) => (Array.isArray(sent) ? sent : [])
+    .filter((t) => t?.from && t?.to && t.from !== t.to && Number(t.usd) > 0);
+
+const shortDay = (d) => {
+    const t = new Date(`${String(d).slice(0, 10)}T12:00:00`);
+    return Number.isNaN(t.getTime()) ? '' : t.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
 /** A plain-text version of one person's statement, to paste into a message. */
@@ -252,8 +280,8 @@ export const statementText = (s, transfers = [], tripName = 'the trip', fmt = (n
     lines.push(`Total share: ${fmt(s.charged)}`);
     if (s.payments.length) {
         lines.push('', 'Already paid:');
-        for (const p of s.payments) lines.push(`${p.title}: ${fmt(p.usd)}`);
-        lines.push(`Total paid: ${fmt(s.paid)}`);
+        for (const p of s.payments) lines.push(`${p.title}: ${p.usd < 0 ? `-${fmt(-p.usd)}` : fmt(p.usd)}`);
+        lines.push(`Total paid: ${s.paid < 0 ? `-${fmt(-s.paid)}` : fmt(s.paid)}`);
     }
     lines.push('');
     const out = transfers.filter((t) => t.from === s.name);
