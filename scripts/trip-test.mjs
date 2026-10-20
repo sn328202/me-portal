@@ -277,6 +277,27 @@ console.log('\nsummariseLegs():');
     check('no weather averages to null', summary[1].high, null);
 }
 
+console.log('\nsummariseLegs(): a handover day is counted once, on the leg you arrive in');
+{
+    // Her India trip: Mumbai 25-27 Dec with nothing booked, Munnar from the
+    // 27th; the flight to Kochi and Munnar's first night are both on the 27th.
+    const legs = [
+        { id: 'm', city: 'Mumbai', start_date: '2026-12-25', end_date: '2026-12-27' },
+        { id: 'n', city: 'Munnar', start_date: '2026-12-27', end_date: '2026-12-30' },
+        { id: 'g', city: 'Goa', start_date: '2027-01-02', end_date: '2027-01-05' },
+        { id: 'b', city: 'Mumbai', start_date: '2027-01-05', end_date: '2027-01-07' },
+    ];
+    const s = summariseLegs(legs, {
+        costsByDate: { '2026-12-27': 251.77, '2026-12-28': 75.66, '2027-01-05': 89.45, '2027-01-07': 0 },
+        itemsByDate: { '2026-12-27': [1], '2027-01-05': [1, 2] },
+    });
+    check('Mumbai does not carry the day it leaves', [s[0].cost, s[0].planned], [0, 0]);
+    check('Munnar carries the day it arrives', s[1].cost, 327.43);
+    check('Goa hands its last day to Mumbai', s[2].cost, 0);
+    check('the last leg keeps its own last day', [s[3].cost, s[3].planned], [89.45, 2]);
+    check('days and nights still count both ends', [s[0].days, s[0].nights], [3, 2]);
+}
+
 /* A travel day is how people actually enter a trip, not a mistake ---------- */
 console.log('\nhandover days — you arrive on the day you leave:');
 {

@@ -224,8 +224,17 @@ export const summariseLegs = (legs = [], { itemsByDate = {}, costsByDate = {}, w
         const lows = dates.map((d) => weatherByDate[d]?.low).filter((v) => typeof v === 'number');
         const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 
-        const cost = dates.reduce((sum, d) => sum + (costsByDate[d] || 0), 0);
-        const planned = dates.reduce((sum, d) => sum + (itemsByDate[d]?.length || 0), 0);
+        /* A handover day — leave Mumbai and arrive in Munnar on the 27th —
+           sits in both legs' date ranges. Its money and its plans are counted
+           once, on the leg you arrive in: that is where you sleep that night,
+           and the flight that day is the cost of getting there. Counting it
+           in both made Mumbai show $251.77 with nothing booked there — the
+           flight out and Munnar's first night. */
+        const handedOver = (d) => d === String(leg.end_date).slice(0, 10)
+            && ordered.some((o) => o !== leg && String(o.start_date).slice(0, 10) === d);
+        const owned = dates.filter((d) => !handedOver(d));
+        const cost = owned.reduce((sum, d) => sum + (costsByDate[d] || 0), 0);
+        const planned = owned.reduce((sum, d) => sum + (itemsByDate[d]?.length || 0), 0);
 
         const lodging = stays.filter((s) => nightsOf(s).some((n) => dates.includes(n)));
 

@@ -4,6 +4,85 @@ import { supabase } from '../lib/supabase';
 import { TYPES, faceOf, summaryOf, dateOf, saveBookings, inTrip } from '../utils/bookingSave';
 import '../styles/Bookings.css';
 
+/**
+ * The fields worth correcting on each kind of booking, before it is saved.
+ * Whatever the reader got wrong is fixed here rather than after the fact.
+ */
+const FIELDS = {
+    table: [
+        ['name', 'Name'], ['kind', 'Kind', 'kind'], ['date', 'Date', 'date'], ['time', 'Time', 'time'],
+        ['party_size', 'People', 'number'], ['city', 'City'], ['address', 'Address', 'wide'],
+        ['confirmation', 'Confirmation'], ['notes', 'Notes', 'wide'],
+    ],
+    journey: [
+        ['from_place', 'From'], ['to_place', 'To'], ['carrier', 'Carrier'], ['number', 'Flight / train no.'],
+        ['depart_date', 'Departs', 'date'], ['depart_time', 'At', 'time'],
+        ['arrive_date', 'Arrives', 'date'], ['arrive_time', 'At (local)', 'time'],
+        ['cost', 'Cost', 'money'], ['currency', 'Currency', 'currency'],
+        ['confirmation', 'Confirmation'], ['notes', 'Notes', 'wide'],
+    ],
+    gig: [
+        ['name', 'Who'], ['venue', 'Venue'], ['city', 'City'],
+        ['date', 'Date', 'date'], ['time', 'Show starts', 'time'], ['doors', 'Doors', 'time'],
+        ['section', 'Section'], ['row', 'Row'], ['seat', 'Seat'], ['tickets', 'Tickets', 'number'],
+        ['cost', 'Cost', 'money'], ['currency', 'Currency', 'currency'],
+        ['confirmation', 'Confirmation'], ['notes', 'Notes', 'wide'],
+    ],
+    stay: [
+        ['name', 'Hotel'], ['city', 'City'], ['check_in', 'Check in', 'date'], ['check_out', 'Check out', 'date'],
+        ['cost', 'Total cost', 'money'], ['currency', 'Currency', 'currency'],
+        ['confirmation', 'Confirmation'], ['address', 'Address', 'wide'], ['notes', 'Notes', 'wide'],
+    ],
+};
+const KIND_OPTIONS = [['table', 'Restaurant / bar'], ['tasting', 'Tasting'], ['activity', 'Activity / tour'], ['show', 'Show'], ['other', 'Other']];
+const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'AED', 'THB', 'JPY', 'MXN', 'CAD', 'AUD', 'SGD'];
+
+/** One booking's fields, editable in place. */
+const ItemEditor = ({ item, onChange }) => (
+    <div className="bookings__edit">
+        {(FIELDS[item.type] || []).map(([key, label, kind]) => {
+            const value = item[key] ?? '';
+            const set = (v) => onChange({ ...item, [key]: v });
+            let control;
+            if (kind === 'kind') {
+                control = (
+                    <select className="select" value={value || 'other'} onChange={(e) => set(e.target.value)}>
+                        {KIND_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                );
+            } else if (kind === 'currency') {
+                control = (
+                    <select className="select" value={(value || 'USD').toUpperCase()} onChange={(e) => set(e.target.value)}>
+                        {[...new Set([(value || 'USD').toUpperCase(), ...CURRENCIES])].map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                );
+            } else if (kind === 'wide' && key === 'notes') {
+                control = <textarea className="textarea" rows={2} value={value} onChange={(e) => set(e.target.value)} />;
+            } else {
+                const type = kind === 'date' ? 'date' : kind === 'time' ? 'time' : (kind === 'number' || kind === 'money') ? 'number' : 'text';
+                control = (
+                    <input
+                        className="input"
+                        type={type}
+                        step={kind === 'money' ? '0.01' : undefined}
+                        min={kind === 'number' || kind === 'money' ? '0' : undefined}
+                        value={value}
+                        onChange={(e) => set(kind === 'number' || kind === 'money'
+                            ? (e.target.value === '' ? null : Number(e.target.value))
+                            : e.target.value)}
+                    />
+                );
+            }
+            return (
+                <label key={key} className={`bookings__edit-field${kind === 'wide' ? ' is-wide' : ''}`}>
+                    <span>{label}</span>
+                    {control}
+                </label>
+            );
+        })}
+    </div>
+);
+
 const fmtDay = (value) => (value
     ? new Date(`${String(value).slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, {
         weekday: 'short', day: 'numeric', month: 'short',
@@ -26,10 +105,11 @@ const PasteBooking = ({ open, onClose, trip = null, days = [], onSaved }) => {
     const [dropped, setDropped] = useState(0);
     const [saving, setSaving] = useState(false);
     const [report, setReport] = useState(null);
+    const [editing, setEditing] = useState(null);
 
     const reset = () => {
         setPaste(''); setReading(false); setError(null); setFound([]);
-        setChosen([]); setDropped(0); setSaving(false); setReport(null);
+        setChosen([]); setDropped(0); setSaving(false); setReport(null); setEditing(null);
     };
     const close = () => { reset(); onClose?.(); };
 
@@ -89,7 +169,7 @@ const PasteBooking = ({ open, onClose, trip = null, days = [], onSaved }) => {
     const title = report ? 'Saved' : found.length ? 'What it found' : 'Paste a confirmation';
 
     return (
-        <Modal open={open} onClose={close} title={title}>
+        <Modal open={open} onClose={close} title={title} size="wide">
             <div className="bookings__paste">
                 {report ? (
                     <>
@@ -113,7 +193,7 @@ const PasteBooking = ({ open, onClose, trip = null, days = [], onSaved }) => {
                 ) : found.length ? (
                     <>
                         <p>
-                            Untick anything you don’t want. Nothing is saved until you press the button.
+                            Untick anything you don’t want, and press Edit to fix anything it read wrong. Nothing is saved until you press the button.
                             {trip ? ' Everything in this trip’s dates goes straight onto its day.' : ''}
                         </p>
                         {dropped > 0 && (
@@ -127,9 +207,14 @@ const PasteBooking = ({ open, onClose, trip = null, days = [], onSaved }) => {
                                 const date = dateOf(item);
                                 const outside = trip && !inTrip(date, trip);
                                 return (
-                                    <li key={`${item.type}-${date}-${i}`}>
-                                        <label className="bookings__item">
-                                            <input type="checkbox" checked={chosen.includes(i)} onChange={() => toggle(i)} />
+                                    <li key={`${item.type}-${i}`} className={editing === i ? 'is-editing' : ''}>
+                                        <div className="bookings__item">
+                                            <input
+                                                type="checkbox"
+                                                aria-label={`Keep ${summaryOf(item)}`}
+                                                checked={chosen.includes(i)}
+                                                onChange={() => toggle(i)}
+                                            />
                                             <span className="bookings__face" aria-hidden="true">{faceOf(item)}</span>
                                             <span className="bookings__body">
                                                 <strong>{summaryOf(item)}</strong>
@@ -139,11 +224,25 @@ const PasteBooking = ({ open, onClose, trip = null, days = [], onSaved }) => {
                                                     </em>
                                                     {' '}{fmtDay(date)}
                                                     {item.type === 'stay' ? ` → ${fmtDay(item.check_out)}` : ''}
+                                                    {item.cost ? ` · ${item.currency || 'USD'} ${Number(item.cost).toLocaleString()}` : ''}
                                                     {item.confirmation ? ` · #${item.confirmation}` : ''}
                                                     {outside ? ' · outside this trip' : ''}
                                                 </span>
                                             </span>
-                                        </label>
+                                            <button
+                                                type="button"
+                                                className="bookings__edit-btn"
+                                                onClick={() => setEditing(editing === i ? null : i)}
+                                            >
+                                                {editing === i ? 'Done' : 'Edit'}
+                                            </button>
+                                        </div>
+                                        {editing === i && (
+                                            <ItemEditor
+                                                item={item}
+                                                onChange={(next) => setFound((prev) => prev.map((x, j) => (j === i ? next : x)))}
+                                            />
+                                        )}
                                     </li>
                                 );
                             })}
