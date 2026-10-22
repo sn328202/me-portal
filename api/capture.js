@@ -1708,7 +1708,9 @@ export default async function handler(req, res) {
                 post.author ? `Posted by: ${post.author}` : null,
                 post.title ? `Title: ${post.title}` : null,
                 post.excerpt ? `Caption or description:\n${post.excerpt}` : null,
-                post.problem ? `The post itself could not be read — ${post.problem}. Save it by its link and say so.` : null,
+                post.problem || !post.readable
+                    ? `The post itself could not be read — ${post.problem || 'it gave back no caption or title'}. Save it by its link and say so. Do not give it a generic name like "TikTok recipe" or "TikTok link": generic names collide with earlier unreadable saves and get skipped as duplicates. Name it after the link itself. An earlier unreadable save is a different post unless it has this exact link.`
+                    : null,
                 text && text !== shared ? `She also said: ${text}` : null,
                 'Save it under that exact link.',
             ].filter(Boolean).join('\n');
