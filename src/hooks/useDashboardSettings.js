@@ -19,6 +19,7 @@ import { orderedWidgets, moveWidget, spanOf, nextSpan } from '../utils/dashboard
 export const ALL_WIDGETS = [
     { id: 'today', label: 'Today', description: 'Rituals, tasks and the whole shopping list — what you typed and what the meal plan needs — in one card' },
     { id: 'tobook', label: 'Still to Book', description: 'Every stop marked "to book", across all trips, in date order' },
+    { id: 'circle', label: 'The Circle', description: 'Birthdays in the next three weeks, and anyone due a catch-up' },
     { id: 'greeting', label: 'Traveler Welcome', description: 'Personalized greeting and date' },
     { id: 'chores', label: 'Estate Upkeep', description: 'Room-by-room chore tracking' },
     { id: 'travel', label: 'Next Expedition', description: 'Trip countdown and atlas link' },

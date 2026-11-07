@@ -23,6 +23,7 @@ const Studio = lazy(() => import('./pages/Studio'));
 const Play = lazy(() => import('./pages/Play'));
 const SharedTrip = lazy(() => import('./pages/SharedTrip'));
 const Wardrobe = lazy(() => import('./pages/Wardrobe'));
+const People = lazy(() => import('./pages/People'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -108,6 +109,8 @@ function App() {
                             <Route path="/study" element={<Studio />} />
                             <Route path="/play" element={<Play />} />
                             <Route path="/wardrobe" element={<Wardrobe />} />
+                            <Route path="/circle" element={<People />} />
+                            <Route path="/people" element={<Navigate to="/circle" replace />} />
                             <Route path="/settings" element={<Settings />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
