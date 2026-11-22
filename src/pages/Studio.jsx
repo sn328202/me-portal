@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import KanbanBoard from '../components/KanbanBoard';
 import StatusMonitor from '../components/StatusMonitor';
 import Curator from '../components/Curator';
-import { GiTiedScroll, GiSatelliteCommunication, GiScrollUnfurled, GiDesk } from 'react-icons/gi';
+import Repertoire from '../components/Repertoire';
+import { GiTiedScroll, GiSatelliteCommunication, GiScrollUnfurled, GiDesk, GiBallerinaShoes } from 'react-icons/gi';
 import { PageHeader, Tabs, TabPanel } from '../components/ui';
 
 /* The Curator came in from a room of its own. A news wire set once in
@@ -11,11 +12,12 @@ import { PageHeader, Tabs, TabPanel } from '../components/ui';
 const TABS = [
     { id: 'ledger', label: 'The Ledger', icon: <GiTiedScroll /> },
     { id: 'monitor', label: 'The Monitor', icon: <GiSatelliteCommunication /> },
-    { id: 'curator', label: 'The Curator', icon: <GiScrollUnfurled /> }
+    { id: 'curator', label: 'The Curator', icon: <GiScrollUnfurled /> },
+    { id: 'repertoire', label: 'The Repertoire', icon: <GiBallerinaShoes /> }
 ];
 
 const Studio = () => {
-    const [activeTab, setActiveTab] = useState('ledger'); // 'ledger' | 'monitor' | 'curator'
+    const [activeTab, setActiveTab] = useState('ledger'); // 'ledger' | 'monitor' | 'curator' | 'repertoire'
 
     return (
         <div className="page">
@@ -40,6 +42,12 @@ const Studio = () => {
             </TabPanel>
             <TabPanel id="curator" active={activeTab}>
                 <Curator />
+            </TabPanel>
+            {/* Every dance she has choreographed. It lives in the Study
+                because a set is designed here: songs picked, counts written,
+                the tutorial cut. */}
+            <TabPanel id="repertoire" active={activeTab}>
+                <Repertoire />
             </TabPanel>
         </div>
     );

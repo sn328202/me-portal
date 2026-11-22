@@ -1,0 +1,92 @@
+/* The Repertoire — the Study's dance book. Tokens only; see docs/design-system.md. */
+
+.rep__head { align-items: center; }
+
+.rep__error { color: var(--accent-red); margin: 0; font-size: var(--text-sm); }
+
+.rep__search { max-width: 18rem; }
+
+.rep__songs,
+.rep__uses,
+.rep__preview {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.rep__songs {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.rep__song {
+    border-bottom: var(--rule-hair);
+    padding-bottom: var(--space-3);
+}
+
+.rep__song-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.rep__song-title {
+    font-size: var(--text-lg);
+    font-family: var(--font-heading, inherit);
+}
+
+.rep__uses {
+    margin-top: var(--space-1);
+    display: grid;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+}
+
+.rep__as { font-style: italic; }
+
+.rep__jumps {
+    display: inline-flex;
+    gap: var(--space-2);
+    margin-left: var(--space-2);
+    font-size: var(--text-xs);
+}
+
+.rep__jumps a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.rep__sets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+    gap: var(--space-4);
+}
+
+.rep__meta { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+
+.rep__setlist {
+    margin: 0;
+    padding-left: var(--space-5);
+    display: grid;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+}
+
+.rep__setlist .tag,
+.rep__uses .tag,
+.rep__preview .tag { margin-left: var(--space-1); }
+
+.rep__notes { margin: var(--space-2) 0 0; font-size: var(--text-sm); }
+
+.rep__preview {
+    display: grid;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    border: var(--rule-hair);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+}
+
+.rep__stamps { margin-left: var(--space-2); font-size: var(--text-xs); }
