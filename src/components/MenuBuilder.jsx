@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import {
     GiCook, GiMeal, GiClockwork, GiTrashCan, GiScrollQuill,
-    GiMagicPotion, GiPencil, GiThirdEye, GiShop, GiHourglass
+    GiMagicPotion, GiPencil, GiThirdEye, GiShop, GiHourglass, GiBasket
 } from 'react-icons/gi';
 import MenuView from './MenuView';
+import MenuShop from './MenuShop';
 import CookPlan from './CookPlan';
 import { Button, Card, ConfirmButton, EmptyState, Field, Stat } from './ui';
 
@@ -40,11 +41,13 @@ const MenuBuilder = ({
     onDeleteMenu,
     onSetServeTime,
     onSavePlan,
+    onSaveShop,
     creating,
     onCreatingChange
 }) => {
     const [viewingMenu, setViewingMenu] = useState(null);
     const [planningId, setPlanningId] = useState(null);
+    const [shoppingId, setShoppingId] = useState(null);
     const [editingId, setEditingId] = useState(null);
     const [newMenu, setNewMenu] = useState({ title: '', occasion: '', notes: '' });
     const [titleError, setTitleError] = useState('');
@@ -400,6 +403,14 @@ const MenuBuilder = ({
                                     <Button
                                         icon
                                         size="sm"
+                                        label={`Shopping list for ${menu.title}`}
+                                        onClick={() => setShoppingId(menu.id)}
+                                    >
+                                        <GiBasket />
+                                    </Button>
+                                    <Button
+                                        icon
+                                        size="sm"
                                         label={`Cooking schedule for ${menu.title}`}
                                         onClick={() => setPlanningId(menu.id)}
                                     >
@@ -469,6 +480,18 @@ const MenuBuilder = ({
                     menu={viewingMenu}
                     recipes={recipes}
                     onClose={() => setViewingMenu(null)}
+                />
+            )}
+
+            {/* Live, like the cooking schedule below: every tick and swap saves
+                and re-renders, so the menu is read from the list each time. */}
+            {shoppingId && menus.find(m => m.id === shoppingId) && (
+                <MenuShop
+                    menu={menus.find(m => m.id === shoppingId)}
+                    menus={menus}
+                    recipes={recipes}
+                    onSaveShop={onSaveShop}
+                    onClose={() => setShoppingId(null)}
                 />
             )}
 

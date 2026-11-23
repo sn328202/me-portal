@@ -260,7 +260,7 @@ const Larder = () => {
     } = useIngredients();
     const {
         menus, loading: menusLoading, notice: menuNotice, clearNotice: clearMenuNotice,
-        addMenu, updateMenu, deleteMenu, setServeTime, savePlan,
+        addMenu, updateMenu, deleteMenu, setServeTime, savePlan, saveShop,
     } = useMenus();
     const {
         dayPlans, notice: dayNotice, clearNotice: clearDayNotice,
@@ -711,6 +711,7 @@ const Larder = () => {
                         onDeleteMenu={deleteMenu}
                         onSetServeTime={setServeTime}
                         onSavePlan={savePlan}
+                        onSaveShop={saveShop}
                         creating={isBuildingMenu}
                         onCreatingChange={setIsBuildingMenu}
                     />

@@ -214,6 +214,27 @@ export const useMenus = () => {
         setMenus((prev) => prev.map((m) => (m.id === id ? { ...m, plan: plan || null } : m)));
     };
 
+    /**
+     * How she shops for a menu: multipliers, swaps, extras, ticks.
+     *
+     * Saved optimistically, because a tick in a shop has to land the moment
+     * it is tapped. If the save fails the page keeps what she did and says so;
+     * the most likely cause is the `shop` column not being migrated yet.
+     */
+    const saveShop = async (id, shop) => {
+        if (!user) return;
+        setMenus((prev) => prev.map((m) => (m.id === id ? { ...m, shop } : m)));
+        const { error: saveError } = await supabase
+            .from('user_larder_menus')
+            .update({ shop })
+            .eq('id', id)
+            .eq('user_id', user.id);
+        if (saveError) {
+            console.error('Error saving menu shopping list:', saveError);
+            setNotice("Couldn't save the shopping list for that menu. Your changes show here but may not be kept.");
+        }
+    };
+
     return {
         menus,
         loading,
@@ -225,6 +246,7 @@ export const useMenus = () => {
         deleteMenu,
         setServeTime,
         savePlan,
+        saveShop,
         refreshMenus: fetchMenus
     };
 };
