@@ -127,16 +127,15 @@ export const eventsForDay = (day, dayItems = [], legs = []) => {
 };
 
 /**
- * The Atlas trip as a planner trip.
+ * The Atlas's per-day weather in the planner's shape.
  *
- * `existing` is the planner's current copy, if it has one — its `byProfile`
- * carries every outfit and tick you have made and must survive the handoff.
+ * Shared by the handoff and by the planner's own Refresh weather button, which
+ * asks the Atlas to re-fetch rather than looking up one city for the whole
+ * trip itself.
  */
-export const wardrobeTrip = (trip, { days = [], items = {}, legs = [], existing = null } = {}) => {
-    const ordered = [...days].sort((a, b) => iso(a.date).localeCompare(iso(b.date)));
-
+export const wardrobeWeather = (days = []) => {
     const weather = {};
-    for (const day of ordered) {
+    for (const day of days) {
         const w = day.weather;
         if (!w || w.high == null) continue;
         weather[iso(day.date)] = {
@@ -149,6 +148,20 @@ export const wardrobeTrip = (trip, { days = [], items = {}, legs = [], existing 
             estimated: w.source === 'normal',
         };
     }
+
+    return weather;
+};
+
+/**
+ * The Atlas trip as a planner trip.
+ *
+ * `existing` is the planner's current copy, if it has one — its `byProfile`
+ * carries every outfit and tick you have made and must survive the handoff.
+ */
+export const wardrobeTrip = (trip, { days = [], items = {}, legs = [], existing = null } = {}) => {
+    const ordered = [...days].sort((a, b) => iso(a.date).localeCompare(iso(b.date)));
+
+    const weather = wardrobeWeather(ordered);
 
     const events = ordered.flatMap((day) => eventsForDay(day, items[day.id] || [], legs));
 
