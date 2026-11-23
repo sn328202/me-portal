@@ -1072,6 +1072,22 @@ async function fetchTripWeather(trip){
 async function refreshWeather(){
   const t=trips.find(x=>x.id===currentTripId);
   toast("Refreshing weather…");
+  // A trip from the Atlas is refreshed by the Atlas, which looks up each
+  // day's own city. Only the weather comes back; outfits are not touched.
+  let atlas=null;
+  try{if(String(t.id).startsWith("atlas-")&&window.parent&&window.parent!==window)atlas=window.parent.portalAtlasWeather||null;}catch(e){}
+  if(atlas){
+    try{
+      const r=await atlas(t.id);
+      const n=Object.keys(r.weather||{}).length;
+      if(!n){toast(r.reason||(r.problems&&r.problems.length?"Weather service is down — try again later":"No weather for these dates"));return;}
+      t.weather={...(t.weather||{}),...r.weather};
+      t.weatherFetched=new Date().toISOString();
+      persist();openTrip(t.id);
+      toast(r.problems&&r.problems.length?`Updated ${n} days — some couldn't be fetched, try again later`:`Weather updated for ${n} days`);
+    }catch(e){toast("Couldn't fetch weather: "+(e&&e.message?e.message:"try again later"));}
+    return;
+  }
   try{await fetchTripWeather(t);persist();openTrip(t.id);toast("Weather updated");}
   catch(e){toast("Couldn't fetch weather");}
 }
