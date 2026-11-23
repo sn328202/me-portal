@@ -21,7 +21,7 @@
  * error, and she can always paste the caption in.
  */
 
-import { fetchHtml, firstMeta, decode } from './_html.js';
+import { fetchHtml, firstMeta, decode, UA } from './_html.js';
 
 export const PLATFORMS = {
     tiktok: /(^|\.)tiktok\.com$/i,
@@ -94,7 +94,10 @@ export const expand = async (raw) => {
     } catch {
         return raw;
     }
-    if (!SHORTENERS.test(url.hostname)) return canonical(raw);
+    // The iOS share sheet now hands over www.tiktok.com/t/<code>/ — a short
+    // link on the main host, which the hostname test alone would miss.
+    const tiktokShort = /(^|\.)tiktok\.com$/i.test(url.hostname) && /^\/t\//.test(url.pathname);
+    if (!SHORTENERS.test(url.hostname) && !tiktokShort) return canonical(raw);
 
     try {
         const res = await fetch(url.toString(), {
@@ -123,17 +126,118 @@ const oembed = async (endpoint) => {
     return res.json();
 };
 
+/** The numeric id in a /@user/video/<id> link. */
+export const tiktokIdOf = (url) => (String(url || '').match(/\/video\/(\d+)/) || [])[1] || null;
+
+const scriptJson = (html, id) => {
+    const m = html.match(new RegExp(`<script id="${id}"[^>]*>([\\s\\S]*?)</script>`));
+    if (!m) return null;
+    try {
+        return JSON.parse(m[1]);
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * The embed player page. Since Oct 2026 this is where the caption lives:
+ * oEmbed still answers 200 but no longer carries title, author_name or
+ * thumbnail_url — only the video id and the iframe. Nothing errors, so the
+ * failure looked like "a post with no caption" rather than a broken reader.
+ */
+export const parseTikTokEmbed = (html) => {
+    const state = scriptJson(html, '__FRONTITY_CONNECT_STATE__');
+    const pages = state?.source?.data || {};
+    const video = Object.values(pages).find((p) => p && p.videoData)?.videoData;
+    if (!video) return null;
+    return {
+        caption: video.itemInfos?.text || null,
+        author: video.authorInfos?.uniqueId || video.authorInfos?.nickName || null,
+        thumbnail: video.itemInfos?.covers?.[0] || null,
+    };
+};
+
+/** The full video page, as a last resort. Heavier, and more often refused. */
+export const parseTikTokPage = (html) => {
+    const data = scriptJson(html, '__UNIVERSAL_DATA_FOR_REHYDRATION__');
+    const item = data?.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct;
+    if (!item) return null;
+    return {
+        caption: item.desc || null,
+        author: item.author?.uniqueId || item.author?.nickname || null,
+        thumbnail: item.video?.cover || item.video?.originCover || null,
+    };
+};
+
+const fetchText = async (url) => {
+    const res = await fetch(url, {
+        redirect: 'follow',
+        headers: { 'user-agent': UA, 'accept-language': 'en-US,en;q=0.9', accept: 'text/html' },
+        signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`TikTok refused the page (${res.status})`);
+    return { html: await res.text(), url: res.url };
+};
+
 async function readTikTok(url) {
-    const data = await oembed(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`);
+    let caption = null;
+    let author = null;
+    let thumbnail = null;
+    let id = tiktokIdOf(url);
+    const tried = [];
+
+    // oEmbed first: cheap, and if TikTok ever restores the caption there it
+    // wins again without a code change.
+    try {
+        const data = await oembed(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`);
+        caption = data.title || null;
+        author = data.author_name || null;
+        thumbnail = data.thumbnail_url || null;
+        id = id || data.embed_product_id || null;
+    } catch (err) {
+        tried.push(err.message);
+    }
+
+    const fill = (got) => {
+        if (!got) return;
+        caption = caption || got.caption;
+        author = author || got.author;
+        thumbnail = thumbnail || got.thumbnail;
+    };
+
+    if (!caption && id) {
+        try {
+            const { html } = await fetchText(`https://www.tiktok.com/embed/v2/${id}`);
+            const got = parseTikTokEmbed(html);
+            if (!got) tried.push('the embed page had no post data');
+            fill(got);
+        } catch (err) {
+            tried.push(err.message);
+        }
+    }
+
+    if (!caption) {
+        try {
+            const { html } = await fetchText(url);
+            const got = parseTikTokPage(html);
+            if (!got) tried.push('the video page had no post data');
+            fill(got);
+        } catch (err) {
+            tried.push(err.message);
+        }
+    }
+
+    if (!caption) {
+        throw new Error(`TikTok gave back no caption${tried.length ? ` (${tried.join('; ')})` : ''}`);
+    }
+
     return {
         platform: 'tiktok',
-        // TikTok puts the whole caption in `title`. It is the caption, not a
-        // title, and treating it as one produces absurd names — so it becomes
-        // the excerpt and the title is trimmed from it.
-        title: shorten(data.title),
-        excerpt: data.title || null,
-        author: data.author_name || null,
-        thumbnail: data.thumbnail_url || null,
+        // A caption is not a title; the title is trimmed from it.
+        title: shorten(caption),
+        excerpt: caption,
+        author,
+        thumbnail,
     };
 }
 

@@ -42,6 +42,8 @@ const ROUTES = [
     // link reaches into it and calls its own `openTrip`. Both are exactly the
     // kind of thing that works until the planner is edited by someone else.
     '/wardrobe', '/wardrobe?trip=atlas-4242',
+    // The Circle, each tab, and its old name.
+    '/circle', '/circle?tab=birthdays', '/circle?tab=catchup', '/circle?tab=groups', '/people',
     // Retired rooms. Kept in the list because a bookmark is a promise: these
     // must still land somewhere, and a redirect that has quietly stopped
     // redirecting looks exactly like a working page until you follow it.

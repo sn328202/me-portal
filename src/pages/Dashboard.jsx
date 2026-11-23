@@ -12,6 +12,7 @@ import ChoresWidget from '../widgets/ChoresWidget';
 import TravelWidget from '../widgets/TravelWidget';
 import TodayWidget from '../widgets/TodayWidget';
 import ToBookWidget from '../widgets/ToBookWidget';
+import CircleWidget from '../widgets/CircleWidget';
 import CapturesWidget from '../widgets/CapturesWidget';
 import { useRecipes } from '../hooks/useRecipes';
 import { useHabits } from '../hooks/useHabits';
@@ -28,6 +29,7 @@ import '../styles/Dashboard.css';
 const WIDGETS = {
     today: ({ mealPlan, recipes }) => <TodayWidget plan={mealPlan} recipes={recipes} />,
     tobook: () => <ToBookWidget />,
+    circle: () => <CircleWidget />,
     captures: () => <CapturesWidget />,
     chores: () => <ChoresWidget />,
     travel: () => <TravelWidget />,
@@ -40,6 +42,7 @@ const WIDGETS = {
 const NAMES = {
     today: 'Today',
     tobook: 'Still to book',
+    circle: 'The Circle',
     captures: 'Dictations',
     chores: 'Upkeep',
     travel: 'Next expedition',

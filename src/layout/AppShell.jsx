@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { GiSecretBook, GiCardRandom, GiGears, GiCookingPot, GiOpenTreasureChest, GiBookshelf, GiWorld, GiDesk, GiDress } from 'react-icons/gi';
+import { GiSecretBook, GiCardRandom, GiGears, GiCookingPot, GiOpenTreasureChest, GiBookshelf, GiWorld, GiDesk, GiDress, GiThreeFriends } from 'react-icons/gi';
 import QuickCapture from '../components/QuickCapture';
 import './AppShell.css';
 
@@ -16,6 +16,7 @@ const AppShell = ({ children }) => {
   const navItems = [
     { path: '/', icon: GiSecretBook, label: 'Dashboard' },
     { path: '/atlas', icon: GiWorld, label: 'The Atlas' },
+    { path: '/circle', icon: GiThreeFriends, label: 'The Circle' },
     { path: '/larder', icon: GiCookingPot, label: 'The Larder' },
     { path: '/treasury', icon: GiOpenTreasureChest, label: 'The Treasury' },
     { path: '/wardrobe', icon: GiDress, label: 'The Wardrobe' },
