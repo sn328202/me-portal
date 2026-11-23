@@ -1075,7 +1075,8 @@ async function refreshWeather(){
   // A trip from the Atlas is refreshed by the Atlas, which looks up each
   // day's own city. Only the weather comes back; outfits are not touched.
   let atlas=null;
-  try{if(String(t.id).startsWith("atlas-")&&window.parent&&window.parent!==window)atlas=window.parent.portalAtlasWeather||null;}catch(e){}
+  // The portal puts this on the planner's own window when it embeds it.
+  try{if(String(t.id).startsWith("atlas-"))atlas=window.portalAtlasWeather||null;}catch(e){}
   if(atlas){
     try{
       const r=await atlas(t.id);
