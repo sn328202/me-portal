@@ -379,5 +379,17 @@ console.log('\ntravel legs — real days, just not a place:');
         'Air Travel');
 }
 
+/* A forecast comes back for sixteen days whatever was asked. Each city's
+   answer must only land on that city's own days, or the last city fetched
+   overwrites the whole trip (Tulum's weather on Flower Mound's days). */
+{
+    const { onlyDates } = await import('../api/weather.js');
+    console.log('\nweather per city:');
+    const tulum = { '2026-11-23': { high: 80 }, '2026-12-03': { high: 83 } };
+    check('a forecast keeps only its own dates', onlyDates(tulum, ['2026-12-03']), { '2026-12-03': { high: 83 } });
+    check('dates it has no answer for are left out', onlyDates(tulum, ['2026-12-09']), {});
+    check('a missing answer is nothing', onlyDates(undefined, ['2026-12-03']), {});
+}
+
 console.log(failed ? `\n${failed} failing\n` : '\nall passing\n');
 process.exit(failed ? 1 : 0);

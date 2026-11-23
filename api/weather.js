@@ -62,6 +62,13 @@ const commonest = (codes) => {
 
 const iso = (d) => d.toISOString().slice(0, 10);
 
+/** Keep only the entries for the given dates. */
+export const onlyDates = (byDate, dates) => {
+    const out = {};
+    for (const date of dates) if (byDate?.[date]) out[date] = byDate[date];
+    return out;
+};
+
 /** Real forecast, keyed by date. Open-Meteo gives 16 days. */
 async function forecastFor({ lat, lng }) {
     const url = `${FORECAST}?latitude=${lat}&longitude=${lng}&daily=${DAILY}`
@@ -246,18 +253,22 @@ export default async function handler(req, res) {
         }
     }
 
+    /* Each place's answer is kept to that place's own dates. A forecast comes
+       back for sixteen days whatever was asked, so merging it in whole let the
+       last city processed overwrite every other city's days - on the Mexico
+       trip, Flower Mound and Mexico City both showed Tulum's weather. */
     const weatherFor = {};
     for (const { place, near: nearDates, far: farDates } of byPlace.values()) {
         if (nearDates.length) {
             try {
-                Object.assign(weatherFor, await forecastFor(place));
+                Object.assign(weatherFor, onlyDates(await forecastFor(place), nearDates));
             } catch (err) {
                 problems.push(`forecast: ${err.message}`);
             }
         }
         if (farDates.length) {
             try {
-                Object.assign(weatherFor, await normalsFor(place, farDates));
+                Object.assign(weatherFor, onlyDates(await normalsFor(place, farDates), farDates));
             } catch (err) {
                 problems.push(`averages: ${err.message}`);
             }
