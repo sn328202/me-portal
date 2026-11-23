@@ -1046,13 +1046,27 @@ async function fetchTripWeather(trip){
   if(!g.results||!g.results.length){trip.geo=null;return;}
   const {latitude,longitude,name,country}=g.results[0];
   trip.geo={lat:latitude,lon:longitude,label:`${name}, ${country}`};
-  const f=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=auto&start_date=${trip.start}&end_date=${trip.end}`).then(r=>r.json());
-  trip.weather={};
-  if(f.daily&&f.daily.time){f.daily.time.forEach((d,i)=>{
+  // The forecast only reaches ~16 days out and rejects a range outside that
+  // with a 400, which used to come back as "no daily" and wipe the trip's
+  // weather. Ask only for the part of the trip it can answer.
+  const today=dkey(new Date()),horizon=dkey(new Date(Date.now()+15*86400000));
+  const from=trip.start>today?trip.start:today,to=trip.end<horizon?trip.end:horizon;
+  if(from>to)throw new Error("Trip is outside the forecast window");
+  const res=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=auto&start_date=${from}&end_date=${to}`);
+  if(!res.ok)throw new Error(`Weather service returned ${res.status}`);
+  const f=await res.json();
+  if(!f.daily||!f.daily.time)throw new Error("No forecast in the response");
+  // Atlas trips arrive with each day's own city already looked up. This
+  // fetch knows one place for the whole trip, so it only fills the gaps.
+  const fromAtlas=String(trip.id).startsWith("atlas-");
+  const next={...(trip.weather||{})};
+  f.daily.time.forEach((d,i)=>{
     const mx=f.daily.temperature_2m_max[i],mn=f.daily.temperature_2m_min[i];
     if(mx==null&&mn==null)return; // out of forecast range -> leave to season fallback
-    trip.weather[d]={tmax:mx,tmin:mn,pp:f.daily.precipitation_probability_max[i],code:f.daily.weathercode?f.daily.weathercode[i]:null};
-  });}
+    if(fromAtlas&&next[d]&&!next[d].estimated)return;
+    next[d]={tmax:mx,tmin:mn,pp:f.daily.precipitation_probability_max[i],code:f.daily.weathercode?f.daily.weathercode[i]:null};
+  });
+  trip.weather=next;
   trip.weatherFetched=new Date().toISOString();
 }
 async function refreshWeather(){
