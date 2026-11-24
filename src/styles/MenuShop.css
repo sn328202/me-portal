@@ -1,0 +1,246 @@
+/* The shopping list for a menu.
+   The list itself reuses the weekly list's .shop__* rows so the two read the
+   same; this file is the frame around it and the printed sheet. */
+
+.mshop {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    max-width: 72rem;
+    margin: 0 auto;
+}
+
+.mshop__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.mshop__bar-right { display: inline-flex; gap: var(--space-2); }
+
+.mshop__title {
+    margin: 0;
+    font-size: var(--text-xl);
+    color: var(--text-gold);
+}
+
+/* Settings beside the list on a wide screen, above it on a phone. */
+.mshop__layout {
+    display: grid;
+    grid-template-columns: minmax(16rem, 22rem) 1fr;
+    gap: var(--space-5);
+    align-items: start;
+}
+
+@media (max-width: 760px) {
+    .mshop__layout { grid-template-columns: 1fr; }
+}
+
+.mshop__side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.mshop__panel {
+    padding: var(--space-3);
+    border: var(--rule-hair);
+    border-radius: var(--radius-md);
+    background: var(--bg-hover);
+}
+
+.mshop__panel h3 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: var(--case-heading, uppercase);
+    color: var(--text-gold);
+}
+
+.mshop__menu-name {
+    margin: var(--space-2) 0 var(--space-1);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.mshop__dish {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+}
+
+.mshop__dish + .mshop__dish { border-top: var(--rule-hair); }
+
+.mshop__dish-name { font-size: var(--text-sm); min-width: 0; }
+
+.mshop__stepper {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    border: var(--rule-accent);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+}
+
+.mshop__stepper button {
+    min-width: 2rem;
+    min-height: 2rem;
+    font: inherit;
+    font-size: var(--text-base);
+    color: var(--text-main);
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.mshop__stepper button:disabled { color: var(--text-muted); cursor: default; }
+
+.mshop__times {
+    min-width: 3.25rem;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-gold);
+}
+
+.mshop__chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.mshop__chip {
+    padding: var(--space-1) var(--space-3);
+    font: inherit;
+    font-size: var(--text-sm);
+    color: var(--text-main);
+    background: none;
+    border: var(--rule-hair);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+}
+
+.mshop__chip--on {
+    color: var(--text-gold);
+    border: var(--rule-accent);
+    background: var(--bg-main, transparent);
+}
+
+.mshop__check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    cursor: pointer;
+}
+
+.mshop__changes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-sm);
+}
+
+.mshop__changes li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.mshop__changes li + li { border-top: var(--rule-hair); }
+
+.mshop__row { position: relative; }
+
+.mshop__row-actions {
+    display: inline-flex;
+    margin-left: auto;
+    opacity: 0.55;
+}
+
+.mshop__row:hover .mshop__row-actions,
+.mshop__row:focus-within .mshop__row-actions { opacity: 1; }
+
+.mshop__swapped {
+    font-size: var(--text-xs);
+    color: var(--text-gold);
+}
+
+.mshop__swap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    width: 100%;
+    padding-bottom: var(--space-2);
+}
+
+.mshop__swap .input { flex: 1 1 12rem; min-width: 0; }
+
+/* In a column, the add box's flex-basis became a 14rem-tall gap. */
+.mshop__list .shop__add { flex: none; }
+
+/* ---------- on paper -------------------------------------------------------
+   Only the list goes on paper. The sheet is rendered beside the app (see
+   PrintSheet), and while the menu's list is open the app is hidden from the
+   printer, so nothing behind the modal prints and nothing has to be
+   flattened. */
+
+.mshop-print { display: none; }
+
+@media print {
+    @page { size: auto; margin: 12mm; }
+
+    body.mshop-printing {
+        background: #fff !important;
+        color: #111 !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+
+    body.mshop-printing > #root { display: none !important; }
+
+    body.mshop-printing .mshop-print {
+        display: block;
+        font-family: Helvetica, Arial, sans-serif;
+        color: #111;
+    }
+
+    .mshop-print h1 { margin: 0 0 4mm; font-size: 18pt; }
+
+    .mshop-print section { break-inside: avoid; margin-top: 5mm; }
+
+    .mshop-print h2 {
+        margin: 0 0 1mm;
+        padding-bottom: 1mm;
+        border-bottom: 1px solid #111;
+        font-size: 9.5pt;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .mshop-print ul { margin: 0; padding: 0; list-style: none; }
+
+    .mshop-print li {
+        display: flex;
+        align-items: baseline;
+        gap: 3mm;
+        padding: 1.6mm 0;
+        border-bottom: 1px solid #ddd;
+        break-inside: avoid;
+        font-size: 10.5pt;
+    }
+
+    .mshop-print__box {
+        flex-shrink: 0;
+        width: 3.2mm;
+        height: 3.2mm;
+        border: 1px solid #555;
+        border-radius: 0.6mm;
+        transform: translateY(0.4mm);
+    }
+
+    .mshop-print__what { flex: 1 1 auto; }
+    .mshop-print__what em { color: #555; font-size: 9pt; }
+    .mshop-print__for { flex: 0 1 45%; text-align: right; color: #666; font-size: 8.5pt; font-style: italic; }
+}
