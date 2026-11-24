@@ -4,6 +4,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { fontHref, wardrobeCss } from '../utils/wardrobeTheme';
 import { useWardrobeBackup } from '../hooks/useWardrobeBackup';
 import { atlasIdFrom, readTrips } from '../utils/wardrobeLink';
+import { wardrobeWeather } from '../utils/wardrobeHandoff';
+import { supabase } from '../lib/supabase';
 import '../styles/Wardrobe.css';
 
 /**
@@ -138,11 +140,54 @@ export default function Wardrobe() {
         }
     }, [wanted]);
 
+    /**
+     * Refresh weather, for a trip that came from the Atlas.
+     *
+     * The planner on its own looks up one city for the whole trip, so on a
+     * trip that moves it would put Flower Mound's weather on the Tulum days.
+     * Instead it asks here: the Atlas re-fetches every day for that day's own
+     * city, and the planner gets back just the weather. Outfits, ticks and
+     * looks are the planner's and are never sent or touched.
+     */
+    const offerWeather = useCallback((el) => {
+        const win = el?.contentWindow;
+        if (!win) return;
+        try {
+            win.portalAtlasWeather = async (wardrobeId) => {
+                const tripId = atlasIdFrom(wardrobeId);
+                if (!tripId) throw new Error('Not an Atlas trip');
+                const { data: session } = await supabase.auth.getSession();
+                const token = session?.session?.access_token;
+                if (!token) throw new Error('Sign in again to refresh weather');
+                const res = await fetch('/api/weather', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ tripId }),
+                });
+                const result = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(result.error || `weather returned ${res.status}`);
+                const { data: days, error } = await supabase
+                    .from('atlas_days').select('date, weather').eq('trip_id', tripId);
+                if (error) throw new Error(error.message);
+                return {
+                    weather: wardrobeWeather(days || []),
+                    filled: result.filled || 0,
+                    of: result.of || (days || []).length,
+                    problems: result.problems || null,
+                    reason: result.reason || null,
+                };
+            };
+        } catch {
+            // Without it the planner falls back to its own one-city lookup.
+        }
+    }, []);
+
     const started = useCallback((e) => {
         paint();
         listen(e.currentTarget);
+        offerWeather(e.currentTarget);
         openWanted(e.currentTarget);
-    }, [paint, listen, openWanted]);
+    }, [paint, listen, offerWeather, openWanted]);
 
     // Re-paint on every theme change. The iframe is not remounted, so nothing
     // else would tell it the room had changed colour.
